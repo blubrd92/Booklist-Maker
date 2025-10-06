@@ -6,17 +6,57 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Garamond:wght@400;700&family=Lato:wght@400;700&family=Merriweather:wght@400;700&family=Roboto:wght@400;700&family=Oswald:wght@700&family=Anton&display=swap');
 
-        body { font-family: sans-serif; background-color: #f0f2f5; }
+        body { font-family: sans-serif; background-color: #f0f2f5; margin-top: 60px; /* Add space for the notification bar */ }
         h1, h2 { text-align: center; }
-        .search-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-bottom: 15px; padding: 0 20px; }
+        
+        /* --- Notification Bar Styles --- */
+        #notification-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.1em;
+            color: white;
+            background-color: #dc3545; /* Default to error red */
+            transform: translateY(-100%);
+            transition: transform 0.3s ease-in-out;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        #notification-area.show {
+            transform: translateY(0);
+        }
+        #notification-area.success {
+            background-color: #28a745; /* Green for success */
+        }
+        
+        .search-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-bottom: 15px; align-items: end; }
         .form-field { display: flex; flex-direction: column; }
         .form-field label { margin-bottom: 5px; font-weight: bold; }
-        .form-field input, .form-field select { padding: 8px; width: 100%; box-sizing: border-box; }
-        #fetchButton { padding: 10px 15px; font-size: 1em; cursor: pointer; display: block; margin: 0 auto; }
+        .form-field input, .form-field select {
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #fetchButton {
+            padding: 8px 15px;
+            font-size: 1em;
+            cursor: pointer;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
         hr { margin: 20px 0; }
 
-        #results-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; margin-top: 20px; padding: 0 20px; }
+        #results-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; margin-top: 20px; }
         #results-container div { text-align: center; display: flex; flex-direction: column; justify-content: space-between; background: white; padding: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        #results-container .error-message { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; grid-column: 1 / -1; }
         #results-container button {
             margin-top: 10px;
             padding: 8px;
@@ -59,6 +99,7 @@
         .export-controls .italic-toggle { font-style: italic; }
         .export-controls button.active { background-color: #3498db; color: white; border-color: #2980b9; }
         #export-pdf-button { margin-left: auto; padding: 10px 15px; font-size: 1em; }
+        
 
         #preview-area { display: flex; flex-direction: column; gap: 20px; align-items: center; }
         .page {
@@ -234,7 +275,8 @@
         .description-field {
             font-family: var(--desc-font); color: var(--desc-color); font-size: var(--desc-font-size); font-weight: var(--desc-font-weight); font-style: var(--desc-font-style);
             margin-top: 0;
-            height: 60px;
+            height: auto;
+            flex: 1;
             resize: none;
             -webkit-hyphens: none; -ms-hyphens: none; hyphens: none;
             border: none;
@@ -264,6 +306,9 @@
         .print-mode .editable-field {
             border: none !important; /* Remove ALL uploader and field borders for PDF */
         }
+        .print-mode #front-cover-uploader {
+            background-color: transparent; /* Remove background on PDF for blank covers */
+        }
         .print-mode .list-item-controls,
         .print-mode #cover-generate-controls { /* Hide generate tools on PDF */
             display: none; 
@@ -288,6 +333,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
+    <div id="notification-area"></div>
     <h1>Booklist Maker</h1>
 
     <div class="booklist-section">
@@ -306,8 +352,8 @@
                     <option value="'Helvetica', sans-serif">Helvetica</option>
                     <option value="'Times New Roman', serif">Times New Roman</option>
                 </select>
-                <input class="font-size-input" type="number" value="19" min="8">
-                <span>px</span>
+                <input class="font-size-input" type="number" value="14" min="8">
+                <span>pt</span>
                 <input class="color-picker" type="color" value="#000000">
                 <button class="bold-toggle">B</button>
                 <button class="italic-toggle">I</button>
@@ -324,8 +370,8 @@
                     <option value="'Helvetica', sans-serif">Helvetica</option>
                     <option value="'Times New Roman', serif">Times New Roman</option>
                 </select>
-                <input class="font-size-input" type="number" value="16" min="8">
-                <span>px</span>
+                <input class="font-size-input" type="number" value="12" min="8">
+                <span>pt</span>
                 <input class="color-picker" type="color" value="#000000">
                 <button class="bold-toggle active">B</button>
                 <button class="italic-toggle">I</button>
@@ -342,8 +388,8 @@
                     <option value="'Helvetica', sans-serif">Helvetica</option>
                     <option value="'Times New Roman', serif">Times New Roman</option>
                 </select>
-                <input class="font-size-input" type="number" value="13" min="8">
-                <span>px</span>
+                <input class="font-size-input" type="number" value="11" min="8">
+                <span>pt</span>
                 <input class="color-picker" type="color" value="#000000">
                 <button class="bold-toggle">B</button>
                 <button class="italic-toggle">I</button>
@@ -377,7 +423,7 @@
                     <option value="'Helvetica', sans-serif">Helvetica</option>
                 </select>
                 <input class="font-size-input" type="number" value="40" min="8">
-                <span>px</span>
+                <span>pt</span>
                 <input class="color-picker" type="color" value="#FFFFFF">
                 <button class="bold-toggle active">B</button>
                 <button class="italic-toggle">I</button>
@@ -388,6 +434,8 @@
                     <label for="stretch-covers-toggle" style="font-size:0.9em; font-weight:normal;">Stretch Covers to Fit</label>
                 </div>
             </div>
+            <!-- NEW: Test button for debugging the description service -->
+            
             <button id="export-pdf-button">Generate PDF</button>
         </div>
 
@@ -425,36 +473,46 @@
         </div>
     </div>
 
-    <hr>
-
-    <div class="search-form">
-        <div class="form-field">
-            <label for="keywordInput">Keyword (any field)</label>
-            <input type="text" id="keywordInput" placeholder="e.g., The Hobbit">
-        </div>
-        <div class="form-field">
-            <label for="titleInput">Title</label>
-            <input type="text" id="titleInput" placeholder="e.g., Dune">
-        </div>
-        <div class="form-field">
-            <label for="authorInput">Author</label>
-            <input type="text" id="authorInput" placeholder="e.g., Frank Herbert">
-        </div>
-        <div class="form-field">
-            <label for="subjectInput">Subject</label>
-            <input type="text" id="subjectInput" placeholder="e.g., science fiction">
-        </div>
-        <div class="form-field">
-            <label for="languageInput">Language</label>
-            <input type="text" id="languageInput" placeholder="e.g., spa (for Spanish)">
-        </div>
+    <div style="max-width: 1280px; margin: 0 auto; padding: 0 20px;">
+        <hr>
+        <form class="search-form" id="search-form">
+            <div class="form-field">
+                <label for="keywordInput">Keyword (any field)</label>
+                <input type="text" id="keywordInput" placeholder="e.g., The Hobbit">
+            </div>
+            <div class="form-field">
+                <label for="titleInput">Title</label>
+                <input type="text" id="titleInput" placeholder="e.g., Dune">
+            </div>
+            <div class="form-field">
+                <label for="authorInput">Author</label>
+                <input type="text" id="authorInput" placeholder="e.g., Frank Herbert">
+            </div>
+            <div class="form-field">
+                <label for="subjectInput">Subject</label>
+                <input type="text" id="subjectInput" placeholder="e.g., science fiction">
+            </div>
+            <div class="form-field">
+                <label for="isbnInput">ISBN</label>
+                <input type="text" id="isbnInput" placeholder="e.g., 9780321765723">
+            </div>
+            <div class="form-field">
+                <label for="publisherInput">Publisher</label>
+                <input type="text" id="publisherInput" placeholder="e.g., Penguin Classics">
+            </div>
+            <div class="form-field">
+                <label for="personInput">Contributor</label>
+                <input type="text" id="personInput" placeholder="e.g., an illustrator">
+            </div>
+            <button type="submit" id="fetchButton">Search</button>
+        </form>
+        <hr>
     </div>
-    <button id="fetchButton">Search</button>
 
-    <hr>
-
-    <h2>Search Results</h2>
-    <div id="results-container"></div>
+    <div style="max-width: 1280px; margin: 0 auto; padding: 0 20px;">
+        <h2>Search Results</h2>
+        <div id="results-container"></div>
+    </div>
 
     <script>
         // Get all element references
@@ -462,8 +520,11 @@
         const titleInput = document.getElementById('titleInput');
         const authorInput = document.getElementById('authorInput');
         const subjectInput = document.getElementById('subjectInput');
-        const languageInput = document.getElementById('languageInput');
+        const isbnInput = document.getElementById('isbnInput');
+        const publisherInput = document.getElementById('publisherInput');
+        const personInput = document.getElementById('personInput');
         const fetchButton = document.getElementById('fetchButton');
+        const searchForm = document.getElementById('search-form');
         const resultsContainer = document.getElementById('results-container');
         const exportPdfButton = document.getElementById('export-pdf-button');
         const backCoverPanel = document.getElementById('back-cover-panel');
@@ -473,16 +534,96 @@
         const qrCodeUploader = document.getElementById('qr-code-uploader');
         const brandingUploader = document.getElementById('branding-uploader');
         const frontCoverUploader = document.getElementById('front-cover-uploader');
+        const frontCoverPanel = document.getElementById('front-cover-panel');
         const generateCoverButton = document.getElementById('generate-cover-button');
         const coverTitleInput = document.getElementById('cover-title-input');
         const stretchCoversToggle = document.getElementById('stretch-covers-toggle');
         const stretchBlockCoversToggle = document.getElementById('stretch-block-covers-toggle');
         const toggleQrCode = document.getElementById('toggle-qr-code');
         const toggleBranding = document.getElementById('toggle-branding');
+        const notificationArea = document.getElementById('notification-area');
+        
 
 
         let myBooklist = [];
-        const MAX_BOOKS = 15;
+        let MAX_BOOKS = 15;
+
+        // --- NOTIFICATION ---
+        function showNotification(message, type = 'error') {
+            notificationArea.textContent = message;
+            notificationArea.className = type; // 'error' or 'success'
+            notificationArea.classList.add('show');
+            setTimeout(() => {
+                notificationArea.classList.remove('show');
+            }, 5000); // Increased time to 5 seconds
+        }
+
+        // --- NEW: Function to test the description service ---
+        
+
+        // --- REVISED: Function to get AI-generated description with better logging ---
+        function getAiDescription(bookItem, descriptionElement, isTest = false) {
+            // IMPORTANT: Paste your copied Google Apps Script Web App URL here.
+            const googleAppScriptUrl = "https://script.google.com/macros/s/AKfycbyhqsRgjS7aoEbYwqgN-wyygjFtGNtFdGcUOnrqXmZ7P3Aubjjwlp-HydWp4MPJxXY/exec";
+
+            if (googleAppScriptUrl === "PASTE_YOUR_GOOGLE_APPS_SCRIPT_URL_HERE" || !googleAppScriptUrl) {
+                const errorMsg = "error: Google Apps Script URL is not set.";
+                console.error(errorMsg);
+                if (isTest) {
+                    showNotification(errorMsg, "error");
+                } else {
+                    descriptionElement.textContent = errorMsg;
+                    bookItem.description = errorMsg;
+                }
+                return;
+            }
+
+            // REVISED: Use POST method for more robust communication
+            fetch(googleAppScriptUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8', // Required for Apps Script POST
+                },
+                body: JSON.stringify({ title: bookItem.title, author: bookItem.author }),
+                mode: 'cors' // Explicitly set CORS mode
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Network error: ${response.status} ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.description) {
+                    if (isTest) {
+                        const successMsg = `Test Success: ${data.description}`;
+                        console.log(successMsg);
+                        showNotification(successMsg, "success");
+                    } else {
+                        bookItem.description = data.description;
+                        renderBooklist();
+                    }
+                } else {
+                    // Throw the specific error from the script, or a fallback.
+                    throw new Error(data.error || 'Unknown error from description service.');
+                }
+            })
+            .catch(error => {
+                // NEW: Enhanced logging
+                console.error('Full error object from getAiDescription:', error); 
+                const errorMessage = error.message || "An unknown error occurred.";
+                
+                if (isTest) {
+                    const failMsg = `Test Failed: ${errorMessage}`;
+                    console.error(failMsg);
+                    showNotification(failMsg, "error");
+                } else {
+                    bookItem.description = `error: ${errorMessage}`;
+                    renderBooklist();
+                }
+            });
+        }
+
 
         function createBlankBook() {
             return {
@@ -498,19 +639,25 @@
         }
 
         function initializeBooklist() {
-            for (let i = 0; i < MAX_BOOKS; i++) {
+            for (let i = 0; i < 15; i++) {
                 myBooklist.push(createBlankBook());
             }
+            handleLayoutChange();
             renderBooklist();
         }
 
         // --- EVENT LISTENERS ---
-        fetchButton.addEventListener('click', () => getBooks());
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            getBooks();
+        });
+
+        
         generateCoverButton.addEventListener('click', generateCoverCollage);
         stretchCoversToggle.addEventListener('change', generateCoverCollage);
         stretchBlockCoversToggle.addEventListener('change', applyBlockCoverStyle);
-        toggleQrCode.addEventListener('change', updateBackCoverLayout);
-        toggleBranding.addEventListener('change', updateBackCoverLayout);
+        toggleQrCode.addEventListener('change', handleLayoutChange);
+        toggleBranding.addEventListener('change', handleLayoutChange);
 
         function setupFileChangeHandler(uploaderElement) {
             const fileInput = uploaderElement.querySelector('input[type="file"]');
@@ -523,7 +670,6 @@
                     reader.onload = (event) => {
                         imgElement.src = event.target.result;
                         imgElement.dataset.isPlaceholder = "false";
-                        // Add class to hide the placeholder text
                         uploaderElement.classList.add('has-image');
                     };
                     reader.readAsDataURL(file);
@@ -531,24 +677,15 @@
             });
         }
         
-        // Apply the simple file-change logic to all three static uploaders.
         setupFileChangeHandler(qrCodeUploader);
         setupFileChangeHandler(brandingUploader);
         setupFileChangeHandler(frontCoverUploader);
 
-        // Add a special click handler ONLY for the complex front cover uploader.
-        // Because the container is now a DIV, it has no default behavior, so we
-        // can explicitly control what happens on click.
         const coverControls = document.getElementById('cover-generate-controls');
         frontCoverUploader.addEventListener('click', (e) => {
-            // If the user clicked inside the controls, let the browser handle
-            // the text input or button click as usual. Do nothing else.
             if (coverControls.contains(e.target)) {
                 return;
             }
-
-            // Otherwise, if the user clicked anywhere else on the component,
-            // we manually trigger the file selection dialog.
             const fileInput = frontCoverUploader.querySelector('input[type="file"]');
             fileInput.click();
         });
@@ -558,7 +695,7 @@
             document.querySelectorAll('.export-controls .form-group[data-style-group]').forEach(group => {
                 const styleGroup = group.dataset.styleGroup;
                 const font = group.querySelector('.font-select').value;
-                const size = group.querySelector('.font-size-input').value + 'px';
+                const size = group.querySelector('.font-size-input').value + 'pt';
                 const color = group.querySelector('.color-picker').value;
                 const isBold = group.querySelector('.bold-toggle').classList.contains('active');
                 const isItalic = group.querySelector('.italic-toggle').classList.contains('active');
@@ -597,6 +734,61 @@
             });
         });
 
+        // --- DYNAMIC LIST LIMIT AND LAYOUT LOGIC ---
+        function handleLayoutChange() {
+            const showQr = toggleQrCode.checked;
+            const showBranding = toggleBranding.checked;
+
+            let newMaxBooks;
+            if (showQr && showBranding) {
+                newMaxBooks = 13;
+            } else if (showQr || showBranding) {
+                newMaxBooks = 14;
+            } else {
+                newMaxBooks = 15;
+            }
+
+            let listWasTrimmed = false;
+            if (newMaxBooks < MAX_BOOKS) {
+                for (let i = newMaxBooks; i < 15; i++) {
+                    if (myBooklist[i] && !myBooklist[i].isBlank) {
+                        myBooklist[i] = createBlankBook();
+                        listWasTrimmed = true;
+                    }
+                }
+            }
+            
+            MAX_BOOKS = newMaxBooks;
+
+            if (listWasTrimmed) {
+                renderBooklist();
+            } else {
+                updateBackCoverVisibility();
+            }
+        }
+
+        function updateBackCoverVisibility() {
+            const showQr = toggleQrCode.checked;
+            const showBranding = toggleBranding.checked;
+
+            qrCodeUploader.style.display = showQr ? 'flex' : 'none';
+            brandingUploader.style.display = showBranding ? 'flex' : 'none';
+
+            let extraSlotsToShow = 0;
+            if (!showQr) extraSlotsToShow++;
+            if (!showBranding) extraSlotsToShow++;
+
+            const backCoverBooks = backCoverPanel.querySelectorAll('.list-item');
+            backCoverBooks.forEach((item, index) => {
+                if (index < (3 + extraSlotsToShow)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+
         // --- SEARCH AND ADD-TO-LIST LOGIC ---
         function getBooks() {
             resultsContainer.innerHTML = '<p>Searching...</p>';
@@ -605,16 +797,23 @@
             if (titleInput.value) queryParams.push(`title=${encodeURIComponent(titleInput.value)}`);
             if (authorInput.value) queryParams.push(`author=${encodeURIComponent(authorInput.value)}`);
             if (subjectInput.value) queryParams.push(`subject=${encodeURIComponent(subjectInput.value)}`);
-            if (languageInput.value) queryParams.push(`language=${encodeURIComponent(languageInput.value)}`);
+            if (isbnInput.value) queryParams.push(`isbn=${encodeURIComponent(isbnInput.value)}`);
+            if (publisherInput.value) queryParams.push(`publisher=${encodeURIComponent(publisherInput.value)}`);
+            if (personInput.value) queryParams.push(`person=${encodeURIComponent(personInput.value)}`);
             
             if (queryParams.length === 0) {
-                resultsContainer.innerHTML = '<p>Please enter at least one search term.</p>';
+                resultsContainer.innerHTML = '<p class="error-message">Please enter at least one search term.</p>';
                 return;
             }
             const queryString = queryParams.join('&');
             const apiUrl = `https://openlibrary.org/search.json?${queryString}`;
             fetch(apiUrl)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     resultsContainer.innerHTML = '';
                     const books = data.docs;
@@ -638,33 +837,43 @@
 
                             addButton.addEventListener('click', () => {
                                 const isAdded = myBooklist.some(item => item.key === book.key);
-                                const firstBlankIndex = myBooklist.findIndex(item => item.isBlank);
+                                const firstBlankIndex = myBooklist.findIndex((item, index) => item.isBlank && index < MAX_BOOKS);
 
-                                if (!isAdded) { // If it's NOT in the list, try to ADD it
+                                if (!isAdded) {
                                     if (firstBlankIndex !== -1) {
-                                        myBooklist[firstBlankIndex] = {
+                                        const newBook = {
                                             key: book.key,
                                             isBlank: false,
                                             title: book.title,
-                                            author: book.author_name ? book.author_name.join(', ') : '',
+                                            author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
                                             callNumber: '[Call #]',
-                                            description: '[Enter a brief description here...]',
+                                            description: 'Fetching book description...',
                                             cover_i: book.cover_i,
                                         };
+                                        myBooklist[firstBlankIndex] = newBook;
                                         addButton.innerHTML = '&#10003;';
                                         addButton.classList.add('added');
+                                        
+                                        renderBooklist(); 
+
+                                        const listItemElement = document.querySelector(`.list-item[data-id="${newBook.key}"]`);
+                                        if(listItemElement) {
+                                            const descriptionElement = listItemElement.querySelector('.description-field');
+                                            getAiDescription(newBook, descriptionElement);
+                                        }
+
                                     } else {
-                                        alert(`All ${MAX_BOOKS} book slots are full. Please delete one before adding another.`);
+                                        showNotification(`All ${MAX_BOOKS} book slots are full. Please delete one before adding another.`);
                                     }
-                                } else { // If it IS in the list, REMOVE it
+                                } else {
                                     const indexToRemove = myBooklist.findIndex(item => item.key === book.key);
                                     if (indexToRemove !== -1) {
                                         myBooklist[indexToRemove] = createBlankBook();
                                     }
                                     addButton.textContent = 'Add to List';
                                     addButton.classList.remove('added');
+                                    renderBooklist();
                                 }
-                                renderBooklist();
                             });
                             bookElement.appendChild(coverElement);
                             bookElement.appendChild(titleElement);
@@ -673,7 +882,10 @@
                         }
                     });
                 })
-                .catch(error => console.error('There was a problem:', error));
+                .catch(error => {
+                    console.error('There was a problem:', error);
+                    resultsContainer.innerHTML = '<p class="error-message">Sorry, could not connect to the book server. Please check your network connection and try again.</p>';
+                });
         }
 
 
@@ -682,7 +894,6 @@
             insideLeftPanel.innerHTML = '';
             insideRightPanel.innerHTML = '';
             
-            // Clear only the book items from the back cover panel before re-rendering
             backCoverPanel.querySelectorAll('.list-item').forEach(item => item.remove());
 
             myBooklist.forEach((bookItem, index) => {
@@ -695,7 +906,7 @@
                     targetPanel = insideRightPanel;
                 } else {
                     targetPanel = backCoverPanel;
-                    insertBeforeElement = qrCodeUploader; // Insert books before the QR code uploader
+                    insertBeforeElement = qrCodeUploader;
                 }
 
                 const listItem = document.createElement('div');
@@ -721,7 +932,7 @@
                 deleteButton.innerHTML = '&times;';
                 deleteButton.onclick = () => {
                     const originalKey = myBooklist[index].key;
-                    myBooklist[index] = createBlankBook(); // Replace with a new blank book
+                    myBooklist[index] = createBlankBook();
                     renderBooklist();
                     const searchButton = document.querySelector(`#results-container button[data-book-key="${originalKey}"]`);
                     if(searchButton) {
@@ -824,7 +1035,14 @@
 
                 setupPlaceholder(titleField, placeholders.title, getComputedStyle(titleField).color);
                 setupPlaceholder(authorField, placeholders.author, getComputedStyle(authorField).color);
-                setupPlaceholder(descriptionField, placeholders.description, getComputedStyle(descriptionField).color);
+                
+                if (bookItem.description !== 'Fetching book description...' && !bookItem.description.startsWith('error:')) {
+                     setupPlaceholder(descriptionField, placeholders.description, getComputedStyle(descriptionField).color);
+                     // Reset to black for actual content
+                     descriptionField.style.color = '';  // Remove inline style to use CSS default
+                } else {
+                    descriptionField.style.color = '#757575';  // Gray for placeholder/loading states
+                }
                 
                 listItem.appendChild(controlsDiv);
                 listItem.appendChild(coverUploader);
@@ -838,30 +1056,7 @@
             });
             applyStyles();
             applyBlockCoverStyle();
-            updateBackCoverLayout(); // Set initial layout
-        }
-
-        function updateBackCoverLayout() {
-            const showQr = toggleQrCode.checked;
-            const showBranding = toggleBranding.checked;
-
-            qrCodeUploader.style.display = showQr ? 'flex' : 'none';
-            brandingUploader.style.display = showBranding ? 'flex' : 'none';
-
-            let extraSlotsToShow = 0;
-            if (!showQr) extraSlotsToShow++;
-            if (!showBranding) extraSlotsToShow++;
-
-            const backCoverBooks = backCoverPanel.querySelectorAll('.list-item');
-            backCoverBooks.forEach((item, index) => {
-                // The first 3 slots are always for books 11, 12, 13
-                // The next 2 slots are for books 14, 15
-                if (index < 3 + extraSlotsToShow) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
+            updateBackCoverVisibility();
         }
 
         // --- DRAG-AND-DROP INITIALIZATION ---
@@ -875,7 +1070,6 @@
                 const allPanelItems = [
                     ...Array.from(insideLeftPanel.children),
                     ...Array.from(insideRightPanel.children),
-                    // For the back cover, only grab the list items, not the uploaders
                     ...Array.from(backCoverPanel.querySelectorAll('.list-item'))
                 ];
 
@@ -883,7 +1077,6 @@
 
                 allIds.forEach(id => newBooklist.push(myBooklist.find(b => b.key === id)));
                 
-                // Add back any books that might have been hidden on the back panel
                 const currentIds = new Set(newBooklist.map(b => b.key));
                 const allBookIds = new Set(myBooklist.map(b => b.key));
                 allBookIds.forEach(id => {
@@ -906,12 +1099,12 @@
             button.textContent = 'Generating...';
             button.disabled = true;
 
-            const shouldStretchCovers = stretchCoversToggle.checked; // Read the checkbox state immediately
+            const shouldStretchCovers = stretchCoversToggle.checked;
 
             const booksWithCovers = myBooklist.filter(book => !book.isBlank && (book.cover_i || (book.customCoverData && !book.customCoverData.includes('placehold.co'))));
             
             if (booksWithCovers.length < 12) {
-                alert('Please add at least 12 books with covers to generate a collage.');
+                showNotification('Please add at least 12 books with covers to generate a collage.');
                 button.textContent = 'Auto-Generate Cover';
                 button.disabled = false;
                 return;
@@ -972,15 +1165,13 @@
 
             document.fonts.load(fontToLoad).then(() => {
                 Promise.all(imagePromises).then(images => {
-                    // --- 1. Define Layout Constants & Ratios ---
-                    const bookAspectRatio = 0.75; // Width / Height for book covers
+                    const bookAspectRatio = 0.75;
                     const canvasWidthPx = canvas.width;
                     const canvasHeightPx = canvas.height;
                     const titleMarginPx = 0.2 * dpi;
-                    const topPadding = 0; // Set to 0 to make the top row flush
-                    const vGutterToHeightRatio = 0.15; // Vertical gutter size as a percentage of book cover height
+                    const topPadding = 0;
+                    const vGutterToHeightRatio = 0.15;
 
-                    // --- 2. Calculate Title Block Height (as it is a fixed constraint) ---
                     const fontSizePt = parseInt(titleStyleGroup.querySelector('.font-size-input').value, 10);
                     const fontSizePx = fontSizePt * (dpi / 72);
                     const coverTitle = coverTitleInput.value || "My Booklist";
@@ -990,23 +1181,15 @@
                     const bgPaddingVPx = 0.2 * dpi;
                     const totalTitleBlockHeightPx = (lines.length * lineHeight) + (2 * bgPaddingVPx);
 
-                    // --- 3. Calculate the available vertical space for book rows & their internal gutters ---
                     const totalFixedVerticalSpace = topPadding + titleMarginPx + totalTitleBlockHeightPx + titleMarginPx;
                     const availableHeightForBooksAndGutters = canvasHeightPx - totalFixedVerticalSpace;
-
-                    // --- 4. Solve for the exact book slot height that will make everything fit ---
-                    // The total height is (4 rows of books) + (2 internal gutters between the bottom 3 rows)
                     const slotHeight = availableHeightForBooksAndGutters / (4 + 2 * vGutterToHeightRatio);
                     
-                    // --- 5. Derive all other dimensions from the calculated slot height ---
                     const slotWidth = slotHeight * bookAspectRatio;
                     const vGutter = slotHeight * vGutterToHeightRatio;
-                    // Horizontal gutter is now calculated to perfectly space the books across the width
                     const hGutter = (canvasWidthPx - (3 * slotWidth)) / 4;
-                    
                     const startY = topPadding;
 
-                    // --- 6. Draw Book Covers ---
                     let imageIndex = 0;
                     
                     const drawImage = (img, x, y, w, h) => {
@@ -1031,7 +1214,6 @@
                         }
                     };
 
-                    // Draw Top Row (3 books)
                     const topRowY = startY;
                     for (let col = 0; col < 3; col++) {
                         const slotX = hGutter + col * (slotWidth + hGutter);
@@ -1039,7 +1221,6 @@
                         imageIndex++;
                     }
 
-                    // Draw Bottom Grid (9 books)
                     const gridTopY = topRowY + slotHeight + titleMarginPx + totalTitleBlockHeightPx + titleMarginPx;
                     for (let row = 0; row < 3; row++) {
                         const currentRowY = gridTopY + row * (slotHeight + vGutter);
@@ -1050,7 +1231,6 @@
                         }
                     }
 
-                    // --- 7. Draw Title Overlay ---
                     const color = titleStyleGroup.querySelector('.color-picker').value;
                     const bgColor = document.getElementById('cover-title-bg-color').value;
                     const titleBoxY = topRowY + slotHeight + titleMarginPx;
@@ -1063,13 +1243,11 @@
                     ctx.textBaseline = 'middle';
                     
                     const textBlockHeight = lines.length * lineHeight;
-                    // Center the text block vertically within the title background
                     let firstLineY = titleBoxY + (totalTitleBlockHeightPx / 2) - (textBlockHeight / 2) + (lineHeight / 2);
                     
                     lines.forEach((line, index) => {
                         ctx.fillText(line.trim(), canvasWidthPx / 2, firstLineY + (index * lineHeight));
                     });
-
 
                     const dataUrl = canvas.toDataURL('image/png');
                     const frontCoverImg = frontCoverUploader.querySelector('img');
@@ -1079,14 +1257,14 @@
 
                 }).catch(error => {
                     console.error('Error loading cover images for collage:', error);
-                    alert('Could not load all cover images. Please try again.');
+                    showNotification('Could not load all cover images. Please try again.');
                 }).finally(() => {
                     button.textContent = 'Auto-Generate Cover';
                     button.disabled = false;
                 });
             }).catch(err => {
                 console.error('Font could not be loaded for canvas:', err);
-                alert('The selected title font could not be loaded for the canvas. Please try a system font like Georgia or Helvetica.');
+                showNotification('The selected title font could not be loaded. Please try a system font.');
                 button.textContent = 'Auto-Generate Cover';
                 button.disabled = false;
             });
@@ -1098,8 +1276,8 @@
             exportPdfButton.textContent = 'Generating...';
             exportPdfButton.disabled = true;
 
-            // Hide blank elements before generating PDF
             const elementsToRestore = [];
+            // Hide blank list items
             document.querySelectorAll('.list-item').forEach(item => {
                 if (item.dataset.isBlank === 'true') {
                     elementsToRestore.push({el: item, display: item.style.display});
@@ -1107,7 +1285,8 @@
                 }
             });
 
-            document.querySelectorAll('.custom-uploader').forEach(uploader => {
+            // Hide placeholder uploaders on the back cover
+            document.querySelectorAll('#back-cover-panel .custom-uploader').forEach(uploader => {
                 const img = uploader.querySelector('img');
                 if (img && img.src.includes('placehold.co')) {
                      elementsToRestore.push({el: uploader, display: uploader.style.display});
@@ -1115,38 +1294,41 @@
                 }
             });
 
+            // Hide the entire front cover panel if it's still a placeholder
+            const frontCoverImg = frontCoverUploader.querySelector('img');
+            const isPlaceholder = frontCoverImg.dataset.isPlaceholder !== "false" && (frontCoverImg.src.includes('placehold.co') || frontCoverImg.src.includes('data:image/gif'));
+
+            if (isPlaceholder) {
+                elementsToRestore.push({ el: frontCoverPanel, display: frontCoverPanel.style.display });
+                frontCoverPanel.style.display = 'none';
+            }
+
 
             previewArea.classList.add('print-mode');
-            
-            const page1 = document.getElementById('print-page-1');
-            const page2 = document.getElementById('print-page-2');
             
             setTimeout(() => {
                 document.fonts.ready.then(() => {
                     const { jsPDF } = window.jspdf;
                     const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
 
-                    const options = { scale: 3, useCORS: true };
+                    const options = { scale: 3, useCORS: true, backgroundColor: null };
 
-                    html2canvas(page1, options)
+                    html2canvas(document.getElementById('print-page-1'), options)
                         .then(canvas1 => {
-                            const imgData1 = canvas1.toDataURL('image/png');
-                            pdf.addImage(imgData1, 'PNG', 0, 0, 11, 8.5);
+                            pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
                             pdf.addPage();
-                            return html2canvas(page2, options);
+                            return html2canvas(document.getElementById('print-page-2'), options);
                         })
                         .then(canvas2 => {
-                            const imgData2 = canvas2.toDataURL('image/png');
-                            pdf.addImage(imgData2, 'PNG', 0, 0, 11, 8.5);
+                            pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
                             pdf.save('bifold-booklist.pdf');
                         })
                         .catch(err => {
                             console.error("PDF Generation failed:", err);
-                            alert("An error occurred generating the PDF. Please check the console for details.");
+                            showNotification("An error occurred generating the PDF. Please check the console.");
                         })
                         .finally(() => {
                             previewArea.classList.remove('print-mode');
-                             // Restore blank elements
                             elementsToRestore.forEach(item => item.el.style.display = item.display || '');
                             exportPdfButton.textContent = 'Generate PDF';
                             exportPdfButton.disabled = false;
