@@ -55,10 +55,18 @@
         hr { margin: 20px 0; }
 
         #results-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; margin-top: 20px; }
-        #results-container div { text-align: center; display: flex; flex-direction: column; justify-content: space-between; background: white; padding: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        #results-container .book-card {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
         #results-container .error-message { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; grid-column: 1 / -1; }
-        #results-container button {
-            margin-top: 10px;
+        #results-container .add-to-list-button {
+            margin-top: 0; /* Let the parent container handle spacing */
             padding: 8px;
             cursor: pointer;
             height: 38px;
@@ -67,14 +75,78 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            width: 100%; /* Make button take full width of container */
         }
         #results-container img { width: 100%; height: auto; border: 1px solid #ccc; }
-        #results-container button.added {
+        #results-container .add-to-list-button.added {
             background-color: #28a745;
             color: white;
             border-color: #218838;
             font-size: 1.2em;
         }
+        .book-card .book-title {
+             margin: 10px 0;
+        }
+
+        /* NEW container to group bottom buttons */
+        .card-actions-group {
+            margin-top: auto; /* Pushes this block to the bottom of the flex container */
+            padding-top: 10px; /* Ensures space between title and buttons */
+        }
+
+
+        /* Cover Carousel Styles */
+        .cover-carousel {
+            position: relative;
+            width: 100%;
+            max-width: 150px;
+            margin: 0 auto;
+        }
+        .cover-carousel img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .carousel-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            max-width: 90px;
+            margin: 0 auto 10px auto; /* Centered with margin on the bottom */
+        }
+        .carousel-buttons-container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            gap: 4px; /* Space between buttons */
+        }
+        .carousel-button {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 4px; /* Increased padding */
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 1.2em; /* Increased font size for bigger arrows */
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: auto;
+            min-width: 0;
+            width: calc(50% - 2px); /* Each button takes half the space minus half the gap */
+            box-sizing: border-box;
+        }
+        .carousel-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .cover-counter {
+            font-size: 0.8em;
+            color: #555;
+            text-align: center;
+        }
+
 
         .booklist-section { margin-top: 40px; padding: 20px; background-color: #e2e8f0; }
         .export-controls { 
@@ -434,7 +506,6 @@
                     <label for="stretch-covers-toggle" style="font-size:0.9em; font-weight:normal;">Stretch Covers to Fit</label>
                 </div>
             </div>
-            <!-- NEW: Test button for debugging the description service -->
             
             <button id="export-pdf-button">Generate PDF</button>
         </div>
@@ -558,11 +629,14 @@
             }, 5000); // Increased time to 5 seconds
         }
 
-        // --- NEW: Function to test the description service ---
-        
-
         // --- REVISED: Function to get AI-generated description with better logging ---
-        function getAiDescription(bookItem, descriptionElement, isTest = false) {
+        function getAiDescription(bookKey, isTest = false) {
+            const bookItem = myBooklist.find(b => b.key === bookKey);
+            if (!bookItem && !isTest) {
+                console.error("Description fetch failed: Could not find book with key:", bookKey);
+                return;
+            }
+
             // IMPORTANT: Paste your copied Google Apps Script Web App URL here.
             const googleAppScriptUrl = "https://script.google.com/macros/s/AKfycbyhqsRgjS7aoEbYwqgN-wyygjFtGNtFdGcUOnrqXmZ7P3Aubjjwlp-HydWp4MPJxXY/exec";
 
@@ -571,12 +645,13 @@
                 console.error(errorMsg);
                 if (isTest) {
                     showNotification(errorMsg, "error");
-                } else {
-                    descriptionElement.textContent = errorMsg;
+                } else if (bookItem) {
                     bookItem.description = errorMsg;
                 }
                 return;
             }
+            
+            const payload = isTest ? { title: "Test Title", author: "Test Author" } : { title: bookItem.title, author: bookItem.author };
 
             // REVISED: Use POST method for more robust communication
             fetch(googleAppScriptUrl, {
@@ -584,7 +659,7 @@
                 headers: {
                     'Content-Type': 'text/plain;charset=utf-8', // Required for Apps Script POST
                 },
-                body: JSON.stringify({ title: bookItem.title, author: bookItem.author }),
+                body: JSON.stringify(payload),
                 mode: 'cors' // Explicitly set CORS mode
             })
             .then(response => {
@@ -617,7 +692,7 @@
                     const failMsg = `Test Failed: ${errorMessage}`;
                     console.error(failMsg);
                     showNotification(failMsg, "error");
-                } else {
+                } else if (bookItem) {
                     bookItem.description = `error: ${errorMessage}`;
                     renderBooklist();
                 }
@@ -634,7 +709,10 @@
                 callNumber: '[Call #]',
                 description: '[Enter a brief description here...]',
                 cover_i: null,
-                customCoverData: 'https://placehold.co/110x132/EAEAEA/333333?text=Upload%20Cover'
+                customCoverData: 'https://placehold.co/110x132/EAEAEA/333333?text=Upload%20Cover',
+                // New fields for cover selection
+                cover_ids: [],
+                currentCoverIndex: 0 
             };
         }
 
@@ -788,6 +866,27 @@
             });
         }
 
+        async function fetchAllCoverIdsForWork(workKey) {
+            const workId = workKey.split('/').pop();
+            const editionsUrl = `https://openlibrary.org/works/${workId}/editions.json?limit=100`; // Fetch more editions
+            try {
+                const response = await fetch(editionsUrl);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                const coverIds = new Set();
+                data.entries.forEach(edition => {
+                    if (edition.covers) {
+                        edition.covers.forEach(coverId => {
+                            if (coverId > 0) coverIds.add(coverId)
+                        });
+                    }
+                });
+                return Array.from(coverIds);
+            } catch (error) {
+                console.error("Error fetching edition covers:", error);
+                return [];
+            }
+        }
 
         // --- SEARCH AND ADD-TO-LIST LOGIC ---
         function getBooks() {
@@ -819,67 +918,174 @@
                     const books = data.docs;
                     if (books.length === 0) { resultsContainer.innerHTML = '<p>No results found.</p>'; return; }
                     books.forEach(book => {
-                        if (book.cover_i) {
-                            const bookElement = document.createElement('div');
-                            const coverElement = document.createElement('img');
-                            coverElement.src = `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`;
-                            const titleElement = document.createElement('p');
-                            titleElement.textContent = book.title;
-                            const addButton = document.createElement('button');
+                        const initialCoverId = book.cover_i || 'placehold'; 
+                        
+                        const bookElement = document.createElement('div');
+                        bookElement.className = 'book-card';
+                        bookElement.dataset.key = book.key; 
+
+                        const coverCarousel = document.createElement('div');
+                        coverCarousel.className = 'cover-carousel';
+                        const coverElement = document.createElement('img');
+                        coverElement.src = initialCoverId === 'placehold' ? 
+                                           'https://placehold.co/110x132/EAEAEA/333333?text=No%20Cover' :
+                                           `https://covers.openlibrary.org/b/id/${initialCoverId}-M.jpg`;
+                        coverElement.alt = `Cover for ${book.title}`;
+                        coverCarousel.appendChild(coverElement);
+
+                        const titleElement = document.createElement('p');
+                        titleElement.className = 'book-title';
+                        titleElement.textContent = book.title;
+
+                        // --- Action Buttons Group ---
+                        const actionsGroup = document.createElement('div');
+                        actionsGroup.className = 'card-actions-group';
+
+                        const carouselControls = document.createElement('div');
+                        carouselControls.className = 'carousel-controls';
+                        
+                        const coverCounter = document.createElement('span');
+                        coverCounter.className = 'cover-counter';
+                        coverCounter.textContent = '1 of 1';
+
+                        const buttonsContainer = document.createElement('div');
+                        buttonsContainer.className = 'carousel-buttons-container';
+
+                        const prevButton = document.createElement('button');
+                        prevButton.className = 'carousel-button';
+                        prevButton.textContent = '◀';
+                        prevButton.setAttribute('aria-label', 'Previous Cover');
+                        prevButton.disabled = true;
+
+                        const nextButton = document.createElement('button');
+                        nextButton.className = 'carousel-button';
+                        nextButton.textContent = '▶';
+                        nextButton.setAttribute('aria-label', 'Next Cover');
+                        nextButton.disabled = true;
+
+                        buttonsContainer.appendChild(prevButton);
+                        buttonsContainer.appendChild(nextButton);
+
+                        carouselControls.appendChild(coverCounter);
+                        carouselControls.appendChild(buttonsContainer);
+
+                        let allCoverIds = [initialCoverId];
+                        let currentCoverIndex = 0;
+                        let coversLoaded = false;
+
+                        const updateCarousel = () => {
+                            const currentId = allCoverIds[currentCoverIndex];
+                            coverElement.src = currentId === 'placehold' ? 
+                                               'https://placehold.co/110x132/EAEAEA/333333?text=No%20Cover' :
+                                               `https://covers.openlibrary.org/b/id/${currentId}-M.jpg`;
+                            coverCounter.textContent = `${currentCoverIndex + 1} of ${allCoverIds.length}`;
+                            prevButton.disabled = currentCoverIndex === 0;
+                            nextButton.disabled = currentCoverIndex === allCoverIds.length - 1;
+                        };
+
+                        const loadAllCovers = async () => {
+                            if (coversLoaded || !book.key) return;
+                            const fetchedCovers = await fetchAllCoverIdsForWork(book.key);
                             
-                            const isAlreadyAdded = myBooklist.some(item => item.key === book.key);
-                            if(isAlreadyAdded){
-                                addButton.innerHTML = '&#10003;';
-                                addButton.classList.add('added');
-                            } else {
-                                addButton.textContent = 'Add to List';
+                            let finalCovers = [];
+                            if (initialCoverId !== 'placehold') {
+                                finalCovers.push(initialCoverId);
+                            }
+                            fetchedCovers.forEach(id => finalCovers.push(id));
+
+                            allCoverIds = [...new Set(finalCovers)]; // Remove duplicates
+                             if(allCoverIds.length === 0) {
+                                allCoverIds.push('placehold');
                             }
 
-                            addButton.addEventListener('click', () => {
-                                const isAdded = myBooklist.some(item => item.key === book.key);
-                                const firstBlankIndex = myBooklist.findIndex((item, index) => item.isBlank && index < MAX_BOOKS);
+                            coversLoaded = true;
+                            updateCarousel();
+                        };
+                        
+                        prevButton.addEventListener('click', async () => {
+                            if (!coversLoaded) await loadAllCovers();
+                            if (currentCoverIndex > 0) {
+                                currentCoverIndex--;
+                                updateCarousel();
+                            }
+                        });
+                        nextButton.addEventListener('click', async () => {
+                            if (!coversLoaded) await loadAllCovers();
+                            if (currentCoverIndex < allCoverIds.length - 1) {
+                                currentCoverIndex++;
+                                updateCarousel();
+                            }
+                        });
 
-                                if (!isAdded) {
-                                    if (firstBlankIndex !== -1) {
-                                        const newBook = {
-                                            key: book.key,
-                                            isBlank: false,
-                                            title: book.title,
-                                            author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
-                                            callNumber: '[Call #]',
-                                            description: 'Fetching book description...',
-                                            cover_i: book.cover_i,
-                                        };
-                                        myBooklist[firstBlankIndex] = newBook;
-                                        addButton.innerHTML = '&#10003;';
-                                        addButton.classList.add('added');
-                                        
-                                        renderBooklist(); 
-
-                                        const listItemElement = document.querySelector(`.list-item[data-id="${newBook.key}"]`);
-                                        if(listItemElement) {
-                                            const descriptionElement = listItemElement.querySelector('.description-field');
-                                            getAiDescription(newBook, descriptionElement);
-                                        }
-
-                                    } else {
-                                        showNotification(`All ${MAX_BOOKS} book slots are full. Please delete one before adding another.`);
-                                    }
-                                } else {
-                                    const indexToRemove = myBooklist.findIndex(item => item.key === book.key);
-                                    if (indexToRemove !== -1) {
-                                        myBooklist[indexToRemove] = createBlankBook();
-                                    }
-                                    addButton.textContent = 'Add to List';
-                                    addButton.classList.remove('added');
-                                    renderBooklist();
+                        if (book.key) {
+                             loadAllCovers().then(() => {
+                                if (allCoverIds.length > 1) {
+                                    prevButton.disabled = false;
+                                    nextButton.disabled = false;
+                                    updateCarousel(); // Refresh in case the array changed
                                 }
                             });
-                            bookElement.appendChild(coverElement);
-                            bookElement.appendChild(titleElement);
-                            bookElement.appendChild(addButton);
-                            resultsContainer.appendChild(bookElement);
                         }
+
+                        
+                        const addButton = document.createElement('button');
+                        addButton.className = 'add-to-list-button';
+                        addButton.dataset.bookKey = book.key;
+                            
+                        const isAlreadyAdded = myBooklist.some(item => item.key === book.key);
+                        if(isAlreadyAdded){
+                            addButton.innerHTML = '&#10003;';
+                            addButton.classList.add('added');
+                        } else {
+                            addButton.textContent = 'Add to List';
+                        }
+
+                        addButton.addEventListener('click', () => {
+                            const isAdded = myBooklist.some(item => item.key === book.key);
+                            const firstBlankIndex = myBooklist.findIndex((item, index) => item.isBlank && index < MAX_BOOKS);
+
+                            if (!isAdded) {
+                                if (firstBlankIndex !== -1) {
+                                    const newBook = {
+                                        key: book.key,
+                                        isBlank: false,
+                                        title: book.title,
+                                        author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
+                                        callNumber: '[Call #]',
+                                        description: 'Fetching book description...',
+                                        cover_ids: allCoverIds, 
+                                        currentCoverIndex: currentCoverIndex,
+                                    };
+                                    myBooklist[firstBlankIndex] = newBook;
+                                    addButton.innerHTML = '&#10003;';
+                                    addButton.classList.add('added');
+                                    
+                                    renderBooklist(); 
+                                    getAiDescription(newBook.key);
+
+                                } else {
+                                    showNotification(`All ${MAX_BOOKS} book slots are full. Please delete one before adding another.`);
+                                }
+                            } else {
+                                const indexToRemove = myBooklist.findIndex(item => item.key === book.key);
+                                if (indexToRemove !== -1) {
+                                    myBooklist[indexToRemove] = createBlankBook();
+                                }
+                                addButton.textContent = 'Add to List';
+                                addButton.classList.remove('added');
+                                renderBooklist();
+                            }
+                        });
+                        
+                        // Assemble the card
+                        bookElement.appendChild(coverCarousel);
+                        bookElement.appendChild(titleElement);
+
+                        actionsGroup.appendChild(carouselControls);
+                        actionsGroup.appendChild(addButton);
+                        bookElement.appendChild(actionsGroup);
+
+                        resultsContainer.appendChild(bookElement);
                     });
                 })
                 .catch(error => {
@@ -934,6 +1140,7 @@
                     const originalKey = myBooklist[index].key;
                     myBooklist[index] = createBlankBook();
                     renderBooklist();
+                    // Fix selector to correctly find the button in the search results
                     const searchButton = document.querySelector(`#results-container button[data-book-key="${originalKey}"]`);
                     if(searchButton) {
                         searchButton.textContent = 'Add to List';
@@ -949,7 +1156,14 @@
                 coverUploader.className = 'cover-uploader';
                 const coverImg = document.createElement('img');
                 coverImg.crossOrigin = 'Anonymous';
-                coverImg.src = bookItem.customCoverData || (bookItem.cover_i ? `https://covers.openlibrary.org/b/id/${bookItem.cover_i}-M.jpg` : 'https://placehold.co/110x132/EAEAEA/333333?text=Upload%20Cover');
+                
+                const selectedCoverId = bookItem.cover_ids && bookItem.cover_ids.length > bookItem.currentCoverIndex 
+                                        ? bookItem.cover_ids[bookItem.currentCoverIndex] 
+                                        : null;
+                coverImg.src = selectedCoverId && selectedCoverId !== 'placehold' ? 
+                               `https://covers.openlibrary.org/b/id/${selectedCoverId}-M.jpg` :
+                               bookItem.customCoverData || 'https://placehold.co/110x132/EAEAEA/333333?text=Upload%20Cover';
+                               
                 const fileInput = document.createElement('input');
                 fileInput.type = 'file';
                 fileInput.accept = 'image/*';
@@ -958,7 +1172,10 @@
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = (event) => {
-                            myBooklist.find(b => b.key === bookItem.key).customCoverData = event.target.result;
+                            const book = myBooklist.find(b => b.key === bookItem.key);
+                            book.customCoverData = event.target.result;
+                            book.cover_ids = []; 
+                            book.currentCoverIndex = 0;
                             coverImg.src = event.target.result;
                         };
                         reader.readAsDataURL(file);
@@ -1038,10 +1255,9 @@
                 
                 if (bookItem.description !== 'Fetching book description...' && !bookItem.description.startsWith('error:')) {
                      setupPlaceholder(descriptionField, placeholders.description, getComputedStyle(descriptionField).color);
-                     // Reset to black for actual content
-                     descriptionField.style.color = '';  // Remove inline style to use CSS default
+                     descriptionField.style.color = '';
                 } else {
-                    descriptionField.style.color = '#757575';  // Gray for placeholder/loading states
+                    descriptionField.style.color = '#757575';
                 }
                 
                 listItem.appendChild(controlsDiv);
@@ -1101,7 +1317,7 @@
 
             const shouldStretchCovers = stretchCoversToggle.checked;
 
-            const booksWithCovers = myBooklist.filter(book => !book.isBlank && (book.cover_i || (book.customCoverData && !book.customCoverData.includes('placehold.co'))));
+            const booksWithCovers = myBooklist.filter(book => !book.isBlank && (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co'))));
             
             if (booksWithCovers.length < 12) {
                 showNotification('Please add at least 12 books with covers to generate a collage.');
@@ -1110,7 +1326,16 @@
                 return;
             }
 
-            const coversToDraw = booksWithCovers.slice(0, 12);
+            const coversToDraw = booksWithCovers.slice(0, 12).map(book => {
+                if (book.customCoverData && !book.customCoverData.includes('placehold.co')) {
+                    return book.customCoverData;
+                } else if (book.cover_ids.length > 0) {
+                    const coverId = book.cover_ids[book.currentCoverIndex];
+                    return coverId !== 'placehold' ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : 'https://placehold.co/300x450/EAEAEA/333333?text=No%20Cover';
+                }
+                return 'https://placehold.co/300x450/EAEAEA/333333?text=No%20Cover';
+            });
+
             const canvas = document.createElement('canvas');
             const dpi = 150; 
             canvas.width = 5 * dpi;
@@ -1130,10 +1355,7 @@
                 });
             };
 
-            const imagePromises = coversToDraw.map(book => {
-                const src = book.customCoverData || `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`; // Use Large covers
-                return loadImage(src);
-            });
+            const imagePromises = coversToDraw.map(src => loadImage(src));
             
             const wrapText = (text, maxWidth) => {
                 const words = text.split(' ');
