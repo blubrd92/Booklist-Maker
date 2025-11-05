@@ -1,1570 +1,225 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Booklist Maker</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Garamond:wght@400;700&family=Lato:wght@400;700&family=Merriweather:wght@400;700&family=Roboto:wght@400;700&family=Oswald:wght@700&family=Anton&display=swap');
+  <meta charset="utf-8"/>
+  <title>Booklist Maker</title>
 
-        body { font-family: sans-serif; background-color: #f0f2f5; margin-top: 60px; /* Add space for the notification bar */ }
-        h1, h2 { text-align: center; }
-        
-        /* --- Notification Bar Styles --- */
-        #notification-area {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: 15px;
-            text-align: center;
-            font-size: 1.1em;
-            color: white;
-            background-color: #dc3545; /* Default to error red */
-            transform: translateY(-100%);
-            transition: transform 0.3s ease-in-out;
-            z-index: 1000;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        #notification-area.show {
-            transform: translateY(0);
-        }
-        #notification-area.success {
-            background-color: #28a745; /* Green for success */
-        }
-        
-        .search-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-bottom: 15px; align-items: end; }
-        .form-field { display: flex; flex-direction: column; }
-        .form-field label { margin-bottom: 5px; font-weight: bold; }
-        .form-field input, .form-field select {
-            padding: 8px;
-            width: 100%;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        #fetchButton {
-            padding: 8px 15px;
-            font-size: 1em;
-            cursor: pointer;
-            width: 100%;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #f8f9fa;
-        }
-        hr { margin: 20px 0; }
+  <!-- External libs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-        #results-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; margin-top: 20px; }
-        #results-container .book-card {
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            background: white;
-            padding: 10px;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        #results-container .error-message { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; grid-column: 1 / -1; }
-        #results-container .add-to-list-button {
-            margin-top: 0; /* Let the parent container handle spacing */
-            padding: 8px;
-            cursor: pointer;
-            height: 38px;
-            min-width: 90px;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%; /* Make button take full width of container */
-        }
-        #results-container img { width: 100%; height: auto; border: 1px solid #ccc; }
-        #results-container .add-to-list-button.added {
-            background-color: #28a745;
-            color: white;
-            border-color: #218838;
-            font-size: 1.2em;
-        }
-        .book-card .book-title {
-             margin: 10px 0;
-        }
-
-        /* NEW container to group bottom buttons */
-        .card-actions-group {
-            margin-top: auto; /* Pushes this block to the bottom of the flex container */
-            padding-top: 10px; /* Ensures space between title and buttons */
-        }
-
-
-        /* Cover Carousel Styles */
-        .cover-carousel {
-            position: relative;
-            width: 100%;
-            max-width: 150px;
-            margin: 0 auto;
-        }
-        .cover-carousel img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        .carousel-controls {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            max-width: 90px;
-            margin: 0 auto 10px auto; /* Centered with margin on the bottom */
-        }
-        .carousel-buttons-container {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            gap: 4px; /* Space between buttons */
-        }
-        .carousel-button {
-            background: #f0f0f0;
-            border: 1px solid #ccc;
-            padding: 4px; /* Increased padding */
-            cursor: pointer;
-            border-radius: 3px;
-            font-size: 1.2em; /* Increased font size for bigger arrows */
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: auto;
-            min-width: 0;
-            width: calc(50% - 2px); /* Each button takes half the space minus half the gap */
-            box-sizing: border-box;
-        }
-        .carousel-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .cover-counter {
-            font-size: 0.8em;
-            color: #555;
-            text-align: center;
-        }
-
-
-        .booklist-section { margin-top: 40px; padding: 20px; background-color: #e2e8f0; }
-        .export-controls { 
-            background-color: white; 
-            border-radius: 5px; 
-            padding: 15px; 
-            margin: 0 auto 20px auto; /* Center the container and keep bottom margin */
-            max-width: 1280px; /* Set a max-width for better appearance on large screens */
-            display: flex; 
-            flex-wrap: wrap; 
-            align-items: flex-end; 
-            gap: 20px; 
-        }
-        .export-controls h3 { margin: 0; flex-basis: 100%; }
-        .export-controls .form-group { display: flex; align-items: center; gap: 8px; }
-        .export-controls .form-group label { font-size: 0.9em; font-weight: bold; margin-bottom: 0; }
-        .export-controls select { width: 120px; }
-        .export-controls input[type="color"] { width: 40px; height: 38px; padding: 2px; }
-        .export-controls input[type="number"] { width: 50px; }
-        .export-controls button { cursor: pointer; }
-        .export-controls .bold-toggle, .export-controls .italic-toggle { width: 30px; height: 30px; font-weight: bold; }
-        .export-controls .italic-toggle { font-style: italic; }
-        .export-controls button.active { background-color: #3498db; color: white; border-color: #2980b9; }
-        #export-pdf-button { margin-left: auto; padding: 10px 15px; font-size: 1em; }
-        
-
-        #preview-area { display: flex; flex-direction: column; gap: 20px; align-items: center; }
-        .page {
-            display: flex;
-            width: 11in;
-            height: 8.5in;
-            background-color: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            border: 1px solid #333; /* Consistent outer border */
-        }
-        .panel {
-            width: 50%;
-            height: 100%;
-            box-sizing: border-box;
-            padding: 0.25in;
-            overflow: visible; /* Allow controls to be seen */
-        }
-        #back-cover-panel, #inside-left-panel {
-            border-right: 1px dashed #ccc; /* Consistent center fold line */
-        }
-
-        #back-cover-panel { 
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between; /* Universal rule for vertical distribution */
-        }
-        #front-cover-panel {
-            position: relative;
-        }
-
-        .book-panel {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            justify-content: space-between;
-        }
-        
-        #inside-right-panel {
-            align-items: flex-end;
-        }
-        .list-item {
-            position: relative;
-            display: flex;
-            gap: 0.1in;
-            align-items: flex-start;
-            height: 1.43in;
-        }
-        .custom-uploader {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 1.5in; /* Specific height for media blocks */
-            width: 5in;   /* Specific width for media blocks */
-            border: 2px dashed #ccc;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #front-cover-uploader {
-            width: 5in;
-            height: 8in;
-            border: 2px dashed #ccc;
-            border-radius: 0;
-            background-color: #EAEAEA;
-            position: relative; /* Container for overlaid controls */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-        .placeholder-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #333;
-            text-align: center;
-            font-size: 1.1rem;
-            line-height: 1.4;
-            pointer-events: none;
-            width: 80%;
-            z-index: 1; /* Ensure text is on top of the placeholder image */
-        }
-        #front-cover-uploader.has-image .placeholder-text {
-            display: none;
-        }
-        #cover-generate-controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            pointer-events: none; /* Allow clicks to pass through the container */
-        }
-        #cover-title-input, #generate-cover-button {
-             width: 100%;
-             padding: 10px;
-             box-sizing: border-box;
-             pointer-events: auto; /* Make controls clickable */
-        }
-        
-        .custom-uploader img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-        #front-cover-uploader > img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-         .custom-uploader input[type="file"] { display: none; }
-
-
-        .list-item.sortable-ghost { opacity: 0.4; background: #c8ebfb; }
-
-        .list-item-controls {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-            color: #888;
-            right: 100%;
-            margin-right: 5px;
-            background-color: rgba(230, 230, 230, 0.85); /* Semi-opaque box */
-            padding: 8px 5px; /* Add some padding */
-            border-radius: 5px; /* Rounded corners */
-        }
-        
-        .list-item-controls.controls-right {
-            right: auto;
-            left: 100%;
-            margin-right: 0;
-            margin-left: 5px;
-        }
-
-        .item-number { font-size: 1.2em; font-weight: bold; }
-        .drag-handle { cursor: grab; font-size: 1.5em; line-height: 1; }
-        .delete-button { background: none; border: none; cursor: pointer; color: #cc0000; font-weight: bold; font-size: 1.5em; line-height: 1; }
-
-        .cover-uploader { width: 1.15in; height: 1.38in; flex-shrink: 0; cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; border: 1px dashed #ccc; }
-        .cover-uploader img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
-        .cover-uploader.stretch img {
-            object-fit: fill;
-            width: 100%;
-            height: 100%;
-        }
-        .cover-uploader input[type="file"] { display: none; }
-
-        .list-item-details { flex-grow: 1; width: 3.75in; display: flex; flex-direction: column; }
-        .editable-field {
-            width: 100%;
-            padding: 0;
-            border: 1px solid #eee;
-            background-color: transparent;
-            line-height: 1.1;
-            margin: 0;
-        }
-        .editable-field:focus { border-color: #999; outline: none; }
-
-        .title-field { font-family: var(--title-font); color: var(--title-color); font-size: var(--title-font-size); font-weight: var(--title-font-weight); font-style: var(--title-font-style); }
-        .author-field {
-            font-family: var(--author-font); color: var(--author-color); font-size: var(--author-font-size); font-weight: var(--author-font-weight); font-style: var(--author-font-style);
-            margin-top: 0.01in;
-            margin-bottom: 0;
-        }
-        .description-field {
-            font-family: var(--desc-font); color: var(--desc-color); font-size: var(--desc-font-size); font-weight: var(--desc-font-weight); font-style: var(--desc-font-style);
-            margin-top: 0;
-            height: auto;
-            flex: 1;
-            resize: none;
-            -webkit-hyphens: none; -ms-hyphens: none; hyphens: none;
-            border: none;
-            padding: 0;
-            background-color: transparent;
-        }
-        .description-field:focus { border: 1px solid #999; outline: none; }
-
-
-        /* --- PRINT STYLES --- */
-        .print-mode .page {
-            width: 11in;
-            height: 8.5in;
-            box-shadow: none;
-            margin: 0;
-            gap: 0;
-            border: none !important; /* Remove outer border for PDF */
-        }
-        .print-mode .panel {
-            padding: 0.25in;
-            overflow: hidden; /* Hide controls for printing */
-            border: none !important; /* Remove ALL borders for PDF */
-        }
-
-        .print-mode .custom-uploader,
-        .print-mode .cover-uploader,
-        .print-mode .editable-field {
-            border: none !important; /* Remove ALL uploader and field borders for PDF */
-        }
-        .print-mode #front-cover-uploader {
-            background-color: transparent; /* Remove background on PDF for blank covers */
-        }
-        .print-mode .list-item-controls,
-        .print-mode #cover-generate-controls { /* Hide generate tools on PDF */
-            display: none; 
-        }
-        .print-mode .book-panel {
-             justify-content: space-between;
-             gap: 0;
-             height: 100%;
-        }
-        .print-mode #back-cover-panel {
-             justify-content: space-between; /* Ensure layout is correct for print */
-        }
-        .print-mode #inside-left-panel {
-            border-right: none;
-        }
-        .print-mode #inside-right-panel {
-            align-items: flex-end;
-        }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- App styles -->
+  <link rel="stylesheet" href="assets/css/styles.css"/>
 </head>
 <body>
-    <div id="notification-area"></div>
-    <h1>Booklist Maker</h1>
+  <div id="notification-area"></div>
 
-    <div class="booklist-section">
-        <h2>My Booklist Preview</h2>
-        <div class="export-controls">
-            <h3>Book Block Styles</h3>
-            <div class="form-group" data-style-group="title">
-                <label>Title</label>
-                <select class="font-select">
-                    <option value="'Georgia', serif">Georgia</option>
-                    <option value="'Calibri', sans-serif">Calibri</option>
-                    <option value="'Lato', sans-serif">Lato</option>
-                    <option value="'Roboto', sans-serif">Roboto</option>
-                    <option value="'Merriweather', serif">Merriweather</option>
-                    <option value="'Garamond', serif">Garamond</option>
-                    <option value="'Helvetica', sans-serif">Helvetica</option>
-                    <option value="'Times New Roman', serif">Times New Roman</option>
-                </select>
-                <input class="font-size-input" type="number" value="14" min="8">
-                <span>pt</span>
-                <input class="color-picker" type="color" value="#000000">
-                <button class="bold-toggle">B</button>
-                <button class="italic-toggle">I</button>
-            </div>
-            <div class="form-group" data-style-group="author">
-                <label>Author/Call#</label>
-                <select class="font-select">
-                    <option value="'Calibri', sans-serif">Calibri</option>
-                    <option value="'Georgia', serif">Georgia</option>
-                    <option value="'Lato', sans-serif">Lato</option>
-                    <option value="'Roboto', sans-serif">Roboto</option>
-                    <option value="'Merriweather', serif">Merriweather</option>
-                    <option value="'Garamond', serif">Garamond</option>
-                    <option value="'Helvetica', sans-serif">Helvetica</option>
-                    <option value="'Times New Roman', serif">Times New Roman</option>
-                </select>
-                <input class="font-size-input" type="number" value="12" min="8">
-                <span>pt</span>
-                <input class="color-picker" type="color" value="#000000">
-                <button class="bold-toggle active">B</button>
-                <button class="italic-toggle">I</button>
-            </div>
-            <div class="form-group" data-style-group="desc">
-                <label>Description</label>
-                <select class="font-select">
-                    <option value="'Calibri', sans-serif">Calibri</option>
-                    <option value="'Georgia', serif">Georgia</option>
-                    <option value="'Lato', sans-serif">Lato</option>
-                    <option value="'Roboto', sans-serif">Roboto</option>
-                    <option value="'Merriweather', serif">Merriweather</option>
-                    <option value="'Garamond', serif">Garamond</option>
-                    <option value="'Helvetica', sans-serif">Helvetica</option>
-                    <option value="'Times New Roman', serif">Times New Roman</option>
-                </select>
-                <input class="font-size-input" type="number" value="11" min="8">
-                <span>pt</span>
-                <input class="color-picker" type="color" value="#000000">
-                <button class="bold-toggle">B</button>
-                <button class="italic-toggle">I</button>
-                <div style="display: flex; align-items: center; gap: 5px; margin-left: 20px;">
-                    <input type="checkbox" id="stretch-block-covers-toggle">
-                    <label for="stretch-block-covers-toggle" style="font-size:0.9em; font-weight:normal;">Stretch Book Block Covers</label>
-                </div>
-            </div>
-            <h3 style="margin-top: 15px;">Back Cover Options</h3>
-            <div class="form-group">
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" id="toggle-qr-code" checked>
-                    <label for="toggle-qr-code" style="font-size:0.9em; font-weight:normal;">Show QR Code Block</label>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px; margin-left: 20px;">
-                    <input type="checkbox" id="toggle-branding" checked>
-                    <label for="toggle-branding" style="font-size:0.9em; font-weight:normal;">Show Branding Block</label>
-                </div>
-            </div>
-            <h3 style="margin-top: 15px;">Cover Title Styles</h3>
-            <div class="form-group" id="cover-title-style-group">
-                <label>Cover Title</label>
-                <select class="font-select">
-                    <option value="'Oswald', sans-serif">Oswald</option>
-                    <option value="'Anton', sans-serif">Anton</option>
-                    <option value="'Lato', sans-serif">Lato</option>
-                    <option value="'Roboto', sans-serif">Roboto</option>
-                    <option value="'Georgia', serif">Georgia</option>
-                    <option value="'Merriweather', serif">Merriweather</option>
-                    <option value="'Garamond', serif">Garamond</option>
-                    <option value="'Helvetica', sans-serif">Helvetica</option>
-                </select>
-                <input class="font-size-input" type="number" value="40" min="8">
-                <span>pt</span>
-                <input class="color-picker" type="color" value="#FFFFFF">
-                <button class="bold-toggle active">B</button>
-                <button class="italic-toggle">I</button>
-                <label style="margin-left: 10px;">BG:</label>
-                <input class="color-picker" id="cover-title-bg-color" type="color" value="#000000">
-                 <div style="display: flex; align-items: center; gap: 5px; margin-left:15px;">
-                    <input type="checkbox" id="stretch-covers-toggle" checked>
-                    <label for="stretch-covers-toggle" style="font-size:0.9em; font-weight:normal;">Stretch Covers to Fit</label>
-                </div>
-            </div>
-            
-            <button id="export-pdf-button">Generate PDF</button>
+  <h1>Booklist Maker</h1>
+
+  <div class="booklist-section">
+    <h2>My Booklist Preview</h2>
+
+    <div class="export-controls">
+      <h3>Book Block Styles</h3>
+
+      <!-- Title style group -->
+      <div class="form-group" data-style-group="title">
+        <label>Title</label>
+        <select class="font-select">
+          <option value="'Georgia', serif">Georgia</option>
+          <option value="'Calibri', sans-serif">Calibri</option>
+          <option value="'Lato', sans-serif">Lato</option>
+          <option value="'Roboto', sans-serif">Roboto</option>
+          <option value="'Merriweather', serif">Merriweather</option>
+          <option value="'Garamond', serif">Garamond</option>
+          <option value="'Helvetica', sans-serif">Helvetica</option>
+          <option value="'Times New Roman', serif">Times New Roman</option>
+        </select>
+        <input class="font-size-input" type="number" min="8" value="14"/>
+        <span>pt</span>
+        <input class="color-picker" type="color" value="#000000"/>
+        <button class="bold-toggle">B</button>
+        <button class="italic-toggle">I</button>
+      </div>
+
+      <!-- Author style group -->
+      <div class="form-group" data-style-group="author">
+        <label>Author/Call#</label>
+        <select class="font-select">
+          <option value="'Calibri', sans-serif">Calibri</option>
+          <option value="'Georgia', serif">Georgia</option>
+          <option value="'Lato', sans-serif">Lato</option>
+          <option value="'Roboto', sans-serif">Roboto</option>
+          <option value="'Merriweather', serif">Merriweather</option>
+          <option value="'Garamond', serif">Garamond</option>
+          <option value="'Helvetica', sans-serif">Helvetica</option>
+          <option value="'Times New Roman', serif">Times New Roman</option>
+        </select>
+        <input class="font-size-input" type="number" min="8" value="12"/>
+        <span>pt</span>
+        <input class="color-picker" type="color" value="#000000"/>
+        <button class="bold-toggle active">B</button>
+        <button class="italic-toggle">I</button>
+      </div>
+
+      <!-- Description style group -->
+      <div class="form-group" data-style-group="desc">
+        <label>Description</label>
+        <select class="font-select">
+          <option value="'Calibri', sans-serif">Calibri</option>
+          <option value="'Georgia', serif">Georgia</option>
+          <option value="'Lato', sans-serif">Lato</option>
+          <option value="'Roboto', sans-serif">Roboto</option>
+          <option value="'Merriweather', serif">Merriweather</option>
+          <option value="'Garamond', serif">Garamond</option>
+          <option value="'Helvetica', sans-serif">Helvetica</option>
+          <option value="'Times New Roman', serif">Times New Roman</option>
+        </select>
+        <input class="font-size-input" type="number" min="8" value="10"/>
+        <span>pt</span>
+        <input class="color-picker" type="color" value="#000000"/>
+        <button class="bold-toggle">B</button>
+        <button class="italic-toggle">I</button>
+
+        <div style="display: flex; align-items: center; gap: 5px; margin-left: 20px;">
+          <input id="stretch-block-covers-toggle" type="checkbox"/>
+          <label for="stretch-block-covers-toggle" style="font-size:0.9em; font-weight:normal;">Stretch Book Block Covers</label>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 15px;">Back Cover Options</h3>
+      <div class="form-group">
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <input id="toggle-qr-code" type="checkbox" checked/>
+          <label for="toggle-qr-code" style="font-size:0.9em; font-weight:normal;">Show QR Code Block</label>
+        </div>
+        <div style="display: flex; align-items: center; gap: 5px; margin-left: 20px;">
+          <input id="toggle-branding" type="checkbox" checked/>
+          <label for="toggle-branding" style="font-size:0.9em; font-weight:normal;">Show Branding Block</label>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 15px;">Cover Title Styles</h3>
+      <div class="form-group" id="cover-title-style-group">
+        <label>Cover Title</label>
+        <select class="font-select">
+          <option value="'Oswald', sans-serif">Oswald</option>
+          <option value="'Anton', sans-serif">Anton</option>
+          <option value="'Lato', sans-serif">Lato</option>
+          <option value="'Roboto', sans-serif">Roboto</option>
+          <option value="'Georgia', serif">Georgia</option>
+          <option value="'Merriweather', serif">Merriweather</option>
+          <option value="'Garamond', serif">Garamond</option>
+          <option value="'Helvetica', sans-serif">Helvetica</option>
+        </select>
+        <input class="font-size-input" type="number" min="8" value="40"/>
+        <span>pt</span>
+        <input class="color-picker" type="color" value="#FFFFFF"/>
+        <button class="bold-toggle active">B</button>
+        <button class="italic-toggle">I</button>
+
+        <label style="margin-left: 10px;">BG:</label>
+        <input id="cover-title-bg-color" class="color-picker" type="color" value="#000000"/>
+
+        <!-- New editable margins/padding -->
+        <label style="margin-left:10px;">Outer margin (pt)</label>
+        <input id="cover-title-outer-margin" class="font-size-input" type="number" value="10"/>
+        <label style="margin-left:10px;">BG pad X (pt)</label>
+        <input id="cover-title-pad-x" class="font-size-input" type="number" value="0"/>
+        <label style="margin-left:10px;">BG pad Y (pt)</label>
+        <input id="cover-title-pad-y" class="font-size-input" type="number" value="10"/>
+        <label style="margin-left:10px;">Side margin (pt)</label>
+        <input id="cover-title-side-margin" class="font-size-input" type="number" value="0"/>
+
+        <div style="display: flex; align-items: center; gap: 5px; margin-left:15px;">
+          <input id="stretch-covers-toggle" type="checkbox" checked/>
+          <label for="stretch-covers-toggle" style="font-size:0.9em; font-weight:normal;">Stretch Covers to Fit</label>
+        </div>
+      </div>
+
+      <button id="export-pdf-button">Generate PDF</button>
+    </div>
+
+    <div id="preview-area">
+      <div class="page" id="print-page-1">
+        <div class="panel" id="back-cover-panel">
+          <!-- Book items inserted before these uploaders -->
+          <label class="custom-uploader" id="qr-code-uploader">
+            <img alt="QR Code Placeholder" src="https://placehold.co/480x144/EAEAEA/333333?text=Upload+QR+Code+Image+(5x1.5+inches)"/>
+            <input type="file" accept="image/*"/>
+          </label>
+          <label class="custom-uploader" id="branding-uploader">
+            <img alt="Library Branding Placeholder" src="assets/img/branding-default.png"/>
+            <input type="file" accept="image/*"/>
+          </label>
         </div>
 
-        <div id="preview-area">
-            <div class="page" id="print-page-1">
-                <div class="panel" id="back-cover-panel">
-                    <!-- Book items will be dynamically inserted here before the uploaders -->
-                    <label id="qr-code-uploader" class="custom-uploader">
-                        <img src="https://placehold.co/480x144/EAEAEA/333333?text=Upload+QR+Code+Image+(5x1.5+inches)" alt="QR Code Placeholder">
-                        <input type="file" accept="image/*">
-                    </label>
-                    <label id="branding-uploader" class="custom-uploader">
-                        <img src="https://placehold.co/480x144/EAEAEA/333333?text=Upload+Library+Branding+Image+(5x1.5+inches)" alt="Library Branding Placeholder">
-                        <input type="file" accept="image/*">
-                    </label>
-                </div>
-                <div class="panel" id="front-cover-panel">
-                    <div id="front-cover-uploader" class="custom-uploader">
-                        <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Cover Image Placeholder">
-                        <div class="placeholder-text">
-                            Upload a Custom Cover<br>(5x8 inches)<br><br>OR<br><br>Use the Auto-Generator Below<br>(This will use the first 12 covers from your list to create a collage)
-                        </div>
-                        <div id="cover-generate-controls">
-                            <input type="text" id="cover-title-input" placeholder="Enter Cover Title...">
-                            <button id="generate-cover-button">Auto-Generate Cover</button>
-                        </div>
-                        <input type="file" accept="image/*">
-                    </div>
-                </div>
+        <div class="panel" id="front-cover-panel">
+          <div class="custom-uploader" id="front-cover-uploader">
+            <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
+            <div class="placeholder-text">
+              Upload a Custom Cover<br/>(5x8 inches)<br/><br/>OR<br/><br/>Use the Auto-Generator Below<br/>(This will use the first 12 covers from your list to create a collage)
             </div>
-            <div class="page" id="print-page-2">
-                <div class="panel book-panel" id="inside-left-panel"></div>
-                <div class="panel book-panel" id="inside-right-panel"></div>
+            <div id="cover-generate-controls">
+              <!-- Replaced input with textarea for multi-line titles -->
+              <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
+              <button id="generate-cover-button">Auto-Generate Cover</button>
             </div>
+            <input type="file" accept="image/*"/>
+          </div>
         </div>
+      </div>
+
+      <div class="page" id="print-page-2">
+        <div class="panel book-panel" id="inside-left-panel"></div>
+        <div class="panel book-panel" id="inside-right-panel"></div>
+      </div>
     </div>
-
-    <div style="max-width: 1280px; margin: 0 auto; padding: 0 20px;">
-        <hr>
-        <form class="search-form" id="search-form">
-            <div class="form-field">
-                <label for="keywordInput">Keyword (any field)</label>
-                <input type="text" id="keywordInput" placeholder="e.g., The Hobbit">
-            </div>
-            <div class="form-field">
-                <label for="titleInput">Title</label>
-                <input type="text" id="titleInput" placeholder="e.g., Dune">
-            </div>
-            <div class="form-field">
-                <label for="authorInput">Author</label>
-                <input type="text" id="authorInput" placeholder="e.g., Frank Herbert">
-            </div>
-            <div class="form-field">
-                <label for="subjectInput">Subject</label>
-                <input type="text" id="subjectInput" placeholder="e.g., science fiction">
-            </div>
-            <div class="form-field">
-                <label for="isbnInput">ISBN</label>
-                <input type="text" id="isbnInput" placeholder="e.g., 9780321765723">
-            </div>
-            <div class="form-field">
-                <label for="publisherInput">Publisher</label>
-                <input type="text" id="publisherInput" placeholder="e.g., Penguin Classics">
-            </div>
-            <div class="form-field">
-                <label for="personInput">Contributor</label>
-                <input type="text" id="personInput" placeholder="e.g., an illustrator">
-            </div>
-            <button type="submit" id="fetchButton">Search</button>
-        </form>
-        <hr>
-    </div>
-
-    <div style="max-width: 1280px; margin: 0 auto; padding: 0 20px;">
-        <h2>Search Results</h2>
-        <div id="results-container"></div>
-    </div>
-
-    <script>
-        // Get all element references
-        const keywordInput = document.getElementById('keywordInput');
-        const titleInput = document.getElementById('titleInput');
-        const authorInput = document.getElementById('authorInput');
-        const subjectInput = document.getElementById('subjectInput');
-        const isbnInput = document.getElementById('isbnInput');
-        const publisherInput = document.getElementById('publisherInput');
-        const personInput = document.getElementById('personInput');
-        const fetchButton = document.getElementById('fetchButton');
-        const searchForm = document.getElementById('search-form');
-        const resultsContainer = document.getElementById('results-container');
-        const exportPdfButton = document.getElementById('export-pdf-button');
-        const backCoverPanel = document.getElementById('back-cover-panel');
-        const insideLeftPanel = document.getElementById('inside-left-panel');
-        const insideRightPanel = document.getElementById('inside-right-panel');
-        const previewArea = document.getElementById('preview-area');
-        const qrCodeUploader = document.getElementById('qr-code-uploader');
-        const brandingUploader = document.getElementById('branding-uploader');
-        const frontCoverUploader = document.getElementById('front-cover-uploader');
-        const frontCoverPanel = document.getElementById('front-cover-panel');
-        const generateCoverButton = document.getElementById('generate-cover-button');
-        const coverTitleInput = document.getElementById('cover-title-input');
-        const stretchCoversToggle = document.getElementById('stretch-covers-toggle');
-        const stretchBlockCoversToggle = document.getElementById('stretch-block-covers-toggle');
-        const toggleQrCode = document.getElementById('toggle-qr-code');
-        const toggleBranding = document.getElementById('toggle-branding');
-        const notificationArea = document.getElementById('notification-area');
-        
-
-
-        let myBooklist = [];
-        let MAX_BOOKS = 15;
-
-        // --- NOTIFICATION ---
-        function showNotification(message, type = 'error') {
-            notificationArea.textContent = message;
-            notificationArea.className = type; // 'error' or 'success'
-            notificationArea.classList.add('show');
-            setTimeout(() => {
-                notificationArea.classList.remove('show');
-            }, 5000); // Increased time to 5 seconds
-        }
-
-        // --- REVISED: Function to get AI-generated description with better logging ---
-        function getAiDescription(bookKey, isTest = false) {
-            const bookItem = myBooklist.find(b => b.key === bookKey);
-            if (!bookItem && !isTest) {
-                console.error("Description fetch failed: Could not find book with key:", bookKey);
-                return;
-            }
-
-            // IMPORTANT: Paste your copied Google Apps Script Web App URL here.
-            const googleAppScriptUrl = "https://script.google.com/macros/s/AKfycbyhqsRgjS7aoEbYwqgN-wyygjFtGNtFdGcUOnrqXmZ7P3Aubjjwlp-HydWp4MPJxXY/exec";
-
-            if (googleAppScriptUrl === "PASTE_YOUR_GOOGLE_APPS_SCRIPT_URL_HERE" || !googleAppScriptUrl) {
-                const errorMsg = "error: Google Apps Script URL is not set.";
-                console.error(errorMsg);
-                if (isTest) {
-                    showNotification(errorMsg, "error");
-                } else if (bookItem) {
-                    bookItem.description = errorMsg;
-                }
-                return;
-            }
-            
-            const payload = isTest ? { title: "Test Title", author: "Test Author" } : { title: bookItem.title, author: bookItem.author };
-
-            // REVISED: Use POST method for more robust communication
-            fetch(googleAppScriptUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8', // Required for Apps Script POST
-                },
-                body: JSON.stringify(payload),
-                mode: 'cors' // Explicitly set CORS mode
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Network error: ${response.status} ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.description) {
-                    if (isTest) {
-                        const successMsg = `Test Success: ${data.description}`;
-                        console.log(successMsg);
-                        showNotification(successMsg, "success");
-                    } else {
-                        bookItem.description = data.description;
-                        renderBooklist();
-                    }
-                } else {
-                    // Throw the specific error from the script, or a fallback.
-                    throw new Error(data.error || 'Unknown error from description service.');
-                }
-            })
-            .catch(error => {
-                // NEW: Enhanced logging
-                console.error('Full error object from getAiDescription:', error); 
-                const errorMessage = error.message || "An unknown error occurred.";
-                
-                if (isTest) {
-                    const failMsg = `Test Failed: ${errorMessage}`;
-                    console.error(failMsg);
-                    showNotification(failMsg, "error");
-                } else if (bookItem) {
-                    bookItem.description = `error: ${errorMessage}`;
-                    renderBooklist();
-                }
-            });
-        }
-
-
-        function createBlankBook() {
-            return {
-                key: `blank-${crypto.randomUUID()}`,
-                isBlank: true,
-                title: '[Enter Title]',
-                author: '[Enter Author]',
-                callNumber: '[Call #]',
-                description: '[Enter a brief description here...]',
-                cover_i: null,
-                customCoverData: 'https://placehold.co/110x132/EAEAEA/333333?text=Upload%20Cover',
-                // New fields for cover selection
-                cover_ids: [],
-                currentCoverIndex: 0 
-            };
-        }
-
-        function initializeBooklist() {
-            for (let i = 0; i < 15; i++) {
-                myBooklist.push(createBlankBook());
-            }
-            handleLayoutChange();
-            renderBooklist();
-        }
-
-        // --- EVENT LISTENERS ---
-        searchForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            getBooks();
-        });
-
-        
-        generateCoverButton.addEventListener('click', generateCoverCollage);
-        stretchCoversToggle.addEventListener('change', generateCoverCollage);
-        stretchBlockCoversToggle.addEventListener('change', applyBlockCoverStyle);
-        toggleQrCode.addEventListener('change', handleLayoutChange);
-        toggleBranding.addEventListener('change', handleLayoutChange);
-
-        function setupFileChangeHandler(uploaderElement) {
-            const fileInput = uploaderElement.querySelector('input[type="file"]');
-            const imgElement = uploaderElement.querySelector('img');
-
-            fileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        imgElement.src = event.target.result;
-                        imgElement.dataset.isPlaceholder = "false";
-                        uploaderElement.classList.add('has-image');
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-        }
-        
-        setupFileChangeHandler(qrCodeUploader);
-        setupFileChangeHandler(brandingUploader);
-        setupFileChangeHandler(frontCoverUploader);
-
-        const coverControls = document.getElementById('cover-generate-controls');
-        frontCoverUploader.addEventListener('click', (e) => {
-            if (coverControls.contains(e.target)) {
-                return;
-            }
-            const fileInput = frontCoverUploader.querySelector('input[type="file"]');
-            fileInput.click();
-        });
-
-
-        function applyStyles() {
-            document.querySelectorAll('.export-controls .form-group[data-style-group]').forEach(group => {
-                const styleGroup = group.dataset.styleGroup;
-                const font = group.querySelector('.font-select').value;
-                const size = group.querySelector('.font-size-input').value + 'pt';
-                const color = group.querySelector('.color-picker').value;
-                const isBold = group.querySelector('.bold-toggle').classList.contains('active');
-                const isItalic = group.querySelector('.italic-toggle').classList.contains('active');
-
-                previewArea.style.setProperty(`--${styleGroup}-font`, font);
-                previewArea.style.setProperty(`--${styleGroup}-font-size`, size);
-                previewArea.style.setProperty(`--${styleGroup}-color`, color);
-                previewArea.style.setProperty(`--${styleGroup}-font-weight`, isBold ? 'bold' : 'normal');
-                previewArea.style.setProperty(`--${styleGroup}-font-style`, isItalic ? 'italic' : 'normal');
-            });
-        }
-
-        function applyBlockCoverStyle() {
-            const shouldStretch = stretchBlockCoversToggle.checked;
-            document.querySelectorAll('#preview-area .cover-uploader').forEach(uploader => {
-                if (shouldStretch) {
-                    uploader.classList.add('stretch');
-                } else {
-                    uploader.classList.remove('stretch');
-                }
-            });
-        }
-
-        document.querySelectorAll('.export-controls .form-group[data-style-group], #cover-title-style-group').forEach(group => {
-            group.querySelectorAll('select, input').forEach(input => {
-                 input.addEventListener('change', applyStyles);
-                 input.addEventListener('input', applyStyles);
-            });
-            group.querySelectorAll('button').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    if(e.target.classList.contains('bold-toggle') || e.target.classList.contains('italic-toggle')){
-                        e.target.classList.toggle('active');
-                    }
-                    applyStyles();
-                });
-            });
-        });
-
-        // --- DYNAMIC LIST LIMIT AND LAYOUT LOGIC ---
-        function handleLayoutChange() {
-            const showQr = toggleQrCode.checked;
-            const showBranding = toggleBranding.checked;
-
-            let newMaxBooks;
-            if (showQr && showBranding) {
-                newMaxBooks = 13;
-            } else if (showQr || showBranding) {
-                newMaxBooks = 14;
-            } else {
-                newMaxBooks = 15;
-            }
-
-            let listWasTrimmed = false;
-            if (newMaxBooks < MAX_BOOKS) {
-                for (let i = newMaxBooks; i < 15; i++) {
-                    if (myBooklist[i] && !myBooklist[i].isBlank) {
-                        myBooklist[i] = createBlankBook();
-                        listWasTrimmed = true;
-                    }
-                }
-            }
-            
-            MAX_BOOKS = newMaxBooks;
-
-            if (listWasTrimmed) {
-                renderBooklist();
-            } else {
-                updateBackCoverVisibility();
-            }
-        }
-
-        function updateBackCoverVisibility() {
-            const showQr = toggleQrCode.checked;
-            const showBranding = toggleBranding.checked;
-
-            qrCodeUploader.style.display = showQr ? 'flex' : 'none';
-            brandingUploader.style.display = showBranding ? 'flex' : 'none';
-
-            let extraSlotsToShow = 0;
-            if (!showQr) extraSlotsToShow++;
-            if (!showBranding) extraSlotsToShow++;
-
-            const backCoverBooks = backCoverPanel.querySelectorAll('.list-item');
-            backCoverBooks.forEach((item, index) => {
-                if (index < (3 + extraSlotsToShow)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        }
-
-        async function fetchAllCoverIdsForWork(workKey) {
-            const workId = workKey.split('/').pop();
-            const editionsUrl = `https://openlibrary.org/works/${workId}/editions.json?limit=100`; // Fetch more editions
-            try {
-                const response = await fetch(editionsUrl);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                const coverIds = new Set();
-                data.entries.forEach(edition => {
-                    if (edition.covers) {
-                        edition.covers.forEach(coverId => {
-                            if (coverId > 0) coverIds.add(coverId)
-                        });
-                    }
-                });
-                return Array.from(coverIds);
-            } catch (error) {
-                console.error("Error fetching edition covers:", error);
-                return [];
-            }
-        }
-
-        // --- SEARCH AND ADD-TO-LIST LOGIC ---
-        function getBooks() {
-            resultsContainer.innerHTML = '<p>Searching...</p>';
-            const queryParams = [];
-            if (keywordInput.value) queryParams.push(`q=${encodeURIComponent(keywordInput.value)}`);
-            if (titleInput.value) queryParams.push(`title=${encodeURIComponent(titleInput.value)}`);
-            if (authorInput.value) queryParams.push(`author=${encodeURIComponent(authorInput.value)}`);
-            if (subjectInput.value) queryParams.push(`subject=${encodeURIComponent(subjectInput.value)}`);
-            if (isbnInput.value) queryParams.push(`isbn=${encodeURIComponent(isbnInput.value)}`);
-            if (publisherInput.value) queryParams.push(`publisher=${encodeURIComponent(publisherInput.value)}`);
-            if (personInput.value) queryParams.push(`person=${encodeURIComponent(personInput.value)}`);
-            
-            if (queryParams.length === 0) {
-                resultsContainer.innerHTML = '<p class="error-message">Please enter at least one search term.</p>';
-                return;
-            }
-            const queryString = queryParams.join('&');
-            const apiUrl = `https://openlibrary.org/search.json?${queryString}`;
-            fetch(apiUrl)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Network response was not ok: ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    resultsContainer.innerHTML = '';
-                    const books = data.docs;
-                    if (books.length === 0) { resultsContainer.innerHTML = '<p>No results found.</p>'; return; }
-                    books.forEach(book => {
-                        const initialCoverId = book.cover_i || 'placehold'; 
-                        
-                        const bookElement = document.createElement('div');
-                        bookElement.className = 'book-card';
-                        bookElement.dataset.key = book.key; 
-
-                        const coverCarousel = document.createElement('div');
-                        coverCarousel.className = 'cover-carousel';
-                        const coverElement = document.createElement('img');
-                        coverElement.src = initialCoverId === 'placehold' ? 
-                                           'https://placehold.co/110x132/EAEAEA/333333?text=No%20Cover' :
-                                           `https://covers.openlibrary.org/b/id/${initialCoverId}-M.jpg`;
-                        coverElement.alt = `Cover for ${book.title}`;
-                        coverCarousel.appendChild(coverElement);
-
-                        const titleElement = document.createElement('p');
-                        titleElement.className = 'book-title';
-                        titleElement.textContent = book.title;
-
-                        // --- Action Buttons Group ---
-                        const actionsGroup = document.createElement('div');
-                        actionsGroup.className = 'card-actions-group';
-
-                        const carouselControls = document.createElement('div');
-                        carouselControls.className = 'carousel-controls';
-                        
-                        const coverCounter = document.createElement('span');
-                        coverCounter.className = 'cover-counter';
-                        coverCounter.textContent = '1 of 1';
-
-                        const buttonsContainer = document.createElement('div');
-                        buttonsContainer.className = 'carousel-buttons-container';
-
-                        const prevButton = document.createElement('button');
-                        prevButton.className = 'carousel-button';
-                        prevButton.textContent = '◀';
-                        prevButton.setAttribute('aria-label', 'Previous Cover');
-                        prevButton.disabled = true;
-
-                        const nextButton = document.createElement('button');
-                        nextButton.className = 'carousel-button';
-                        nextButton.textContent = '▶';
-                        nextButton.setAttribute('aria-label', 'Next Cover');
-                        nextButton.disabled = true;
-
-                        buttonsContainer.appendChild(prevButton);
-                        buttonsContainer.appendChild(nextButton);
-
-                        carouselControls.appendChild(coverCounter);
-                        carouselControls.appendChild(buttonsContainer);
-
-                        let allCoverIds = [initialCoverId];
-                        let currentCoverIndex = 0;
-                        let coversLoaded = false;
-
-                        const updateCarousel = () => {
-                            const currentId = allCoverIds[currentCoverIndex];
-                            coverElement.src = currentId === 'placehold' ? 
-                                               'https://placehold.co/110x132/EAEAEA/333333?text=No%20Cover' :
-                                               `https://covers.openlibrary.org/b/id/${currentId}-M.jpg`;
-                            coverCounter.textContent = `${currentCoverIndex + 1} of ${allCoverIds.length}`;
-                            prevButton.disabled = currentCoverIndex === 0;
-                            nextButton.disabled = currentCoverIndex === allCoverIds.length - 1;
-                        };
-
-                        const loadAllCovers = async () => {
-                            if (coversLoaded || !book.key) return;
-                            const fetchedCovers = await fetchAllCoverIdsForWork(book.key);
-                            
-                            let finalCovers = [];
-                            if (initialCoverId !== 'placehold') {
-                                finalCovers.push(initialCoverId);
-                            }
-                            fetchedCovers.forEach(id => finalCovers.push(id));
-
-                            allCoverIds = [...new Set(finalCovers)]; // Remove duplicates
-                             if(allCoverIds.length === 0) {
-                                allCoverIds.push('placehold');
-                            }
-
-                            coversLoaded = true;
-                            updateCarousel();
-                        };
-                        
-                        prevButton.addEventListener('click', async () => {
-                            if (!coversLoaded) await loadAllCovers();
-                            if (currentCoverIndex > 0) {
-                                currentCoverIndex--;
-                                updateCarousel();
-                            }
-                        });
-                        nextButton.addEventListener('click', async () => {
-                            if (!coversLoaded) await loadAllCovers();
-                            if (currentCoverIndex < allCoverIds.length - 1) {
-                                currentCoverIndex++;
-                                updateCarousel();
-                            }
-                        });
-
-                        if (book.key) {
-                             loadAllCovers().then(() => {
-                                if (allCoverIds.length > 1) {
-                                    prevButton.disabled = false;
-                                    nextButton.disabled = false;
-                                    updateCarousel(); // Refresh in case the array changed
-                                }
-                            });
-                        }
-
-                        
-                        const addButton = document.createElement('button');
-                        addButton.className = 'add-to-list-button';
-                        addButton.dataset.bookKey = book.key;
-                            
-                        const isAlreadyAdded = myBooklist.some(item => item.key === book.key);
-                        if(isAlreadyAdded){
-                            addButton.innerHTML = '&#10003;';
-                            addButton.classList.add('added');
-                        } else {
-                            addButton.textContent = 'Add to List';
-                        }
-
-                        addButton.addEventListener('click', () => {
-                            const isAdded = myBooklist.some(item => item.key === book.key);
-                            const firstBlankIndex = myBooklist.findIndex((item, index) => item.isBlank && index < MAX_BOOKS);
-
-                            if (!isAdded) {
-                                if (firstBlankIndex !== -1) {
-                                    const newBook = {
-                                        key: book.key,
-                                        isBlank: false,
-                                        title: book.title,
-                                        author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
-                                        callNumber: '[Call #]',
-                                        description: 'Fetching book description...',
-                                        cover_ids: allCoverIds, 
-                                        currentCoverIndex: currentCoverIndex,
-                                    };
-                                    myBooklist[firstBlankIndex] = newBook;
-                                    addButton.innerHTML = '&#10003;';
-                                    addButton.classList.add('added');
-                                    
-                                    renderBooklist(); 
-                                    getAiDescription(newBook.key);
-
-                                } else {
-                                    showNotification(`All ${MAX_BOOKS} book slots are full. Please delete one before adding another.`);
-                                }
-                            } else {
-                                const indexToRemove = myBooklist.findIndex(item => item.key === book.key);
-                                if (indexToRemove !== -1) {
-                                    myBooklist[indexToRemove] = createBlankBook();
-                                }
-                                addButton.textContent = 'Add to List';
-                                addButton.classList.remove('added');
-                                renderBooklist();
-                            }
-                        });
-                        
-                        // Assemble the card
-                        bookElement.appendChild(coverCarousel);
-                        bookElement.appendChild(titleElement);
-
-                        actionsGroup.appendChild(carouselControls);
-                        actionsGroup.appendChild(addButton);
-                        bookElement.appendChild(actionsGroup);
-
-                        resultsContainer.appendChild(bookElement);
-                    });
-                })
-                .catch(error => {
-                    console.error('There was a problem:', error);
-                    resultsContainer.innerHTML = '<p class="error-message">Sorry, could not connect to the book server. Please check your network connection and try again.</p>';
-                });
-        }
-
-
-        // --- LIVE PREVIEW RENDER LOGIC ---
-        function renderBooklist() {
-            insideLeftPanel.innerHTML = '';
-            insideRightPanel.innerHTML = '';
-            
-            backCoverPanel.querySelectorAll('.list-item').forEach(item => item.remove());
-
-            myBooklist.forEach((bookItem, index) => {
-                let targetPanel;
-                let insertBeforeElement = null;
-
-                if (index < 5) {
-                    targetPanel = insideLeftPanel;
-                } else if (index < 10) {
-                    targetPanel = insideRightPanel;
-                } else {
-                    targetPanel = backCoverPanel;
-                    insertBeforeElement = qrCodeUploader;
-                }
-
-                const listItem = document.createElement('div');
-                listItem.className = 'list-item';
-                listItem.dataset.id = bookItem.key;
-                listItem.dataset.isBlank = bookItem.isBlank;
-
-                const controlsDiv = document.createElement('div');
-                controlsDiv.className = 'list-item-controls';
-                
-                if (targetPanel === insideRightPanel) {
-                    controlsDiv.classList.add('controls-right');
-                }
-
-                const itemNumber = document.createElement('span');
-                itemNumber.className = 'item-number';
-                itemNumber.textContent = index + 1;
-                const dragHandle = document.createElement('div');
-                dragHandle.className = 'drag-handle';
-                dragHandle.innerHTML = '&#9776;';
-                const deleteButton = document.createElement('button');
-                deleteButton.className = 'delete-button';
-                deleteButton.innerHTML = '&times;';
-                deleteButton.onclick = () => {
-                    const originalKey = myBooklist[index].key;
-                    myBooklist[index] = createBlankBook();
-                    renderBooklist();
-                    // Fix selector to correctly find the button in the search results
-                    const searchButton = document.querySelector(`#results-container button[data-book-key="${originalKey}"]`);
-                    if(searchButton) {
-                        searchButton.textContent = 'Add to List';
-                        searchButton.classList.remove('added');
-                    }
-                };
-                
-                controlsDiv.appendChild(dragHandle);
-                controlsDiv.appendChild(itemNumber);
-                controlsDiv.appendChild(deleteButton);
-
-                const coverUploader = document.createElement('label');
-                coverUploader.className = 'cover-uploader';
-                const coverImg = document.createElement('img');
-                coverImg.crossOrigin = 'Anonymous';
-                
-                const selectedCoverId = bookItem.cover_ids && bookItem.cover_ids.length > bookItem.currentCoverIndex 
-                                        ? bookItem.cover_ids[bookItem.currentCoverIndex] 
-                                        : null;
-                coverImg.src = selectedCoverId && selectedCoverId !== 'placehold' ? 
-                               `https://covers.openlibrary.org/b/id/${selectedCoverId}-M.jpg` :
-                               bookItem.customCoverData || 'https://placehold.co/110x132/EAEAEA/333333?text=Upload%20Cover';
-                               
-                const fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.accept = 'image/*';
-                fileInput.onchange = (e) => {
-                     const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                            const book = myBooklist.find(b => b.key === bookItem.key);
-                            book.customCoverData = event.target.result;
-                            book.cover_ids = []; 
-                            book.currentCoverIndex = 0;
-                            coverImg.src = event.target.result;
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                };
-                coverUploader.appendChild(coverImg);
-                coverUploader.appendChild(fileInput);
-                
-                const detailsDiv = document.createElement('div');
-                detailsDiv.className = 'list-item-details';
-
-                const titleField = document.createElement('div');
-                titleField.className = 'editable-field title-field';
-                titleField.contentEditable = true;
-                titleField.textContent = bookItem.title;
-                titleField.oninput = (e) => { 
-                    bookItem.title = e.target.textContent;
-                    if(bookItem.isBlank && bookItem.title !== '[Enter Title]') {
-                        bookItem.isBlank = false;
-                        listItem.dataset.isBlank = false;
-                    }
-                };
-
-                const authorField = document.createElement('div');
-                authorField.className = 'editable-field author-field';
-                authorField.contentEditable = true;
-                authorField.textContent = bookItem.author.startsWith('[Enter') ? `${bookItem.author} - ${bookItem.callNumber}` : `By ${bookItem.author} - ${bookItem.callNumber}`;
-                authorField.oninput = (e) => { 
-                    let text = e.target.textContent;
-                    if (text.includes('By ') && text.includes(' - ')) {
-                        const parts = text.replace('By ', '').split(' - ');
-                        bookItem.author = parts[0] || '';
-                        bookItem.callNumber = parts[1] || '';
-                    } else {
-                        const parts = text.split(' - ');
-                        bookItem.author = parts[0] || '';
-                        bookItem.callNumber = parts[1] || '';
-                    }
-                 };
-
-                const descriptionField = document.createElement('div');
-                descriptionField.className = 'editable-field description-field';
-                descriptionField.contentEditable = true;
-                descriptionField.textContent = bookItem.description;
-                descriptionField.oninput = (e) => { bookItem.description = e.target.textContent; };
-                
-                detailsDiv.appendChild(titleField);
-                detailsDiv.appendChild(authorField);
-                detailsDiv.appendChild(descriptionField);
-
-                const placeholders = {
-                    title: '[Enter Title]',
-                    author: '[Enter Author] - [Call #]',
-                    description: '[Enter a brief description here...]'
-                };
-
-                const setupPlaceholder = (element, placeholderText, originalColor) => {
-                    if (element.textContent === placeholderText) {
-                        element.style.color = '#757575';
-                    }
-                    element.onfocus = () => {
-                        if (element.textContent === placeholderText) {
-                            element.textContent = '';
-                            element.style.color = originalColor;
-                        }
-                    };
-                    element.onblur = () => {
-                        if (element.textContent.trim() === '') {
-                            element.textContent = placeholderText;
-                            element.style.color = '#757575';
-                        }
-                    };
-                };
-
-                setupPlaceholder(titleField, placeholders.title, getComputedStyle(titleField).color);
-                setupPlaceholder(authorField, placeholders.author, getComputedStyle(authorField).color);
-                
-                if (bookItem.description !== 'Fetching book description...' && !bookItem.description.startsWith('error:')) {
-                     setupPlaceholder(descriptionField, placeholders.description, getComputedStyle(descriptionField).color);
-                     descriptionField.style.color = '';
-                } else {
-                    descriptionField.style.color = '#757575';
-                }
-                
-                listItem.appendChild(controlsDiv);
-                listItem.appendChild(coverUploader);
-                listItem.appendChild(detailsDiv);
-                
-                if (insertBeforeElement) {
-                    targetPanel.insertBefore(listItem, insertBeforeElement);
-                } else {
-                    targetPanel.appendChild(listItem);
-                }
-            });
-            applyStyles();
-            applyBlockCoverStyle();
-            updateBackCoverVisibility();
-        }
-
-        // --- DRAG-AND-DROP INITIALIZATION ---
-        const sortableOptions = {
-            group: 'shared-list',
-            handle: '.drag-handle',
-            animation: 150,
-            ghostClass: 'sortable-ghost',
-            onEnd: function () {
-                const newBooklist = [];
-                const allPanelItems = [
-                    ...Array.from(insideLeftPanel.children),
-                    ...Array.from(insideRightPanel.children),
-                    ...Array.from(backCoverPanel.querySelectorAll('.list-item'))
-                ];
-
-                const allIds = allPanelItems.map(item => item.dataset.id).filter(id => id);
-
-                allIds.forEach(id => newBooklist.push(myBooklist.find(b => b.key === id)));
-                
-                const currentIds = new Set(newBooklist.map(b => b.key));
-                const allBookIds = new Set(myBooklist.map(b => b.key));
-                allBookIds.forEach(id => {
-                    if (!currentIds.has(id)) {
-                        newBooklist.push(myBooklist.find(b => b.key === id));
-                    }
-                });
-
-                myBooklist = newBooklist;
-                renderBooklist();
-            },
-        };
-        new Sortable(insideLeftPanel, sortableOptions);
-        new Sortable(insideRightPanel, sortableOptions);
-        new Sortable(backCoverPanel, sortableOptions);
-
-        // --- COVER COLLAGE GENERATION ---
-        function generateCoverCollage() {
-            const button = generateCoverButton;
-            button.textContent = 'Generating...';
-            button.disabled = true;
-
-            const shouldStretchCovers = stretchCoversToggle.checked;
-
-            const booksWithCovers = myBooklist.filter(book => !book.isBlank && (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co'))));
-            
-            if (booksWithCovers.length < 12) {
-                showNotification('Please add at least 12 books with covers to generate a collage.');
-                button.textContent = 'Auto-Generate Cover';
-                button.disabled = false;
-                return;
-            }
-
-            const coversToDraw = booksWithCovers.slice(0, 12).map(book => {
-                if (book.customCoverData && !book.customCoverData.includes('placehold.co')) {
-                    return book.customCoverData;
-                } else if (book.cover_ids.length > 0) {
-                    const coverId = book.cover_ids[book.currentCoverIndex];
-                    return coverId !== 'placehold' ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : 'https://placehold.co/300x450/EAEAEA/333333?text=No%20Cover';
-                }
-                return 'https://placehold.co/300x450/EAEAEA/333333?text=No%20Cover';
-            });
-
-            const canvas = document.createElement('canvas');
-            const dpi = 150; 
-            canvas.width = 5 * dpi;
-            canvas.height = 8 * dpi;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-
-            const loadImage = (src) => {
-                return new Promise((resolve, reject) => {
-                    const img = new Image();
-                    img.crossOrigin = 'Anonymous';
-                    img.onload = () => resolve(img);
-                    img.onerror = reject;
-                    img.src = src;
-                });
-            };
-
-            const imagePromises = coversToDraw.map(src => loadImage(src));
-            
-            const wrapText = (text, maxWidth) => {
-                const words = text.split(' ');
-                let lines = [];
-                let currentLine = words[0] || '';
-
-                for (let i = 1; i < words.length; i++) {
-                    const word = words[i];
-                    const width = ctx.measureText(currentLine + " " + word).width;
-                    if (width < maxWidth) {
-                        currentLine += " " + word;
-                    } else {
-                        lines.push(currentLine);
-                        currentLine = word;
-                    }
-                }
-                lines.push(currentLine);
-                return lines;
-            }
-
-            const titleStyleGroup = document.getElementById('cover-title-style-group');
-            const font = titleStyleGroup.querySelector('.font-select').value;
-            const isBold = titleStyleGroup.querySelector('.bold-toggle').classList.contains('active');
-            const isItalic = titleStyleGroup.querySelector('.italic-toggle').classList.contains('active');
-            let fontStyle = '';
-            if (isItalic) fontStyle += 'italic ';
-            if (isBold) fontStyle += 'bold ';
-            const fontToLoad = `${fontStyle} 10px ${font}`;
-
-            document.fonts.load(fontToLoad).then(() => {
-                Promise.all(imagePromises).then(images => {
-                    const bookAspectRatio = 0.75;
-                    const canvasWidthPx = canvas.width;
-                    const canvasHeightPx = canvas.height;
-                    const titleMarginPx = 0.2 * dpi;
-                    const topPadding = 0;
-                    const vGutterToHeightRatio = 0.15;
-
-                    const fontSizePt = parseInt(titleStyleGroup.querySelector('.font-size-input').value, 10);
-                    const fontSizePx = fontSizePt * (dpi / 72);
-                    const coverTitle = coverTitleInput.value || "My Booklist";
-                    ctx.font = `${fontStyle} ${fontSizePx}px ${font}`;
-                    const lines = wrapText(coverTitle, canvasWidthPx - (2 * titleMarginPx));
-                    const lineHeight = fontSizePx * 1.2;
-                    const bgPaddingVPx = 0.2 * dpi;
-                    const totalTitleBlockHeightPx = (lines.length * lineHeight) + (2 * bgPaddingVPx);
-
-                    const totalFixedVerticalSpace = topPadding + titleMarginPx + totalTitleBlockHeightPx + titleMarginPx;
-                    const availableHeightForBooksAndGutters = canvasHeightPx - totalFixedVerticalSpace;
-                    const slotHeight = availableHeightForBooksAndGutters / (4 + 2 * vGutterToHeightRatio);
-                    
-                    const slotWidth = slotHeight * bookAspectRatio;
-                    const vGutter = slotHeight * vGutterToHeightRatio;
-                    const hGutter = (canvasWidthPx - (3 * slotWidth)) / 4;
-                    const startY = topPadding;
-
-                    let imageIndex = 0;
-                    
-                    const drawImage = (img, x, y, w, h) => {
-                        if (shouldStretchCovers) {
-                            ctx.drawImage(img, x, y, w, h);
-                        } else {
-                            const imgAspectRatio = img.width / img.height;
-                            const slotAspectRatio = w / h;
-                            let dw, dh, dx, dy;
-                            if (imgAspectRatio > slotAspectRatio) {
-                                dw = w;
-                                dh = dw / imgAspectRatio;
-                                dx = x;
-                                dy = y + (h - dh) / 2;
-                            } else {
-                                dh = h;
-                                dw = dh * imgAspectRatio;
-                                dx = x + (w - dw) / 2;
-                                dy = y;
-                            }
-                            ctx.drawImage(img, dx, dy, dw, dh);
-                        }
-                    };
-
-                    const topRowY = startY;
-                    for (let col = 0; col < 3; col++) {
-                        const slotX = hGutter + col * (slotWidth + hGutter);
-                        drawImage(images[imageIndex], slotX, topRowY, slotWidth, slotHeight);
-                        imageIndex++;
-                    }
-
-                    const gridTopY = topRowY + slotHeight + titleMarginPx + totalTitleBlockHeightPx + titleMarginPx;
-                    for (let row = 0; row < 3; row++) {
-                        const currentRowY = gridTopY + row * (slotHeight + vGutter);
-                        for (let col = 0; col < 3; col++) {
-                            const slotX = hGutter + col * (slotWidth + hGutter);
-                            drawImage(images[imageIndex], slotX, currentRowY, slotWidth, slotHeight);
-                            imageIndex++;
-                        }
-                    }
-
-                    const color = titleStyleGroup.querySelector('.color-picker').value;
-                    const bgColor = document.getElementById('cover-title-bg-color').value;
-                    const titleBoxY = topRowY + slotHeight + titleMarginPx;
-                    
-                    ctx.fillStyle = bgColor;
-                    ctx.fillRect(0, titleBoxY, canvasWidthPx, totalTitleBlockHeightPx);
-
-                    ctx.fillStyle = color;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    
-                    const textBlockHeight = lines.length * lineHeight;
-                    let firstLineY = titleBoxY + (totalTitleBlockHeightPx / 2) - (textBlockHeight / 2) + (lineHeight / 2);
-                    
-                    lines.forEach((line, index) => {
-                        ctx.fillText(line.trim(), canvasWidthPx / 2, firstLineY + (index * lineHeight));
-                    });
-
-                    const dataUrl = canvas.toDataURL('image/png');
-                    const frontCoverImg = frontCoverUploader.querySelector('img');
-                    frontCoverImg.src = dataUrl;
-                    frontCoverImg.dataset.isPlaceholder = "false";
-                    frontCoverUploader.classList.add('has-image');
-
-                }).catch(error => {
-                    console.error('Error loading cover images for collage:', error);
-                    showNotification('Could not load all cover images. Please try again.');
-                }).finally(() => {
-                    button.textContent = 'Auto-Generate Cover';
-                    button.disabled = false;
-                });
-            }).catch(err => {
-                console.error('Font could not be loaded for canvas:', err);
-                showNotification('The selected title font could not be loaded. Please try a system font.');
-                button.textContent = 'Auto-Generate Cover';
-                button.disabled = false;
-            });
-        }
-
-
-        // --- FINAL PDF EXPORT ---
-        exportPdfButton.addEventListener('click', () => {
-            exportPdfButton.textContent = 'Generating...';
-            exportPdfButton.disabled = true;
-
-            const elementsToRestore = [];
-            // Hide blank list items
-            document.querySelectorAll('.list-item').forEach(item => {
-                if (item.dataset.isBlank === 'true') {
-                    elementsToRestore.push({el: item, display: item.style.display});
-                    item.style.display = 'none';
-                }
-            });
-
-            // Hide placeholder uploaders on the back cover
-            document.querySelectorAll('#back-cover-panel .custom-uploader').forEach(uploader => {
-                const img = uploader.querySelector('img');
-                if (img && img.src.includes('placehold.co')) {
-                     elementsToRestore.push({el: uploader, display: uploader.style.display});
-                    uploader.style.display = 'none';
-                }
-            });
-
-            // Hide the entire front cover panel if it's still a placeholder
-            const frontCoverImg = frontCoverUploader.querySelector('img');
-            const isPlaceholder = frontCoverImg.dataset.isPlaceholder !== "false" && (frontCoverImg.src.includes('placehold.co') || frontCoverImg.src.includes('data:image/gif'));
-
-            if (isPlaceholder) {
-                elementsToRestore.push({ el: frontCoverPanel, display: frontCoverPanel.style.display });
-                frontCoverPanel.style.display = 'none';
-            }
-
-
-            previewArea.classList.add('print-mode');
-            
-            setTimeout(() => {
-                document.fonts.ready.then(() => {
-                    const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
-
-                    const options = { scale: 3, useCORS: true, backgroundColor: null };
-
-                    html2canvas(document.getElementById('print-page-1'), options)
-                        .then(canvas1 => {
-                            pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
-                            pdf.addPage();
-                            return html2canvas(document.getElementById('print-page-2'), options);
-                        })
-                        .then(canvas2 => {
-                            pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
-                            pdf.save('bifold-booklist.pdf');
-                        })
-                        .catch(err => {
-                            console.error("PDF Generation failed:", err);
-                            showNotification("An error occurred generating the PDF. Please check the console.");
-                        })
-                        .finally(() => {
-                            previewArea.classList.remove('print-mode');
-                            elementsToRestore.forEach(item => item.el.style.display = item.display || '');
-                            exportPdfButton.textContent = 'Generate PDF';
-                            exportPdfButton.disabled = false;
-                        });
-                });
-            }, 100);
-        });
-
-        // Initialize the app
-        initializeBooklist();
-        applyStyles();
-    </script>
+  </div>
+
+  <div style="max-width: 1280px; margin: 0 auto; padding: 0 20px;">
+    <hr/>
+    <form id="search-form" class="search-form">
+      <div class="form-field">
+        <label for="keywordInput">Keyword (any field)</label>
+        <input id="keywordInput" type="text" placeholder="e.g., The Hobbit"/>
+      </div>
+      <div class="form-field">
+        <label for="titleInput">Title</label>
+        <input id="titleInput" type="text" placeholder="e.g., Dune"/>
+      </div>
+      <div class="form-field">
+        <label for="authorInput">Author</label>
+        <input id="authorInput" type="text" placeholder="e.g., Frank Herbert"/>
+      </div>
+      <div class="form-field">
+        <label for="subjectInput">Subject</label>
+        <input id="subjectInput" type="text" placeholder="e.g., science fiction"/>
+      </div>
+      <div class="form-field">
+        <label for="isbnInput">ISBN</label>
+        <input id="isbnInput" type="text" placeholder="e.g., 9780321765723"/>
+      </div>
+      <div class="form-field">
+        <label for="publisherInput">Publisher</label>
+        <input id="publisherInput" type="text" placeholder="e.g., Penguin Classics"/>
+      </div>
+      <div class="form-field">
+        <label for="personInput">Contributor</label>
+        <input id="personInput" type="text" placeholder="e.g., an illustrator"/>
+      </div>
+      <button id="fetchButton" type="submit">Search</button>
+    </form>
+    <hr/>
+  </div>
+
+  <div style="max-width: 1280px; margin: 0 auto; padding: 0 20px;">
+    <h2>Search Results</h2>
+    <div id="results-container"></div>
+  </div>
+
+  <!-- App script -->
+  <script src="assets/js/app.js"></script>
 </body>
 </html>
-
-
-
