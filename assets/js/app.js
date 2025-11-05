@@ -1348,7 +1348,7 @@ function resetToBlank() {
   if (coverTitleFont) coverTitleFont.selectedIndex = 0;
   if (coverTitleSize) coverTitleSize.value = '40';
   if (coverTitleColor) coverTitleColor.value = '#FFFFFF';
-  if (coverTitleBg) coverTitleBg.value = '#2196F3';
+  if (coverTitleBg) coverTitleBg.value = '#000000';
   if (coverTitleBold) coverTitleBold.checked = true;
   if (coverTitleItalic) coverTitleItalic.checked = false;
   
