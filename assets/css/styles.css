@@ -639,3 +639,55 @@
   visibility: hidden;
 }
 
+/* --- QR Code Generator Styles --- */
+#qr-code-controls input {
+  width: auto; /* Allow it to be flexible */
+}
+
+.qr-code-container {
+  display: flex;
+  gap: 0.15in;
+  align-items: center; /* Vertically center text and QR */
+  height: 1.5in; /* Specific height for media blocks */
+  width: 5in;   /* Specific width for media blocks */
+  border: 1px solid transparent; /* To match .custom-uploader in print */
+  padding: 0;
+}
+
+.print-mode .qr-code-container {
+  border: none !important;
+}
+
+#qr-code-text {
+  flex-grow: 1; /* Text takes up available space */
+  height: 100%; /* Fill the block vertically */
+  /* NEW: Use its own QR styles */
+  font-family: var(--qr-font); 
+  color: var(--qr-color); 
+  font-size: var(--qr-font-size); 
+  font-weight: var(--qr-font-weight); 
+  font-style: var(--qr-font-style);
+  border: 1px solid #eee;
+  padding: 4px;
+}
+#qr-code-text:focus {
+  border-color: #999; 
+  outline: none;
+}
+.print-mode #qr-code-text {
+  border: none !important;
+}
+
+#qr-code-canvas {
+  width: 1.4in; /* Approx 135px */
+  height: 1.4in;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#qr-code-canvas img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
