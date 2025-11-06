@@ -1299,47 +1299,55 @@ const debouncedSave = (() => { let t; return () => { clearTimeout(t); t = setTim
   }
 })();
 
-// Reset to a fresh blank slate with all default values from screenshot
+// [PASTE THIS IN PLACE OF THE OLD FUNCTION]
+
+// Reset to a fresh blank slate with all default values from HTML
 function resetToBlank() {
   // Clear local draft so this clean state persists on reload
   try { localStorage.removeItem('booklist-draft'); } catch (_) {}
 
   // === Book Block Styles - restore defaults ===
-  const titleFont = document.getElementById('title-font');
-  const titleSize = document.getElementById('title-size');
-  const titleColor = document.getElementById('title-color');
-  const titleBold = document.getElementById('title-bold');
-  const titleItalic = document.getElementById('title-italic');
-  
-  if (titleFont) titleFont.selectedIndex = 0;
-  if (titleSize) titleSize.value = '14';
-  if (titleColor) titleColor.value = '#000000';
-  if (titleBold) titleBold.checked = true;
-  if (titleItalic) titleItalic.checked = false;
-  
-  const authorFont = document.getElementById('author-font');
-  const authorSize = document.getElementById('author-size');
-  const authorColor = document.getElementById('author-color');
-  const authorBold = document.getElementById('author-bold');
-  const authorItalic = document.getElementById('author-italic');
-  
-  if (authorFont) authorFont.selectedIndex = 0;
-  if (authorSize) authorSize.value = '12';
-  if (authorColor) authorColor.value = '#000000';
-  if (authorBold) authorBold.checked = true;
-  if (authorItalic) authorItalic.checked = false;
-  
-  const descFont = document.getElementById('desc-font');
-  const descSize = document.getElementById('desc-size');
-  const descColor = document.getElementById('desc-color');
-  const descBold = document.getElementById('desc-bold');
-  const descItalic = document.getElementById('desc-italic');
-  
-  if (descFont) descFont.value = 'Calibri';
-  if (descSize) descSize.value = '10';
-  if (descColor) descColor.value = '#000000';
-  if (descBold) descBold.checked = true;
-  if (descItalic) descItalic.checked = false;
+  const titleGroup = document.querySelector('.export-controls [data-style-group="title"]');
+  if (titleGroup) {
+    const fontSel = titleGroup.querySelector('.font-select');
+    const sizeInp = titleGroup.querySelector('.font-size-input');
+    const colorInp = titleGroup.querySelector('.color-picker');
+    const boldBtn = titleGroup.querySelector('.bold-toggle');
+    const italicBtn = titleGroup.querySelector('.italic-toggle');
+    if (fontSel) fontSel.selectedIndex = 0; // 'Georgia'
+    if (sizeInp) sizeInp.value = '14';
+    if (colorInp) colorInp.value = '#000000';
+    if (boldBtn) boldBtn.classList.remove('active');
+    if (italicBtn) italicBtn.classList.remove('active');
+  }
+
+  const authorGroup = document.querySelector('.export-controls [data-style-group="author"]');
+  if (authorGroup) {
+    const fontSel = authorGroup.querySelector('.font-select');
+    const sizeInp = authorGroup.querySelector('.font-size-input');
+    const colorInp = authorGroup.querySelector('.color-picker');
+    const boldBtn = authorGroup.querySelector('.bold-toggle');
+    const italicBtn = authorGroup.querySelector('.italic-toggle');
+    if (fontSel) fontSel.selectedIndex = 0; // 'Calibri'
+    if (sizeInp) sizeInp.value = '12';
+    if (colorInp) colorInp.value = '#000000';
+    if (boldBtn) boldBtn.classList.add('active'); // Default to bold
+    if (italicBtn) italicBtn.classList.remove('active');
+  }
+
+  const descGroup = document.querySelector('.export-controls [data-style-group="desc"]');
+  if (descGroup) {
+    const fontSel = descGroup.querySelector('.font-select');
+    const sizeInp = descGroup.querySelector('.font-size-input');
+    const colorInp = descGroup.querySelector('.color-picker');
+    const boldBtn = descGroup.querySelector('.bold-toggle');
+    const italicBtn = descGroup.querySelector('.italic-toggle');
+    if (fontSel) fontSel.selectedIndex = 0; // 'Calibri'
+    if (sizeInp) sizeInp.value = '10';
+    if (colorInp) colorInp.value = '#000000';
+    if (boldBtn) boldBtn.classList.remove('active');
+    if (italicBtn) italicBtn.classList.remove('active');
+  }
   
   const stretchBlockCoversToggle = document.getElementById('stretch-block-covers-toggle');
   if (stretchBlockCoversToggle) stretchBlockCoversToggle.checked = false;
@@ -1352,30 +1360,33 @@ function resetToBlank() {
   if (toggleBranding) toggleBranding.checked = true;
   
   // === Cover Title Styles ===
-  const coverTitleFont = document.getElementById('cover-title-font');
-  const coverTitleSize = document.getElementById('cover-title-size');
-  const coverTitleColor = document.getElementById('cover-title-text-color');
+  const coverTitleGroup = document.getElementById('cover-title-style-group');
+  if (coverTitleGroup) {
+    const fontSel = coverTitleGroup.querySelector('.font-select');
+    const sizeInp = coverTitleGroup.querySelector('.font-size-input');
+    const colorInp = coverTitleGroup.querySelector('.color-picker'); // This is the text color
+    const boldBtn = coverTitleGroup.querySelector('.bold-toggle');
+    const italicBtn = coverTitleGroup.querySelector('.italic-toggle');
+    if (fontSel) fontSel.selectedIndex = 0; // 'Oswald'
+    if (sizeInp) sizeInp.value = '40';
+    if (colorInp) colorInp.value = '#FFFFFF';
+    if (boldBtn) boldBtn.classList.add('active'); // Default to bold
+    if (italicBtn) italicBtn.classList.remove('active');
+  }
+
   const coverTitleBg = document.getElementById('cover-title-bg-color');
-  const coverTitleBold = document.getElementById('cover-title-bold');
-  const coverTitleItalic = document.getElementById('cover-title-italic');
-  
-  if (coverTitleFont) coverTitleFont.selectedIndex = 0;
-  if (coverTitleSize) coverTitleSize.value = '40';
-  if (coverTitleColor) coverTitleColor.value = '#FFFFFF';
   if (coverTitleBg) coverTitleBg.value = '#000000';
-  if (coverTitleBold) coverTitleBold.checked = true;
-  if (coverTitleItalic) coverTitleItalic.checked = false;
   
-  const outerMargin = document.getElementById('cover-outer-margin');
+  const outerMargin = document.getElementById('cover-title-outer-margin');
   if (outerMargin) outerMargin.value = '10';
   
-  const bgPadX = document.getElementById('cover-bg-pad-x');
+  const bgPadX = document.getElementById('cover-title-pad-x');
   if (bgPadX) bgPadX.value = '0';
   
-  const bgPadY = document.getElementById('cover-bg-pad-y');
+  const bgPadY = document.getElementById('cover-title-pad-y');
   if (bgPadY) bgPadY.value = '10';
   
-  const sideMargin = document.getElementById('cover-side-margin');
+  const sideMargin = document.getElementById('cover-title-side-margin');
   if (sideMargin) sideMargin.value = '0';
   
   const stretchCoversToggle = document.getElementById('stretch-covers-toggle');
@@ -1399,18 +1410,18 @@ function resetToBlank() {
     qrCodeUploader.classList.remove('has-image');
   }
   
-// Reset Branding/Marketing to default branding image
-const brandingUploader = document.getElementById('branding-uploader');
-if (brandingUploader) {
-  const brandingImg = brandingUploader.querySelector('img');
-  const brandingInput = brandingUploader.querySelector('input[type="file"]');
-  if (brandingImg) {
-    brandingImg.src = 'assets/img/branding-default.png';
-    brandingImg.dataset.isPlaceholder = "false";
+  // Reset Branding/Marketing to default branding image
+  const brandingUploader = document.getElementById('branding-uploader');
+  if (brandingUploader) {
+    const brandingImg = brandingUploader.querySelector('img');
+    const brandingInput = brandingUploader.querySelector('input[type="file"]');
+    if (brandingImg) {
+      brandingImg.src = 'assets/img/branding-default.png';
+      brandingImg.dataset.isPlaceholder = "false";
+    }
+    if (brandingInput) brandingInput.value = '';
+    brandingUploader.classList.add('has-image');
   }
-  if (brandingInput) brandingInput.value = '';
-  brandingUploader.classList.add('has-image');
-}
   
   // Reset Front Cover to transparent placeholder
   const frontCoverUploader = document.getElementById('front-cover-uploader');
