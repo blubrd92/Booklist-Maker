@@ -681,11 +681,13 @@
   font-style: var(--qr-font-style);
   border: 1px solid #eee;
   padding: 4px;
-  
-  /* --- NEW CENTERING METHOD --- */
-  display: table-cell; /* Use table-cell for vertical alignment */
-  vertical-align: middle; /* This vertically centers the text */
-  text-align: center; /* This horizontally centers the text */
+  box-sizing: border-box; /* Add this for better padding calculation */
+
+  /* --- NEW NESTED FLEXBOX CENTERING --- */
+  display: flex;
+  flex-direction: column;   /* This makes the 'Enter' key stack lines */
+  justify-content: center; /* This centers the text vertically */
+  text-align: center;      /* This centers the text horizontally */
 }
 .print-mode #qr-code-text {
   border: none !important;
@@ -704,6 +706,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
