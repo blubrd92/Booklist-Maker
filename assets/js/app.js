@@ -847,7 +847,10 @@
 
             const coverTitle = (document.getElementById('cover-title-input').value || 'My Booklist');
 
-            document.fonts.load(`${fontStyle} ${fontSizePt}pt ${font}`).then(() => {
+            // NEW: Extract the primary font family name for the loader.
+            const primaryFontFamily = font.split(',')[0].trim(); 
+                
+            document.fonts.load(`${fontStyle} ${fontSizePt}pt ${primaryFontFamily}`).then(() => { // <-- NEW (modified line)
                 return Promise.all(imagePromises);
             }).then(images => {
                 const canvasWidthPx = canvas.width;
