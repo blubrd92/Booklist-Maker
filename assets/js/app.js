@@ -1080,12 +1080,12 @@ exportPdfButton.addEventListener('click', async () => {
 
         // --- Canvas 1 ---
         const canvas1 = await html2canvas(document.getElementById('print-page-1'), options);
-        pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5, undefined, 'NONE');
+        pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5, undefined, 'SLOW');
         pdf.addPage();
         
         // --- Canvas 2 ---
         const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
-        pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5, undefined, 'NONE');
+        pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5, undefined, 'SLOW');
         
         // --- FINAL SAVE EXECUTION ---
         if (isModernSave && saveHandle) {
