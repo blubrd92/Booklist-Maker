@@ -660,6 +660,7 @@
 
 #qr-code-text {
   flex-grow: 1; /* Text takes up available space */
+  height: 100%;
   /* Re-use the QR styles */
   font-family: var(--qr-font); 
   color: var(--qr-color); 
@@ -693,6 +694,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
