@@ -143,7 +143,7 @@
 
         
         generateCoverButton.addEventListener('click', generateCoverCollage);
-        stretchCoversToggle.addEventListener('change', generateCoverCollage);
+        stretchCoversToggle.addEventListener('change', autoRegenerateCoverIfAble);
         stretchBlockCoversToggle.addEventListener('change', applyBlockCoverStyle);
         toggleQrCode.addEventListener('change', handleLayoutChange);
         toggleBranding.addEventListener('change', handleLayoutChange);
@@ -153,13 +153,23 @@
         spacingInputIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                ['input','change'].forEach(evt => el.addEventListener(evt, () => {
-                    if (frontCoverUploader.classList.contains('has-image')) {
-                        generateCoverCollage();
-                    }
-                }));
+                // Use the new helper function
+                ['input','change'].forEach(evt => el.addEventListener(evt, autoRegenerateCoverIfAble));
             }
         });
+
+        // Auto-regen cover when cover title styles change and a cover exists
+        const coverStyleGroup = document.getElementById('cover-title-style-group');
+        if (coverStyleGroup) {
+            // Listen to selects and inputs (font, size, colors)
+            coverStyleGroup.querySelectorAll('select, input').forEach(input => {
+                ['input', 'change'].forEach(evt => input.addEventListener(evt, autoRegenerateCoverIfAble));
+            });
+            // Listen to buttons (bold, italic)
+            coverStyleGroup.querySelectorAll('button.bold-toggle, button.italic-toggle').forEach(button => {
+                button.addEventListener('click', autoRegenerateCoverIfAble);
+            });
+        }
 
         function setupFileChangeHandler(uploaderElement) {
             const fileInput = uploaderElement.querySelector('input[type="file"]');
@@ -182,6 +192,12 @@
         setupFileChangeHandler(qrCodeUploader);
         setupFileChangeHandler(brandingUploader);
         setupFileChangeHandler(frontCoverUploader);
+
+        function autoRegenerateCoverIfAble() {
+            if (frontCoverUploader.classList.contains('has-image')) {
+                generateCoverCollage();
+            }
+        }
 
         const coverControls = document.getElementById('cover-generate-controls');
         frontCoverUploader.addEventListener('click', (e) => {
