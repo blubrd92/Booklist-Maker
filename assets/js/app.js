@@ -826,8 +826,8 @@
 
             const titleStyleGroup = document.getElementById('cover-title-style-group');
             const font = titleStyleGroup.querySelector('.font-select').value;
-            // Extract just the font name for canvas (remove quotes and fallback)
-            const fontName = font.split(',')[0].replace(/['"]/g, '').trim();
+            const baseFontName = font.split(',')[0].trim();
+            const quotedFont = baseFontName.match(/^['\"]/) ? baseFontName : `'${baseFontName}'`;
             const isBold = titleStyleGroup.querySelector('.bold-toggle').classList.contains('active');
             const isItalic = titleStyleGroup.querySelector('.italic-toggle').classList.contains('active');
             let fontStyle = '';
@@ -849,13 +849,13 @@
 
             const coverTitle = (document.getElementById('cover-title-input').value || 'My Booklist');
 
-            document.fonts.load(`${fontStyle} ${fontSizePx}px ${fontName}`).then(() => {
+            document.fonts.load(`${fontStyle} ${fontSizePx}px ${quotedFont}`).then(() => {
                 return Promise.all(imagePromises);
             }).then(images => {
                 const canvasWidthPx = canvas.width;
                 const canvasHeightPx = canvas.height;
 
-                ctx.font = `${fontStyle} ${fontSizePx}px ${fontName}`;
+                ctx.font = `${fontStyle} ${fontSizePx}px ${quotedFont}, sans-serif`;
                 const availableTextWidth = Math.max(0, canvasWidthPx - 2*bgSideMarginPx - 2*padXPx);
                 const lines = wrapTextMultiline(coverTitle, availableTextWidth);
 
