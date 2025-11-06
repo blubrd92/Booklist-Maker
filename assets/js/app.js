@@ -14,7 +14,7 @@
         const insideLeftPanel = document.getElementById('inside-left-panel');
         const insideRightPanel = document.getElementById('inside-right-panel');
         const previewArea = document.getElementById('preview-area');
-        const qrCodeUploader = document.getElementById('qr-code-area');
+        const qrCodeArea = document.getElementById('qr-code-area');
         const brandingUploader = document.getElementById('branding-uploader');
         const frontCoverUploader = document.getElementById('front-cover-uploader');
         const frontCoverPanel = document.getElementById('front-cover-panel');
@@ -598,7 +598,7 @@
                     targetPanel = insideRightPanel;
                 } else {
                     targetPanel = backCoverPanel;
-                    insertBeforeElement = qrCodeUploader;
+                    insertBeforeElement = qrCodeArea;
                 }
 
                 const listItem = document.createElement('div');
