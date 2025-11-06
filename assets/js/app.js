@@ -953,6 +953,7 @@ document.fonts.ready.then(() => {
     button.textContent = 'Auto-Generate Cover';
     button.disabled = false;
 });
+        }
 
         // --- FINAL PDF EXPORT ---
         exportPdfButton.addEventListener('click', () => {
