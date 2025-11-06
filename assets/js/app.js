@@ -174,8 +174,8 @@
             try {
                 new QRCode(qrCodeCanvas, {
                     text: url,
-                    width: 135, // Approx 1.4in at 96dpi
-                    height: 135,
+                    width: 144, // Approx 1.5in at 96dpi
+                    height: 144,
                     colorDark: "#000000",
                     colorLight: "#ffffff",
                     correctLevel: QRCode.CorrectLevel.H // High error correction
