@@ -955,77 +955,129 @@ document.fonts.ready.then(() => {
 });
         }
 
-        // --- FINAL PDF EXPORT ---
-        exportPdfButton.addEventListener('click', () => {
-            exportPdfButton.textContent = 'Generating...';
-            exportPdfButton.disabled = true;
+// --- FINAL PDF EXPORT ---
+exportPdfButton.addEventListener('click', async () => { // <-- Made async
+    exportPdfButton.textContent = 'Generating...';
+    exportPdfButton.disabled = true;
 
-            const elementsToRestore = [];
-            // Hide blank list items
-            document.querySelectorAll('.list-item').forEach(item => {
-                if (item.dataset.isBlank === 'true') {
-                    elementsToRestore.push({el: item, display: item.style.display});
-                    item.style.display = 'none';
-                }
-            });
+    const elementsToRestore = [];
+    // Hide blank list items
+    document.querySelectorAll('.list-item').forEach(item => {
+        if (item.dataset.isBlank === 'true') {
+            elementsToRestore.push({el: item, display: item.style.display});
+            item.style.display = 'none';
+        }
+    });
 
-            // Hide placeholder uploaders on the back cover
-            document.querySelectorAll('#back-cover-panel .custom-uploader').forEach(uploader => {
-                const img = uploader.querySelector('img');
-                if (img && img.src.includes('placehold.co')) {
-                     elementsToRestore.push({el: uploader, display: uploader.style.display});
-                    uploader.style.display = 'none';
-                }
-            });
+    // Hide placeholder uploaders on the back cover
+    document.querySelectorAll('#back-cover-panel .custom-uploader').forEach(uploader => {
+        const img = uploader.querySelector('img');
+        if (img && img.src.includes('placehold.co')) {
+             elementsToRestore.push({el: uploader, display: uploader.style.display});
+            uploader.style.display = 'none';
+        }
+    });
 
-            // Hide the entire front cover panel if it's still a placeholder
-            const frontCoverImg = frontCoverUploader.querySelector('img');
-            const isPlaceholder = frontCoverImg.dataset.isPlaceholder !== "false" && (frontCoverImg.src.includes('placehold.co') || frontCoverImg.src.includes('data:image/gif'));
+    // Hide the entire front cover panel if it's still a placeholder
+    const frontCoverImg = frontCoverUploader.querySelector('img');
+    const isPlaceholder = frontCoverImg.dataset.isPlaceholder !== "false" && (frontCoverImg.src.includes('placehold.co') || frontCoverImg.src.includes('data:image/gif'));
 
-            if (isPlaceholder) {
-                elementsToRestore.push({ el: frontCoverPanel, display: frontCoverPanel.style.display });
-                frontCoverPanel.style.display = 'none';
-            }
+    if (isPlaceholder) {
+        elementsToRestore.push({ el: frontCoverPanel, display: frontCoverPanel.style.display });
+        frontCoverPanel.style.display = 'none';
+    }
 
+    previewArea.classList.add('print-mode');
+    
+    // We wrap the core logic in a try/catch/finally block
+    // to ensure cleanup (like removing 'print-mode') always happens
+    try {
+        // Wait for render and fonts
+        await new Promise(resolve => setTimeout(resolve, 100)); 
+        await document.fonts.ready; 
 
-            previewArea.classList.add('print-mode');
-            
-            setTimeout(() => {
-                document.fonts.ready.then(() => {
-                    const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
 
-                    const options = { 
-                        scale: 4, 
-                        useCORS: true, 
-                        backgroundColor: null,
-                        windowWidth: 3300,
-                        windowHeight: 2550
-                        };
+        const options = { 
+            scale: 4, 
+            useCORS: true, 
+            backgroundColor: null,
+            windowWidth: 3300,
+            windowHeight: 2550
+        };
 
-                    html2canvas(document.getElementById('print-page-1'), options)
-                        .then(canvas1 => {
-                            pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
-                            pdf.addPage();
-                            return html2canvas(document.getElementById('print-page-2'), options);
-                        })
-                        .then(canvas2 => {
-                            pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
-                            pdf.save('bifold-booklist.pdf');
-                        })
-                        .catch(err => {
-                            console.error("PDF Generation failed:", err);
-                            showNotification("An error occurred generating the PDF. Please check the console.");
-                        })
-                        .finally(() => {
-                            previewArea.classList.remove('print-mode');
-                            elementsToRestore.forEach(item => item.el.style.display = item.display || '');
-                            exportPdfButton.textContent = 'Generate PDF';
-                            exportPdfButton.disabled = false;
-                        });
+        // --- Canvas 1 ---
+        const canvas1 = await html2canvas(document.getElementById('print-page-1'), options);
+        pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
+        pdf.addPage();
+        
+        // --- Canvas 2 ---
+        const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
+        pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
+        
+        // --- NEW SAVE LOGIC ---
+        // 1. Get the PDF as a Blob
+        const blob = pdf.output('blob');
+
+        // 2. Get a suggested name from the cover title
+        const coverTitle = (document.getElementById('cover-title-input')?.value || 'booklist').trim();
+        const safeBase = coverTitle.length > 0 ? coverTitle.replace(/[^\w.-]+/g, '_') : 'booklist';
+        const suggestedName = `${safeBase}.pdf`;
+
+        // 3. Detect File System Access API (the "Save As" dialog)
+        const supportsFSAccess =
+            'showSaveFilePicker' in window &&
+            (() => { try { return window.self === window.top; } catch { return false; } })();
+
+        if (supportsFSAccess) {
+            try {
+                // 4. Show the "Save As" dialog
+                const handle = await window.showSaveFilePicker({
+                    suggestedName,
+                    types: [
+                        {
+                            description: 'PDF Document',
+                            accept: { 'application/pdf': ['.pdf'] },
+                        },
+                    ],
                 });
-            }, 100);
-        });
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                showNotification('PDF saved successfully.', 'success');
+            } catch (err) {
+                // If user cancels, it's an AbortError, which we can ignore.
+                if (err.name !== 'AbortError') {
+                    console.error('File picker save failed:', err);
+                    throw err; // Re-throw to be caught by outer catch
+                }
+            }
+        } else {
+            // 5. Fallback: anchor download for older browsers
+            const a = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            a.href = url;
+            a.download = suggestedName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 750);
+            showNotification('PDF download started.', 'success');
+        }
+        // --- END NEW SAVE LOGIC ---
+
+    } catch (err) {
+        console.error("PDF Generation failed:", err);
+        showNotification("An error occurred generating the PDF. Please check the console.", 'error');
+    } finally {
+        // --- Cleanup (this always runs) ---
+        previewArea.classList.remove('print-mode');
+        elementsToRestore.forEach(item => item.el.style.display = item.display || '');
+        exportPdfButton.textContent = 'Generate PDF';
+        exportPdfButton.disabled = false;
+    }
+});
 
         // Initialize the app
         initializeBooklist();
