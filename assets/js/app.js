@@ -847,7 +847,7 @@
 
             const coverTitle = (document.getElementById('cover-title-input').value || 'My Booklist');
 
-// PASTE THIS NEW BLOCK
+            // PASTE THIS NEW BLOCK
 document.fonts.ready.then(() => {
 
     // NOW that fonts are ready, load the images.
