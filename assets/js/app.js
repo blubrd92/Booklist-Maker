@@ -248,7 +248,7 @@
             group.querySelectorAll('button').forEach(button => {
                 button.addEventListener('click', (e) => {
                     // This part toggles the class FIRST
-                    if(e.targe.classList.contains('bold-toggle') || e.target.classList.contains('italic-toggle')){
+                    if(e.target.classList.contains('bold-toggle') || e.target.classList.contains('italic-toggle')){
                         e.target.classList.toggle('active');
                     }
                     applyStyles(); // This applies styles to the live preview
