@@ -31,13 +31,20 @@
         let MAX_BOOKS = 15;
 
         // --- NOTIFICATION ---
-        function showNotification(message, type = 'error') {
+        function showNotification(message, type = 'error', autoHide = true) {
             notificationArea.textContent = message;
-            notificationArea.className = type; // 'error' or 'success'
+            notificationArea.className = type;
             notificationArea.classList.add('show');
-            setTimeout(() => {
-                notificationArea.classList.remove('show');
-            }, 5000); // Increased time to 5 seconds
+            
+            if (autoHide) {
+                setTimeout(() => {
+                    notificationArea.classList.remove('show');
+                }, 5000);
+            }
+        }
+
+        function hideNotification() {
+            notificationArea.classList.remove('show');
         }
 
         // --- REVISED: Function to get AI-generated description with better logging ---
