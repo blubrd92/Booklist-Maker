@@ -962,6 +962,52 @@ exportPdfButton.addEventListener('click', async () => {
     exportPdfButton.textContent = 'Generating...';
     exportPdfButton.disabled = true;
 
+    // --- NEW: Get file name and permission *FIRST* ---
+    const coverTitleInput = document.getElementById('cover-title-input');
+    const coverTitle = (coverTitleInput?.value || '').trim();
+    let baseName = 'booklist'; // Default
+
+    if (coverTitle.length > 0) {
+        baseName = coverTitle;
+    } else {
+        const frontCoverUploader = document.getElementById('front-cover-uploader');
+        const uploadedFileName = frontCoverUploader?.dataset.fileName;
+        if (uploadedFileName) {
+            baseName = uploadedFileName.replace(/\.[^/.]+$/, ""); 
+        }
+    }
+    
+    const safeBase = baseName.replace(/[^\w.-]+/g, '_');
+    const suggestedName = `${safeBase}.pdf`;
+
+    // Detect File System Access API
+    const supportsFSAccess = 'showSaveFilePicker' in window && (() => { try { return window.self === window.top; } catch { return false; } })();
+
+    let saveHandle = null;
+    let isModernSave = false;
+
+    if (supportsFSAccess) {
+        try {
+            // Show the "Save As" dialog *IMMEDIATELY*
+            saveHandle = await window.showSaveFilePicker({
+                suggestedName,
+                types: [ { description: 'PDF Document', accept: { 'application/pdf': ['.pdf'] } } ],
+            });
+            isModernSave = true; // We got permission!
+        } catch (err) {
+            // User cancelled the save dialog.
+            if (err.name === 'AbortError') {
+                exportPdfButton.textContent = 'Generate PDF';
+                exportPdfButton.disabled = false;
+                return; // Stop everything.
+            }
+            // If there's another error, we'll fall back to the old method.
+            isModernSave = false;
+        }
+    }
+    // --- End of new permission logic ---
+
+    // --- Start PDF Generation (happens *after* save dialog) ---
     const elementsToRestore = [];
     // Hide blank list items
     document.querySelectorAll('.list-item').forEach(item => {
@@ -1016,16 +1062,20 @@ exportPdfButton.addEventListener('click', async () => {
         const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
         pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
         
-        // --- FIXED SAVE LOGIC ---
-        // We can't use "Save As" due to browser security.
-        // Instead, we'll trigger a direct download with the custom name.
-        const coverTitle = (document.getElementById('cover-title-input')?.value || 'booklist').trim();
-        const safeBase = coverTitle.length > 0 ? coverTitle.replace(/[^\w.-]+/g, '_') : 'booklist';
-        const suggestedName = `${safeBase}.pdf`;
-
-        pdf.save(suggestedName); // This triggers the download
-        showNotification('PDF download started.', 'success');
-        // --- END FIXED SAVE LOGIC ---
+        // --- FINAL SAVE EXECUTION ---
+        if (isModernSave && saveHandle) {
+            // Write to the file handle we got permission for
+            const blob = pdf.output('blob');
+            const writable = await saveHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            showNotification('PDF saved successfully.', 'success');
+        } else {
+            // Fallback: direct download (for older browsers)
+            pdf.save(suggestedName);
+            showNotification('PDF download started.', 'success');
+        }
+        // --- END FINAL SAVE EXECUTION ---
 
     } catch (err) {
         console.error("PDF Generation failed:", err);
