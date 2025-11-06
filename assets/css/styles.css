@@ -647,7 +647,7 @@
 .qr-code-container {
   display: flex;
   gap: 0.15in;
-  align-items: center; /* Vertically center text and QR */
+  align-items: stretch;
   height: 1.5in; /* Specific height for media blocks */
   width: 5in;   /* Specific width for media blocks */
   border: 1px solid transparent; /* To match .custom-uploader in print */
@@ -704,5 +704,6 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
