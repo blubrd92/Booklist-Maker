@@ -682,11 +682,10 @@
   border: 1px solid #eee;
   padding: 4px;
   
-  /* --- NEW LINES FOR CENTERING --- */
-  display: flex;
-  justify-content: center; /* Vertical centering */
-  align-items: center; /* Horizontal centering (for flex) */
-  text-align: center; /* Horizontal centering (for the text itself) */
+  /* --- NEW CENTERING METHOD --- */
+  display: table-cell; /* Use table-cell for vertical alignment */
+  vertical-align: middle; /* This vertically centers the text */
+  text-align: center; /* This horizontally centers the text */
 }
 .print-mode #qr-code-text {
   border: none !important;
@@ -705,4 +704,5 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
