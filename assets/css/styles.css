@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Garamond:wght@400;700&family=Lato:wght@400;700&family=Merriweather:wght@400;700&family=Roboto:wght@400;700&family=Oswald:wght@700&family=Anton&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Garamond:wght@400;700&family=Lato:wght@400;700&family=Merriweather:wght@400;700&family=Roboto:wght@400;700&family=Oswald:wght@400;700&family=Anton:wght@400;700&display=swap');
 
         body { font-family: sans-serif; background-color: #f0f2f5; margin-top: 60px; /* Add space for the notification bar */ }
         h1, h2 { text-align: center; }
@@ -439,3 +439,4 @@
   padding: 10px 15px;
   font-size: 1em;
 }
+
