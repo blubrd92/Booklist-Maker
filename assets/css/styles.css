@@ -670,9 +670,23 @@
   border: 1px solid #eee;
   padding: 4px;
 }
-#qr-code-text:focus {
-  border-color: #999; 
-  outline: none;
+#qr-code-text {
+  flex-grow: 1; /* Text takes up available space */
+  height: 100%; /* Fill the block vertically */
+  /* Re-use the QR styles */
+  font-family: var(--qr-font); 
+  color: var(--qr-color); 
+  font-size: var(--qr-font-size); 
+  font-weight: var(--qr-font-weight); 
+  font-style: var(--qr-font-style);
+  border: 1px solid #eee;
+  padding: 4px;
+  
+  /* --- NEW LINES FOR CENTERING --- */
+  display: flex;
+  justify-content: center; /* Vertical centering */
+  align-items: center; /* Horizontal centering (for flex) */
+  text-align: center; /* Horizontal centering (for the text itself) */
 }
 .print-mode #qr-code-text {
   border: none !important;
@@ -691,3 +705,4 @@
   max-height: 100%;
   object-fit: contain;
 }
+
