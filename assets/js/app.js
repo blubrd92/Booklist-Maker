@@ -1586,9 +1586,9 @@ function resetToBlank() {
     const boldBtn = qrGroup.querySelector('.bold-toggle');
     const italicBtn = qrGroup.querySelector('.italic-toggle');
     if (fontSel) fontSel.selectedIndex = 0; // 'Calibri'
-    if (sizeInp) sizeInp.value = '10';
+    if (sizeInp) sizeInp.value = '13';
     if (colorInp) colorInp.value = '#000000';
-    if (boldBtn) boldBtn.classList.remove('active');
+    if (boldBtn) boldBtn.classList.add('active');
     if (italicBtn) italicBtn.classList.remove('active');
   }
   
