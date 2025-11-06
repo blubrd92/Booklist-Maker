@@ -647,7 +647,7 @@
 .qr-code-container {
   display: flex;
   gap: 0.15in;
-  align-items: stretch;
+  align-items: center;
   height: 1.5in; /* Specific height for media blocks */
   width: 5in;   /* Specific width for media blocks */
   border: 1px solid transparent; /* To match .custom-uploader in print */
@@ -660,19 +660,6 @@
 
 #qr-code-text {
   flex-grow: 1; /* Text takes up available space */
-  height: 100%; /* Fill the block vertically */
-  /* NEW: Use its own QR styles */
-  font-family: var(--qr-font); 
-  color: var(--qr-color); 
-  font-size: var(--qr-font-size); 
-  font-weight: var(--qr-font-weight); 
-  font-style: var(--qr-font-style);
-  border: 1px solid #eee;
-  padding: 4px;
-}
-#qr-code-text {
-  flex-grow: 1; /* Text takes up available space */
-  height: 100%; /* Fill the block vertically */
   /* Re-use the QR styles */
   font-family: var(--qr-font); 
   color: var(--qr-color); 
@@ -706,6 +693,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
