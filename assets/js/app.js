@@ -294,7 +294,7 @@
             const workId = workKey.split('/').pop();
             const editionsUrl = `https://openlibrary.org/works/${workId}/editions.json?limit=100`; // Fetch more editions
             try {
-                const response = await fetch(editionsUrl);
+                const response = await fetch(editionsUrl, { mode: 'cors' });
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
                 const coverIds = new Set();
@@ -955,8 +955,10 @@ document.fonts.ready.then(() => {
 });
         }
 
+// [PASTE THIS IN PLACE OF THE OLD PDF FUNCTION]
+
 // --- FINAL PDF EXPORT ---
-exportPdfButton.addEventListener('click', async () => { // <-- Made async
+exportPdfButton.addEventListener('click', async () => {
     exportPdfButton.textContent = 'Generating...';
     exportPdfButton.disabled = true;
 
@@ -989,8 +991,6 @@ exportPdfButton.addEventListener('click', async () => { // <-- Made async
 
     previewArea.classList.add('print-mode');
     
-    // We wrap the core logic in a try/catch/finally block
-    // to ensure cleanup (like removing 'print-mode') always happens
     try {
         // Wait for render and fonts
         await new Promise(resolve => setTimeout(resolve, 100)); 
@@ -1016,56 +1016,16 @@ exportPdfButton.addEventListener('click', async () => { // <-- Made async
         const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
         pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, 11, 8.5);
         
-        // --- NEW SAVE LOGIC ---
-        // 1. Get the PDF as a Blob
-        const blob = pdf.output('blob');
-
-        // 2. Get a suggested name from the cover title
+        // --- FIXED SAVE LOGIC ---
+        // We can't use "Save As" due to browser security.
+        // Instead, we'll trigger a direct download with the custom name.
         const coverTitle = (document.getElementById('cover-title-input')?.value || 'booklist').trim();
         const safeBase = coverTitle.length > 0 ? coverTitle.replace(/[^\w.-]+/g, '_') : 'booklist';
         const suggestedName = `${safeBase}.pdf`;
 
-        // 3. Detect File System Access API (the "Save As" dialog)
-        const supportsFSAccess =
-            'showSaveFilePicker' in window &&
-            (() => { try { return window.self === window.top; } catch { return false; } })();
-
-        if (supportsFSAccess) {
-            try {
-                // 4. Show the "Save As" dialog
-                const handle = await window.showSaveFilePicker({
-                    suggestedName,
-                    types: [
-                        {
-                            description: 'PDF Document',
-                            accept: { 'application/pdf': ['.pdf'] },
-                        },
-                    ],
-                });
-                const writable = await handle.createWritable();
-                await writable.write(blob);
-                await writable.close();
-                showNotification('PDF saved successfully.', 'success');
-            } catch (err) {
-                // If user cancels, it's an AbortError, which we can ignore.
-                if (err.name !== 'AbortError') {
-                    console.error('File picker save failed:', err);
-                    throw err; // Re-throw to be caught by outer catch
-                }
-            }
-        } else {
-            // 5. Fallback: anchor download for older browsers
-            const a = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            a.href = url;
-            a.download = suggestedName;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 750);
-            showNotification('PDF download started.', 'success');
-        }
-        // --- END NEW SAVE LOGIC ---
+        pdf.save(suggestedName); // This triggers the download
+        showNotification('PDF download started.', 'success');
+        // --- END FIXED SAVE LOGIC ---
 
     } catch (err) {
         console.error("PDF Generation failed:", err);
