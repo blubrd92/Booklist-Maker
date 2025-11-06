@@ -213,7 +213,30 @@
                 }
             });
         }
-        
+
+        // Setup placeholder logic for the static QR code text area
+        function setupQrPlaceholder() {
+            const originalColor = getComputedStyle(qrCodeTextArea).color;
+            if (qrCodeTextArea.textContent === QR_TEXT_PLACEHOLDER) {
+                qrCodeTextArea.style.color = '#757575';
+            }
+
+            qrCodeTextArea.addEventListener('focus', () => {
+                if (qrCodeTextArea.textContent === QR_TEXT_PLACEHOLDER) {
+                    qrCodeTextArea.textContent = '';
+                    qrCodeTextArea.style.color = originalColor;
+                }
+            });
+
+            qrCodeTextArea.addEventListener('blur', () => {
+                if (qrCodeTextArea.textContent.trim() === '') {
+                    qrCodeTextArea.textContent = QR_TEXT_PLACEHOLDER;
+                    qrCodeTextArea.style.color = '#757575';
+                }
+            });
+        }
+        setupQrPlaceholder(); // Run this logic when the app loads
+
         setupFileChangeHandler(brandingUploader);
         // Special handler for the Front Cover to save the file name
         const frontCoverFileInput = frontCoverUploader.querySelector('input[type="file"]');
@@ -1382,7 +1405,7 @@ function applyState(loaded) {
   const qrUrlIn = document.getElementById('qr-url-input');
   if (qrUrlIn) qrUrlIn.value = loaded.ui?.qrCodeUrl || '';
   const qrTextEl = document.getElementById('qr-code-text');
-  if (qrTextEl) qrTextEl.textContent = loaded.ui?.qrCodeText || 'Type your text here...';
+  if (qrTextEl) qrTextEl.textContent = loaded.ui?.qrCodeText || QR_TEXT_PLACEHOLDER;
         
   // Styles
   applyStyleGroups(loaded.styles);
@@ -1549,7 +1572,8 @@ function resetToBlank() {
   const qrUrlIn = document.getElementById('qr-url-input');
   if (qrUrlIn) qrUrlIn.value = '';
   const qrTextEl = document.getElementById('qr-code-text');
-  if (qrTextEl) qrTextEl.textContent = 'Want to find more titles? Scan this code...';
+  if (qrTextEl) qrTextEl.textContent = QR_TEXT_PLACEHOLDER;
+  if (qrTextEl) qrTextEl.style.color = '#757575';
 
   // === CLEAR ALL IMAGES - Reset to placeholders ===
   
