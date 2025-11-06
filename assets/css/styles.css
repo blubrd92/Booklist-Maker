@@ -591,5 +591,15 @@
   font-size: 1em;
 }
 
-
-
+/* Font Preloader Style:
+   Makes the preloader div invisible to the user 
+   but visible to the browser's rendering engine.
+*/
+.font-preloader {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
