@@ -213,7 +213,6 @@
             });
         }
         
-        setupFileChangeHandler(qrCodeUploader);
         setupFileChangeHandler(brandingUploader);
         setupFileChangeHandler(frontCoverUploader);
 
@@ -1371,7 +1370,6 @@ function applyState(loaded) {
 
   // Images
   applyUploaderImage(document.getElementById('front-cover-uploader'), loaded.images?.frontCover || null);
-  applyUploaderImage(document.getElementById('qr-code-uploader'),     loaded.images?.qr || null);
   applyUploaderImage(document.getElementById('branding-uploader'),    loaded.images?.branding || null);
 
   // Books: clamp/pad to 15 using your existing blank template
