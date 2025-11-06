@@ -25,6 +25,10 @@
         const toggleQrCode = document.getElementById('toggle-qr-code');
         const toggleBranding = document.getElementById('toggle-branding');
         const notificationArea = document.getElementById('notification-area');
+        const qrUrlInput = document.getElementById('qr-url-input');
+        const generateQrButton = document.getElementById('generate-qr-button');
+        const qrCodeCanvas = document.getElementById('qr-code-canvas');
+        const qrCodeTextArea = document.getElementById('qr-code-text');
         
 
         let myBooklist = [];
@@ -154,6 +158,32 @@
         stretchBlockCoversToggle.addEventListener('change', applyBlockCoverStyle);
         toggleQrCode.addEventListener('change', handleLayoutChange);
         toggleBranding.addEventListener('change', handleLayoutChange);
+
+        generateQrButton.addEventListener('click', () => {
+            const url = qrUrlInput.value;
+            if (!url) {
+                showNotification('Please enter a URL for the QR code.');
+                return;
+            }
+            
+            // Clear the old QR code
+            qrCodeCanvas.innerHTML = ''; 
+            
+            // Generate the new one
+            try {
+                new QRCode(qrCodeCanvas, {
+                    text: url,
+                    width: 135, // Approx 1.4in at 96dpi
+                    height: 135,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H // High error correction
+                });
+            } catch (err) {
+                console.error(err);
+                showNotification('Error generating QR code. Check the URL.');
+            }
+        });
 
         // Auto-regen cover when spacing inputs change and a cover exists
         const spacingInputIds = ['cover-title-outer-margin','cover-title-pad-x','cover-title-pad-y','cover-title-side-margin'];
@@ -1200,11 +1230,12 @@ function serializeState() {
       showQr: !!document.getElementById('toggle-qr-code')?.checked,
       showBranding: !!document.getElementById('toggle-branding')?.checked,
       coverTitle: document.getElementById('cover-title-input')?.value || '',
+      qrCodeUrl: document.getElementById('qr-url-input')?.value || '', // <-- ADD THIS
+      qrCodeText: document.getElementById('qr-code-text')?.textContent || '', // <-- ADD THIS
     },
     styles: captureStyleGroups(),
     images: {
       frontCover: getUploaderImageSrc(document.getElementById('front-cover-uploader')),
-      qr: getUploaderImageSrc(document.getElementById('qr-code-uploader')),
       branding: getUploaderImageSrc(document.getElementById('branding-uploader')),
     },
   };
@@ -1330,6 +1361,11 @@ function applyState(loaded) {
   const titleInput = document.getElementById('cover-title-input');
   if (titleInput) titleInput.value = loaded.ui?.coverTitle || '';
 
+  const qrUrlIn = document.getElementById('qr-url-input');
+  if (qrUrlIn) qrUrlIn.value = loaded.ui?.qrCodeUrl || '';
+  const qrTextEl = document.getElementById('qr-code-text');
+  if (qrTextEl) qrTextEl.textContent = loaded.ui?.qrCodeText || 'Type your text here...';
+        
   // Styles
   applyStyleGroups(loaded.styles);
 
@@ -1492,19 +1528,26 @@ function resetToBlank() {
   const titleInput = document.getElementById('cover-title-input');
   if (titleInput) titleInput.value = '';
 
+  const qrUrlIn = document.getElementById('qr-url-input');
+  if (qrUrlIn) qrUrlIn.value = '';
+  const qrTextEl = document.getElementById('qr-code-text');
+  if (qrTextEl) qrTextEl.textContent = 'Want to find more titles? Scan this code...';
+
   // === CLEAR ALL IMAGES - Reset to placeholders ===
   
-  // Reset QR Code to placeholder
-  const qrCodeUploader = document.getElementById('qr-code-uploader');
-  if (qrCodeUploader) {
-    const qrImg = qrCodeUploader.querySelector('img');
-    const qrInput = qrCodeUploader.querySelector('input[type="file"]');
-    if (qrImg) {
-      qrImg.src = 'https://placehold.co/480x144/EAEAEA/333333?text=Upload+QR+Code+Image+(5x1.5+inches)';
-      delete qrImg.dataset.isPlaceholder;
-    }
-    if (qrInput) qrInput.value = '';
-    qrCodeUploader.classList.remove('has-image');
+  // Reset the new QR style group
+  const qrGroup = document.querySelector('.export-controls [data-style-group="qr"]');
+  if (qrGroup) {
+    const fontSel = qrGroup.querySelector('.font-select');
+    const sizeInp = qrGroup.querySelector('.font-size-input');
+    const colorInp = qrGroup.querySelector('.color-picker');
+    const boldBtn = qrGroup.querySelector('.bold-toggle');
+    const italicBtn = qrGroup.querySelector('.italic-toggle');
+    if (fontSel) fontSel.selectedIndex = 0; // 'Calibri'
+    if (sizeInp) sizeInp.value = '10';
+    if (colorInp) colorInp.value = '#000000';
+    if (boldBtn) boldBtn.classList.remove('active');
+    if (italicBtn) italicBtn.classList.remove('active');
   }
   
   // Reset Branding/Marketing to default branding image
