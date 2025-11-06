@@ -847,99 +847,112 @@
 
             const coverTitle = (document.getElementById('cover-title-input').value || 'My Booklist');
 
-            document.fonts.load(`${fontStyle} ${fontSizePt}pt ${font}`).then(() => {
-                return Promise.all(imagePromises);
-            }).then(images => {
-                const canvasWidthPx = canvas.width;
-                const canvasHeightPx = canvas.height;
+// PASTE THIS NEW BLOCK
+document.fonts.ready.then(() => {
 
-                ctx.font = `${fontStyle} ${fontSizePx}px ${font}, sans-serif`;
-                const availableTextWidth = Math.max(0, canvasWidthPx - 2*bgSideMarginPx - 2*padXPx);
-                const lines = wrapTextMultiline(coverTitle, availableTextWidth);
+    // NOW that fonts are ready, load the images.
+    // The .catch and .finally are chained to THIS promise.
+    Promise.all(imagePromises).then(images => {
 
-                // Accurate vertical centering using TextMetrics
-                const lineMetrics = lines.map(line => {
-                  const m = ctx.measureText(line);
-                  const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : fontSizePx * 0.8;
-                  const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : fontSizePx * 0.2;
-                  return { line, ascent, descent, height: ascent + descent };
-                });
-                const gap = fontSizePx * 0.2;
-                const textBlockHeight = lineMetrics.reduce((sum, lm) => sum + lm.height, 0) + gap * Math.max(0, lineMetrics.length - 1);
-                const bgH = textBlockHeight + 2*padYPx;
+        // --- Start of drawing logic ---
+        const canvasWidthPx = canvas.width;
+        const canvasHeightPx = canvas.height;
 
-                // Compute slot sizes so rows fit above/below the bar
-                const vGutterToHeightRatio = 0.15;
-                const bookAspectRatio = 0.75;
-                const rowsTotal = 4 + 2*vGutterToHeightRatio; // 1 top + 3 bottom + 2 gutters
-                const availableForCovers = canvasHeightPx - (bgH + 2*outerMarginPx);
-                const slotHeight = Math.max(1, availableForCovers / rowsTotal);
-                const slotWidth = slotHeight * bookAspectRatio;
-                const hGutter = (canvasWidthPx - 3*slotWidth) / 4;
-                const vGutter = slotHeight * vGutterToHeightRatio;
+        ctx.font = `${fontStyle} ${fontSizePx}px ${font}, sans-serif`;
+        const availableTextWidth = Math.max(0, canvasWidthPx - 2*bgSideMarginPx - 2*padXPx);
+        const lines = wrapTextMultiline(coverTitle, availableTextWidth);
 
-                // Draw top row
-                let imageIndex = 0;
-                const topRowY = 0;
-                const drawImageSmart = (img, x, y, w, h) => {
-                  const stretch = stretchCoversToggle.checked;
-                  if (stretch) { ctx.drawImage(img, x, y, w, h); return; }
-                  const imgAR = img.width / img.height, slotAR = w / h;
-                  if (imgAR > slotAR) {
-                    const dw = w, dh = dw / imgAR; ctx.drawImage(img, x, y + (h - dh)/2, dw, dh);
-                  } else {
-                    const dh = h, dw = dh * imgAR; ctx.drawImage(img, x + (w - dw)/2, y, dw, dh);
-                  }
-                };
-                for (let col = 0; col < 3; col++) {
-                  const slotX = hGutter + col*(slotWidth + hGutter);
-                  drawImageSmart(images[imageIndex], slotX, topRowY, slotWidth, slotHeight);
-                  imageIndex++;
-                }
+        // Accurate vertical centering using TextMetrics
+        const lineMetrics = lines.map(line => {
+            const m = ctx.measureText(line);
+            const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : fontSizePx * 0.8;
+            const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : fontSizePx * 0.2;
+            return { line, ascent, descent, height: ascent + descent };
+        });
+        const gap = fontSizePx * 0.2;
+        const textBlockHeight = lineMetrics.reduce((sum, lm) => sum + lm.height, 0) + gap * Math.max(0, lineMetrics.length - 1);
+        const bgH = textBlockHeight + 2*padYPx;
 
-                // Title bar and text
-                const bgX = bgSideMarginPx;
-                const bgY = topRowY + slotHeight + outerMarginPx;
-                const bgW = canvasWidthPx - 2*bgSideMarginPx;
+        // Compute slot sizes so rows fit above/below the bar
+        const vGutterToHeightRatio = 0.15;
+        const bookAspectRatio = 0.75;
+        const rowsTotal = 4 + 2*vGutterToHeightRatio; // 1 top + 3 bottom + 2 gutters
+        const availableForCovers = canvasHeightPx - (bgH + 2*outerMarginPx);
+        const slotHeight = Math.max(1, availableForCovers / rowsTotal);
+        const slotWidth = slotHeight * bookAspectRatio;
+        const hGutter = (canvasWidthPx - 3*slotWidth) / 4;
+        const vGutter = slotHeight * vGutterToHeightRatio;
 
-                const color = titleStyleGroup.querySelector('.color-picker').value;
-                const bgColor = document.getElementById('cover-title-bg-color').value;
-                ctx.fillStyle = bgColor; ctx.fillRect(bgX, bgY, bgW, bgH);
-
-                ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-                const centerX = bgX + bgW / 2;
-                let y = bgY + (bgH - textBlockHeight) / 2;
-                lineMetrics.forEach((lm) => {
-                  const baselineY = y + lm.ascent;
-                  ctx.fillText(lm.line.trim(), centerX, baselineY);
-                  y += lm.height + gap;
-                });
-
-                // Bottom 3x3 covers
-                const gridTopY = bgY + bgH + outerMarginPx;
-                for (let row = 0; row < 3; row++) {
-                  const currentRowY = gridTopY + row*(slotHeight + vGutter);
-                  for (let col = 0; col < 3; col++) {
-                    const slotX = hGutter + col*(slotWidth + hGutter);
-                    drawImageSmart(images[imageIndex], slotX, currentRowY, slotWidth, slotHeight);
-                    imageIndex++;
-                  }
-                }
-
-                const dataUrl = canvas.toDataURL('image/png', 1.0);
-                const frontCoverImg = frontCoverUploader.querySelector('img');
-                frontCoverImg.src = dataUrl;
-                frontCoverImg.dataset.isPlaceholder = "false";
-                frontCoverUploader.classList.add('has-image');
-            }).catch(err => {
-                console.error('Cover generation failed:', err);
-                showNotification('Could not generate the cover collage. Please try again.');
-            }).finally(() => {
-                button.textContent = 'Auto-Generate Cover';
-                button.disabled = false;
-            });
+        // Draw top row
+        let imageIndex = 0;
+        const topRowY = 0;
+        const drawImageSmart = (img, x, y, w, h) => {
+            const stretch = stretchCoversToggle.checked;
+            if (stretch) { ctx.drawImage(img, x, y, w, h); return; }
+            const imgAR = img.width / img.height, slotAR = w / h;
+            if (imgAR > slotAR) {
+            const dw = w, dh = dw / imgAR; ctx.drawImage(img, x, y + (h - dh)/2, dw, dh);
+            } else {
+            const dh = h, dw = dh * imgAR; ctx.drawImage(img, x + (w - dw)/2, y, dw, dh);
+            }
+        };
+        for (let col = 0; col < 3; col++) {
+            const slotX = hGutter + col*(slotWidth + hGutter);
+            drawImageSmart(images[imageIndex], slotX, topRowY, slotWidth, slotHeight);
+            imageIndex++;
         }
 
+        // Title bar and text
+        const bgX = bgSideMarginPx;
+        const bgY = topRowY + slotHeight + outerMarginPx;
+        const bgW = canvasWidthPx - 2*bgSideMarginPx;
+
+        const color = titleStyleGroup.querySelector('.color-picker').value;
+        const bgColor = document.getElementById('cover-title-bg-color').value;
+        ctx.fillStyle = bgColor; ctx.fillRect(bgX, bgY, bgW, bgH);
+
+        ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+        const centerX = bgX + bgW / 2;
+        let y = bgY + (bgH - textBlockHeight) / 2;
+        lineMetrics.forEach((lm) => {
+            const baselineY = y + lm.ascent;
+            ctx.fillText(lm.line.trim(), centerX, baselineY);
+            y += lm.height + gap;
+        });
+
+        // Bottom 3x3 covers
+        const gridTopY = bgY + bgH + outerMarginPx;
+        for (let row = 0; row < 3; row++) {
+            const currentRowY = gridTopY + row*(slotHeight + vGutter);
+            for (let col = 0; col < 3; col++) {
+            const slotX = hGutter + col*(slotWidth + hGutter);
+            drawImageSmart(images[imageIndex], slotX, currentRowY, slotWidth, slotHeight);
+            imageIndex++;
+            }
+        }
+
+        const dataUrl = canvas.toDataURL('image/png', 1.0);
+        const frontCoverImg = frontCoverUploader.querySelector('img');
+        frontCoverImg.src = dataUrl;
+        frontCoverImg.dataset.isPlaceholder = "false";
+        frontCoverUploader.classList.add('has-image');
+        // --- End of drawing logic ---
+
+    }).catch(err => { // Catches errors from image loading
+        console.error('Cover generation failed (image load):', err);
+        showNotification('Could not load cover images. Please try again.');
+    }).finally(() => { // Runs after images are loaded/failed
+        button.textContent = 'Auto-Generate Cover';
+        button.disabled = false;
+    });
+
+}).catch(err => { // Catches errors from font loading
+    console.error('Cover generation failed (font load):', err);
+    showNotification('Could not load fonts for cover. Please try again.');
+    // Also reset button here, since the .finally above won't run
+    button.textContent = 'Auto-Generate Cover';
+    button.disabled = false;
+});
 
         // --- FINAL PDF EXPORT ---
         exportPdfButton.addEventListener('click', () => {
