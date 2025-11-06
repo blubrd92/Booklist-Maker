@@ -185,7 +185,25 @@
         
         setupFileChangeHandler(qrCodeUploader);
         setupFileChangeHandler(brandingUploader);
-        setupFileChangeHandler(frontCoverUploader);
+        // Special handler for the Front Cover to save the file name
+        const frontCoverFileInput = frontCoverUploader.querySelector('input[type="file"]');
+        const frontCoverImgElement = frontCoverUploader.querySelector('img');
+        
+        frontCoverFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                // This is the line your PDF saver needs
+                frontCoverUploader.dataset.fileName = file.name; 
+        
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    frontCoverImgElement.src = event.target.result;
+                    frontCoverImgElement.dataset.isPlaceholder = "false";
+                    frontCoverUploader.classList.add('has-image');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
 
         function autoRegenerateCoverIfAble() {
             if (frontCoverUploader.classList.contains('has-image')) {
