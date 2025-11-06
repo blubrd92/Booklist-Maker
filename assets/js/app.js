@@ -158,19 +158,6 @@
             }
         });
 
-        // Auto-regen cover when cover title styles change and a cover exists
-        const coverStyleGroup = document.getElementById('cover-title-style-group');
-        if (coverStyleGroup) {
-            // Listen to selects and inputs (font, size, colors)
-            coverStyleGroup.querySelectorAll('select, input').forEach(input => {
-                ['input', 'change'].forEach(evt => input.addEventListener(evt, autoRegenerateCoverIfAble));
-            });
-            // Listen to buttons (bold, italic)
-            coverStyleGroup.querySelectorAll('button.bold-toggle, button.italic-toggle').forEach(button => {
-                button.addEventListener('click', autoRegenerateCoverIfAble);
-            });
-        }
-
         function setupFileChangeHandler(uploaderElement) {
             const fileInput = uploaderElement.querySelector('input[type="file"]');
             const imgElement = uploaderElement.querySelector('img');
@@ -238,16 +225,38 @@
         }
 
         document.querySelectorAll('.export-controls .form-group[data-style-group], #cover-title-style-group').forEach(group => {
+            
+            // Listen to selects and inputs (font, size, colors)
             group.querySelectorAll('select, input').forEach(input => {
-                 input.addEventListener('change', applyStyles);
-                 input.addEventListener('input', applyStyles);
+                 input.addEventListener('change', () => {
+                    applyStyles();
+                    // NEW: If this is the cover group, auto-regen
+                    if (group.id === 'cover-title-style-group') {
+                        autoRegenerateCoverIfAble();
+                    }
+                 });
+                 input.addEventListener('input', () => {
+                    applyStyles();
+                    // NEW: If this is the cover group, auto-regen
+                    if (group.id === 'cover-title-style-group') {
+                        autoRegenerateCoverIfAble();
+                    }
+                 });
             });
+            
+            // Listen to buttons (bold, italic)
             group.querySelectorAll('button').forEach(button => {
                 button.addEventListener('click', (e) => {
-                    if(e.target.classList.contains('bold-toggle') || e.target.classList.contains('italic-toggle')){
+                    // This part toggles the class FIRST
+                    if(e.targe.classList.contains('bold-toggle') || e.target.classList.contains('italic-toggle')){
                         e.target.classList.toggle('active');
                     }
-                    applyStyles();
+                    applyStyles(); // This applies styles to the live preview
+
+                    // NEW: If this is the cover group, auto-regen
+                    if (group.id === 'cover-title-style-group') {
+                        autoRegenerateCoverIfAble();
+                    }
                 });
             });
         });
