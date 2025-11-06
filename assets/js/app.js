@@ -733,246 +733,213 @@
         new Sortable(insideRightPanel, sortableOptions);
         new Sortable(backCoverPanel, sortableOptions);
 
-function generateCoverCollage() {
-    const button = generateCoverButton;
-    button.textContent = 'Generating...';
-    button.disabled = true;
-    
-    // Font list that will be loaded
-    const fontsToLoad = ['Oswald', 'Anton', 'Lato', 'Roboto'];
-    
-    // Use WebFont Loader to ensure fonts are loaded
-    WebFont.load({
-        google: {
-            families: fontsToLoad
-        },
-        active: function() {
-            console.log('Fonts loaded successfully');
-            // Only proceed after fonts are loaded
-            performCoverGeneration();
-        },
-        inactive: function() {
-            console.warn('Some fonts failed to load, proceeding anyway');
-            performCoverGeneration(); // Proceed anyway with fallbacks
-        }
-    });
-    
-    function performCoverGeneration() {
-        const shouldStretchCovers = stretchCoversToggle.checked;
-        
-        const booksWithCovers = myBooklist.filter(book => !book.isBlank && (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co'))));
-        
-        if (booksWithCovers.length < 12) {
-            showNotification('Please add at least 12 books with covers to generate a collage.');
-            button.textContent = 'Auto-Generate Cover';
-            button.disabled = false;
-            return;
-        }
-        
-        const coversToDraw = booksWithCovers.slice(0, 12).map(book => {
-            if (book.customCoverData && !book.customCoverData.includes('placehold.co')) {
-                return book.customCoverData;
-            } else if (book.cover_ids.length > 0) {
-                const coverId = book.cover_ids[book.currentCoverIndex];
-                return coverId !== 'placehold' ? `https://covers.openlibrary.org/b/id/${coverId}.jpg` : 'https://placehold.co/300x450/EAEAEA/333333?text=No%20Cover';
+        // --- COVER COLLAGE GENERATION ---
+        function generateCoverCollage() {
+            const button = generateCoverButton;
+            button.textContent = 'Generating...';
+            button.disabled = true;
+
+            const shouldStretchCovers = stretchCoversToggle.checked;
+
+            const booksWithCovers = myBooklist.filter(book => !book.isBlank && (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co'))));
+            
+            if (booksWithCovers.length < 12) {
+                showNotification('Please add at least 12 books with covers to generate a collage.');
+                button.textContent = 'Auto-Generate Cover';
+                button.disabled = false;
+                return;
             }
-            return 'https://placehold.co/300x450/EAEAEA/333333?text=No%20Cover';
-        });
-        
-        const canvas = document.createElement('canvas');
-        const dpi = 300;
-        canvas.width = 5 * dpi;
-        canvas.height = 8 * dpi;
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        const loadImage = (src) => {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.crossOrigin = 'Anonymous';
-                img.onload = () => resolve(img);
-                img.onerror = reject;
-                img.src = src;
+
+            const coversToDraw = booksWithCovers.slice(0, 12).map(book => {
+                if (book.customCoverData && !book.customCoverData.includes('placehold.co')) {
+                    return book.customCoverData;
+                } else if (book.cover_ids.length > 0) {
+                    const coverId = book.cover_ids[book.currentCoverIndex];
+                    return coverId !== 'placehold' ? `https://covers.openlibrary.org/b/id/${coverId}.jpg` : 'https://placehold.co/300x450/EAEAEA/333333?text=No%20Cover';
+                }
+                return 'https://placehold.co/300x450/EAEAEA/333333?text=No%20Cover';
             });
-        };
-        
-        const imagePromises = coversToDraw.map(src => loadImage(src));
-        
-        // Wrap helpers for width measurement
-        function breakLongWord(word, maxWidth) {
-            const parts = [];
-            let buf = '';
-            for (const ch of word) {
+
+            const canvas = document.createElement('canvas');
+            const dpi = 300; 
+            canvas.width = 5 * dpi;
+            canvas.height = 8 * dpi;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+
+            const loadImage = (src) => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.crossOrigin = 'Anonymous';
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = src;
+                });
+            };
+
+            const imagePromises = coversToDraw.map(src => loadImage(src));
+            
+            // Wrap helpers for width measurement
+            function breakLongWord(word, maxWidth) {
+              const parts = []; let buf = '';
+              for (const ch of word) {
                 const test = buf + ch;
                 if (ctx.measureText(test).width <= maxWidth) buf = test;
-                else {
-                    if (buf) parts.push(buf);
-                    buf = ch;
-                }
+                else { if (buf) parts.push(buf); buf = ch; }
+              }
+              if (buf) parts.push(buf);
+              return parts;
             }
-            if (buf) parts.push(buf);
-            return parts;
-        }
-        
-        function wrapParagraph(text, maxWidth) {
-            const words = text.split(/\s+/);
-            const lines = [];
-            let current = words[0] || '';
-            for (let i = 1; i < words.length; i++) {
+            function wrapParagraph(text, maxWidth) {
+              const words = text.split(/\s+/);
+              const lines = [];
+              let current = words[0] || '';
+              for (let i = 1; i < words.length; i++) {
                 const test = current + ' ' + words[i];
                 if (ctx.measureText(test).width <= maxWidth) current = test;
                 else {
-                    if (ctx.measureText(words[i]).width > maxWidth) {
-                        const parts = breakLongWord(words[i], maxWidth);
-                        if (current) lines.push(current);
-                        current = parts.shift() || '';
-                        lines.push(...parts.slice(0, -1));
-                        if (parts.length) current = (current ? current + ' ' : '') + parts[parts.length - 1];
-                    } else {
-                        lines.push(current);
-                        current = words[i];
-                    }
+                  if (ctx.measureText(words[i]).width > maxWidth) {
+                    const parts = breakLongWord(words[i], maxWidth);
+                    if (current) lines.push(current);
+                    current = parts.shift() || '';
+                    lines.push(...parts.slice(0, -1));
+                    if (parts.length) current = (current ? current + ' ' : '') + parts[parts.length - 1];
+                  } else { lines.push(current); current = words[i]; }
                 }
+              }
+              if (current) lines.push(current);
+              return lines;
             }
-            if (current) lines.push(current);
-            return lines;
-        }
-        
-        function wrapTextMultiline(text, maxWidth) {
-            const paragraphs = text.split(/\r?\n/);
-            const lines = [];
-            for (const p of paragraphs) {
-                if (p.trim() === '') {
-                    lines.push('');
-                    continue;
-                }
+            function wrapTextMultiline(text, maxWidth) {
+              const paragraphs = text.split(/\r?\n/);
+              const lines = [];
+              for (const p of paragraphs) {
+                if (p.trim() === '') { lines.push(''); continue; }
                 lines.push(...wrapParagraph(p, maxWidth));
+              }
+              return lines;
             }
-            return lines;
-        }
-        
-        const titleStyleGroup = document.getElementById('cover-title-style-group');
-        const font = titleStyleGroup.querySelector('.font-select').value;
-        const isBold = titleStyleGroup.querySelector('.bold-toggle').classList.contains('active');
-        const isItalic = titleStyleGroup.querySelector('.italic-toggle').classList.contains('active');
-        let fontStyle = '';
-        if (isItalic) fontStyle += 'italic ';
-        if (isBold) fontStyle += 'bold ';
-        const pxPerPt = dpi / 72;
-        const fontSizePt = parseInt(titleStyleGroup.querySelector('.font-size-input').value, 10);
-        const fontSizePx = fontSizePt * pxPerPt;
-        const outerMarginPt = parseFloat(document.getElementById('cover-title-outer-margin')?.value || '10');
-        const padXPt = parseFloat(document.getElementById('cover-title-pad-x')?.value || '0');
-        const padYPt = parseFloat(document.getElementById('cover-title-pad-y')?.value || '10');
-        const sideMarginPt = parseFloat(document.getElementById('cover-title-side-margin')?.value || '0');
-        const outerMarginPx = outerMarginPt * pxPerPt;
-        const padXPx = padXPt * pxPerPt;
-        const padYPx = padYPt * pxPerPt;
-        const bgSideMarginPx = sideMarginPt * pxPerPt;
-        const coverTitle = (document.getElementById('cover-title-input').value || 'My Booklist');
-        
-        // SIMPLIFIED: Skip document.fonts.load - WebFont Loader already handled it!
-        Promise.all(imagePromises).then(images => {
-            const canvasWidthPx = canvas.width;
-            const canvasHeightPx = canvas.height;
-            ctx.font = `${fontStyle} ${fontSizePx}px "${font}", Georgia, serif`;
-            const availableTextWidth = Math.max(0, canvasWidthPx - 2*bgSideMarginPx - 2*padXPx);
-            const lines = wrapTextMultiline(coverTitle, availableTextWidth);
-            
-            // Accurate vertical centering using TextMetrics
-            const lineMetrics = lines.map(line => {
-                const m = ctx.measureText(line);
-                const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : fontSizePx * 0.8;
-                const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : fontSizePx * 0.2;
-                return { line, ascent, descent, height: ascent + descent };
-            });
-            const gap = fontSizePx * 0.2;
-            const textBlockHeight = lineMetrics.reduce((sum, lm) => sum + lm.height, 0) + gap * Math.max(0, lineMetrics.length - 1);
-            const bgH = textBlockHeight + 2*padYPx;
-            
-            // Compute slot sizes so rows fit above/below the bar
-            const vGutterToHeightRatio = 0.15;
-            const bookAspectRatio = 0.75;
-            const rowsTotal = 4 + 2*vGutterToHeightRatio; // 1 top + 3 bottom + 2 gutters
-            const availableForCovers = canvasHeightPx - (bgH + 2*outerMarginPx);
-            const slotHeight = Math.max(1, availableForCovers / rowsTotal);
-            const slotWidth = slotHeight * bookAspectRatio;
-            const hGutter = (canvasWidthPx - 3*slotWidth) / 4;
-            const vGutter = slotHeight * vGutterToHeightRatio;
-            
-            // Draw top row
-            let imageIndex = 0;
-            const topRowY = 0;
-            
-            const drawImageSmart = (img, x, y, w, h) => {
-                const stretch = stretchCoversToggle.checked;
-                if (stretch) {
-                    ctx.drawImage(img, x, y, w, h);
-                    return;
-                }
-                const imgAR = img.width / img.height, slotAR = w / h;
-                if (imgAR > slotAR) {
-                    const dw = w, dh = dw / imgAR;
-                    ctx.drawImage(img, x, y + (h - dh)/2, dw, dh);
-                } else {
-                    const dh = h, dw = dh * imgAR;
-                    ctx.drawImage(img, x + (w - dw)/2, y, dw, dh);
-                }
-            };
-            
-            for (let col = 0; col < 3; col++) {
-                const slotX = hGutter + col*(slotWidth + hGutter);
-                drawImageSmart(images[imageIndex], slotX, topRowY, slotWidth, slotHeight);
-                imageIndex++;
-            }
-            
-            // Title bar and text
-            const bgX = bgSideMarginPx;
-            const bgY = topRowY + slotHeight + outerMarginPx;
-            const bgW = canvasWidthPx - 2*bgSideMarginPx;
-            const color = titleStyleGroup.querySelector('.color-picker').value;
-            const bgColor = document.getElementById('cover-title-bg-color').value;
-            ctx.fillStyle = bgColor;
-            ctx.fillRect(bgX, bgY, bgW, bgH);
-            ctx.fillStyle = color;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'alphabetic';
-            const centerX = bgX + bgW / 2;
-            let y = bgY + (bgH - textBlockHeight) / 2;
-            lineMetrics.forEach((lm) => {
-                const baselineY = y + lm.ascent;
-                ctx.fillText(lm.line.trim(), centerX, baselineY);
-                y += lm.height + gap;
-            });
-            
-            // Bottom 3x3 covers
-            const gridTopY = bgY + bgH + outerMarginPx;
-            for (let row = 0; row < 3; row++) {
-                const currentRowY = gridTopY + row*(slotHeight + vGutter);
+
+            const titleStyleGroup = document.getElementById('cover-title-style-group');
+            const font = titleStyleGroup.querySelector('.font-select').value;
+            const isBold = titleStyleGroup.querySelector('.bold-toggle').classList.contains('active');
+            const isItalic = titleStyleGroup.querySelector('.italic-toggle').classList.contains('active');
+            let fontStyle = '';
+            if (isItalic) fontStyle += 'italic ';
+            if (isBold) fontStyle += 'bold ';
+            const pxPerPt = dpi / 72;
+            const fontSizePt = parseInt(titleStyleGroup.querySelector('.font-size-input').value, 10);
+            const fontSizePx = fontSizePt * pxPerPt;
+
+            const outerMarginPt = parseFloat(document.getElementById('cover-title-outer-margin')?.value || '10');
+            const padXPt = parseFloat(document.getElementById('cover-title-pad-x')?.value || '0');
+            const padYPt = parseFloat(document.getElementById('cover-title-pad-y')?.value || '10');
+            const sideMarginPt = parseFloat(document.getElementById('cover-title-side-margin')?.value || '0');
+
+            const outerMarginPx = outerMarginPt * pxPerPt;
+            const padXPx = padXPt * pxPerPt;
+            const padYPx = padYPt * pxPerPt;
+            const bgSideMarginPx = sideMarginPt * pxPerPt;
+
+            const coverTitle = (document.getElementById('cover-title-input').value || 'My Booklist');
+
+            document.fonts.load(`${fontStyle} ${fontSizePt}pt ${font}`).then(() => {
+                return Promise.all(imagePromises);
+            }).then(images => {
+                const canvasWidthPx = canvas.width;
+                const canvasHeightPx = canvas.height;
+
+                ctx.font = `${fontStyle} ${fontSizePx}px ${font}, sans-serif`;
+                const availableTextWidth = Math.max(0, canvasWidthPx - 2*bgSideMarginPx - 2*padXPx);
+                const lines = wrapTextMultiline(coverTitle, availableTextWidth);
+
+                // Accurate vertical centering using TextMetrics
+                const lineMetrics = lines.map(line => {
+                  const m = ctx.measureText(line);
+                  const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : fontSizePx * 0.8;
+                  const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : fontSizePx * 0.2;
+                  return { line, ascent, descent, height: ascent + descent };
+                });
+                const gap = fontSizePx * 0.2;
+                const textBlockHeight = lineMetrics.reduce((sum, lm) => sum + lm.height, 0) + gap * Math.max(0, lineMetrics.length - 1);
+                const bgH = textBlockHeight + 2*padYPx;
+
+                // Compute slot sizes so rows fit above/below the bar
+                const vGutterToHeightRatio = 0.15;
+                const bookAspectRatio = 0.75;
+                const rowsTotal = 4 + 2*vGutterToHeightRatio; // 1 top + 3 bottom + 2 gutters
+                const availableForCovers = canvasHeightPx - (bgH + 2*outerMarginPx);
+                const slotHeight = Math.max(1, availableForCovers / rowsTotal);
+                const slotWidth = slotHeight * bookAspectRatio;
+                const hGutter = (canvasWidthPx - 3*slotWidth) / 4;
+                const vGutter = slotHeight * vGutterToHeightRatio;
+
+                // Draw top row
+                let imageIndex = 0;
+                const topRowY = 0;
+                const drawImageSmart = (img, x, y, w, h) => {
+                  const stretch = stretchCoversToggle.checked;
+                  if (stretch) { ctx.drawImage(img, x, y, w, h); return; }
+                  const imgAR = img.width / img.height, slotAR = w / h;
+                  if (imgAR > slotAR) {
+                    const dw = w, dh = dw / imgAR; ctx.drawImage(img, x, y + (h - dh)/2, dw, dh);
+                  } else {
+                    const dh = h, dw = dh * imgAR; ctx.drawImage(img, x + (w - dw)/2, y, dw, dh);
+                  }
+                };
                 for (let col = 0; col < 3; col++) {
+                  const slotX = hGutter + col*(slotWidth + hGutter);
+                  drawImageSmart(images[imageIndex], slotX, topRowY, slotWidth, slotHeight);
+                  imageIndex++;
+                }
+
+                // Title bar and text
+                const bgX = bgSideMarginPx;
+                const bgY = topRowY + slotHeight + outerMarginPx;
+                const bgW = canvasWidthPx - 2*bgSideMarginPx;
+
+                const color = titleStyleGroup.querySelector('.color-picker').value;
+                const bgColor = document.getElementById('cover-title-bg-color').value;
+                ctx.fillStyle = bgColor; ctx.fillRect(bgX, bgY, bgW, bgH);
+
+                ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+                const centerX = bgX + bgW / 2;
+                let y = bgY + (bgH - textBlockHeight) / 2;
+                lineMetrics.forEach((lm) => {
+                  const baselineY = y + lm.ascent;
+                  ctx.fillText(lm.line.trim(), centerX, baselineY);
+                  y += lm.height + gap;
+                });
+
+                // Bottom 3x3 covers
+                const gridTopY = bgY + bgH + outerMarginPx;
+                for (let row = 0; row < 3; row++) {
+                  const currentRowY = gridTopY + row*(slotHeight + vGutter);
+                  for (let col = 0; col < 3; col++) {
                     const slotX = hGutter + col*(slotWidth + hGutter);
                     drawImageSmart(images[imageIndex], slotX, currentRowY, slotWidth, slotHeight);
                     imageIndex++;
+                  }
                 }
-            }
-            
-            const dataUrl = canvas.toDataURL('image/png', 1.0);
-            const frontCoverImg = frontCoverUploader.querySelector('img');
-            frontCoverImg.src = dataUrl;
-            frontCoverImg.dataset.isPlaceholder = "false";
-            frontCoverUploader.classList.add('has-image');
-        }).catch(err => {
-            console.error('Cover generation failed:', err);
-            showNotification('Could not generate the cover collage. Please try again.');
-        }).finally(() => {
-            button.textContent = 'Auto-Generate Cover';
-            button.disabled = false;
-        });
-    }
-}
+
+                const dataUrl = canvas.toDataURL('image/png', 1.0);
+                const frontCoverImg = frontCoverUploader.querySelector('img');
+                frontCoverImg.src = dataUrl;
+                frontCoverImg.dataset.isPlaceholder = "false";
+                frontCoverUploader.classList.add('has-image');
+            }).catch(err => {
+                console.error('Cover generation failed:', err);
+                showNotification('Could not generate the cover collage. Please try again.');
+            }).finally(() => {
+                button.textContent = 'Auto-Generate Cover';
+                button.disabled = false;
+            });
+        }
+
 
         // --- FINAL PDF EXPORT ---
         exportPdfButton.addEventListener('click', () => {
