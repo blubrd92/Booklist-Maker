@@ -14,7 +14,7 @@
         const insideLeftPanel = document.getElementById('inside-left-panel');
         const insideRightPanel = document.getElementById('inside-right-panel');
         const previewArea = document.getElementById('preview-area');
-        const qrCodeUploader = document.getElementById('qr-code-uploader');
+        const qrCodeUploader = document.getElementById('qr-code-area');
         const brandingUploader = document.getElementById('branding-uploader');
         const frontCoverUploader = document.getElementById('front-cover-uploader');
         const frontCoverPanel = document.getElementById('front-cover-panel');
@@ -335,7 +335,7 @@
             const showQr = toggleQrCode.checked;
             const showBranding = toggleBranding.checked;
 
-            qrCodeUploader.style.display = showQr ? 'flex' : 'none';
+            qrCodeArea.style.display = showQr ? 'flex' : 'none';
             brandingUploader.style.display = showBranding ? 'flex' : 'none';
 
             let extraSlotsToShow = 0;
@@ -1488,6 +1488,7 @@ function resetToBlank() {
   // === Back Cover Options ===
   const toggleQrCode = document.getElementById('toggle-qr-code');
   if (toggleQrCode) toggleQrCode.checked = true;
+  if (qrCodeArea) qrCodeArea.style.display = 'flex';
   
   const toggleBranding = document.getElementById('toggle-branding');
   if (toggleBranding) toggleBranding.checked = true;
