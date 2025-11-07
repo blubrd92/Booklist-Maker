@@ -1262,11 +1262,26 @@ function serializeState() {
     customCoverData: b.customCoverData || null,
   }));
 
+  // --- New file name logic ---
+const coverTitle = (document.getElementById('cover-title-input')?.value || '').trim();
+let fileNameHint = 'booklist'; // Default
+
+if (coverTitle.length > 0) {
+    fileNameHint = coverTitle;
+} else {
+    const frontCoverUploader = document.getElementById('front-cover-uploader');
+    const uploadedFileName = frontCoverUploader?.dataset.fileName;
+    if (uploadedFileName) {
+        fileNameHint = uploadedFileName.replace(/\.[^/.]+$/, ""); 
+    }
+}
+// --- End new logic ---
+        
   return {
     schema: 'booklist-v1',
     savedAt: new Date().toISOString(),
     meta: {
-      fileNameHint: (document.getElementById('cover-title-input')?.value || 'booklist'),
+      fileNameHint: fileNameHint, // Use our new smart variable
     },
     books,
     ui: {
