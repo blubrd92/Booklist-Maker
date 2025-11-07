@@ -1066,7 +1066,6 @@ document.fonts.ready.then(() => {
 
 // --- FINAL PDF EXPORT ---
 exportPdfButton.addEventListener('click', async () => {
-    showNotification('Generating PDF, please wait...', 'info', false); // false = don't auto-hide
         
     exportPdfButton.textContent = 'Generating...';
     exportPdfButton.disabled = true;
@@ -1106,7 +1105,6 @@ exportPdfButton.addEventListener('click', async () => {
         } catch (err) {
             // User cancelled the save dialog.
             if (err.name === 'AbortError') {
-                hideNotification(); // <-- ADD THIS LINE
                 exportPdfButton.textContent = 'Generate PDF';
                 exportPdfButton.disabled = false;
                 return; // Stop everything.
@@ -1117,6 +1115,8 @@ exportPdfButton.addEventListener('click', async () => {
     }
     // --- End of new permission logic ---
 
+    showNotification('Generating PDF, please wait...', 'info', false); // false = don't auto-hide
+        
     // --- Start PDF Generation (happens *after* save dialog) ---
     const elementsToRestore = [];
     // Hide blank list items
