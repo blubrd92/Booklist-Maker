@@ -29,7 +29,7 @@
         const generateQrButton = document.getElementById('generate-qr-button');
         const qrCodeCanvas = document.getElementById('qr-code-canvas');
         const qrCodeTextArea = document.getElementById('qr-code-text');
-        const QR_TEXT_PLACEHOLDER = "Enter your text here. Click 'Generate QR' in the settings and test the code with your phone.";
+        const QR_TEXT_PLACEHOLDER = "Enter your blurb here. To link to an online list (like Bibliocommons), paste the URL in the 'Generate QR' field above. Remember to test the code with your phone!";
         
 
         let myBooklist = [];
