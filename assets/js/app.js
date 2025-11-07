@@ -1272,7 +1272,7 @@ function serializeState() {
       showBranding: !!document.getElementById('toggle-branding')?.checked,
       coverTitle: document.getElementById('cover-title-input')?.value || '',
       qrCodeUrl: document.getElementById('qr-url-input')?.value || '', // <-- ADD THIS
-      qrCodeText: document.getElementById('qr-code-text')?.textContent || '', // <-- ADD THIS
+      qrCodeText: (document.getElementById('qr-code-text')?.textContent !== QR_TEXT_PLACEHOLDER) ? (document.getElementById('qr-code-text')?.textContent || '') : '', // <-- ADD THIS
     },
     styles: captureStyleGroups(),
     images: {
