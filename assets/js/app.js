@@ -787,7 +787,6 @@
                 
                 if (bookItem.description !== 'Fetching book description...' && !bookItem.description.startsWith('error:')) {
                      setupPlaceholder(descriptionField, placeholders.description, getComputedStyle(descriptionField).color);
-                     descriptionField.style.color = '';
                 } else {
                     descriptionField.style.color = '#757575';
                 }
