@@ -623,16 +623,17 @@
 
 
         // --- LIVE PREVIEW RENDER LOGIC ---
+        // [REPLACE this entire function]
         function renderBooklist() {
             insideLeftPanel.innerHTML = '';
             insideRightPanel.innerHTML = '';
             
             backCoverPanel.querySelectorAll('.list-item').forEach(item => item.remove());
-
+        
             myBooklist.forEach((bookItem, index) => {
                 let targetPanel;
                 let insertBeforeElement = null;
-
+        
                 if (index < 5) {
                     targetPanel = insideLeftPanel;
                 } else if (index < 10) {
@@ -641,19 +642,19 @@
                     targetPanel = backCoverPanel;
                     insertBeforeElement = qrCodeArea;
                 }
-
+        
                 const listItem = document.createElement('div');
                 listItem.className = 'list-item';
                 listItem.dataset.id = bookItem.key;
                 listItem.dataset.isBlank = bookItem.isBlank;
-
+        
                 const controlsDiv = document.createElement('div');
                 controlsDiv.className = 'list-item-controls';
                 
                 if (targetPanel === insideRightPanel) {
                     controlsDiv.classList.add('controls-right');
                 }
-
+        
                 const itemNumber = document.createElement('span');
                 itemNumber.className = 'item-number';
                 itemNumber.textContent = index + 1;
@@ -678,7 +679,7 @@
                 controlsDiv.appendChild(dragHandle);
                 controlsDiv.appendChild(itemNumber);
                 controlsDiv.appendChild(deleteButton);
-
+        
                 const coverUploader = document.createElement('label');
                 coverUploader.className = 'cover-uploader';
                 const coverImg = document.createElement('img');
@@ -713,25 +714,25 @@
                 
                 const detailsDiv = document.createElement('div');
                 detailsDiv.className = 'list-item-details';
-
+        
                 const titleField = document.createElement('div');
                 titleField.className = 'editable-field title-field';
                 titleField.contentEditable = true;
-                titleField.textContent = bookItem.title;
+                titleField.innerText = bookItem.title; // <-- FIXED
                 titleField.oninput = (e) => { 
-                    bookItem.title = e.target.textContent;
+                    bookItem.title = e.target.innerText; // <-- FIXED
                     if(bookItem.isBlank && bookItem.title !== '[Enter Title]') {
                         bookItem.isBlank = false;
                         listItem.dataset.isBlank = false;
                     }
                 };
-
+        
                 const authorField = document.createElement('div');
                 authorField.className = 'editable-field author-field';
                 authorField.contentEditable = true;
-                authorField.textContent = bookItem.author.startsWith('[Enter') ? `${bookItem.author} - ${bookItem.callNumber}` : `By ${bookItem.author} - ${bookItem.callNumber}`;
+                authorField.innerText = bookItem.author.startsWith('[Enter') ? `${bookItem.author} - ${bookItem.callNumber}` : `By ${bookItem.author} - ${bookItem.callNumber}`; // <-- FIXED
                 authorField.oninput = (e) => { 
-                    let text = e.target.textContent;
+                    let text = e.target.innerText; // <-- FIXED
                     if (text.includes('By ') && text.includes(' - ')) {
                         const parts = text.replace('By ', '').split(' - ');
                         bookItem.author = parts[0] || '';
@@ -742,41 +743,41 @@
                         bookItem.callNumber = parts[1] || '';
                     }
                  };
-
+        
                 const descriptionField = document.createElement('div');
                 descriptionField.className = 'editable-field description-field';
                 descriptionField.contentEditable = true;
-                descriptionField.textContent = bookItem.description;
-                descriptionField.oninput = (e) => { bookItem.description = e.target.textContent; };
+                descriptionField.innerText = bookItem.description; // <-- FIXED
+                descriptionField.oninput = (e) => { bookItem.description = e.target.innerText; }; // <-- FIXED
                 
                 detailsDiv.appendChild(titleField);
                 detailsDiv.appendChild(authorField);
                 detailsDiv.appendChild(descriptionField);
-
+        
                 const placeholders = {
                     title: '[Enter Title]',
                     author: '[Enter Author] - [Call #]',
                     description: '[Enter a brief description here...]'
                 };
-
+        
                 const setupPlaceholder = (element, placeholderText, originalColor) => {
-                    if (element.textContent === placeholderText) {
+                    if (element.innerText === placeholderText) { // <-- FIXED
                         element.style.color = '#757575';
                     }
                     element.onfocus = () => {
-                        if (element.textContent === placeholderText) {
-                            element.textContent = '';
+                        if (element.innerText === placeholderText) { // <-- FIXED
+                            element.innerText = ''; // <-- FIXED
                             element.style.color = originalColor;
                         }
                     };
                     element.onblur = () => {
-                        if (element.textContent.trim() === '') {
-                            element.textContent = placeholderText;
+                        if (element.innerText.trim() === '') { // <-- FIXED
+                            element.innerText = placeholderText; // <-- FIXED
                             element.style.color = '#757575';
                         }
                     };
                 };
-
+        
                 setupPlaceholder(titleField, placeholders.title, getComputedStyle(titleField).color);
                 setupPlaceholder(authorField, placeholders.author, getComputedStyle(authorField).color);
                 
