@@ -1402,10 +1402,46 @@ function applyState(loaded) {
   const titleInput = document.getElementById('cover-title-input');
   if (titleInput) titleInput.value = loaded.ui?.coverTitle || '';
 
+  // --- QR Code URL ---
   const qrUrlIn = document.getElementById('qr-url-input');
-  if (qrUrlIn) qrUrlIn.value = loaded.ui?.qrCodeUrl || '';
+  const loadedUrl = loaded.ui?.qrCodeUrl || '';
+  if (qrUrlIn) qrUrlIn.value = loadedUrl;
+
+  // --- QR Code Text ---
   const qrTextEl = document.getElementById('qr-code-text');
-  if (qrTextEl) qrTextEl.textContent = loaded.ui?.qrCodeText || QR_TEXT_PLACEHOLDER;
+  if (qrTextEl) {
+      const loadedText = loaded.ui?.qrCodeText || '';
+      if (loadedText && loadedText !== QR_TEXT_PLACEHOLDER) {
+          qrTextEl.textContent = loadedText;
+          qrTextEl.style.color = ''; // Reset placeholder color
+      } else {
+          qrTextEl.textContent = QR_TEXT_PLACEHOLDER;
+          qrTextEl.style.color = '#757575'; // Set placeholder color
+      }
+  }
+
+  // --- RE-GENERATE QR CODE ---
+  qrCodeCanvas.innerHTML = ''; // Clear the canvas
+  if (loadedUrl) {
+    // If we have a URL, generate the code
+    try {
+        new QRCode(qrCodeCanvas, {
+            text: loadedUrl,
+            width: 144, 
+            height: 144,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H 
+        });
+    } catch (err) {
+        console.error("Failed to re-generate QR code on load:", err);
+        // If it fails, show the placeholder
+        qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>';
+    }
+  } else {
+    // If there's no URL, show the placeholder
+    qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>';
+  }
         
   // Styles
   applyStyleGroups(loaded.styles);
