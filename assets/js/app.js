@@ -787,7 +787,6 @@
                 
                 if (bookItem.description !== 'Fetching book description...' && !bookItem.description.startsWith('error:')) {
                      setupPlaceholder(descriptionField, placeholders.description, getComputedStyle(descriptionField).color);
-                     descriptionField.style.color = '';
                 } else {
                     descriptionField.style.color = '#757575';
                 }
@@ -1157,7 +1156,7 @@ exportPdfButton.addEventListener('click', async () => {
         const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
 
         const options = { 
-            scale: 4, 
+            scale: 3, 
             useCORS: true, 
             backgroundColor: null,
             windowWidth: 3300,
@@ -1263,11 +1262,26 @@ function serializeState() {
     customCoverData: b.customCoverData || null,
   }));
 
+  // --- New file name logic ---
+const coverTitle = (document.getElementById('cover-title-input')?.value || '').trim();
+let fileNameHint = 'booklist'; // Default
+
+if (coverTitle.length > 0) {
+    fileNameHint = coverTitle;
+} else {
+    const frontCoverUploader = document.getElementById('front-cover-uploader');
+    const uploadedFileName = frontCoverUploader?.dataset.fileName;
+    if (uploadedFileName) {
+        fileNameHint = uploadedFileName.replace(/\.[^/.]+$/, ""); 
+    }
+}
+// --- End new logic ---
+        
   return {
     schema: 'booklist-v1',
     savedAt: new Date().toISOString(),
     meta: {
-      fileNameHint: (document.getElementById('cover-title-input')?.value || 'booklist'),
+      fileNameHint: fileNameHint, // Use our new smart variable
     },
     books,
     ui: {
@@ -1521,162 +1535,8 @@ function resetToBlank() {
   // Clear local draft so this clean state persists on reload
   try { localStorage.removeItem('booklist-draft'); } catch (_) {}
 
-  // === Book Block Styles - restore defaults ===
-  const titleGroup = document.querySelector('.export-controls [data-style-group="title"]');
-  if (titleGroup) {
-    const fontSel = titleGroup.querySelector('.font-select');
-    const sizeInp = titleGroup.querySelector('.font-size-input');
-    const colorInp = titleGroup.querySelector('.color-picker');
-    const boldBtn = titleGroup.querySelector('.bold-toggle');
-    const italicBtn = titleGroup.querySelector('.italic-toggle');
-    if (fontSel) fontSel.selectedIndex = 0; // 'Georgia'
-    if (sizeInp) sizeInp.value = '14';
-    if (colorInp) colorInp.value = '#000000';
-    if (boldBtn) boldBtn.classList.remove('active');
-    if (italicBtn) italicBtn.classList.remove('active');
-  }
-
-  const authorGroup = document.querySelector('.export-controls [data-style-group="author"]');
-  if (authorGroup) {
-    const fontSel = authorGroup.querySelector('.font-select');
-    const sizeInp = authorGroup.querySelector('.font-size-input');
-    const colorInp = authorGroup.querySelector('.color-picker');
-    const boldBtn = authorGroup.querySelector('.bold-toggle');
-    const italicBtn = authorGroup.querySelector('.italic-toggle');
-    if (fontSel) fontSel.selectedIndex = 0; // 'Calibri'
-    if (sizeInp) sizeInp.value = '12';
-    if (colorInp) colorInp.value = '#000000';
-    if (boldBtn) boldBtn.classList.add('active'); // Default to bold
-    if (italicBtn) italicBtn.classList.remove('active');
-  }
-
-  const descGroup = document.querySelector('.export-controls [data-style-group="desc"]');
-  if (descGroup) {
-    const fontSel = descGroup.querySelector('.font-select');
-    const sizeInp = descGroup.querySelector('.font-size-input');
-    const colorInp = descGroup.querySelector('.color-picker');
-    const boldBtn = descGroup.querySelector('.bold-toggle');
-    const italicBtn = descGroup.querySelector('.italic-toggle');
-    if (fontSel) fontSel.selectedIndex = 0; // 'Calibri'
-    if (sizeInp) sizeInp.value = '10';
-    if (colorInp) colorInp.value = '#000000';
-    if (boldBtn) boldBtn.classList.remove('active');
-    if (italicBtn) italicBtn.classList.remove('active');
-  }
-  
-  const stretchBlockCoversToggle = document.getElementById('stretch-block-covers-toggle');
-  if (stretchBlockCoversToggle) stretchBlockCoversToggle.checked = false;
-  
-  // === Back Cover Options ===
-  const toggleQrCode = document.getElementById('toggle-qr-code');
-  if (toggleQrCode) toggleQrCode.checked = true;
-  if (qrCodeArea) qrCodeArea.style.display = 'flex';
-  
-  const toggleBranding = document.getElementById('toggle-branding');
-  if (toggleBranding) toggleBranding.checked = true;
-  
-  // === Cover Title Styles ===
-  const coverTitleGroup = document.getElementById('cover-title-style-group');
-  if (coverTitleGroup) {
-    const fontSel = coverTitleGroup.querySelector('.font-select');
-    const sizeInp = coverTitleGroup.querySelector('.font-size-input');
-    const colorInp = coverTitleGroup.querySelector('.color-picker'); // This is the text color
-    const boldBtn = coverTitleGroup.querySelector('.bold-toggle');
-    const italicBtn = coverTitleGroup.querySelector('.italic-toggle');
-    if (fontSel) fontSel.selectedIndex = 0; // 'Oswald'
-    if (sizeInp) sizeInp.value = '40';
-    if (colorInp) colorInp.value = '#FFFFFF';
-    if (boldBtn) boldBtn.classList.add('active'); // Default to bold
-    if (italicBtn) italicBtn.classList.remove('active');
-  }
-
-  const coverTitleBg = document.getElementById('cover-title-bg-color');
-  if (coverTitleBg) coverTitleBg.value = '#000000';
-  
-  const outerMargin = document.getElementById('cover-title-outer-margin');
-  if (outerMargin) outerMargin.value = '10';
-  
-  const bgPadX = document.getElementById('cover-title-pad-x');
-  if (bgPadX) bgPadX.value = '0';
-  
-  const bgPadY = document.getElementById('cover-title-pad-y');
-  if (bgPadY) bgPadY.value = '10';
-  
-  const sideMargin = document.getElementById('cover-title-side-margin');
-  if (sideMargin) sideMargin.value = '0';
-  
-  const stretchCoversToggle = document.getElementById('stretch-covers-toggle');
-  if (stretchCoversToggle) stretchCoversToggle.checked = true;
-  
-  const titleInput = document.getElementById('cover-title-input');
-  if (titleInput) titleInput.value = '';
-
-  const qrUrlIn = document.getElementById('qr-url-input');
-  if (qrUrlIn) qrUrlIn.value = '';
-  const qrTextEl = document.getElementById('qr-code-text');
-  if (qrTextEl) qrTextEl.innerText = QR_TEXT_PLACEHOLDER; // <-- FIXED
-  if (qrTextEl) qrTextEl.style.color = '#757575';
-  
-  if (qrCodeCanvas) qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>';
-
-  // Reset the new QR style group
-  const qrGroup = document.querySelector('.export-controls [data-style-group="qr"]');
-  if (qrGroup) {
-    const fontSel = qrGroup.querySelector('.font-select');
-    const sizeInp = qrGroup.querySelector('.font-size-input');
-    const colorInp = qrGroup.querySelector('.color-picker');
-    const boldBtn = qrGroup.querySelector('.bold-toggle');
-    const italicBtn = qrGroup.querySelector('.italic-toggle');
-    if (fontSel) fontSel.selectedIndex = 0; // 'Calibri'
-    if (sizeInp) sizeInp.value = '13'; 
-    if (colorInp) colorInp.value = '#000000';
-    if (boldBtn) boldBtn.classList.add('active');
-    if (italicBtn) italicBtn.classList.remove('active');
-  }
-  
-  // Reset Branding/Marketing to default branding image
-  const brandingUploader = document.getElementById('branding-uploader');
-  if (brandingUploader) {
-    const brandingImg = brandingUploader.querySelector('img');
-    const brandingInput = brandingUploader.querySelector('input[type="file"]');
-    if (brandingImg) {
-      brandingImg.src = 'assets/img/branding-default.png';
-      brandingImg.dataset.isPlaceholder = "false";
-    }
-    if (brandingInput) brandingInput.value = '';
-    brandingUploader.classList.add('has-image');
-  }
-  
-  // Reset Front Cover to transparent placeholder
-  const frontCoverUploader = document.getElementById('front-cover-uploader');
-  if (frontCoverUploader) {
-    const frontImg = frontCoverUploader.querySelector('img');
-    const frontInput = frontCoverUploader.querySelector('input[type="file"]');
-    if (frontImg) {
-      frontImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-      delete frontImg.dataset.isPlaceholder;
-    }
-    if (frontInput) frontInput.value = '';
-    frontCoverUploader.classList.remove('has-image');
-  }
-
-  // Rebuild fresh blank list
-  myBooklist = [];
-  for (let i = 0; i < 15; i++) myBooklist.push(createBlankBook());
-
-  // Re-render everything
-  handleLayoutChange();
-  renderBooklist();
-  applyStyles();
-  applyBlockCoverStyle();
-  updateBackCoverVisibility();
-  saveDraftLocal();
-  const addedButtons = document.querySelectorAll('#results-container .add-to-list-button.added');
-  addedButtons.forEach(button => {
-    button.textContent = 'Add to List';
-    button.classList.remove('added');
-  });
-  showNotification('Reset to blank with default settings.', 'success');
+  // Reload the page to its original state.
+  location.reload();
 }
 
 // Create and inject Save/Load controls next to Generate PDF with centered group + right-aligned Reset
