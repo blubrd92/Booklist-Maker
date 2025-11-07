@@ -1272,8 +1272,8 @@ function serializeState() {
       showQr: !!document.getElementById('toggle-qr-code')?.checked,
       showBranding: !!document.getElementById('toggle-branding')?.checked,
       coverTitle: document.getElementById('cover-title-input')?.value || '',
-      qrCodeUrl: document.getElementById('qr-url-input')?.value || '', // <-- ADD THIS
-      qrCodeText: (document.getElementById('qr-code-text')?.textContent !== QR_TEXT_PLACEHOLDER) ? (document.getElementById('qr-code-text')?.textContent || '') : '', // <-- ADD THIS
+      qrCodeUrl: document.getElementById('qr-url-input')?.value || '', 
+      qrCodeText: (document.getElementById('qr-code-text')?.innerText !== QR_TEXT_PLACEHOLDER) ? (document.getElementById('qr-code-text')?.innerText || '') : '', // <-- FIXED
     },
     styles: captureStyleGroups(),
     images: {
