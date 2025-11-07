@@ -384,6 +384,11 @@
             border-right: 1px dashed #ccc; /* Consistent center fold line */
         }
 
+        /* --- CHANGE 1 OF 3: Align left panel books to the left --- */
+        #inside-left-panel {
+            align-items: flex-start; /* Aligns book blocks to the left */
+        }
+
         #back-cover-panel { 
             display: flex;
             flex-direction: column;
@@ -570,6 +575,7 @@
             padding: 0.25in;
             overflow: hidden; /* Hide controls for printing */
             border: none !important; /* Remove ALL borders for PDF */
+            box-sizing: border-box; /* --- CHANGE 2 OF 3: Fix the cover "shift" --- */
         }
 
         .print-mode .custom-uploader,
@@ -594,6 +600,7 @@
         }
         .print-mode #inside-left-panel {
             border-right: none;
+            align-items: flex-start; /* --- CHANGE 3 OF 3: Align left books in PDF --- */
         }
         .print-mode #inside-right-panel {
             align-items: flex-end;
@@ -702,19 +709,3 @@
   max-height: 100%;
   object-fit: contain;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
