@@ -537,7 +537,7 @@
         }
         .description-field {
             font-family: var(--desc-font); color: var(--desc-color); font-size: var(--desc-font-size); font-weight: var(--desc-font-weight); font-style: var(--desc-font-style);
-            margin-top: 0.01;
+            margin-top: 0.01in;
             height: auto;
             flex: 1;
             resize: none;
@@ -694,6 +694,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
