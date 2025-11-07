@@ -1667,6 +1667,11 @@ function resetToBlank() {
   applyBlockCoverStyle();
   updateBackCoverVisibility();
   saveDraftLocal();
+  const addedButtons = document.querySelectorAll('#results-container .add-to-list-button.added');
+  addedButtons.forEach(button => {
+    button.textContent = 'Add to List';
+    button.classList.remove('added');
+  });
   showNotification('Reset to blank with default settings.', 'success');
 }
 
