@@ -353,7 +353,7 @@
         #export-pdf-button { margin-left: auto; padding: 10px 15px; font-size: 1em; }
         
 
-        #preview-area { display: flex; flex-direction: column; gap: 20px; align-items: center; }
+        #preview-area { display: flex; flex-direction: column; gap: 20px; align-items: center; min-width: 11in; }
         .page {
             display: flex;
             width: 11in;
@@ -691,6 +691,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
