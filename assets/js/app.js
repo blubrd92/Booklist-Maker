@@ -1611,6 +1611,9 @@ function resetToBlank() {
   if (qrTextEl) qrTextEl.textContent = QR_TEXT_PLACEHOLDER;
   if (qrTextEl) qrTextEl.style.color = '#757575';
 
+  // ADD THIS LINE
+  if (qrCodeCanvas) qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>';
+        
   // === CLEAR ALL IMAGES - Reset to placeholders ===
   
   // Reset the new QR style group
