@@ -217,20 +217,24 @@
         // Setup placeholder logic for the static QR code text area
         function setupQrPlaceholder() {
             const originalColor = getComputedStyle(qrCodeTextArea).color;
-            if (qrCodeTextArea.textContent === QR_TEXT_PLACEHOLDER) {
+            
+            // USE INNERTEXT: This correctly ignores whitespace from the HTML
+            if (qrCodeTextArea.innerText === QR_TEXT_PLACEHOLDER) {
                 qrCodeTextArea.style.color = '#757575';
             }
 
             qrCodeTextArea.addEventListener('focus', () => {
-                if (qrCodeTextArea.textContent === QR_TEXT_PLACEHOLDER) {
-                    qrCodeTextArea.textContent = '';
+                // USE INNERTEXT
+                if (qrCodeTextArea.innerText === QR_TEXT_PLACEHOLDER) {
+                    qrCodeTextArea.innerText = ''; // USE INNERTEXT
                     qrCodeTextArea.style.color = originalColor;
                 }
             });
 
             qrCodeTextArea.addEventListener('blur', () => {
-                if (qrCodeTextArea.textContent.trim() === '') {
-                    qrCodeTextArea.textContent = QR_TEXT_PLACEHOLDER;
+                // USE INNERTEXT (trim() is still good practice)
+                if (qrCodeTextArea.innerText.trim() === '') {
+                    qrCodeTextArea.innerText = QR_TEXT_PLACEHOLDER; // USE INNERTEXT
                     qrCodeTextArea.style.color = '#757575';
                 }
             });
