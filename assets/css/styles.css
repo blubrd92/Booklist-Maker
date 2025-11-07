@@ -532,12 +532,12 @@
         .title-field { font-family: var(--title-font); color: var(--title-color); font-size: var(--title-font-size); font-weight: var(--title-font-weight); font-style: var(--title-font-style); }
         .author-field {
             font-family: var(--author-font); color: var(--author-color); font-size: var(--author-font-size); font-weight: var(--author-font-weight); font-style: var(--author-font-style);
-            margin-top: 0.01in;
+            margin-top: 0.02in;
             margin-bottom: 0;
         }
         .description-field {
             font-family: var(--desc-font); color: var(--desc-color); font-size: var(--desc-font-size); font-weight: var(--desc-font-weight); font-style: var(--desc-font-style);
-            margin-top: 0.01in;
+            margin-top: 0.02in;
             height: auto;
             flex: 1;
             resize: none;
@@ -691,6 +691,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
