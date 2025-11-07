@@ -1327,10 +1327,10 @@ async function downloadBooklist(state) {
       const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();
-      return;
+      return true;
     } catch (err) {
       // If the user cancels, do nothing; otherwise fall back
-      if (err && (err.name === 'AbortError' || err.code === 20)) return;
+      if (err && (err.name === 'AbortError' || err.code === 20)) return false;
     }
   }
 
@@ -1343,6 +1343,7 @@ async function downloadBooklist(state) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 750);
+  return true;
 }
 
 // Apply a loaded state
@@ -1600,8 +1601,10 @@ function resetToBlank() {
   // Wire events
   saveBtn.addEventListener('click', async () => {
     const state = serializeState();
-    await downloadBooklist(state);
+    const didSave = await downloadBooklist(state); // <-- 1. Add "const didSave =" here
+    if (didSave) { // <-- 2. Add this "if (didSave) {" line
     showNotification('Booklist saved to file.', 'success');
+    } // <-- 3. Add this closing "}" line
   });
 
   loadBtn.addEventListener('click', () => fileInput.click());
