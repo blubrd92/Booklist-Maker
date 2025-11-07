@@ -91,6 +91,33 @@
         </div>
       </div>
 
+      <h3 style="margin-top: 15px;">QR Code Generator</h3>
+      <div class="form-group" id="qr-code-controls">
+        <label for="qr-url-input">URL:</label>
+        <input id="qr-url-input" type="text" placeholder="https://www.mylibrary.org" style="flex-grow:1;"/>
+        <button id="generate-qr-button" style="width: 100px; padding: 8px;">Generate QR</button>
+      </div>
+
+      <div class="form-group" data-style-group="qr">
+        <label>QR Text</label>
+        <select class="font-select">
+          <option value="'Calibri', sans-serif">Calibri</option>
+          <option value="'Georgia', serif">Georgia</option>
+          <option value="'Arvo', serif">Arvo</option>
+          <option value="'Lato', sans-serif">Lato</option>
+          <option value="'Roboto', sans-serif">Roboto</option>
+          <option value="'Merriweather', serif">Merriweather</option>
+          <option value="'EB Garamond', serif">EB Garamond</option>
+          <option value="'Helvetica', sans-serif">Helvetica</option>
+          <option value="'Times New Roman', serif">Times New Roman</option>
+        </select>
+        <input class="font-size-input" type="number" min="8" value="13"/>
+        <span>pt</span>
+        <input class="color-picker" type="color" value="#000000"/>
+        <button class="bold-toggle active">B</button>
+        <button class="italic-toggle">I</button>
+      </div>
+      
       <h3 style="margin-top: 15px;">Back Cover Options</h3>
       <div class="form-group">
         <div style="display: flex; align-items: center; gap: 5px;">
@@ -149,10 +176,14 @@
       <div class="page" id="print-page-1">
         <div class="panel" id="back-cover-panel">
           <!-- Book items inserted before these uploaders -->
-          <label class="custom-uploader" id="qr-code-uploader">
-            <img alt="QR Code Placeholder" src="https://placehold.co/480x144/EAEAEA/333333?text=Upload+QR+Code+Image+(5x1.5+inches)"/>
-            <input type="file" accept="image/*"/>
-          </label>
+          <div class="qr-code-container" id="qr-code-area">
+            <div id="qr-code-text" class="editable-field" contenteditable="true">
+              Want to find more titles? Scan this code to discover more at your library.
+            </div>
+              <div id="qr-code-canvas">
+                <img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>
+              </div>
+            </div>
           <label class="custom-uploader" id="branding-uploader">
             <img alt="Library Branding Placeholder" src="assets/img/branding-default.png"/>
             <input type="file" accept="image/*"/>
@@ -223,6 +254,8 @@
     <div id="results-container"></div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
   <!-- App script -->
   <script src="assets/js/app.js"></script>
 
@@ -254,6 +287,11 @@
   
 </body>
 </html>
+
+
+
+
+
 
 
 

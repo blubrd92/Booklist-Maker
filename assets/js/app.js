@@ -14,7 +14,7 @@
         const insideLeftPanel = document.getElementById('inside-left-panel');
         const insideRightPanel = document.getElementById('inside-right-panel');
         const previewArea = document.getElementById('preview-area');
-        const qrCodeUploader = document.getElementById('qr-code-uploader');
+        const qrCodeArea = document.getElementById('qr-code-area');
         const brandingUploader = document.getElementById('branding-uploader');
         const frontCoverUploader = document.getElementById('front-cover-uploader');
         const frontCoverPanel = document.getElementById('front-cover-panel');
@@ -25,6 +25,11 @@
         const toggleQrCode = document.getElementById('toggle-qr-code');
         const toggleBranding = document.getElementById('toggle-branding');
         const notificationArea = document.getElementById('notification-area');
+        const qrUrlInput = document.getElementById('qr-url-input');
+        const generateQrButton = document.getElementById('generate-qr-button');
+        const qrCodeCanvas = document.getElementById('qr-code-canvas');
+        const qrCodeTextArea = document.getElementById('qr-code-text');
+        const QR_TEXT_PLACEHOLDER = "Enter your text here. Click 'Generate QR' in the settings and test the code with your phone.";
         
 
         let myBooklist = [];
@@ -155,6 +160,32 @@
         toggleQrCode.addEventListener('change', handleLayoutChange);
         toggleBranding.addEventListener('change', handleLayoutChange);
 
+        generateQrButton.addEventListener('click', () => {
+            const url = qrUrlInput.value;
+            if (!url) {
+                showNotification('Please enter a URL for the QR code.');
+                return;
+            }
+            
+            // Clear the old QR code
+            qrCodeCanvas.innerHTML = ''; 
+            
+            // Generate the new one
+            try {
+                new QRCode(qrCodeCanvas, {
+                    text: url,
+                    width: 144, // Approx 1.5in at 96dpi
+                    height: 144,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H // High error correction
+                });
+            } catch (err) {
+                console.error(err);
+                showNotification('Error generating QR code. Check the URL.');
+            }
+        });
+
         // Auto-regen cover when spacing inputs change and a cover exists
         const spacingInputIds = ['cover-title-outer-margin','cover-title-pad-x','cover-title-pad-y','cover-title-side-margin'];
         spacingInputIds.forEach(id => {
@@ -182,24 +213,46 @@
                 }
             });
         }
-        
-        setupFileChangeHandler(qrCodeUploader);
+
+        // Setup placeholder logic for the static QR code text area
+        function setupQrPlaceholder() {
+            const originalColor = getComputedStyle(qrCodeTextArea).color;
+            if (qrCodeTextArea.textContent === QR_TEXT_PLACEHOLDER) {
+                qrCodeTextArea.style.color = '#757575';
+            }
+
+            qrCodeTextArea.addEventListener('focus', () => {
+                if (qrCodeTextArea.textContent === QR_TEXT_PLACEHOLDER) {
+                    qrCodeTextArea.textContent = '';
+                    qrCodeTextArea.style.color = originalColor;
+                }
+            });
+
+            qrCodeTextArea.addEventListener('blur', () => {
+                if (qrCodeTextArea.textContent.trim() === '') {
+                    qrCodeTextArea.textContent = QR_TEXT_PLACEHOLDER;
+                    qrCodeTextArea.style.color = '#757575';
+                }
+            });
+        }
+        setupQrPlaceholder(); // Run this logic when the app loads
+
         setupFileChangeHandler(brandingUploader);
         // Special handler for the Front Cover to save the file name
         const frontCoverFileInput = frontCoverUploader.querySelector('input[type="file"]');
         const frontCoverImgElement = frontCoverUploader.querySelector('img');
-        
+
         frontCoverFileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 // This is the line your PDF saver needs
                 frontCoverUploader.dataset.fileName = file.name; 
-        
+
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     frontCoverImgElement.src = event.target.result;
                     frontCoverImgElement.dataset.isPlaceholder = "false";
-                    frontCoverUploader.classList.add('has-image');
+            frontCoverUploader.classList.add('has-image');
                 };
                 reader.readAsDataURL(file);
             }
@@ -323,7 +376,7 @@
             const showQr = toggleQrCode.checked;
             const showBranding = toggleBranding.checked;
 
-            qrCodeUploader.style.display = showQr ? 'flex' : 'none';
+            qrCodeArea.style.display = showQr ? 'flex' : 'none';
             brandingUploader.style.display = showBranding ? 'flex' : 'none';
 
             let extraSlotsToShow = 0;
@@ -570,37 +623,38 @@
 
 
         // --- LIVE PREVIEW RENDER LOGIC ---
+        // [REPLACE this entire function]
         function renderBooklist() {
             insideLeftPanel.innerHTML = '';
             insideRightPanel.innerHTML = '';
             
             backCoverPanel.querySelectorAll('.list-item').forEach(item => item.remove());
-
+        
             myBooklist.forEach((bookItem, index) => {
                 let targetPanel;
                 let insertBeforeElement = null;
-
+        
                 if (index < 5) {
                     targetPanel = insideLeftPanel;
                 } else if (index < 10) {
                     targetPanel = insideRightPanel;
                 } else {
                     targetPanel = backCoverPanel;
-                    insertBeforeElement = qrCodeUploader;
+                    insertBeforeElement = qrCodeArea;
                 }
-
+        
                 const listItem = document.createElement('div');
                 listItem.className = 'list-item';
                 listItem.dataset.id = bookItem.key;
                 listItem.dataset.isBlank = bookItem.isBlank;
-
+        
                 const controlsDiv = document.createElement('div');
                 controlsDiv.className = 'list-item-controls';
                 
                 if (targetPanel === insideRightPanel) {
                     controlsDiv.classList.add('controls-right');
                 }
-
+        
                 const itemNumber = document.createElement('span');
                 itemNumber.className = 'item-number';
                 itemNumber.textContent = index + 1;
@@ -625,7 +679,7 @@
                 controlsDiv.appendChild(dragHandle);
                 controlsDiv.appendChild(itemNumber);
                 controlsDiv.appendChild(deleteButton);
-
+        
                 const coverUploader = document.createElement('label');
                 coverUploader.className = 'cover-uploader';
                 const coverImg = document.createElement('img');
@@ -660,25 +714,25 @@
                 
                 const detailsDiv = document.createElement('div');
                 detailsDiv.className = 'list-item-details';
-
+        
                 const titleField = document.createElement('div');
                 titleField.className = 'editable-field title-field';
                 titleField.contentEditable = true;
-                titleField.textContent = bookItem.title;
+                titleField.innerText = bookItem.title; // <-- FIXED
                 titleField.oninput = (e) => { 
-                    bookItem.title = e.target.textContent;
+                    bookItem.title = e.target.innerText; // <-- FIXED
                     if(bookItem.isBlank && bookItem.title !== '[Enter Title]') {
                         bookItem.isBlank = false;
                         listItem.dataset.isBlank = false;
                     }
                 };
-
+        
                 const authorField = document.createElement('div');
                 authorField.className = 'editable-field author-field';
                 authorField.contentEditable = true;
-                authorField.textContent = bookItem.author.startsWith('[Enter') ? `${bookItem.author} - ${bookItem.callNumber}` : `By ${bookItem.author} - ${bookItem.callNumber}`;
+                authorField.innerText = bookItem.author.startsWith('[Enter') ? `${bookItem.author} - ${bookItem.callNumber}` : `By ${bookItem.author} - ${bookItem.callNumber}`; // <-- FIXED
                 authorField.oninput = (e) => { 
-                    let text = e.target.textContent;
+                    let text = e.target.innerText; // <-- FIXED
                     if (text.includes('By ') && text.includes(' - ')) {
                         const parts = text.replace('By ', '').split(' - ');
                         bookItem.author = parts[0] || '';
@@ -689,41 +743,41 @@
                         bookItem.callNumber = parts[1] || '';
                     }
                  };
-
+        
                 const descriptionField = document.createElement('div');
                 descriptionField.className = 'editable-field description-field';
                 descriptionField.contentEditable = true;
-                descriptionField.textContent = bookItem.description;
-                descriptionField.oninput = (e) => { bookItem.description = e.target.textContent; };
+                descriptionField.innerText = bookItem.description; // <-- FIXED
+                descriptionField.oninput = (e) => { bookItem.description = e.target.innerText; }; // <-- FIXED
                 
                 detailsDiv.appendChild(titleField);
                 detailsDiv.appendChild(authorField);
                 detailsDiv.appendChild(descriptionField);
-
+        
                 const placeholders = {
                     title: '[Enter Title]',
                     author: '[Enter Author] - [Call #]',
                     description: '[Enter a brief description here...]'
                 };
-
+        
                 const setupPlaceholder = (element, placeholderText, originalColor) => {
-                    if (element.textContent === placeholderText) {
+                    if (element.innerText === placeholderText) { // <-- FIXED
                         element.style.color = '#757575';
                     }
                     element.onfocus = () => {
-                        if (element.textContent === placeholderText) {
-                            element.textContent = '';
+                        if (element.innerText === placeholderText) { // <-- FIXED
+                            element.innerText = ''; // <-- FIXED
                             element.style.color = originalColor;
                         }
                     };
                     element.onblur = () => {
-                        if (element.textContent.trim() === '') {
-                            element.textContent = placeholderText;
+                        if (element.innerText.trim() === '') { // <-- FIXED
+                            element.innerText = placeholderText; // <-- FIXED
                             element.style.color = '#757575';
                         }
                     };
                 };
-
+        
                 setupPlaceholder(titleField, placeholders.title, getComputedStyle(titleField).color);
                 setupPlaceholder(authorField, placeholders.author, getComputedStyle(authorField).color);
                 
@@ -1218,11 +1272,12 @@ function serializeState() {
       showQr: !!document.getElementById('toggle-qr-code')?.checked,
       showBranding: !!document.getElementById('toggle-branding')?.checked,
       coverTitle: document.getElementById('cover-title-input')?.value || '',
+      qrCodeUrl: document.getElementById('qr-url-input')?.value || '', 
+      qrCodeText: (document.getElementById('qr-code-text')?.innerText !== QR_TEXT_PLACEHOLDER) ? (document.getElementById('qr-code-text')?.innerText || '') : '', // <-- FIXED
     },
     styles: captureStyleGroups(),
     images: {
       frontCover: getUploaderImageSrc(document.getElementById('front-cover-uploader')),
-      qr: getUploaderImageSrc(document.getElementById('qr-code-uploader')),
       branding: getUploaderImageSrc(document.getElementById('branding-uploader')),
     },
   };
@@ -1348,12 +1403,53 @@ function applyState(loaded) {
   const titleInput = document.getElementById('cover-title-input');
   if (titleInput) titleInput.value = loaded.ui?.coverTitle || '';
 
+  // --- QR Code URL ---
+  const qrUrlIn = document.getElementById('qr-url-input');
+  const loadedUrl = loaded.ui?.qrCodeUrl || '';
+  if (qrUrlIn) qrUrlIn.value = loadedUrl;
+
+  // --- QR Code Text ---
+  const qrTextEl = document.getElementById('qr-code-text');
+  if (qrTextEl) {
+      const loadedText = loaded.ui?.qrCodeText || '';
+      if (loadedText && loadedText !== QR_TEXT_PLACEHOLDER) {
+          qrTextEl.innerText = loadedText; // <-- FIXED
+          qrTextEl.style.color = ''; // Reset placeholder color
+      } else {
+          qrTextEl.innerText = QR_TEXT_PLACEHOLDER; // <-- FIXED
+          qrTextEl.style.color = '#757575'; // Set placeholder color
+      }
+  }
+  
+  // --- RE-GENERATE QR CODE ---
+  qrCodeCanvas.innerHTML = ''; // Clear the canvas
+  if (loadedUrl) {
+    // If we have a URL, generate the code
+    try {
+        new QRCode(qrCodeCanvas, {
+            text: loadedUrl,
+            width: 144, 
+            height: 144,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H 
+        });
+    } catch (err) {
+        console.error("Failed to re-generate QR code on load:", err);
+        // If it fails, show the placeholder
+        qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>';
+    }
+  } else {
+    // If there's no URL, show the placeholder
+    qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>';
+  }
+
   // Styles
   applyStyleGroups(loaded.styles);
 
   // Images
   applyUploaderImage(document.getElementById('front-cover-uploader'), loaded.images?.frontCover || null);
-  applyUploaderImage(document.getElementById('qr-code-uploader'),     loaded.images?.qr || null);
+  // applyUploaderImage(document.getElementById('qr-code-uploader'),     loaded.images?.qr || null); // This line should be deleted
   applyUploaderImage(document.getElementById('branding-uploader'),    loaded.images?.branding || null);
 
   // Books: clamp/pad to 15 using your existing blank template
@@ -1470,6 +1566,7 @@ function resetToBlank() {
   // === Back Cover Options ===
   const toggleQrCode = document.getElementById('toggle-qr-code');
   if (toggleQrCode) toggleQrCode.checked = true;
+  if (qrCodeArea) qrCodeArea.style.display = 'flex';
   
   const toggleBranding = document.getElementById('toggle-branding');
   if (toggleBranding) toggleBranding.checked = true;
@@ -1510,19 +1607,27 @@ function resetToBlank() {
   const titleInput = document.getElementById('cover-title-input');
   if (titleInput) titleInput.value = '';
 
-  // === CLEAR ALL IMAGES - Reset to placeholders ===
+  const qrUrlIn = document.getElementById('qr-url-input');
+  if (qrUrlIn) qrUrlIn.value = '';
+  const qrTextEl = document.getElementById('qr-code-text');
+  if (qrTextEl) qrTextEl.innerText = QR_TEXT_PLACEHOLDER; // <-- FIXED
+  if (qrTextEl) qrTextEl.style.color = '#757575';
   
-  // Reset QR Code to placeholder
-  const qrCodeUploader = document.getElementById('qr-code-uploader');
-  if (qrCodeUploader) {
-    const qrImg = qrCodeUploader.querySelector('img');
-    const qrInput = qrCodeUploader.querySelector('input[type="file"]');
-    if (qrImg) {
-      qrImg.src = 'https://placehold.co/480x144/EAEAEA/333333?text=Upload+QR+Code+Image+(5x1.5+inches)';
-      delete qrImg.dataset.isPlaceholder;
-    }
-    if (qrInput) qrInput.value = '';
-    qrCodeUploader.classList.remove('has-image');
+  if (qrCodeCanvas) qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>';
+
+  // Reset the new QR style group
+  const qrGroup = document.querySelector('.export-controls [data-style-group="qr"]');
+  if (qrGroup) {
+    const fontSel = qrGroup.querySelector('.font-select');
+    const sizeInp = qrGroup.querySelector('.font-size-input');
+    const colorInp = qrGroup.querySelector('.color-picker');
+    const boldBtn = qrGroup.querySelector('.bold-toggle');
+    const italicBtn = qrGroup.querySelector('.italic-toggle');
+    if (fontSel) fontSel.selectedIndex = 0; // 'Calibri'
+    if (sizeInp) sizeInp.value = '13'; 
+    if (colorInp) colorInp.value = '#000000';
+    if (boldBtn) boldBtn.classList.add('active');
+    if (italicBtn) italicBtn.classList.remove('active');
   }
   
   // Reset Branding/Marketing to default branding image
@@ -1562,6 +1667,11 @@ function resetToBlank() {
   applyBlockCoverStyle();
   updateBackCoverVisibility();
   saveDraftLocal();
+  const addedButtons = document.querySelectorAll('#results-container .add-to-list-button.added');
+  addedButtons.forEach(button => {
+    button.textContent = 'Add to List';
+    button.classList.remove('added');
+  });
   showNotification('Reset to blank with default settings.', 'success');
 }
 
