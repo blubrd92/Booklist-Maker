@@ -332,15 +332,26 @@
         .export-controls { 
             background-color: white; 
             border-radius: 5px; 
-            padding: 15px; 
+            padding: 10px; 
             margin: 0 auto 20px auto; /* Center the container and keep bottom margin */
             max-width: 1280px; /* Set a max-width for better appearance on large screens */
             display: flex; 
             flex-wrap: wrap; 
             align-items: flex-end; 
-            gap: 20px; 
+            gap: 10px; 
         }
-        .export-controls h3 { margin: 0; flex-basis: 100%; }
+        .export-controls h3 {
+            margin: 0;
+            flex-basis: 100%;
+            margin-top: 10px !important; /* Force override of inline styles */
+            margin-bottom: 5px; /* Add a little space above controls */
+            font-size: 1.1em; /* Optional: slightly smaller heading */
+        }
+        
+        /* This makes sure the very first h3 has no extra top margin */
+        .export-controls > h3:first-child {
+            margin-top: 0 !important;
+        }
         .export-controls .form-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .export-controls .form-group label { font-size: 0.9em; font-weight: bold; margin-bottom: 0; }
         .export-controls select { width: 120px; }
@@ -691,6 +702,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
