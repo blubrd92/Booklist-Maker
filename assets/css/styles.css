@@ -537,17 +537,14 @@
         }
         .description-field {
             font-family: var(--desc-font); color: var(--desc-color); font-size: var(--desc-font-size); font-weight: var(--desc-font-weight); font-style: var(--desc-font-style);
-            margin-top: 0.02in;
+            margin-top: 0.01in;
             height: auto;
             flex: 1;
             resize: none;
             -webkit-hyphens: none; -ms-hyphens: none; hyphens: none;
-            border: none;
             padding: 0;
             background-color: transparent;
         }
-        .description-field:focus { border: 1px solid #999; outline: none; }
-
 
         /* --- PRINT STYLES --- */
         .print-mode .page {
@@ -694,6 +691,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
