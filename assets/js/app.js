@@ -1422,6 +1422,23 @@ function applyState(loaded) {
   const titleInput = document.getElementById('cover-title-input');
   if (titleInput) titleInput.value = loaded.ui?.coverTitle || '';
 
+  // --- NEW: Restore the file name hint ---
+  const coverTitle = (loaded.ui?.coverTitle || '').trim();
+  const fileNameHint = loaded.meta?.fileNameHint || '';
+  const frontCoverUploader = document.getElementById('front-cover-uploader');
+
+  if (frontCoverUploader && fileNameHint && !coverTitle) {
+      // Restore the hint as if it were an uploaded file name.
+      // We add a ".png" (or any) extension so the serializeState
+      // function's "replace extension" logic works correctly.
+      frontCoverUploader.dataset.fileName = `${fileNameHint}.png`;
+  } else if (frontCoverUploader) {
+      // If a cover title *is* present, clear any old dataset name
+      // to ensure the title takes priority (matching serializeState's logic).
+      delete frontCoverUploader.dataset.fileName;
+  }
+  // --- END NEW LOGIC ---
+
   // --- QR Code URL ---
   const qrUrlIn = document.getElementById('qr-url-input');
   const loadedUrl = loaded.ui?.qrCodeUrl || '';
