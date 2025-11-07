@@ -1157,7 +1157,7 @@ exportPdfButton.addEventListener('click', async () => {
         const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: 'letter' });
 
         const options = { 
-            scale: 4, 
+            scale: 3, 
             useCORS: true, 
             backgroundColor: null,
             windowWidth: 3300,
