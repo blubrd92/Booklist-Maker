@@ -1413,14 +1413,14 @@ function applyState(loaded) {
   if (qrTextEl) {
       const loadedText = loaded.ui?.qrCodeText || '';
       if (loadedText && loadedText !== QR_TEXT_PLACEHOLDER) {
-          qrTextEl.textContent = loadedText;
+          qrTextEl.innerText = loadedText; // <-- FIXED
           qrTextEl.style.color = ''; // Reset placeholder color
       } else {
-          qrTextEl.textContent = QR_TEXT_PLACEHOLDER;
+          qrTextEl.innerText = QR_TEXT_PLACEHOLDER; // <-- FIXED
           qrTextEl.style.color = '#757575'; // Set placeholder color
       }
   }
-
+  
   // --- RE-GENERATE QR CODE ---
   qrCodeCanvas.innerHTML = ''; // Clear the canvas
   if (loadedUrl) {
@@ -1443,12 +1443,13 @@ function applyState(loaded) {
     // If there's no URL, show the placeholder
     qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>';
   }
-        
+
   // Styles
   applyStyleGroups(loaded.styles);
 
   // Images
   applyUploaderImage(document.getElementById('front-cover-uploader'), loaded.images?.frontCover || null);
+  // applyUploaderImage(document.getElementById('qr-code-uploader'),     loaded.images?.qr || null); // This line should be deleted
   applyUploaderImage(document.getElementById('branding-uploader'),    loaded.images?.branding || null);
 
   // Books: clamp/pad to 15 using your existing blank template
@@ -1609,14 +1610,11 @@ function resetToBlank() {
   const qrUrlIn = document.getElementById('qr-url-input');
   if (qrUrlIn) qrUrlIn.value = '';
   const qrTextEl = document.getElementById('qr-code-text');
-  if (qrTextEl) qrTextEl.textContent = QR_TEXT_PLACEHOLDER;
+  if (qrTextEl) qrTextEl.innerText = QR_TEXT_PLACEHOLDER; // <-- FIXED
   if (qrTextEl) qrTextEl.style.color = '#757575';
-
-  // ADD THIS LINE
-  if (qrCodeCanvas) qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>';
-        
-  // === CLEAR ALL IMAGES - Reset to placeholders ===
   
+  if (qrCodeCanvas) qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>';
+
   // Reset the new QR style group
   const qrGroup = document.querySelector('.export-controls [data-style-group="qr"]');
   if (qrGroup) {
@@ -1626,7 +1624,7 @@ function resetToBlank() {
     const boldBtn = qrGroup.querySelector('.bold-toggle');
     const italicBtn = qrGroup.querySelector('.italic-toggle');
     if (fontSel) fontSel.selectedIndex = 0; // 'Calibri'
-    if (sizeInp) sizeInp.value = '13';
+    if (sizeInp) sizeInp.value = '13'; 
     if (colorInp) colorInp.value = '#000000';
     if (boldBtn) boldBtn.classList.add('active');
     if (italicBtn) italicBtn.classList.remove('active');
