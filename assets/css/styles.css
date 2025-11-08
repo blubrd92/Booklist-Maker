@@ -416,7 +416,7 @@
             display: flex;
             gap: 0.1in;
             align-items: flex-start;
-            min-height: 1.43in;   
+            min-height: 1.38in;   
             height: auto;
         }
         /* Let description size to content instead of forcing it to fill space */
@@ -712,4 +712,5 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
