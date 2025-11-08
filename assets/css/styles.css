@@ -373,6 +373,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             border: 1px solid #333; /* Consistent outer border */
             box-sizing: border-box;
+            position: relative;
         }
         .panel {
             width: 50%;
@@ -380,9 +381,6 @@
             box-sizing: border-box;
             padding: 24px;
             overflow: visible; /* Allow controls to be seen */
-        }
-        .page {
-            position: relative;
         }
         
         .page-divider {
@@ -732,6 +730,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
