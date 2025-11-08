@@ -548,6 +548,7 @@
             background-color: transparent;
             line-height: 1.1;
             margin: 0;
+            box-sizing: border-box;
         }
         .editable-field:focus { border-color: #999; outline: none; }
 
@@ -716,6 +717,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
