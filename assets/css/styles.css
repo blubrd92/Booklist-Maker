@@ -668,10 +668,10 @@
 
 .qr-code-container {
   display: flex;
-  gap: 0.15in;
+  gap: 14px;
   align-items: center;
-  height: 1.5in; /* Specific height for media blocks */
-  width: 5in;   /* Specific width for media blocks */
+  height: 144px; /* Specific height for media blocks */
+  width: 480px;   /* Specific width for media blocks */
   border: 1px solid transparent; /* To match .custom-uploader in print */
   padding: 0;
   box-sizing: border-box;
@@ -717,6 +717,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
