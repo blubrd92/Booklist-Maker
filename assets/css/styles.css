@@ -408,6 +408,9 @@
         #inside-right-panel {
             align-items: flex-end;
         }
+        #back-cover-panel > .list-item {
+            align-self: flex-start;
+        }
         .list-item {
             position: relative;
             display: flex;
@@ -709,3 +712,4 @@
   max-height: 100%;
   object-fit: contain;
 }
+
