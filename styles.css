@@ -579,7 +579,7 @@
             border: none !important; /* Remove outer border for PDF */
         }
         .print-mode .panel {
-            padding: 0.25in;
+            padding: 24px;
             overflow: hidden; /* Hide controls for printing */
             border: none !important; /* Remove ALL borders for PDF */
             box-sizing: border-box; /* --- CHANGE 2 OF 3: Fix the cover "shift" --- */
@@ -705,8 +705,8 @@
 }
 
 #qr-code-canvas {
-  width: 1.5in; /* Approx 135px */
-  height: 1.5in;
+  width: 144px;
+  height: 144px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -717,6 +717,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
