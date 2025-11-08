@@ -372,6 +372,7 @@
             background-color: white;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             border: 1px solid #333; /* Consistent outer border */
+            box-sizing: border-box;
         }
         .panel {
             width: 50%;
@@ -382,6 +383,11 @@
         }
         #back-cover-panel, #inside-left-panel {
             border-right: 1px dashed #ccc; /* Consistent center fold line */
+        }
+
+        /* --- CHANGE 1 OF 3: Align left panel books to the left --- */
+        #inside-left-panel {
+            align-items: flex-start; /* Aligns book blocks to the left */
         }
 
         #back-cover-panel { 
@@ -403,12 +409,15 @@
         #inside-right-panel {
             align-items: flex-end;
         }
+        #back-cover-panel > .list-item {
+            align-self: flex-start;
+        }
         .list-item {
             position: relative;
             display: flex;
             gap: 0.1in;
             align-items: flex-start;
-            min-height: 1.43in;   
+            min-height: 1.38in;   
             height: auto;
         }
         /* Let description size to content instead of forcing it to fill space */
@@ -427,14 +436,15 @@
             justify-content: center;
             height: 1.5in; /* Specific height for media blocks */
             width: 5in;   /* Specific width for media blocks */
-            border: 2px dashed #ccc;
+            border: 1px dashed #ccc;
             border-radius: 5px;
             cursor: pointer;
+            box-sizing: border-box;
         }
         #front-cover-uploader {
             width: 5in;
             height: 8in;
-            border: 2px dashed #ccc;
+            border: 1px dashed #ccc;
             border-radius: 0;
             background-color: #EAEAEA;
             position: relative; /* Container for overlaid controls */
@@ -442,6 +452,7 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            box-sizing: border-box;
         }
         .placeholder-text {
             position: absolute;
@@ -520,7 +531,7 @@
         .drag-handle { cursor: grab; font-size: 1.5em; line-height: 1; }
         .delete-button { background: none; border: none; cursor: pointer; color: #cc0000; font-weight: bold; font-size: 1.5em; line-height: 1; }
 
-        .cover-uploader { width: 1.15in; height: 1.38in; flex-shrink: 0; cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; border: 1px dashed #ccc; }
+        .cover-uploader { width: 1.15in; height: 1.38in; flex-shrink: 0; cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; border: 1px dashed #ccc; box-sizing: border-box; }
         .cover-uploader img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
         .cover-uploader.stretch img {
             object-fit: fill;
@@ -537,6 +548,7 @@
             background-color: transparent;
             line-height: 1.1;
             margin: 0;
+            box-sizing: border-box;
         }
         .editable-field:focus { border-color: #999; outline: none; }
 
@@ -570,6 +582,7 @@
             padding: 0.25in;
             overflow: hidden; /* Hide controls for printing */
             border: none !important; /* Remove ALL borders for PDF */
+            box-sizing: border-box; /* --- CHANGE 2 OF 3: Fix the cover "shift" --- */
         }
 
         .print-mode .custom-uploader,
@@ -594,6 +607,7 @@
         }
         .print-mode #inside-left-panel {
             border-right: none;
+            align-items: flex-start; /* --- CHANGE 3 OF 3: Align left books in PDF --- */
         }
         .print-mode #inside-right-panel {
             align-items: flex-end;
@@ -660,6 +674,7 @@
   width: 5in;   /* Specific width for media blocks */
   border: 1px solid transparent; /* To match .custom-uploader in print */
   padding: 0;
+  box-sizing: border-box;
 }
 
 .print-mode .qr-code-container {
@@ -702,17 +717,6 @@
   max-height: 100%;
   object-fit: contain;
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 
