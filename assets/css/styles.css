@@ -435,7 +435,7 @@
             justify-content: center;
             height: 1.5in; /* Specific height for media blocks */
             width: 5in;   /* Specific width for media blocks */
-            border: 2px dashed #ccc;
+            border: 1px dashed #ccc;
             border-radius: 5px;
             cursor: pointer;
         }
@@ -712,5 +712,6 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
