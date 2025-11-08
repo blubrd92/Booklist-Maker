@@ -381,8 +381,23 @@
             padding: 24px;
             overflow: visible; /* Allow controls to be seen */
         }
-        #back-cover-panel, #inside-left-panel {
-            border-right: 1px dashed #ccc; /* Consistent center fold line */
+        .page {
+            position: relative;
+        }
+        
+        .page-divider {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            border-left: 1px dashed #ccc;
+            transform: translateX(-0.5px); /* Centers the 1px line perfectly */
+        }
+        
+        /* This hides the new divider in the PDF, just like the old one */
+        .print-mode .page-divider {
+            display: none;
         }
 
         /* --- CHANGE 1 OF 3: Align left panel books to the left --- */
@@ -717,6 +732,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 
