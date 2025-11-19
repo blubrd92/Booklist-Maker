@@ -257,7 +257,15 @@
             justify-content: center;
             width: 100%; /* Make button take full width of container */
         }
-        #results-container img { width: 100%; height: auto; border: 1px solid #ccc; }
+        .cover-carousel img {
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain; /* This ensures the image fits without stretching */
+            border: none;       /* We removed the border from the image... */
+            display: block;
+        }
         #results-container .add-to-list-button.added {
             background-color: #28a745;
             color: white;
@@ -280,7 +288,12 @@
             position: relative;
             width: 100%;
             max-width: 150px;
+            height: 180px; /* NEW: Set a fixed height */
             margin: 0 auto;
+            display: flex; /* NEW: Use flex to center the image */
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ccc; /* NEW: Add border to container */
         }
         .cover-carousel img {
             width: 100%;
@@ -730,6 +743,7 @@
   max-height: 100%;
   object-fit: contain;
 }
+
 
 
 

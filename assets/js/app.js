@@ -583,7 +583,7 @@
                                         title: book.title,
                                         author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
                                         callNumber: '[Call #]',
-                                        description: 'Fetching book description...',
+                                        description: 'Fetching book description... May take a few minutes.',
                                         cover_ids: allCoverIds, 
                                         currentCoverIndex: currentCoverIndex,
                                     };
@@ -785,7 +785,7 @@
                 setupPlaceholder(titleField, placeholders.title, getComputedStyle(titleField).color);
                 setupPlaceholder(authorField, placeholders.author, getComputedStyle(authorField).color);
                 
-                if (bookItem.description !== 'Fetching book description...' && !bookItem.description.startsWith('error:')) {
+                if (bookItem.description !== 'Fetching book description... May take a few minutes.' && !bookItem.description.startsWith('error:')) {
                      setupPlaceholder(descriptionField, placeholders.description, getComputedStyle(descriptionField).color);
                 } else {
                     descriptionField.style.color = '#757575';
