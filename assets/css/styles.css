@@ -259,7 +259,7 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 }
 .control-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .checkbox-row { margin-top: 5px; }
-.checkbox-row label { margin: 0; text-transform: none; font-weight: normal; color: var(--text-color); cursor: pointer; }
+.checkbox-row label { margin: 0; text-transform: none; font-weight: normal; color: var(--text-color); cursor: pointer; font-size: 0.85rem; }
 .btn-icon { width: 30px; height: 30px; background: #fff; border: 1px solid var(--border-color); font-weight: bold; cursor: pointer; }
 .btn-icon.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
 .separator { border: 0; border-top: 1px solid var(--border-color); margin: 15px 0; }
@@ -468,3 +468,4 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .carousel-controls { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 90px; margin: 0 auto 10px auto; }
 .carousel-buttons-container { display: flex; justify-content: space-between; width: 100%; gap: 4px; }
 .carousel-button { background: #f0f0f0; border: 1px solid #ccc; padding: 4px; cursor: pointer; border-radius: 3px; font-size: 1.2em; font-weight: bold; display: flex; align-items: center; justify-content: center; height: auto; min-width: 0; width: calc(50% - 2px); }
+
