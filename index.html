@@ -26,208 +26,212 @@
     
     <aside class="sidebar">
       
-      <div class="sidebar-card">
-        <div class="card-header">
-          <h3><i class="fa-solid fa-magnifying-glass"></i> Find Books</h3>
-        </div>
-        <div class="card-body">
-          <form id="search-form" class="search-form">
-            <div class="form-field">
-              <input id="keywordInput" type="text" placeholder="Keyword..."/>
-            </div>
-            <div class="advanced-search-toggle">
-              <details>
-                <summary>Advanced Fields</summary>
-                <div class="advanced-fields-grid">
-                  <input id="titleInput" type="text" placeholder="Title"/>
-                  <input id="authorInput" type="text" placeholder="Author"/>
-                  <input id="subjectInput" type="text" placeholder="Subject"/>
-                  <input id="isbnInput" type="text" placeholder="ISBN"/>
-                  <input id="publisherInput" type="text" placeholder="Publisher"/>
-                  <input id="personInput" type="text" placeholder="Contributor"/>
-                </div>
-              </details>
-            </div>
-            <button id="fetchButton" type="submit" class="btn btn-primary">Search</button>
-          </form>
-          <div id="results-container"></div>
-        </div>
+      <div class="sidebar-tabs">
+        <button class="tab-btn active" onclick="openTab(event, 'tab-search')">
+          <i class="fa-solid fa-magnifying-glass"></i> Search
+        </button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-settings')">
+          <i class="fa-solid fa-sliders"></i> Settings
+        </button>
       </div>
 
-      <div class="sidebar-card">
-        <div class="card-header">
-          <h3><i class="fa-solid fa-palette"></i> Styles</h3>
+      <div id="tab-search" class="tab-content active">
+        <div class="sidebar-card">
+          <div class="card-body">
+            <form id="search-form" class="search-form">
+              <div class="form-group">
+                <input id="keywordInput" type="text" placeholder="Keyword..."/>
+              </div>
+              <div class="advanced-search-toggle">
+                <details>
+                  <summary>Advanced Fields</summary>
+                  <div class="advanced-fields-grid">
+                    <input id="titleInput" type="text" placeholder="Title"/>
+                    <input id="authorInput" type="text" placeholder="Author"/>
+                    <input id="subjectInput" type="text" placeholder="Subject"/>
+                    <input id="isbnInput" type="text" placeholder="ISBN"/>
+                    <input id="publisherInput" type="text" placeholder="Publisher"/>
+                    <input id="personInput" type="text" placeholder="Contributor"/>
+                  </div>
+                </details>
+              </div>
+              <button id="fetchButton" type="submit" class="btn btn-primary btn-block">Search</button>
+            </form>
+          </div>
         </div>
-        <div class="card-body export-controls">
+        <div id="results-container" class="results-scroll-area"></div>
+      </div>
+
+      <div id="tab-settings" class="tab-content export-controls">
+        
+        <div class="form-group" data-style-group="title">
+          <label>Book Title</label>
+          <div class="control-row">
+            <select class="font-select">
+              <option value="'Georgia', serif">Georgia</option>
+              <option value="'Calibri', sans-serif">Calibri</option>
+              <option value="'Arvo', serif">Arvo</option>
+              <option value="'Lato', sans-serif">Lato</option>
+              <option value="'Roboto', sans-serif">Roboto</option>
+              <option value="'Merriweather', serif">Merriweather</option>
+              <option value="'EB Garamond', serif">EB Garamond</option>
+              <option value="'Helvetica', sans-serif">Helvetica</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+            </select>
+            <input class="font-size-input" type="number" min="8" value="14"/>
+            <input class="color-picker" type="color" value="#000000"/>
+          </div>
+          <div class="control-row">
+            <button class="bold-toggle btn-icon">B</button>
+            <button class="italic-toggle btn-icon">I</button>
+          </div>
+        </div>
+
+        <div class="form-group" data-style-group="author">
+          <label>Author / Call #</label>
+          <div class="control-row">
+            <select class="font-select">
+              <option value="'Calibri', sans-serif">Calibri</option>
+              <option value="'Georgia', serif">Georgia</option>
+              <option value="'Arvo', serif">Arvo</option>
+              <option value="'Lato', sans-serif">Lato</option>
+              <option value="'Roboto', sans-serif">Roboto</option>
+              <option value="'Merriweather', serif">Merriweather</option>
+              <option value="'EB Garamond', serif">EB Garamond</option>
+              <option value="'Helvetica', sans-serif">Helvetica</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+            </select>
+            <input class="font-size-input" type="number" min="8" value="12"/>
+            <input class="color-picker" type="color" value="#000000"/>
+          </div>
+          <div class="control-row">
+            <button class="bold-toggle active btn-icon">B</button>
+            <button class="italic-toggle btn-icon">I</button>
+          </div>
+        </div>
+
+        <div class="form-group" data-style-group="desc">
+          <label>Description</label>
+          <div class="control-row">
+            <select class="font-select">
+              <option value="'Calibri', sans-serif">Calibri</option>
+              <option value="'Georgia', serif">Georgia</option>
+              <option value="'Arvo', serif">Arvo</option>
+              <option value="'Lato', sans-serif">Lato</option>
+              <option value="'Roboto', sans-serif">Roboto</option>
+              <option value="'Merriweather', serif">Merriweather</option>
+              <option value="'EB Garamond', serif">EB Garamond</option>
+              <option value="'Helvetica', sans-serif">Helvetica</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+            </select>
+            <input class="font-size-input" type="number" min="8" value="10"/>
+            <input class="color-picker" type="color" value="#000000"/>
+          </div>
+          <div class="control-row">
+            <button class="bold-toggle btn-icon">B</button>
+            <button class="italic-toggle btn-icon">I</button>
+          </div>
+        </div>
+
+        <div class="control-row checkbox-row">
+          <input id="stretch-block-covers-toggle" type="checkbox"/>
+          <label for="stretch-block-covers-toggle">Stretch Book Covers</label>
+        </div>
+
+        <hr class="separator">
+
+        <div class="form-group" id="cover-title-style-group">
+          <label>Cover Header Style</label>
+          <div class="control-row">
+            <select class="font-select">
+              <option value="'Oswald', sans-serif">Oswald</option>
+              <option value="'Arvo', serif">Arvo</option>
+              <option value="'Anton', sans-serif">Anton</option>
+              <option value="'Lato', sans-serif">Lato</option>
+              <option value="'Roboto', sans-serif">Roboto</option>
+              <option value="'Georgia', serif">Georgia</option>
+              <option value="Merriweather">Merriweather</option>
+              <option value="'EB Garamond', serif">EB Garamond</option>
+              <option value="'Helvetica', sans-serif">Helvetica</option>
+            </select>
+            <input class="font-size-input" type="number" min="8" value="40"/>
+            <input class="color-picker" type="color" value="#FFFFFF"/>
+          </div>
+          <div class="control-row">
+            <button class="bold-toggle active btn-icon">B</button>
+            <button class="italic-toggle btn-icon">I</button>
+            <div class="mini-label">BG:</div>
+            <input id="cover-title-bg-color" class="color-picker" type="color" value="#000000"/>
+          </div>
           
-          <div class="control-group" data-style-group="title">
-            <label>Book Title</label>
-            <div class="control-row">
-              <select class="font-select">
-                <option value="'Georgia', serif">Georgia</option>
-                <option value="'Calibri', sans-serif">Calibri</option>
-                <option value="'Arvo', serif">Arvo</option>
-                <option value="'Lato', sans-serif">Lato</option>
-                <option value="'Roboto', sans-serif">Roboto</option>
-                <option value="'Merriweather', serif">Merriweather</option>
-                <option value="'EB Garamond', serif">EB Garamond</option>
-                <option value="'Helvetica', sans-serif">Helvetica</option>
-                <option value="'Times New Roman', serif">Times New Roman</option>
-              </select>
-              <input class="font-size-input" type="number" min="8" value="14"/>
-              <input class="color-picker" type="color" value="#000000"/>
+          <details class="advanced-settings">
+            <summary>Margins & Padding</summary>
+            <div class="grid-2">
+              <label>Outer Margin</label>
+              <input id="cover-title-outer-margin" class="font-size-input" type="number" value="10"/>
+              <label>Side Margin</label>
+              <input id="cover-title-side-margin" class="font-size-input" type="number" value="0"/>
+              <label>BG Pad X</label>
+              <input id="cover-title-pad-x" class="font-size-input" type="number" value="0"/>
+              <label>BG Pad Y</label>
+              <input id="cover-title-pad-y" class="font-size-input" type="number" value="10"/>
             </div>
-            <div class="control-row">
-              <button class="bold-toggle btn-icon">B</button>
-              <button class="italic-toggle btn-icon">I</button>
-            </div>
-          </div>
-
-          <div class="control-group" data-style-group="author">
-            <label>Author / Call #</label>
-            <div class="control-row">
-              <select class="font-select">
-                <option value="'Calibri', sans-serif">Calibri</option>
-                <option value="'Georgia', serif">Georgia</option>
-                <option value="'Arvo', serif">Arvo</option>
-                <option value="'Lato', sans-serif">Lato</option>
-                <option value="'Roboto', sans-serif">Roboto</option>
-                <option value="'Merriweather', serif">Merriweather</option>
-                <option value="'EB Garamond', serif">EB Garamond</option>
-                <option value="'Helvetica', sans-serif">Helvetica</option>
-                <option value="'Times New Roman', serif">Times New Roman</option>
-              </select>
-              <input class="font-size-input" type="number" min="8" value="12"/>
-              <input class="color-picker" type="color" value="#000000"/>
-            </div>
-            <div class="control-row">
-              <button class="bold-toggle active btn-icon">B</button>
-              <button class="italic-toggle btn-icon">I</button>
-            </div>
-          </div>
-
-          <div class="control-group" data-style-group="desc">
-            <label>Description</label>
-            <div class="control-row">
-              <select class="font-select">
-                <option value="'Calibri', sans-serif">Calibri</option>
-                <option value="'Georgia', serif">Georgia</option>
-                <option value="'Arvo', serif">Arvo</option>
-                <option value="'Lato', sans-serif">Lato</option>
-                <option value="'Roboto', sans-serif">Roboto</option>
-                <option value="'Merriweather', serif">Merriweather</option>
-                <option value="'EB Garamond', serif">EB Garamond</option>
-                <option value="'Helvetica', sans-serif">Helvetica</option>
-                <option value="'Times New Roman', serif">Times New Roman</option>
-              </select>
-              <input class="font-size-input" type="number" min="8" value="10"/>
-              <input class="color-picker" type="color" value="#000000"/>
-            </div>
-            <div class="control-row">
-              <button class="bold-toggle btn-icon">B</button>
-              <button class="italic-toggle btn-icon">I</button>
-            </div>
-          </div>
+          </details>
 
           <div class="control-row checkbox-row">
-            <input id="stretch-block-covers-toggle" type="checkbox"/>
-            <label for="stretch-block-covers-toggle">Stretch Book Covers</label>
+            <input id="stretch-covers-toggle" type="checkbox" checked/>
+            <label for="stretch-covers-toggle">Stretch Header Covers</label>
           </div>
-
-          <hr class="separator">
-
-          <div class="control-group" id="cover-title-style-group">
-            <label>Cover Header Style</label>
-            <div class="control-row">
-              <select class="font-select">
-                <option value="'Oswald', sans-serif">Oswald</option>
-                <option value="'Arvo', serif">Arvo</option>
-                <option value="'Anton', sans-serif">Anton</option>
-                <option value="'Lato', sans-serif">Lato</option>
-                <option value="'Roboto', sans-serif">Roboto</option>
-                <option value="'Georgia', serif">Georgia</option>
-                <option value="Merriweather">Merriweather</option>
-                <option value="'EB Garamond', serif">EB Garamond</option>
-                <option value="'Helvetica', sans-serif">Helvetica</option>
-              </select>
-              <input class="font-size-input" type="number" min="8" value="40"/>
-              <input class="color-picker" type="color" value="#FFFFFF"/>
-            </div>
-            <div class="control-row">
-              <button class="bold-toggle active btn-icon">B</button>
-              <button class="italic-toggle btn-icon">I</button>
-              <div class="mini-label">BG:</div>
-              <input id="cover-title-bg-color" class="color-picker" type="color" value="#000000"/>
-            </div>
-            
-            <details class="advanced-settings">
-              <summary>Margins & Padding</summary>
-              <div class="grid-2">
-                <label>Outer Margin</label>
-                <input id="cover-title-outer-margin" type="number" value="10"/>
-                <label>Side Margin</label>
-                <input id="cover-title-side-margin" type="number" value="0"/>
-                <label>BG Pad X</label>
-                <input id="cover-title-pad-x" type="number" value="0"/>
-                <label>BG Pad Y</label>
-                <input id="cover-title-pad-y" type="number" value="10"/>
-              </div>
-            </details>
-
-            <div class="control-row checkbox-row">
-              <input id="stretch-covers-toggle" type="checkbox" checked/>
-              <label for="stretch-covers-toggle">Stretch Header Covers</label>
-            </div>
-          </div>
-
-          <hr class="separator">
-
-          <div class="control-group">
-            <label>Back Cover Elements</label>
-            <div class="control-row checkbox-row">
-              <input id="toggle-qr-code" type="checkbox" checked/>
-              <label for="toggle-qr-code">Show QR Code</label>
-            </div>
-            <div class="control-row checkbox-row">
-              <input id="toggle-branding" type="checkbox" checked/>
-              <label for="toggle-branding">Show Branding</label>
-            </div>
-          </div>
-
-          <div class="control-group" id="qr-code-controls">
-            <label>QR Code & Text</label>
-            <div class="control-row">
-                <input id="qr-url-input" type="text" placeholder="https://..."/>
-                <button id="generate-qr-button" class="btn btn-sm">Update</button>
-            </div>
-            <div class="control-group" data-style-group="qr" style="margin-top:10px;">
-                <div class="control-row">
-                    <select class="font-select">
-                    <option value="'Calibri', sans-serif">Calibri</option>
-                    <option value="'Georgia', serif">Georgia</option>
-                    <option value="'Arvo', serif">Arvo</option>
-                    <option value="'Lato', sans-serif">Lato</option>
-                    <option value="'Roboto', sans-serif">Roboto</option>
-                    <option value="'Merriweather', serif">Merriweather</option>
-                    <option value="'EB Garamond', serif">EB Garamond</option>
-                    <option value="'Helvetica', sans-serif">Helvetica</option>
-                    <option value="'Times New Roman', serif">Times New Roman</option>
-                    </select>
-                    <input class="font-size-input" type="number" min="8" value="13"/>
-                    <input class="color-picker" type="color" value="#000000"/>
-                </div>
-                <div class="control-row">
-                    <button class="bold-toggle active btn-icon">B</button>
-                    <button class="italic-toggle btn-icon">I</button>
-                </div>
-            </div>
-          </div>
-
-          <div class="action-area">
-            <button id="export-pdf-button" class="btn btn-success btn-block">Generate PDF</button>
-          </div>
-
         </div>
+
+        <hr class="separator">
+
+        <div class="form-group">
+          <label>Back Cover Elements</label>
+          <div class="control-row checkbox-row">
+            <input id="toggle-qr-code" type="checkbox" checked/>
+            <label for="toggle-qr-code">Show QR Code</label>
+          </div>
+          <div class="control-row checkbox-row">
+            <input id="toggle-branding" type="checkbox" checked/>
+            <label for="toggle-branding">Show Branding</label>
+          </div>
+        </div>
+
+        <div class="form-group" id="qr-code-controls">
+          <label>QR Code URL</label>
+          <div class="control-row">
+              <input id="qr-url-input" type="text" placeholder="https://..."/>
+              <button id="generate-qr-button" class="btn btn-sm">Update</button>
+          </div>
+          <div class="form-group" data-style-group="qr" style="margin-top:15px;">
+              <label>QR Text Style</label>
+              <div class="control-row">
+                  <select class="font-select">
+                  <option value="'Calibri', sans-serif">Calibri</option>
+                  <option value="'Georgia', serif">Georgia</option>
+                  <option value="'Arvo', serif">Arvo</option>
+                  <option value="'Lato', sans-serif">Lato</option>
+                  <option value="'Roboto', sans-serif">Roboto</option>
+                  <option value="'Merriweather', serif">Merriweather</option>
+                  <option value="'EB Garamond', serif">EB Garamond</option>
+                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
+                  </select>
+                  <input class="font-size-input" type="number" min="8" value="13"/>
+                  <input class="color-picker" type="color" value="#000000"/>
+              </div>
+              <div class="control-row">
+                  <button class="bold-toggle active btn-icon">B</button>
+                  <button class="italic-toggle btn-icon">I</button>
+              </div>
+          </div>
+        </div>
+
+        <div class="action-area">
+          <button id="export-pdf-button" class="btn btn-success btn-block">Generate PDF</button>
+        </div>
+
       </div>
     </aside>
 
@@ -243,31 +247,25 @@
         <div class="page" id="print-page-1">
           <div class="panel" id="back-cover-panel">
             <div class="qr-code-container" id="qr-code-area">
-              <div id="qr-code-text" class="editable-field" contenteditable="true">
-                Enter your blurb here. To link to an online list (like Bibliocommons), paste the URL in the 'Generate QR' field.
-              </div>
+              <div id="qr-code-text" class="editable-field" contenteditable="true">Enter your blurb here. To link to an online list (like Bibliocommons), paste the URL in the 'Generate QR' field above. Remember to test the code with your phone!</div>
               <div id="qr-code-canvas">
-                <img alt="QR Code" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>
+                <img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>
               </div>
             </div>
             <label class="custom-uploader" id="branding-uploader">
-              <img alt="Library Branding" src="assets/img/branding-default.png"/>
+              <img alt="Library Branding Placeholder" src="assets/img/branding-default.png"/>
               <input type="file" accept="image/*"/>
             </label>
           </div>
 
           <div class="panel" id="front-cover-panel">
             <div class="custom-uploader" id="front-cover-uploader">
-              <img alt="Front Cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
+              <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
-                <i class="fa-solid fa-image fa-2x"></i><br>
-                <strong>Click to Upload Cover</strong><br>
-                (5x8 inches recommended)<br><br>
-                OR<br><br>
-                Use Auto-Generate below
+                Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool below<br/>(This will use the first 12 covers from your list to create a collage)
               </div>
               <div id="cover-generate-controls">
-                <textarea id="cover-title-input" rows="2" placeholder="Enter List Title..."></textarea>
+                <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
                 <button id="generate-cover-button" class="btn btn-primary">Auto-Generate Cover</button>
               </div>
               <input type="file" accept="image/*"/>
@@ -284,6 +282,23 @@
       </div>
     </main>
   </div>
+
+  <script>
+    // Simple Tab Switcher
+    function openTab(evt, tabName) {
+      var i, tabcontent, tablinks;
+      tabcontent = document.getElementsByClassName("tab-content");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].classList.remove("active");
+      }
+      tablinks = document.getElementsByClassName("tab-btn");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("active");
+      }
+      document.getElementById(tabName).classList.add("active");
+      evt.currentTarget.classList.add("active");
+    }
+  </script>
 
   <script src="assets/js/app.js"></script>
 
