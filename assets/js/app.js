@@ -1557,71 +1557,26 @@ function resetToBlank() {
   location.reload();
 }
 
-// Create and inject Save/Load controls next to Generate PDF with centered group + right-aligned Reset
-(function injectSaveLoadControls() {
+// ... [KEEP ALL CODE FROM ORIGINAL FILE UP TO LINE 822] ...
+// This replaces the section starting with "(function injectSaveLoadControls() {"
+
+// Attach logic to Save/Load/Reset buttons in the Header
+(function attachHeaderControls() {
   const pdfBtn = document.getElementById('export-pdf-button');
-  if (!pdfBtn) return;
+  const loadBtn = document.getElementById('load-list-button');
+  const saveBtn = document.getElementById('save-list-button');
+  const resetBtn = document.getElementById('reset-blank-button');
+  const fileInput = document.getElementById('load-list-input');
 
-  // Find the export controls container
-  const container =
-    pdfBtn.closest('.export-controls') ||
-    document.getElementById('export-controls') ||
-    pdfBtn.parentElement ||
-    document.body;
-
-  // Build the bar and the centered group
-  const bar = document.createElement('div');
-  bar.className = 'export-actions-bar';
-
-  const centerGroup = document.createElement('div');
-  centerGroup.className = 'export-actions-center';
-
-  // Build Load/Save with matching look
-  const loadBtn = document.createElement('button');
-  loadBtn.id = 'load-list-button';
-  loadBtn.type = 'button';
-  loadBtn.textContent = 'Load List';
-  loadBtn.classList.add('export-action-button');
-
-  const saveBtn = document.createElement('button');
-  saveBtn.id = 'save-list-button';
-  saveBtn.type = 'button';
-  saveBtn.textContent = 'Save List';
-  saveBtn.classList.add('export-action-button');
-
-  // Ensure the PDF button visually matches sizing
-  pdfBtn.classList.add('export-action-button');
-
-  // Reset button on the far right
-  const resetBtn = document.createElement('button');
-  resetBtn.id = 'reset-blank-button';
-  resetBtn.type = 'button';
-  resetBtn.textContent = 'Reset to Blank';
-  resetBtn.classList.add('export-action-button', 'export-actions-right');
-
-  // Assemble: centered [Load, Generate, Save] + right-aligned [Reset]
-  container.appendChild(bar);
-  bar.appendChild(centerGroup);
-  centerGroup.appendChild(loadBtn);
-  centerGroup.appendChild(pdfBtn);   // moves existing button into the center group
-  centerGroup.appendChild(saveBtn);
-  bar.appendChild(resetBtn);
-
-  // Hidden file input for loading
-  const fileInput = document.createElement('input');
-  fileInput.id = 'load-list-input';
-  fileInput.type = 'file';
-  fileInput.accept = '.booklist,.json,application/json';
-  fileInput.hidden = true;
-  container.appendChild(fileInput);
+  if (!pdfBtn || !loadBtn || !saveBtn || !resetBtn || !fileInput) return;
 
   // Wire events
   saveBtn.addEventListener('click', async () => {
     const state = serializeState();
-    const didSave = await downloadBooklist(state); // <-- 1. Add "const didSave =" here
-    if (didSave) { // <-- 2. Add this "if (didSave) {" line
-    showNotification('Booklist saved to file.', 'success');
-    } // <-- 3. Add this closing "}" line
+    const didSave = await downloadBooklist(state); 
+    if (didSave) { 
+      showNotification('Booklist saved to file.', 'success');
+    } 
   });
 
   loadBtn.addEventListener('click', () => fileInput.click());
@@ -1641,7 +1596,7 @@ function resetToBlank() {
     }
   });
 
-  // Reset handler (requires resetToBlank helper present)
+  // Reset handler
   resetBtn.addEventListener('click', () => {
     const ok = confirm('Reset to a blank list? This clears the current list and local draft. You can still load a saved .booklist later.');
     if (!ok) return;
@@ -1651,5 +1606,3 @@ function resetToBlank() {
 
 // Try restoring a local draft after the app has initialized
 restoreDraftLocalIfPresent();
-
-/* === End Save/Load + Local Autosave === */
