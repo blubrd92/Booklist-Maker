@@ -1,4 +1,4 @@
-/* --- FONTS (Kept the same) --- */
+/* --- FONTS --- */
 @font-face { font-display: block; font-family: 'Oswald'; font-style: normal; font-weight: 400; src: url('./../fonts/oswald-v57-latin-regular.woff2') format('woff2'); }
 @font-face { font-display: block; font-family: 'Oswald'; font-style: normal; font-weight: 700; src: url('./../fonts/oswald-v57-latin-700.woff2') format('woff2'); }
 @font-face { font-display: block; font-family: 'Anton'; font-style: normal; font-weight: 400; src: url('./../fonts/anton-v27-latin-regular.woff2') format('woff2'); }
@@ -61,7 +61,7 @@ body {
   height: 50px;
   display: flex;
   align-items: center;
-  justify-content: space-between; /* Space between logo and buttons */
+  justify-content: space-between;
   flex-shrink: 0;
   box-shadow: var(--shadow-md);
   z-index: 10;
@@ -92,7 +92,7 @@ body {
   align-items: center;
   gap: 6px;
   transition: background-color 0.2s;
-  min-width: 80px; /* Ensure same size */
+  min-width: 80px;
   justify-content: center;
 }
 .btn-header:hover {
@@ -110,7 +110,7 @@ body {
   align-items: center;
   gap: 6px;
   transition: background-color 0.2s;
-  min-width: 120px; /* Slightly larger for primary action */
+  min-width: 120px;
   justify-content: center;
   font-weight: 600;
 }
@@ -309,7 +309,7 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 }
 .list-item:hover .list-item-controls { opacity: 1; }
 
-/* --- DRAG CONTROLS (Reverted to Original Style + Fixed Hover Gap) --- */
+/* --- DRAG CONTROLS --- */
 .list-item-controls {
     position: absolute;
     top: 50%;
@@ -321,28 +321,24 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
     color: #888;
     right: 100%;
     margin-right: 5px;
-    background-color: rgba(230, 230, 230, 0.85); /* Semi-opaque box from original */
+    background-color: rgba(230, 230, 230, 0.85);
     padding: 8px 5px;
     border-radius: 5px;
 }
-/* To fix the hover gap, we use a pseudo-element bridge */
 .list-item-controls::after {
     content: '';
     position: absolute;
     top: 0; bottom: 0;
     left: 100%;
-    width: 10px; /* Bridge the gap */
+    width: 10px;
     background: transparent;
 }
-
 .controls-right { 
   right: auto; left: 100%; margin-left: 5px; margin-right: 0; 
 }
-/* Bridge for right side controls */
 .controls-right::after {
     left: auto; right: 100%;
 }
-
 .drag-handle { cursor: grab; font-size: 1.5rem; line-height: 1; color: #555; }
 .item-number { font-size: 1.2rem; font-weight: bold; color: #555; }
 .delete-button { background: none; border: none; color: #cc0000; font-weight: bold; font-size: 1.5rem; line-height: 1; padding: 0; cursor: pointer; }
@@ -434,8 +430,16 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 
 /* Preloader & Carousel */
 .font-preloader { position: absolute; top: -9999px; visibility: hidden; }
-.cover-carousel { position: relative; width: 100%; max-width: 150px; height: 180px; margin: 0 auto; display: flex; align-items: center; justify-content: center; border: 1px solid #ccc; }
-.cover-carousel img { width: 100%; height: auto; display: block; }
+/* RESTORED: Carousel fits without stretching */
+.cover-carousel {
+  position: relative; width: 100%; max-width: 150px; height: 180px;
+  margin: 0 auto; display: flex; align-items: center; justify-content: center;
+  border: 1px solid #ccc; background: #fff;
+}
+.cover-carousel img {
+  width: auto; height: auto; max-width: 100%; max-height: 100%;
+  object-fit: contain; display: block;
+}
 .card-actions-group { margin-top: auto; padding-top: 10px; }
 .carousel-controls { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 90px; margin: 0 auto 10px auto; }
 .carousel-buttons-container { display: flex; justify-content: space-between; width: 100%; gap: 4px; }
