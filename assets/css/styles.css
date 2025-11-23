@@ -1,4 +1,4 @@
-/* --- FONTS --- */
+/* --- FONTS (Kept the same) --- */
 @font-face { font-display: block; font-family: 'Oswald'; font-style: normal; font-weight: 400; src: url('./../fonts/oswald-v57-latin-regular.woff2') format('woff2'); }
 @font-face { font-display: block; font-family: 'Oswald'; font-style: normal; font-weight: 700; src: url('./../fonts/oswald-v57-latin-700.woff2') format('woff2'); }
 @font-face { font-display: block; font-family: 'Anton'; font-style: normal; font-weight: 400; src: url('./../fonts/anton-v27-latin-regular.woff2') format('woff2'); }
@@ -76,7 +76,10 @@ body {
 }
 
 /* Header Action Buttons */
-.header-actions { display: flex; gap: 10px; }
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
 .btn-header {
   background-color: transparent;
   border: 1px solid rgba(255,255,255,0.4);
@@ -92,7 +95,9 @@ body {
   min-width: 80px;
   justify-content: center;
 }
-.btn-header:hover { background-color: rgba(255,255,255,0.1); }
+.btn-header:hover {
+  background-color: rgba(255,255,255,0.1);
+}
 .btn-header-primary {
   background-color: var(--success-color);
   border: 1px solid var(--success-color);
@@ -109,7 +114,9 @@ body {
   justify-content: center;
   font-weight: 600;
 }
-.btn-header-primary:hover { background-color: #219150; }
+.btn-header-primary:hover {
+  background-color: #219150;
+}
 
 /* --- MAIN LAYOUT --- */
 .app-container {
@@ -157,23 +164,39 @@ body {
 .tab-btn.active { color: var(--primary-color); border-bottom: 3px solid var(--primary-color); background-color: white; }
 
 /* Tab Content */
-.tab-content { display: none; padding: 20px; overflow-y: auto; flex: 1; }
+.tab-content {
+  display: none;
+  padding: 20px;
+  overflow-y: auto; 
+  flex: 1; 
+}
 .tab-content.active { display: block; }
 .results-scroll-area { padding-bottom: 20px; }
 
 /* Sidebar Card */
 .sidebar-card {
-  background: white; border: 1px solid var(--border-color);
-  border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 .card-body { padding: 15px; }
 
 /* --- UI COMPONENTS --- */
 .btn {
-  border: none; border-radius: var(--radius); padding: 8px 16px;
-  font-size: 0.95rem; font-weight: 600; cursor: pointer;
-  transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
-  gap: 5px; text-decoration: none;
+  border: none;
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  text-decoration: none;
 }
 .btn-primary { background-color: var(--primary-color); color: white; }
 .btn-primary:hover { background-color: var(--primary-hover); }
@@ -184,9 +207,13 @@ body {
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 input[type="text"], input[type="number"], select, textarea {
-  width: 100%; padding: 8px 10px; border: 1px solid var(--border-color);
-  border-radius: var(--radius); font-size: 0.9rem; box-sizing: border-box;
-  transition: border-color 0.2s; background-color: #fff;
+  width: 100%; padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+  background-color: #fff;
 }
 input:focus, select:focus, textarea:focus { border-color: var(--primary-color); outline: none; }
 input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; background: none; cursor: pointer; }
@@ -201,13 +228,16 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 
 /* Results Grid */
 #results-container {
-  margin-top: 15px; display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;
+  margin-top: 15px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
 }
 .book-card {
   background: white; border: 1px solid var(--border-color); border-radius: var(--radius);
   padding: 8px; font-size: 0.8rem; text-align: center;
-  display: flex; flex-direction: column; transition: transform 0.2s;
+  display: flex; flex-direction: column;
+  transition: transform 0.2s;
 }
 .book-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 .book-title { font-weight: bold; margin: 5px 0; line-height: 1.2; max-height: 2.4em; overflow: hidden; }
@@ -218,7 +248,11 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .add-to-list-button.added { background: var(--success-color); color: white; border-color: var(--success-color); }
 
 /* --- SETTINGS GROUPS --- */
-.form-group { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+.form-group {
+  margin-bottom: 15px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+}
 .form-group:last-child { border-bottom: none; margin-bottom: 0; }
 .form-group label {
   display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-light); margin-bottom: 6px; text-transform: uppercase;
@@ -242,14 +276,14 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   flex: 1; background-color: #eef2f5;
   overflow: auto; padding: 20px;
   display: flex; flex-direction: column; 
-  align-items: flex-start; /* Fix for cutting off left side */
+  align-items: flex-start; 
   position: relative;
 }
 .toolbar { 
   width: 100%; max-width: 11in; 
   display: flex; justify-content: space-between; align-items: center; 
   margin-bottom: 15px;
-  margin-left: auto; margin-right: auto; /* Center manually */
+  margin-left: auto; margin-right: auto; 
   flex-shrink: 0;
 }
 .toolbar h2 { margin: 0; font-size: 1.5rem; color: var(--secondary-color); }
@@ -257,11 +291,17 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 
 /* --- PREVIEW AREA --- */
 #preview-area { margin-left: auto; margin-right: auto; }
+
+/* RESTORED: Exact Original Preview Look */
 .page {
   width: 11in; height: 8.5in; background-color: white;
-  box-shadow: var(--shadow-lg); margin-bottom: 30px;
-  position: relative; display: flex; outline: 1px solid #ddd; 
+  /* Original border and shadow */
+  border: 1px solid #333; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  margin-bottom: 30px;
+  position: relative; display: flex; 
 }
+
 .panel {
   width: 50%; height: 100%; box-sizing: border-box;
   padding: 24px; position: relative; overflow: visible;
@@ -279,13 +319,14 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 
 /* Book List Item */
 .list-item {
-  position: relative; display: flex; gap: 12px; align-items: flex-start;
+  position: relative; display: flex; 
+  gap: 10px; /* RESTORED: Original gap */
+  align-items: flex-start;
   min-height: 132px; width: 100%; max-width: 480px;
   transition: background-color 0.2s;
 }
 .list-item:hover .list-item-controls { opacity: 1; }
 
-/* Restore Ghosting Style */
 .list-item.sortable-ghost { opacity: 0.4; background: #c8ebfb; }
 
 /* --- DRAG CONTROLS --- */
@@ -293,7 +334,6 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
     position: absolute; top: 50%; transform: translateY(-50%);
     display: flex; flex-direction: column; align-items: center; gap: 5px;
     color: #888; right: 100%; margin-right: 5px;
-    /* Restored transparency */
     background-color: rgba(230, 230, 230, 0.85);
     padding: 8px 5px; border-radius: 5px;
 }
@@ -309,11 +349,13 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .item-number { font-size: 1.2rem; font-weight: bold; color: #555; }
 .delete-button { background: none; border: none; color: #cc0000; font-weight: bold; font-size: 1.5rem; line-height: 1; padding: 0; cursor: pointer; }
 
-/* Item Details (RESTORED SPACING) */
+/* Item Details */
+/* RESTORED: Original cover uploader (no background) */
 .cover-uploader {
   width: 110px; height: 132px; flex-shrink: 0; cursor: pointer;
   position: relative; display: flex; align-items: center; justify-content: center;
-  border: 1px dashed #ccc; background: #f9f9f9;
+  border: 1px dashed #ccc; 
+  /* Removed background-color: #f9f9f9 */
 }
 .cover-uploader img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .cover-uploader.stretch img { object-fit: fill; width: 100%; height: 100%; }
@@ -322,11 +364,8 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .list-item-details { flex-grow: 1; display: flex; flex-direction: column; }
 .editable-field {
   width: 100%; border: 1px solid transparent; background: transparent; 
-  padding: 0; /* Tight spacing */
-  margin: 0;  /* Tight spacing */
-  line-height: 1.1;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
+  padding: 0; margin: 0; line-height: 1.1;
+  box-sizing: border-box; transition: border-color 0.2s;
 }
 .editable-field:hover { border-color: #eee; }
 .editable-field:focus { border-color: var(--primary-color); outline: none; background: white; }
