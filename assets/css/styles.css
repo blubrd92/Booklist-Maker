@@ -76,10 +76,7 @@ body {
 }
 
 /* Header Action Buttons */
-.header-actions {
-  display: flex;
-  gap: 10px;
-}
+.header-actions { display: flex; gap: 10px; }
 .btn-header {
   background-color: transparent;
   border: 1px solid rgba(255,255,255,0.4);
@@ -95,9 +92,7 @@ body {
   min-width: 80px;
   justify-content: center;
 }
-.btn-header:hover {
-  background-color: rgba(255,255,255,0.1);
-}
+.btn-header:hover { background-color: rgba(255,255,255,0.1); }
 .btn-header-primary {
   background-color: var(--success-color);
   border: 1px solid var(--success-color);
@@ -114,9 +109,7 @@ body {
   justify-content: center;
   font-weight: 600;
 }
-.btn-header-primary:hover {
-  background-color: #219150;
-}
+.btn-header-primary:hover { background-color: #219150; }
 
 /* --- MAIN LAYOUT --- */
 .app-container {
@@ -164,39 +157,23 @@ body {
 .tab-btn.active { color: var(--primary-color); border-bottom: 3px solid var(--primary-color); background-color: white; }
 
 /* Tab Content */
-.tab-content {
-  display: none;
-  padding: 20px;
-  overflow-y: auto; 
-  flex: 1; 
-}
+.tab-content { display: none; padding: 20px; overflow-y: auto; flex: 1; }
 .tab-content.active { display: block; }
 .results-scroll-area { padding-bottom: 20px; }
 
 /* Sidebar Card */
 .sidebar-card {
-  background: white;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  background: white; border: 1px solid var(--border-color);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden;
 }
 .card-body { padding: 15px; }
 
 /* --- UI COMPONENTS --- */
 .btn {
-  border: none;
-  border-radius: var(--radius);
-  padding: 8px 16px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  text-decoration: none;
+  border: none; border-radius: var(--radius); padding: 8px 16px;
+  font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
+  gap: 5px; text-decoration: none;
 }
 .btn-primary { background-color: var(--primary-color); color: white; }
 .btn-primary:hover { background-color: var(--primary-hover); }
@@ -207,13 +184,9 @@ body {
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 input[type="text"], input[type="number"], select, textarea {
-  width: 100%; padding: 8px 10px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  font-size: 0.9rem;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
-  background-color: #fff;
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border-color);
+  border-radius: var(--radius); font-size: 0.9rem; box-sizing: border-box;
+  transition: border-color 0.2s; background-color: #fff;
 }
 input:focus, select:focus, textarea:focus { border-color: var(--primary-color); outline: none; }
 input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; background: none; cursor: pointer; }
@@ -228,16 +201,13 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 
 /* Results Grid */
 #results-container {
-  margin-top: 15px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px;
+  margin-top: 15px; display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;
 }
 .book-card {
   background: white; border: 1px solid var(--border-color); border-radius: var(--radius);
   padding: 8px; font-size: 0.8rem; text-align: center;
-  display: flex; flex-direction: column;
-  transition: transform 0.2s;
+  display: flex; flex-direction: column; transition: transform 0.2s;
 }
 .book-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 .book-title { font-weight: bold; margin: 5px 0; line-height: 1.2; max-height: 2.4em; overflow: hidden; }
@@ -248,11 +218,7 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .add-to-list-button.added { background: var(--success-color); color: white; border-color: var(--success-color); }
 
 /* --- SETTINGS GROUPS --- */
-.form-group {
-  margin-bottom: 15px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 15px;
-}
+.form-group { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
 .form-group:last-child { border-bottom: none; margin-bottom: 0; }
 .form-group label {
   display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-light); margin-bottom: 6px; text-transform: uppercase;
@@ -274,31 +240,23 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 /* --- MAIN CONTENT --- */
 .main-content {
   flex: 1; background-color: #eef2f5;
-  /* CRITICAL FIX: Allow x-overflow AND start flex items from the left so they aren't cut off */
-  overflow: auto; 
-  padding: 20px;
+  overflow: auto; padding: 20px;
   display: flex; flex-direction: column; 
-  align-items: flex-start; /* Changed from center */
+  align-items: flex-start; /* Fix for cutting off left side */
   position: relative;
 }
-
 .toolbar { 
   width: 100%; max-width: 11in; 
   display: flex; justify-content: space-between; align-items: center; 
   margin-bottom: 15px;
-  /* Center the toolbar manually since we removed align-items: center */
-  margin-left: auto; margin-right: auto;
+  margin-left: auto; margin-right: auto; /* Center manually */
   flex-shrink: 0;
 }
 .toolbar h2 { margin: 0; font-size: 1.5rem; color: var(--secondary-color); }
 .toolbar-hint { font-size: 0.9rem; color: var(--text-light); }
 
 /* --- PREVIEW AREA --- */
-/* Center the block of pages, but let them scroll if window is small */
-#preview-area {
-  margin-left: auto; margin-right: auto;
-}
-
+#preview-area { margin-left: auto; margin-right: auto; }
 .page {
   width: 11in; height: 8.5in; background-color: white;
   box-shadow: var(--shadow-lg); margin-bottom: 30px;
@@ -319,6 +277,7 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 #back-cover-panel { display: flex; flex-direction: column; justify-content: space-between; }
 #back-cover-panel > .list-item { align-self: flex-start; }
 
+/* Book List Item */
 .list-item {
   position: relative; display: flex; gap: 12px; align-items: flex-start;
   min-height: 132px; width: 100%; max-width: 480px;
@@ -326,41 +285,31 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 }
 .list-item:hover .list-item-controls { opacity: 1; }
 
+/* Restore Ghosting Style */
+.list-item.sortable-ghost { opacity: 0.4; background: #c8ebfb; }
+
 /* --- DRAG CONTROLS --- */
 .list-item-controls {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    color: #888;
-    right: 100%;
-    margin-right: 5px;
+    position: absolute; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    color: #888; right: 100%; margin-right: 5px;
+    /* Restored transparency */
     background-color: rgba(230, 230, 230, 0.85);
-    padding: 8px 5px;
-    border-radius: 5px;
+    padding: 8px 5px; border-radius: 5px;
 }
 .list-item-controls::after {
-    content: '';
-    position: absolute;
-    top: 0; bottom: 0;
-    left: 100%;
-    width: 10px;
-    background: transparent;
+    content: ''; position: absolute; top: 0; bottom: 0; left: 100%;
+    width: 10px; background: transparent;
 }
 .controls-right { 
   right: auto; left: 100%; margin-left: 5px; margin-right: 0; 
 }
-.controls-right::after {
-    left: auto; right: 100%;
-}
+.controls-right::after { left: auto; right: 100%; }
 .drag-handle { cursor: grab; font-size: 1.5rem; line-height: 1; color: #555; }
 .item-number { font-size: 1.2rem; font-weight: bold; color: #555; }
 .delete-button { background: none; border: none; color: #cc0000; font-weight: bold; font-size: 1.5rem; line-height: 1; padding: 0; cursor: pointer; }
 
-/* Item Details */
+/* Item Details (RESTORED SPACING) */
 .cover-uploader {
   width: 110px; height: 132px; flex-shrink: 0; cursor: pointer;
   position: relative; display: flex; align-items: center; justify-content: center;
@@ -372,15 +321,19 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 
 .list-item-details { flex-grow: 1; display: flex; flex-direction: column; }
 .editable-field {
-  width: 100%; border: 1px solid transparent; background: transparent; padding: 2px;
+  width: 100%; border: 1px solid transparent; background: transparent; 
+  padding: 0; /* Tight spacing */
+  margin: 0;  /* Tight spacing */
+  line-height: 1.1;
+  box-sizing: border-box;
   transition: border-color 0.2s;
 }
 .editable-field:hover { border-color: #eee; }
 .editable-field:focus { border-color: var(--primary-color); outline: none; background: white; }
 
-.title-field { font-family: var(--title-font); color: var(--title-color); font-size: var(--title-font-size); font-weight: var(--title-font-weight); font-style: var(--title-font-style); margin-bottom: 2px; }
-.author-field { font-family: var(--author-font); color: var(--author-color); font-size: var(--author-font-size); font-weight: var(--author-font-weight); font-style: var(--author-font-style); margin-bottom: 4px; }
-.description-field { font-family: var(--desc-font); color: var(--desc-color); font-size: var(--desc-font-size); font-weight: var(--desc-font-weight); font-style: var(--desc-font-style); flex: 1; overflow-wrap: break-word; }
+.title-field { font-family: var(--title-font); color: var(--title-color); font-size: var(--title-font-size); font-weight: var(--title-font-weight); font-style: var(--title-font-style); margin-bottom: 0; }
+.author-field { font-family: var(--author-font); color: var(--author-color); font-size: var(--author-font-size); font-weight: var(--author-font-weight); font-style: var(--author-font-style); margin-top: 2px; margin-bottom: 0; }
+.description-field { font-family: var(--desc-font); color: var(--desc-color); font-size: var(--desc-font-size); font-weight: var(--desc-font-weight); font-style: var(--desc-font-style); margin-top: 2px; flex: 1; overflow-wrap: break-word; }
 
 /* Front Cover */
 #front-cover-uploader {
@@ -447,8 +400,15 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 
 /* Preloader & Carousel */
 .font-preloader { position: absolute; top: -9999px; visibility: hidden; }
-.cover-carousel { position: relative; width: 100%; max-width: 150px; height: 180px; margin: 0 auto; display: flex; align-items: center; justify-content: center; border: 1px solid #ccc; background: #fff; }
-.cover-carousel img { width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.cover-carousel {
+  position: relative; width: 100%; max-width: 150px; height: 180px;
+  margin: 0 auto; display: flex; align-items: center; justify-content: center;
+  border: 1px solid #ccc; background: #fff;
+}
+.cover-carousel img {
+  width: auto; height: auto; max-width: 100%; max-height: 100%;
+  object-fit: contain; display: block;
+}
 .card-actions-group { margin-top: auto; padding-top: 10px; }
 .carousel-controls { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 90px; margin: 0 auto 10px auto; }
 .carousel-buttons-container { display: flex; justify-content: space-between; width: 100%; gap: 4px; }
