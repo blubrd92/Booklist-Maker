@@ -1,757 +1,446 @@
+/* --- FONTS (Must remain at top) --- */
 /* oswald-regular - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Oswald';
-  font-style: normal;
-  font-weight: 400;
-  src: url('./../fonts/oswald-v57-latin-regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Oswald'; font-style: normal; font-weight: 400; src: url('./../fonts/oswald-v57-latin-regular.woff2') format('woff2'); }
 /* oswald-700 - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Oswald';
-  font-style: normal;
-  font-weight: 700;
-  src: url('./../fonts/oswald-v57-latin-700.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Oswald'; font-style: normal; font-weight: 700; src: url('./../fonts/oswald-v57-latin-700.woff2') format('woff2'); }
 /* anton-regular - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Anton';
-  font-style: normal;
-  font-weight: 400;
-  src: url('./../fonts/anton-v27-latin-regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Anton'; font-style: normal; font-weight: 400; src: url('./../fonts/anton-v27-latin-regular.woff2') format('woff2'); }
 /* roboto-regular - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Roboto';
-  font-style: normal;
-  font-weight: 400;
-  src: url('./../fonts/roboto-v49-latin-regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Roboto'; font-style: normal; font-weight: 400; src: url('./../fonts/roboto-v49-latin-regular.woff2') format('woff2'); }
 /* roboto-italic - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Roboto';
-  font-style: italic;
-  font-weight: 400;
-  src: url('./../fonts/roboto-v49-latin-italic.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Roboto'; font-style: italic; font-weight: 400; src: url('./../fonts/roboto-v49-latin-italic.woff2') format('woff2'); }
 /* roboto-700 - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Roboto';
-  font-style: normal;
-  font-weight: 700;
-  src: url('./../fonts/roboto-v49-latin-700.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Roboto'; font-style: normal; font-weight: 700; src: url('./../fonts/roboto-v49-latin-700.woff2') format('woff2'); }
 /* roboto-700italic - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Roboto';
-  font-style: italic;
-  font-weight: 700;
-  src: url('./../fonts/roboto-v49-latin-700italic.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Roboto'; font-style: italic; font-weight: 700; src: url('./../fonts/roboto-v49-latin-700italic.woff2') format('woff2'); }
 /* merriweather-regular - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Merriweather';
-  font-style: normal;
-  font-weight: 400;
-  src: url('../fonts/merriweather-v33-latin-regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Merriweather'; font-style: normal; font-weight: 400; src: url('../fonts/merriweather-v33-latin-regular.woff2') format('woff2'); }
 /* merriweather-italic - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Merriweather';
-  font-style: italic;
-  font-weight: 400;
-  src: url('../fonts/merriweather-v33-latin-italic.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Merriweather'; font-style: italic; font-weight: 400; src: url('../fonts/merriweather-v33-latin-italic.woff2') format('woff2'); }
 /* merriweather-700 - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Merriweather';
-  font-style: normal;
-  font-weight: 700;
-  src: url('../fonts/merriweather-v33-latin-700.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Merriweather'; font-style: normal; font-weight: 700; src: url('../fonts/merriweather-v33-latin-700.woff2') format('woff2'); }
 /* merriweather-700italic - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Merriweather';
-  font-style: italic;
-  font-weight: 700;
-  src: url('../fonts/merriweather-v33-latin-700italic.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Merriweather'; font-style: italic; font-weight: 700; src: url('../fonts/merriweather-v33-latin-700italic.woff2') format('woff2'); }
 /* lato-regular - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Lato';
-  font-style: normal;
-  font-weight: 400;
-  src: url('../fonts/lato-v25-latin-regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Lato'; font-style: normal; font-weight: 400; src: url('../fonts/lato-v25-latin-regular.woff2') format('woff2'); }
 /* lato-italic - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Lato';
-  font-style: italic;
-  font-weight: 400;
-  src: url('../fonts/lato-v25-latin-italic.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Lato'; font-style: italic; font-weight: 400; src: url('../fonts/lato-v25-latin-italic.woff2') format('woff2'); }
 /* lato-700 - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Lato';
-  font-style: normal;
-  font-weight: 700;
-  src: url('../fonts/lato-v25-latin-700.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Lato'; font-style: normal; font-weight: 700; src: url('../fonts/lato-v25-latin-700.woff2') format('woff2'); }
 /* lato-700italic - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Lato';
-  font-style: italic;
-  font-weight: 700;
-  src: url('../fonts/lato-v25-latin-700italic.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Lato'; font-style: italic; font-weight: 700; src: url('../fonts/lato-v25-latin-700italic.woff2') format('woff2'); }
 /* eb-garamond-regular - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'EB Garamond';
-  font-style: normal;
-  font-weight: 400;
-  src: url('../fonts/eb-garamond-v32-latin-regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'EB Garamond'; font-style: normal; font-weight: 400; src: url('../fonts/eb-garamond-v32-latin-regular.woff2') format('woff2'); }
 /* eb-garamond-italic - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'EB Garamond';
-  font-style: italic;
-  font-weight: 400;
-  src: url('../fonts/eb-garamond-v32-latin-italic.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'EB Garamond'; font-style: italic; font-weight: 400; src: url('../fonts/eb-garamond-v32-latin-italic.woff2') format('woff2'); }
 /* eb-garamond-700 - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'EB Garamond';
-  font-style: normal;
-  font-weight: 700;
-  src: url('../fonts/eb-garamond-v32-latin-700.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'EB Garamond'; font-style: normal; font-weight: 700; src: url('../fonts/eb-garamond-v32-latin-700.woff2') format('woff2'); }
 /* eb-garamond-700italic - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'EB Garamond';
-  font-style: italic;
-  font-weight: 700;
-  src: url('../fonts/eb-garamond-v32-latin-700italic.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'EB Garamond'; font-style: italic; font-weight: 700; src: url('../fonts/eb-garamond-v32-latin-700italic.woff2') format('woff2'); }
 /* arvo-regular - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Arvo';
-  font-style: normal;
-  font-weight: 400;
-  src: url('./../fonts/arvo-v23-latin-regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Arvo'; font-style: normal; font-weight: 400; src: url('./../fonts/arvo-v23-latin-regular.woff2') format('woff2'); }
 /* arvo-italic - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Arvo';
-  font-style: italic;
-  font-weight: 400;
-  src: url('./../fonts/arvo-v23-latin-italic.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Arvo'; font-style: italic; font-weight: 400; src: url('./../fonts/arvo-v23-latin-italic.woff2') format('woff2'); }
 /* arvo-700 - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Arvo';
-  font-style: normal;
-  font-weight: 700;
-  src: url('./../fonts/arvo-v23-latin-700.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-}
+@font-face { font-display: block; font-family: 'Arvo'; font-style: normal; font-weight: 700; src: url('./../fonts/arvo-v23-latin-700.woff2') format('woff2'); }
 /* arvo-700italic - latin */
-@font-face {
-  font-display: block; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Arvo';
-  font-style: italic;
-  font-weight: 700;
-  src: url('./../fonts/arvo-v23-latin-700italic.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+@font-face { font-display: block; font-family: 'Arvo'; font-style: italic; font-weight: 700; src: url('./../fonts/arvo-v23-latin-700italic.woff2') format('woff2'); }
+
+/* --- VARIABLES & RESET --- */
+:root {
+  --primary-color: #3498db;
+  --primary-hover: #2980b9;
+  --secondary-color: #2c3e50;
+  --success-color: #27ae60;
+  --danger-color: #e74c3c;
+  --bg-color: #f4f7f6;
+  --sidebar-bg: #ffffff;
+  --border-color: #e0e0e0;
+  --text-color: #333333;
+  --text-light: #7f8c8d;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+  --radius: 6px;
 }
 
-        body { font-family: sans-serif; background-color: #f0f2f5; margin-top: 60px; /* Add space for the notification bar */ }
-        h1, h2 { text-align: center; }
-        
-        /* --- Notification Bar Styles --- */
-        #notification-area {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: 15px;
-            text-align: center;
-            font-size: 1.1em;
-            color: white;
-            background-color: #dc3545; /* Default to error red */
-            transform: translateY(-100%);
-            transition: transform 0.3s ease-in-out;
-            z-index: 1000;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        #notification-area.show {
-            transform: translateY(0);
-        }
-        #notification-area.success {
-            background-color: #28a745; /* Green for success */
-        }
-        #notification-area.info {
-            background-color: #0d6efd; /* A standard "info" blue */
-        }
+body {
+  font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* App-like feel */
+}
 
-        .search-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-bottom: 15px; align-items: end; }
-        .form-field { display: flex; flex-direction: column; }
-        .form-field label { margin-bottom: 5px; font-weight: bold; }
-        .form-field input, .form-field select {
-            padding: 8px;
-            width: 100%;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        #fetchButton {
-            padding: 8px 15px;
-            font-size: 1em;
-            cursor: pointer;
-            width: 100%;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #f8f9fa;
-        }
-        hr { margin: 20px 0; }
-
-        #results-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; margin-top: 20px; }
-        #results-container .book-card {
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            background: white;
-            padding: 10px;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        #results-container .error-message { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; grid-column: 1 / -1; }
-        #results-container .add-to-list-button {
-            margin-top: 0; /* Let the parent container handle spacing */
-            padding: 8px;
-            cursor: pointer;
-            height: 38px;
-            min-width: 90px;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%; /* Make button take full width of container */
-        }
-        .cover-carousel img {
-            width: auto;
-            height: auto;
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain; /* This ensures the image fits without stretching */
-            border: none;       /* We removed the border from the image... */
-            display: block;
-        }
-        #results-container .add-to-list-button.added {
-            background-color: #28a745;
-            color: white;
-            border-color: #218838;
-            font-size: 1.2em;
-        }
-        .book-card .book-title {
-             margin: 10px 0;
-        }
-
-        /* NEW container to group bottom buttons */
-        .card-actions-group {
-            margin-top: auto; /* Pushes this block to the bottom of the flex container */
-            padding-top: 10px; /* Ensures space between title and buttons */
-        }
-
-
-        /* Cover Carousel Styles */
-        .cover-carousel {
-            position: relative;
-            width: 100%;
-            max-width: 150px;
-            height: 180px; /* NEW: Set a fixed height */
-            margin: 0 auto;
-            display: flex; /* NEW: Use flex to center the image */
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #ccc; /* NEW: Add border to container */
-        }
-        .cover-carousel img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        .carousel-controls {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            max-width: 90px;
-            margin: 0 auto 10px auto; /* Centered with margin on the bottom */
-        }
-        .carousel-buttons-container {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            gap: 4px; /* Space between buttons */
-        }
-        .carousel-button {
-            background: #f0f0f0;
-            border: 1px solid #ccc;
-            padding: 4px; /* Increased padding */
-            cursor: pointer;
-            border-radius: 3px;
-            font-size: 1.2em; /* Increased font size for bigger arrows */
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: auto;
-            min-width: 0;
-            width: calc(50% - 2px); /* Each button takes half the space minus half the gap */
-            box-sizing: border-box;
-        }
-        .carousel-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .cover-counter {
-            font-size: 0.8em;
-            color: #555;
-            text-align: center;
-        }
-
-
-        .booklist-section { margin-top: 40px; padding: 20px; background-color: #e2e8f0; }
-        .export-controls { 
-            background-color: white; 
-            border-radius: 5px; 
-            padding: 8px; 
-            margin: 0 auto 20px auto; /* Center the container and keep bottom margin */
-            max-width: 1280px; /* Set a max-width for better appearance on large screens */
-            display: flex; 
-            flex-wrap: wrap; 
-            align-items: flex-end; 
-            gap: 8px; 
-        }
-        .export-controls h3 {
-            margin: 0;
-            flex-basis: 100%;
-            margin-top: 8px !important; /* Force override of inline styles */
-            margin-bottom: 3px; /* Add a little space above controls */
-            font-size: 1.1em; /* Optional: slightly smaller heading */
-        }
-        
-        /* This makes sure the very first h3 has no extra top margin */
-        .export-controls > h3:first-child {
-            margin-top: 0 !important;
-        }
-        .export-controls .form-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .export-controls .form-group label { font-size: 0.9em; font-weight: bold; margin-bottom: 0; }
-        .export-controls select { width: 120px; }
-        .export-controls input[type="color"] { width: 40px; height: 38px; padding: 2px; }
-        .export-controls input[type="number"] { width: 50px; }
-        .export-controls button { cursor: pointer; }
-        .export-controls .bold-toggle, .export-controls .italic-toggle { width: 30px; height: 30px; font-weight: bold; }
-        .export-controls .italic-toggle { font-style: italic; }
-        .export-controls button.active { background-color: #3498db; color: white; border-color: #2980b9; }
-        #export-pdf-button { margin-left: auto; padding: 10px 15px; font-size: 1em; }
-        
-
-        #preview-area { display: flex; flex-direction: column; gap: 20px; align-items: center; min-width: 11in; }
-        .page {
-            display: flex;
-            width: 11in;
-            height: 8.5in;
-            background-color: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            border: 1px solid #333; /* Consistent outer border */
-            box-sizing: border-box;
-            position: relative;
-        }
-        .panel {
-            width: 50%;
-            height: 100%;
-            box-sizing: border-box;
-            padding: 24px;
-            overflow: visible; /* Allow controls to be seen */
-        }
-        
-        .page-divider {
-            position: absolute;
-            left: 50%;
-            top: 0;
-            bottom: 0;
-            width: 1px;
-            border-left: 1px dashed #ccc;
-            transform: translateX(-0.5px); /* Centers the 1px line perfectly */
-        }
-        
-        /* This hides the new divider in the PDF, just like the old one */
-        .print-mode .page-divider {
-            display: none;
-        }
-
-        /* --- CHANGE 1 OF 3: Align left panel books to the left --- */
-        #inside-left-panel {
-            align-items: flex-start; /* Aligns book blocks to the left */
-        }
-
-        #back-cover-panel { 
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between; /* Universal rule for vertical distribution */
-        }
-        #front-cover-panel {
-            position: relative;
-        }
-
-        .book-panel {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            justify-content: space-between;
-        }
-        
-        #inside-right-panel {
-            align-items: flex-end;
-        }
-        #back-cover-panel > .list-item {
-            align-self: flex-start;
-        }
-        .list-item {
-            position: relative;
-            display: flex;
-            gap: 10px;
-            align-items: flex-start;
-            min-height: 132px;   
-            height: auto;
-        }
-        /* Let description size to content instead of forcing it to fill space */
-        .description-field {
-            /* previously included: flex: 1; */
-            flex: 0 1 auto;                     /* size by content, allow shrink if needed */
-            overflow-wrap: break-word;          /* avoid overflow on long tokens */
-            /* optional: improve wrapping behavior on very long strings */
-            word-break: break-word;             /* legacy fallback where needed */
-            /* text-wrap: wrap;  modern descriptive alias (optional) */
-        } 
-        .custom-uploader {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 144px; /* Specific height for media blocks */
-            width: 480px;   /* Specific width for media blocks */
-            border: 1px dashed #ccc;
-            border-radius: 5px;
-            cursor: pointer;
-            box-sizing: border-box;
-        }
-        #front-cover-uploader {
-            width: 480px;
-            height: 768px;
-            border: 1px dashed #ccc;
-            border-radius: 0;
-            background-color: #EAEAEA;
-            position: relative; /* Container for overlaid controls */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-sizing: border-box;
-        }
-        .placeholder-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #333;
-            text-align: center;
-            font-size: 1.1rem;
-            line-height: 1.4;
-            pointer-events: none;
-            width: 80%;
-            z-index: 1; /* Ensure text is on top of the placeholder image */
-        }
-        #cover-title-input { resize: vertical; } 
-        #front-cover-uploader.has-image .placeholder-text {
-            display: none;
-        }
-        #cover-generate-controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            pointer-events: none; /* Allow clicks to pass through the container */
-        }
-        #cover-title-input, #generate-cover-button {
-             width: 100%;
-             padding: 10px;
-             box-sizing: border-box;
-             pointer-events: auto; /* Make controls clickable */
-        }
-        
-        .custom-uploader img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-        #front-cover-uploader > img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-         .custom-uploader input[type="file"] { display: none; }
-
-
-        .list-item.sortable-ghost { opacity: 0.4; background: #c8ebfb; }
-
-        .list-item-controls {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-            color: #888;
-            right: 100%;
-            margin-right: 5px;
-            background-color: rgba(230, 230, 230, 0.85); /* Semi-opaque box */
-            padding: 8px 5px; /* Add some padding */
-            border-radius: 5px; /* Rounded corners */
-        }
-        
-        .list-item-controls.controls-right {
-            right: auto;
-            left: 100%;
-            margin-right: 0;
-            margin-left: 5px;
-        }
-
-        .item-number { font-size: 1.2em; font-weight: bold; }
-        .drag-handle { cursor: grab; font-size: 1.5em; line-height: 1; }
-        .delete-button { background: none; border: none; cursor: pointer; color: #cc0000; font-weight: bold; font-size: 1.5em; line-height: 1; }
-
-        .cover-uploader { width: 110px; height: 132px; flex-shrink: 0; cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; border: 1px dashed #ccc; box-sizing: border-box; }
-        .cover-uploader img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
-        .cover-uploader.stretch img {
-            object-fit: fill;
-            width: 100%;
-            height: 100%;
-        }
-        .cover-uploader input[type="file"] { display: none; }
-
-        .list-item-details { flex-grow: 1; width: 360px; display: flex; flex-direction: column; }
-        .editable-field {
-            width: 100%;
-            padding: 0;
-            border: 1px solid #eee;
-            background-color: transparent;
-            line-height: 1.1;
-            margin: 0;
-            box-sizing: border-box;
-        }
-        .editable-field:focus { border-color: #999; outline: none; }
-
-        .title-field { font-family: var(--title-font); color: var(--title-color); font-size: var(--title-font-size); font-weight: var(--title-font-weight); font-style: var(--title-font-style); }
-        .author-field {
-            font-family: var(--author-font); color: var(--author-color); font-size: var(--author-font-size); font-weight: var(--author-font-weight); font-style: var(--author-font-style);
-            margin-top: 2px;
-            margin-bottom: 0;
-        }
-        .description-field {
-            font-family: var(--desc-font); color: var(--desc-color); font-size: var(--desc-font-size); font-weight: var(--desc-font-weight); font-style: var(--desc-font-style);
-            margin-top: 2px;
-            height: auto;
-            flex: 1;
-            resize: none;
-            -webkit-hyphens: none; -ms-hyphens: none; hyphens: none;
-            padding: 0;
-            background-color: transparent;
-        }
-
-        /* --- PRINT STYLES --- */
-        .print-mode .page {
-            width: 11in;
-            height: 8.5in;
-            box-shadow: none;
-            margin: 0;
-            gap: 0;
-            border: none !important; /* Remove outer border for PDF */
-        }
-        .print-mode .panel {
-            padding: 24px;
-            overflow: hidden; /* Hide controls for printing */
-            border: none !important; /* Remove ALL borders for PDF */
-            box-sizing: border-box; /* --- CHANGE 2 OF 3: Fix the cover "shift" --- */
-        }
-
-        .print-mode .custom-uploader,
-        .print-mode .cover-uploader,
-        .print-mode .editable-field {
-            border: none !important; /* Remove ALL uploader and field borders for PDF */
-        }
-        .print-mode #front-cover-uploader {
-            background-color: transparent; /* Remove background on PDF for blank covers */
-        }
-        .print-mode .list-item-controls,
-        .print-mode #cover-generate-controls { /* Hide generate tools on PDF */
-            display: none; 
-        }
-        .print-mode .book-panel {
-             justify-content: space-between;
-             gap: 0;
-             height: 100%;
-        }
-        .print-mode #back-cover-panel {
-             justify-content: space-between; /* Ensure layout is correct for print */
-        }
-        .print-mode #inside-left-panel {
-            border-right: none;
-            align-items: flex-start; /* --- CHANGE 3 OF 3: Align left books in PDF --- */
-        }
-        .print-mode #inside-right-panel {
-            align-items: flex-end;
-        }
-
-/* Action bar: [spacer] [center group] [reset] */
-.export-actions-bar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+/* --- HEADER --- */
+.app-header {
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 0 20px;
+  height: 50px;
+  display: flex;
   align-items: center;
-  width: 100%;
-  margin-top: 10px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+  z-index: 10;
 }
-
-/* Center group for Load / Generate / Save */
-.export-actions-center {
-  display: inline-flex;
-  justify-content: center;
+.app-header .logo {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  display: flex;
   align-items: center;
   gap: 10px;
-  grid-column: 2; /* middle column */
 }
 
-/* Keep Generate PDF’s default style when inside the bar */
-.export-actions-bar #export-pdf-button {
-  margin-left: 0;
-}
-
-/* Reset goes to the far right */
-.export-actions-right {
-  grid-column: 3;
-  justify-self: end;
-}
-
-/* Make all action buttons match Generate PDF */
-.export-actions-bar .export-action-button {
-  padding: 10px 15px;
-  font-size: 1em;
-}
-
-/* Font Preloader Style:
-   Makes the preloader div invisible to the user 
-   but visible to the browser's rendering engine.
-*/
-.font-preloader {
-  position: absolute;
-  left: -9999px;
-  top: -9999px;
-  opacity: 0;
-  pointer-events: none;
-  visibility: hidden;
-}
-
-/* --- QR Code Generator Styles --- */
-#qr-code-controls input {
-  width: auto; /* Allow it to be flexible */
-}
-
-.qr-code-container {
+/* --- MAIN LAYOUT --- */
+.app-container {
   display: flex;
-  gap: 14px;
-  align-items: center;
-  height: 144px; /* Specific height for media blocks */
-  width: 480px;   /* Specific width for media blocks */
-  border: 1px solid transparent; /* To match .custom-uploader in print */
-  padding: 0;
-  box-sizing: border-box;
+  flex: 1;
+  height: calc(100vh - 50px);
+  overflow: hidden;
 }
 
-.print-mode .qr-code-container {
-  border: none !important;
-}
-
-#qr-code-text {
-  flex-grow: 1; /* Text takes up available space */
-  height: 100%;
-  /* Re-use the QR styles */
-  font-family: var(--qr-font); 
-  color: var(--qr-color); 
-  font-size: var(--qr-font-size); 
-  font-weight: var(--qr-font-weight); 
-  font-style: var(--qr-font-style);
-  border: 1px solid #eee;
-  padding: 4px;
-  box-sizing: border-box; /* Add this for better padding calculation */
-
-  /* --- NEW NESTED FLEXBOX CENTERING --- */
+/* --- SIDEBAR --- */
+.sidebar {
+  width: 380px;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--border-color);
   display: flex;
-  flex-direction: column;   /* This makes the 'Enter' key stack lines */
-  justify-content: center; /* This centers the text vertically */
-  text-align: center;      /* This centers the text horizontally */
-}
-.print-mode #qr-code-text {
-  border: none !important;
-}
-
-#qr-code-canvas {
-  width: 144px;
-  height: 144px;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  overflow-y: auto;
   flex-shrink: 0;
+}
+
+.sidebar-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.card-header {
+  background: #f8f9fa;
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+.card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--secondary-color);
   display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-body {
+  padding: 15px;
+}
+
+/* --- MAIN CONTENT (PREVIEW) --- */
+.main-content {
+  flex: 1;
+  background-color: #eef2f5;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.toolbar {
+  width: 100%;
+  max-width: 11in;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+.toolbar h2 { margin: 0; font-size: 1.5rem; color: var(--secondary-color); }
+.toolbar-hint { font-size: 0.9rem; color: var(--text-light); }
+
+/* --- UI COMPONENTS --- */
+/* Buttons */
+.btn {
+  border: none;
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 5px;
+  text-decoration: none;
 }
-#qr-code-canvas img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+.btn-primary { background-color: var(--primary-color); color: white; }
+.btn-primary:hover { background-color: var(--primary-hover); }
+.btn-success { background-color: var(--success-color); color: white; }
+.btn-success:hover { background-color: #219150; }
+.btn-sm { padding: 4px 8px; font-size: 0.85rem; }
+.btn-block { width: 100%; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Inputs & Selects */
+input[type="text"], input[type="number"], select, textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+  background-color: #fff;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+input[type="color"] {
+  width: 35px; height: 35px; padding: 2px; border: none; background: none; cursor: pointer;
 }
 
+/* Search Form */
+.search-form { display: flex; flex-direction: column; gap: 10px; }
+.advanced-search-toggle summary {
+  cursor: pointer; font-size: 0.85rem; color: var(--primary-color); margin-bottom: 5px;
+}
+.advanced-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: var(--radius);
+}
 
+/* Results Grid */
+#results-container {
+  margin-top: 15px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.book-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 8px;
+  font-size: 0.8rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s;
+}
+.book-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.book-title { font-weight: bold; margin: 5px 0; line-height: 1.2; max-height: 2.4em; overflow: hidden; }
+.add-to-list-button {
+  width: 100%; padding: 5px; background: #f8f9fa; border: 1px solid var(--border-color); border-radius: 3px; cursor: pointer; margin-top: auto;
+}
+.add-to-list-button.added { background: var(--success-color); color: white; border-color: var(--success-color); }
 
+/* --- SETTINGS GROUPS --- */
+.control-group {
+  margin-bottom: 15px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+}
+.control-group:last-child { border-bottom: none; margin-bottom: 0; }
+.control-group label {
+  display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-light); margin-bottom: 6px; text-transform: uppercase;
+}
+.control-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.checkbox-row {
+  margin-top: 5px;
+}
+.checkbox-row label { margin: 0; text-transform: none; font-weight: normal; color: var(--text-color); cursor: pointer; }
+.btn-icon {
+  width: 30px; height: 30px; background: #fff; border: 1px solid var(--border-color); font-weight: bold; cursor: pointer;
+}
+.btn-icon.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+.separator { border: 0; border-top: 1px solid var(--border-color); margin: 15px 0; }
+.font-select { flex-grow: 2; }
+.font-size-input { width: 60px; }
+.mini-label { font-size: 0.8rem; color: #888; }
 
+.advanced-settings summary { font-size: 0.85rem; cursor: pointer; color: var(--primary-color); margin-bottom: 5px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; align-items: center; background: #f9f9f9; padding: 8px; border-radius: 4px;}
+.grid-2 label { margin: 0; font-size: 0.8rem; }
 
+/* Action Buttons (Save/Load) Styles */
+.export-actions-bar { display: flex; gap: 5px; margin-top: 10px; }
+.export-actions-center { display: contents; } /* Flatten for flex layout */
+.export-action-button { flex: 1; padding: 8px; font-size: 0.85rem; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius); cursor: pointer; }
+.export-action-button:hover { background: #f0f0f0; }
+#export-pdf-button { margin-top: 10px; font-size: 1rem; padding: 12px; }
 
+/* --- PREVIEW AREA (PAPER LOOK) --- */
+.page {
+  width: 11in;
+  height: 8.5in;
+  background-color: white;
+  box-shadow: var(--shadow-lg);
+  margin-bottom: 30px;
+  position: relative;
+  display: flex;
+  /* Default border to define the edge */
+  outline: 1px solid #ddd; 
+}
 
+.panel {
+  width: 50%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 24px;
+  position: relative;
+  overflow: visible;
+}
 
+/* Divider Line */
+.page-divider {
+  position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+  border-left: 1px dashed #ccc; transform: translateX(-0.5px);
+}
 
+/* Book List Items */
+.book-panel { display: flex; flex-direction: column; height: 100%; justify-content: space-between; }
+#inside-left-panel { align-items: flex-start; }
+#inside-right-panel { align-items: flex-end; }
+#back-cover-panel { display: flex; flex-direction: column; justify-content: space-between; }
+#back-cover-panel > .list-item { align-self: flex-start; }
 
+.list-item {
+  position: relative; display: flex; gap: 12px; align-items: flex-start;
+  min-height: 132px; width: 100%; max-width: 480px; /* Ensure they fit panel */
+  transition: background-color 0.2s;
+}
+.list-item:hover .list-item-controls { opacity: 1; }
 
+/* Hover Controls */
+.list-item-controls {
+  position: absolute; top: 0; bottom: 0; left: -30px; width: 25px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  opacity: 0; transition: opacity 0.2s;
+}
+.controls-right { left: auto; right: -30px; }
+.drag-handle { cursor: grab; color: var(--text-light); font-size: 1rem; }
+.item-number { font-size: 0.8rem; font-weight: bold; color: #ccc; }
+.delete-button { background: none; border: none; color: var(--danger-color); cursor: pointer; font-size: 1rem; padding: 0; }
 
+/* Item Details */
+.cover-uploader {
+  width: 110px; height: 132px; flex-shrink: 0; cursor: pointer;
+  position: relative; display: flex; align-items: center; justify-content: center;
+  border: 1px dashed #ccc; background: #f9f9f9;
+}
+.cover-uploader img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.cover-uploader.stretch img { object-fit: fill; width: 100%; height: 100%; }
+.cover-uploader input { display: none; }
+
+.list-item-details { flex-grow: 1; display: flex; flex-direction: column; }
+.editable-field {
+  width: 100%; border: 1px solid transparent; background: transparent; padding: 2px;
+  transition: border-color 0.2s;
+}
+.editable-field:hover { border-color: #eee; }
+.editable-field:focus { border-color: var(--primary-color); outline: none; background: white; }
+
+/* Typography Defaults */
+.title-field { font-family: var(--title-font); color: var(--title-color); font-size: var(--title-font-size); font-weight: var(--title-font-weight); font-style: var(--title-font-style); margin-bottom: 2px; }
+.author-field { font-family: var(--author-font); color: var(--author-color); font-size: var(--author-font-size); font-weight: var(--author-font-weight); font-style: var(--author-font-style); margin-bottom: 4px; }
+.description-field { font-family: var(--desc-font); color: var(--desc-color); font-size: var(--desc-font-size); font-weight: var(--desc-font-weight); font-style: var(--desc-font-style); flex: 1; overflow-wrap: break-word; }
+
+/* Front Cover */
+#front-cover-uploader {
+  width: 480px; height: 768px; border: 1px dashed #ccc; background-color: #eaeaea;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;
+  margin: 0 auto;
+}
+#front-cover-uploader.has-image { border: none; background: none; }
+#front-cover-uploader.has-image .placeholder-text { display: none; }
+.placeholder-text {
+  text-align: center; color: var(--text-light); pointer-events: none;
+}
+#front-cover-uploader img { max-width: 100%; max-height: 100%; object-fit: contain; }
+#cover-generate-controls {
+  position: absolute; bottom: 30px; width: 80%; display: flex; flex-direction: column; gap: 10px;
+}
+#cover-title-input {
+  text-align: center; font-family: 'Oswald', sans-serif; font-size: 1.2rem;
+}
+
+/* Branding & QR */
+.custom-uploader {
+  width: 480px; height: 144px; border: 1px dashed #ccc;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.custom-uploader input { display: none; }
+.custom-uploader img { max-height: 100%; max-width: 100%; }
+
+.qr-code-container {
+  width: 480px; height: 144px; display: flex; gap: 15px; align-items: center; margin-bottom: 20px;
+}
+#qr-code-text {
+  flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: center; text-align: center;
+  border: 1px solid transparent;
+  font-family: var(--qr-font, 'Calibri'); font-size: var(--qr-font-size, 13pt); color: var(--qr-color, #000);
+}
+#qr-code-text:hover { border-color: #eee; }
+#qr-code-canvas {
+  width: 144px; height: 144px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+}
+
+/* --- PRINT MODE (CRITICAL FOR PDF) --- */
+.print-mode .page {
+  box-shadow: none; margin: 0; border: none !important; outline: none;
+}
+.print-mode .panel {
+  padding: 24px; border: none !important;
+}
+.print-mode .list-item-controls, 
+.print-mode .page-divider,
+.print-mode #cover-generate-controls, 
+.print-mode .placeholder-text {
+  display: none !important;
+}
+.print-mode .cover-uploader, 
+.print-mode .custom-uploader, 
+.print-mode .editable-field,
+.print-mode #front-cover-uploader {
+  border: none !important; background: transparent !important;
+}
+
+/* --- NOTIFICATION --- */
+#notification-area {
+  position: fixed; top: 0; left: 0; width: 100%; padding: 15px;
+  text-align: center; color: white; background: var(--danger-color);
+  transform: translateY(-100%); transition: transform 0.3s; z-index: 1000;
+}
+#notification-area.show { transform: translateY(0); }
+#notification-area.success { background: var(--success-color); }
+#notification-area.info { background: var(--primary-color); }
+
+/* Preloader */
+.font-preloader { position: absolute; top: -9999px; visibility: hidden; }
+
+/* Carousel */
+.cover-carousel { position: relative; width: 100px; height: 130px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
+.cover-carousel img { max-width: 100%; max-height: 100%; }
+.card-actions-group { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+.carousel-controls { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+.carousel-button { background: #eee; border: none; cursor: pointer; padding: 2px 6px; border-radius: 3px; }
