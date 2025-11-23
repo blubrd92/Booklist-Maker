@@ -20,6 +20,22 @@
     <div class="logo">
       <i class="fa-solid fa-book-open"></i> Booklist Maker
     </div>
+    
+    <div class="header-actions">
+      <button id="load-list-button" class="btn btn-header" title="Load Saved List">
+        <i class="fa-solid fa-upload"></i> Load
+      </button>
+      <button id="save-list-button" class="btn btn-header" title="Save Current List">
+        <i class="fa-solid fa-download"></i> Save
+      </button>
+      <button id="reset-blank-button" class="btn btn-header" title="Reset to Blank">
+        <i class="fa-solid fa-rotate-right"></i> Reset
+      </button>
+      <button id="export-pdf-button" class="btn btn-header-primary" title="Generate PDF">
+        <i class="fa-solid fa-file-pdf"></i> Generate PDF
+      </button>
+      <input type="file" id="load-list-input" accept=".booklist,.json,application/json" style="display: none;" />
+    </div>
   </nav>
 
   <div class="app-container">
@@ -79,11 +95,11 @@
               <option value="'Times New Roman', serif">Times New Roman</option>
             </select>
             <input class="font-size-input" type="number" min="8" value="14"/>
-            <input class="color-picker" type="color" value="#000000"/>
           </div>
           <div class="control-row">
             <button class="bold-toggle btn-icon">B</button>
             <button class="italic-toggle btn-icon">I</button>
+            <input class="color-picker" type="color" value="#000000"/>
           </div>
         </div>
 
@@ -102,11 +118,11 @@
               <option value="'Times New Roman', serif">Times New Roman</option>
             </select>
             <input class="font-size-input" type="number" min="8" value="12"/>
-            <input class="color-picker" type="color" value="#000000"/>
           </div>
           <div class="control-row">
             <button class="bold-toggle active btn-icon">B</button>
             <button class="italic-toggle btn-icon">I</button>
+            <input class="color-picker" type="color" value="#000000"/>
           </div>
         </div>
 
@@ -125,11 +141,11 @@
               <option value="'Times New Roman', serif">Times New Roman</option>
             </select>
             <input class="font-size-input" type="number" min="8" value="10"/>
-            <input class="color-picker" type="color" value="#000000"/>
           </div>
           <div class="control-row">
             <button class="bold-toggle btn-icon">B</button>
             <button class="italic-toggle btn-icon">I</button>
+            <input class="color-picker" type="color" value="#000000"/>
           </div>
         </div>
 
@@ -155,11 +171,11 @@
               <option value="'Helvetica', sans-serif">Helvetica</option>
             </select>
             <input class="font-size-input" type="number" min="8" value="40"/>
-            <input class="color-picker" type="color" value="#FFFFFF"/>
           </div>
           <div class="control-row">
             <button class="bold-toggle active btn-icon">B</button>
             <button class="italic-toggle btn-icon">I</button>
+            <input class="color-picker" type="color" value="#FFFFFF"/>
             <div class="mini-label">BG:</div>
             <input id="cover-title-bg-color" class="color-picker" type="color" value="#000000"/>
           </div>
@@ -202,8 +218,9 @@
           <label>QR Code URL</label>
           <div class="control-row">
               <input id="qr-url-input" type="text" placeholder="https://..."/>
-              <button id="generate-qr-button" class="btn btn-sm">Update</button>
+              <button id="generate-qr-button" class="btn btn-sm btn-primary">Update</button>
           </div>
+          
           <div class="form-group" data-style-group="qr" style="margin-top:15px;">
               <label>QR Text Style</label>
               <div class="control-row">
@@ -219,17 +236,13 @@
                   <option value="'Times New Roman', serif">Times New Roman</option>
                   </select>
                   <input class="font-size-input" type="number" min="8" value="13"/>
-                  <input class="color-picker" type="color" value="#000000"/>
               </div>
               <div class="control-row">
                   <button class="bold-toggle active btn-icon">B</button>
                   <button class="italic-toggle btn-icon">I</button>
+                  <input class="color-picker" type="color" value="#000000"/>
               </div>
           </div>
-        </div>
-
-        <div class="action-area">
-          <button id="export-pdf-button" class="btn btn-success btn-block">Generate PDF</button>
         </div>
 
       </div>
@@ -284,7 +297,6 @@
   </div>
 
   <script>
-    // Simple Tab Switcher
     function openTab(evt, tabName) {
       var i, tabcontent, tablinks;
       tabcontent = document.getElementsByClassName("tab-content");
