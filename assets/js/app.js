@@ -679,8 +679,36 @@
                         searchButton.classList.remove('added');
                     }
                 };
-                
+                        // --- NEW: Magic Wand Button ---
+                const magicButton = document.createElement('button');
+                magicButton.className = 'magic-button';
+                magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
+                magicButton.title = "Fetch Description";
+                magicButton.onclick = () => {
+                    // 1. Check if title/author are filled in
+                    // Replace &nbsp; with space, then trim
+                    const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
+                    let currentAuthor = (bookItem.author || '').replace(/\u00a0/g, " ").trim();
+        
+                    // Extra safety: If author is just "By", treat it as empty
+                    if (currentAuthor.toLowerCase() === 'by') currentAuthor = '';
+        
+                    if (!currentTitle || currentTitle === '[Enter Title]' || 
+                        !currentAuthor || currentAuthor === '[Enter Author]') {
+                        showNotification('Please enter a Title and Author first.', 'error');
+                        return;
+                    }
+                    
+                    // 2. Update description to "Loading" state (Grey Text)
+                    bookItem.description = "Fetching title description... May take a few minutes.";
+                    renderBooklist();
+                    
+                    // 3. Call your existing function
+                    getAiDescription(bookItem.key);
+                };
+                    
                 controlsDiv.appendChild(dragHandle);
+                controlsDiv.appendChild(magicButton);
                 controlsDiv.appendChild(itemNumber);
                 controlsDiv.appendChild(deleteButton);
         
@@ -736,15 +764,22 @@
                 authorField.contentEditable = true;
                 authorField.innerText = bookItem.author.startsWith('[Enter') ? `${bookItem.author} - ${bookItem.callNumber}` : `By ${bookItem.author} - ${bookItem.callNumber}`; // <-- FIXED
                 authorField.oninput = (e) => { 
-                    let text = e.target.innerText; // <-- FIXED
-                    if (text.includes('By ') && text.includes(' - ')) {
-                        const parts = text.replace('By ', '').split(' - ');
-                        bookItem.author = parts[0] || '';
-                        bookItem.callNumber = parts[1] || '';
-                    } else {
+                    // Get text and replace non-breaking spaces (&nbsp;) with regular spaces
+                    let text = e.target.innerText.replace(/\u00a0/g, " ");
+                    
+                    // Aggressively strip "By " from the start (case insensitive)
+                    // This prevents "By" from becoming the author name
+                    if (text.match(/^By\s/i)) {
+                        text = text.replace(/^By\s/i, '');
+                    }
+        
+                    if (text.includes(' - ')) {
                         const parts = text.split(' - ');
-                        bookItem.author = parts[0] || '';
-                        bookItem.callNumber = parts[1] || '';
+                        bookItem.author = (parts[0] || '').trim();
+                        bookItem.callNumber = (parts[1] || '').trim();
+                    } else {
+                        // If no dash, assume it's just the author
+                        bookItem.author = text.trim();
                     }
                  };
         
@@ -785,10 +820,16 @@
                 setupPlaceholder(titleField, placeholders.title, getComputedStyle(titleField).color);
                 setupPlaceholder(authorField, placeholders.author, getComputedStyle(authorField).color);
                 
-                if (bookItem.description !== 'Fetching book description... May take a few minutes.' && !bookItem.description.startsWith('error:')) {
+                // Check for BOTH loading messages now
+                if (bookItem.description !== 'Fetching book description... May take a few minutes.' && 
+                    bookItem.description !== 'Fetching title description... May take a few minutes.' && 
+                    bookItem.description !== 'Description could not be fetched, please check that Title and Author are correct.' && 
+                    !bookItem.description.startsWith('error:')) {
+                     
                      setupPlaceholder(descriptionField, placeholders.description, getComputedStyle(descriptionField).color);
+                
                 } else {
-                    descriptionField.style.color = '#757575';
+                    descriptionField.style.color = '#757575'; // Force grey for loading/error
                 }
                 
                 listItem.appendChild(controlsDiv);
