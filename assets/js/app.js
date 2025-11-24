@@ -679,8 +679,35 @@
                         searchButton.classList.remove('added');
                     }
                 };
-                
+                        // --- NEW: Magic Wand Button ---
+                const magicButton = document.createElement('button');
+                magicButton.className = 'magic-button';
+                magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
+                magicButton.title = "Auto-Generate Description";
+                magicButton.onclick = () => {
+                    // 1. Check if title/author are filled in
+                    const currentTitle = bookItem.title;
+                    const currentAuthor = bookItem.author;
+                    
+                    if (!currentTitle || currentTitle === '[Enter Title]' || 
+                        !currentAuthor || currentAuthor === '[Enter Author]') {
+                        showNotification('Please enter a Title and Author first.', 'error');
+                        return;
+                    }
+        
+                    // 2. Trigger the AI
+                    showNotification(`Generating description for "${currentTitle}"...`, 'info');
+                    
+                    // Optional: Clear the description field to show it's working
+                    bookItem.description = "Generating...";
+                    renderBooklist();
+                    
+                    // 3. Call your existing function
+                    getAiDescription(bookItem.key);
+                };
+                    
                 controlsDiv.appendChild(dragHandle);
+                controlsDiv.appendChild(magicButton);
                 controlsDiv.appendChild(itemNumber);
                 controlsDiv.appendChild(deleteButton);
         
