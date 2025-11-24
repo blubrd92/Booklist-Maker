@@ -686,9 +686,13 @@
                 magicButton.title = "Fetch Description";
                 magicButton.onclick = () => {
                     // 1. Check if title/author are filled in
-                    const currentTitle = bookItem.title;
-                    const currentAuthor = bookItem.author;
-                    
+                    // Replace &nbsp; with space, then trim
+                    const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
+                    let currentAuthor = (bookItem.author || '').replace(/\u00a0/g, " ").trim();
+        
+                    // Extra safety: If author is just "By", treat it as empty
+                    if (currentAuthor.toLowerCase() === 'by') currentAuthor = '';
+        
                     if (!currentTitle || currentTitle === '[Enter Title]' || 
                         !currentAuthor || currentAuthor === '[Enter Author]') {
                         showNotification('Please enter a Title and Author first.', 'error');
@@ -760,15 +764,22 @@
                 authorField.contentEditable = true;
                 authorField.innerText = bookItem.author.startsWith('[Enter') ? `${bookItem.author} - ${bookItem.callNumber}` : `By ${bookItem.author} - ${bookItem.callNumber}`; // <-- FIXED
                 authorField.oninput = (e) => { 
-                    let text = e.target.innerText; // <-- FIXED
-                    if (text.includes('By ') && text.includes(' - ')) {
-                        const parts = text.replace('By ', '').split(' - ');
-                        bookItem.author = parts[0] || '';
-                        bookItem.callNumber = parts[1] || '';
-                    } else {
+                    // Get text and replace non-breaking spaces (&nbsp;) with regular spaces
+                    let text = e.target.innerText.replace(/\u00a0/g, " ");
+                    
+                    // Aggressively strip "By " from the start (case insensitive)
+                    // This prevents "By" from becoming the author name
+                    if (text.match(/^By\s/i)) {
+                        text = text.replace(/^By\s/i, '');
+                    }
+        
+                    if (text.includes(' - ')) {
                         const parts = text.split(' - ');
-                        bookItem.author = parts[0] || '';
-                        bookItem.callNumber = parts[1] || '';
+                        bookItem.author = (parts[0] || '').trim();
+                        bookItem.callNumber = (parts[1] || '').trim();
+                    } else {
+                        // If no dash, assume it's just the author
+                        bookItem.author = text.trim();
                     }
                  };
         
