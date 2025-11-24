@@ -812,6 +812,7 @@
                 // Check for BOTH loading messages now
                 if (bookItem.description !== 'Fetching book description... May take a few minutes.' && 
                     bookItem.description !== 'Fetching title description... May take a few minutes.' && 
+                    bookItem.description !== 'Description could not be fetched, please check that Title and Author are correct.' && 
                     !bookItem.description.startsWith('error:')) {
                      
                      setupPlaceholder(descriptionField, placeholders.description, getComputedStyle(descriptionField).color);
