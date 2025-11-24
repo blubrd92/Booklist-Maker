@@ -683,7 +683,7 @@
                 const magicButton = document.createElement('button');
                 magicButton.className = 'magic-button';
                 magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
-                magicButton.title = "Auto-Generate Description";
+                magicButton.title = "Fetch Description";
                 magicButton.onclick = () => {
                     // 1. Check if title/author are filled in
                     const currentTitle = bookItem.title;
@@ -694,12 +694,9 @@
                         showNotification('Please enter a Title and Author first.', 'error');
                         return;
                     }
-        
-                    // 2. Trigger the AI
-                    showNotification(`Generating description for "${currentTitle}"...`, 'info');
                     
-                    // Optional: Clear the description field to show it's working
-                    bookItem.description = "Generating...";
+                    // 2. Update description to "Loading" state (Grey Text)
+                    bookItem.description = "Fetching title description... May take a few minutes.";
                     renderBooklist();
                     
                     // 3. Call your existing function
@@ -812,10 +809,15 @@
                 setupPlaceholder(titleField, placeholders.title, getComputedStyle(titleField).color);
                 setupPlaceholder(authorField, placeholders.author, getComputedStyle(authorField).color);
                 
-                if (bookItem.description !== 'Fetching book description... May take a few minutes.' && !bookItem.description.startsWith('error:')) {
+                // Check for BOTH loading messages now
+                if (bookItem.description !== 'Fetching book description... May take a few minutes.' && 
+                    bookItem.description !== 'Fetching title description... May take a few minutes.' && 
+                    !bookItem.description.startsWith('error:')) {
+                     
                      setupPlaceholder(descriptionField, placeholders.description, getComputedStyle(descriptionField).color);
+                
                 } else {
-                    descriptionField.style.color = '#757575';
+                    descriptionField.style.color = '#757575'; // Force grey for loading/error
                 }
                 
                 listItem.appendChild(controlsDiv);
