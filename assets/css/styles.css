@@ -347,6 +347,18 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .drag-handle { cursor: grab; font-size: 1.5rem; line-height: 1; color: #555; }
 .item-number { font-size: 1.2rem; font-weight: bold; color: #555; }
 .delete-button { background: none; border: none; color: #cc0000; font-weight: bold; font-size: 1.5rem; line-height: 1; padding: 0; cursor: pointer; }
+.magic-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--primary-color); /* Uses your nice blue */
+  font-size: 1rem;
+  padding: 2px 0;
+  transition: transform 0.2s;
+}
+.magic-button:hover {
+  transform: scale(1.2);
+}
 
 /* Item Details */
 /* RESTORED: Original cover uploader (no background) */
@@ -468,4 +480,5 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .carousel-controls { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 90px; margin: 0 auto 10px auto; }
 .carousel-buttons-container { display: flex; justify-content: space-between; width: 100%; gap: 4px; }
 .carousel-button { background: #f0f0f0; border: 1px solid #ccc; padding: 4px; cursor: pointer; border-radius: 3px; font-size: 1.2em; font-weight: bold; display: flex; align-items: center; justify-content: center; height: auto; min-width: 0; width: calc(50% - 2px); }
+
 
