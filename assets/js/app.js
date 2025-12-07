@@ -128,7 +128,49 @@ const BooklistApp = (function() {
       frontCoverUploader: document.getElementById('front-cover-uploader'),
       brandingUploader: document.getElementById('branding-uploader'),
       generateCoverButton: document.getElementById('generate-cover-button'),
+      
+      // Cover mode toggle
+      coverAdvancedToggle: document.getElementById('cover-advanced-toggle'),
+      coverSimpleMode: document.getElementById('cover-simple-mode'),
+      coverAdvancedMode: document.getElementById('cover-advanced-mode'),
+      coverSimpleStyle: document.getElementById('cover-simple-style'),
+      coverAdvancedStyle: document.getElementById('cover-advanced-style'),
+      
+      // Simple mode elements
       coverTitleInput: document.getElementById('cover-title-input'),
+      coverFontSelect: document.getElementById('cover-font-select'),
+      coverFontSize: document.getElementById('cover-font-size'),
+      coverBoldToggle: document.getElementById('cover-bold-toggle'),
+      coverItalicToggle: document.getElementById('cover-italic-toggle'),
+      coverTextColor: document.getElementById('cover-text-color'),
+      
+      // Advanced mode: 3 lines with full styling
+      coverLines: [
+        {
+          input: document.getElementById('cover-line-1'),
+          font: document.getElementById('line-1-font'),
+          size: document.getElementById('line-1-size'),
+          bold: document.getElementById('line-1-bold'),
+          italic: document.getElementById('line-1-italic'),
+          color: document.getElementById('line-1-color'),
+        },
+        {
+          input: document.getElementById('cover-line-2'),
+          font: document.getElementById('line-2-font'),
+          size: document.getElementById('line-2-size'),
+          bold: document.getElementById('line-2-bold'),
+          italic: document.getElementById('line-2-italic'),
+          color: document.getElementById('line-2-color'),
+        },
+        {
+          input: document.getElementById('cover-line-3'),
+          font: document.getElementById('line-3-font'),
+          size: document.getElementById('line-3-size'),
+          bold: document.getElementById('line-3-bold'),
+          italic: document.getElementById('line-3-italic'),
+          color: document.getElementById('line-3-color'),
+        },
+      ],
       
       // QR Code
       qrCodeArea: document.getElementById('qr-code-area'),
@@ -996,31 +1038,74 @@ const BooklistApp = (function() {
    * Extracts style settings from the cover title style group
    */
   function getCoverTitleStyles() {
-    const titleStyleGroup = document.getElementById('cover-title-style-group');
     const pxPerPt = CONFIG.PDF_DPI / 72;
+    const isAdvancedMode = elements.coverAdvancedToggle?.checked || false;
+    const bgColor = document.getElementById('cover-title-bg-color')?.value || '#000000';
     
-    const font = titleStyleGroup.querySelector('.font-select').value;
-    const isBold = titleStyleGroup.querySelector('.bold-toggle').classList.contains('active');
-    const isItalic = titleStyleGroup.querySelector('.italic-toggle').classList.contains('active');
-    const fontSizePt = parseInt(titleStyleGroup.querySelector('.font-size-input').value, 10);
-    const color = titleStyleGroup.querySelector('.color-picker').value;
-    const bgColor = document.getElementById('cover-title-bg-color').value;
-    
-    let fontStyle = '';
-    if (isItalic) fontStyle += 'italic ';
-    if (isBold) fontStyle += 'bold ';
-    
-    return {
-      font,
-      fontStyle,
-      fontSizePx: fontSizePt * pxPerPt,
-      color,
+    // Shared layout settings
+    const layoutSettings = {
       bgColor,
       outerMarginPx: parseFloat(document.getElementById('cover-title-outer-margin')?.value || '10') * pxPerPt,
       padXPx: parseFloat(document.getElementById('cover-title-pad-x')?.value || '0') * pxPerPt,
       padYPx: parseFloat(document.getElementById('cover-title-pad-y')?.value || '10') * pxPerPt,
       bgSideMarginPx: parseFloat(document.getElementById('cover-title-side-margin')?.value || '0') * pxPerPt,
     };
+    
+    if (!isAdvancedMode) {
+      // Simple mode: single text with shared styling
+      const text = (elements.coverTitleInput?.value || '').trim();
+      const font = elements.coverFontSelect?.value || "'Oswald', sans-serif";
+      const sizePt = parseInt(elements.coverFontSize?.value || '40', 10);
+      const isBold = elements.coverBoldToggle?.classList.contains('active') || false;
+      const isItalic = elements.coverItalicToggle?.classList.contains('active') || false;
+      const color = elements.coverTextColor?.value || '#FFFFFF';
+      
+      let fontStyle = '';
+      if (isItalic) fontStyle += 'italic ';
+      if (isBold) fontStyle += 'bold ';
+      
+      // Return in old format for compatibility with simple mode
+      return {
+        ...layoutSettings,
+        isAdvancedMode: false,
+        font,
+        fontStyle,
+        fontSizePx: sizePt * pxPerPt,
+        color,
+        text,
+      };
+    } else {
+      // Advanced mode: per-line styling
+      const lines = elements.coverLines.map(line => {
+        const text = (line.input?.value || '').trim();
+        if (!text) return null; // Skip empty lines
+        
+        const font = line.font?.value || "'Oswald', sans-serif";
+        const sizePt = parseInt(line.size?.value || '24', 10);
+        const isBold = line.bold?.classList.contains('active') || false;
+        const isItalic = line.italic?.classList.contains('active') || false;
+        const color = line.color?.value || '#FFFFFF';
+        
+        let fontStyle = '';
+        if (isItalic) fontStyle += 'italic ';
+        if (isBold) fontStyle += 'bold ';
+        
+        return {
+          text,
+          font,
+          fontStyle,
+          sizePx: sizePt * pxPerPt,
+          sizePt,
+          color,
+        };
+      }).filter(line => line !== null);
+      
+      return {
+        ...layoutSettings,
+        isAdvancedMode: true,
+        lines,
+      };
+    }
   }
   
   /**
@@ -1127,25 +1212,84 @@ const BooklistApp = (function() {
   }
   
   /**
-   * Draws the title bar with wrapped text
+   * Draws the title bar with text (handles both simple and advanced modes)
    */
-  function drawTitleBar(ctx, text, styles, layout, canvasWidth) {
+  function drawTitleBar(ctx, styles, layout, canvasWidth) {
     const { wrapTextMultiline } = createTextWrapper(ctx);
-    
-    ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
     const availableTextWidth = Math.max(0, canvasWidth - 2 * styles.bgSideMarginPx - 2 * styles.padXPx);
-    const lines = wrapTextMultiline(text, availableTextWidth);
     
-    // Calculate line metrics
-    const lineMetrics = lines.map(line => {
-      const m = ctx.measureText(line);
-      const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
-      const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
-      return { line, ascent, descent, height: ascent + descent };
+    // Build processed lines array based on mode
+    const processedLines = [];
+    
+    if (!styles.isAdvancedMode) {
+      // Simple mode: single text block
+      if (!styles.text || styles.text.length === 0) {
+        const bgY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
+        return { bgY, bgH: 0 };
+      }
+      
+      ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
+      const wrappedLines = wrapTextMultiline(styles.text, availableTextWidth);
+      
+      wrappedLines.forEach(wrappedText => {
+        const m = ctx.measureText(wrappedText);
+        const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
+        const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
+        processedLines.push({
+          text: wrappedText,
+          font: styles.font,
+          fontStyle: styles.fontStyle,
+          sizePx: styles.fontSizePx,
+          color: styles.color,
+          ascent,
+          descent,
+          height: ascent + descent,
+        });
+      });
+    } else {
+      // Advanced mode: multiple lines with individual styling
+      if (!styles.lines || styles.lines.length === 0) {
+        const bgY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
+        return { bgY, bgH: 0 };
+      }
+      
+      styles.lines.forEach(lineData => {
+        ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
+        const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
+        
+        wrappedLines.forEach(wrappedText => {
+          const m = ctx.measureText(wrappedText);
+          const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
+          const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
+          processedLines.push({
+            text: wrappedText,
+            font: lineData.font,
+            fontStyle: lineData.fontStyle,
+            sizePx: lineData.sizePx,
+            color: lineData.color,
+            ascent,
+            descent,
+            height: ascent + descent,
+          });
+        });
+      });
+    }
+    
+    if (processedLines.length === 0) {
+      const bgY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
+      return { bgY, bgH: 0 };
+    }
+    
+    // Calculate total height with gaps between lines
+    const baseGapPx = 8 * (CONFIG.PDF_DPI / 72); // 8pt base gap
+    let textBlockHeight = 0;
+    processedLines.forEach((line, i) => {
+      textBlockHeight += line.height;
+      if (i < processedLines.length - 1) {
+        textBlockHeight += baseGapPx;
+      }
     });
     
-    const gap = styles.fontSizePx * 0.2;
-    const textBlockHeight = lineMetrics.reduce((sum, lm) => sum + lm.height, 0) + gap * Math.max(0, lineMetrics.length - 1);
     const bgH = textBlockHeight + 2 * styles.padYPx;
     
     // Draw background
@@ -1156,18 +1300,22 @@ const BooklistApp = (function() {
     ctx.fillStyle = styles.bgColor;
     ctx.fillRect(bgX, bgY, bgW, bgH);
     
-    // Draw text
-    ctx.fillStyle = styles.color;
+    // Draw each line of text
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     
     const centerX = bgX + bgW / 2;
-    let y = bgY + (bgH - textBlockHeight) / 2;
+    let y = bgY + styles.padYPx;
     
-    lineMetrics.forEach((lm) => {
-      const baselineY = y + lm.ascent;
-      ctx.fillText(lm.line.trim(), centerX, baselineY);
-      y += lm.height + gap;
+    processedLines.forEach((line, i) => {
+      ctx.font = `${line.fontStyle} ${line.sizePx}px ${line.font}, sans-serif`;
+      ctx.fillStyle = line.color;
+      const baselineY = y + line.ascent;
+      ctx.fillText(line.text.trim(), centerX, baselineY);
+      y += line.height;
+      if (i < processedLines.length - 1) {
+        y += baseGapPx;
+      }
     });
     
     return { bgY, bgH };
@@ -1222,7 +1370,6 @@ const BooklistApp = (function() {
     
     const { canvas, ctx } = createCollageCanvas();
     const styles = getCoverTitleStyles();
-    const coverTitle = elements.coverTitleInput.value || 'My Booklist';
     
     // Wait for fonts, then load images and draw
     document.fonts.ready.then(() => {
@@ -1230,25 +1377,56 @@ const BooklistApp = (function() {
     }).then(images => {
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
-      
-      // Set up font for measurement
-      ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
-      
-      // Calculate title bar height first (need to measure text)
       const { wrapTextMultiline } = createTextWrapper(ctx);
       const availableTextWidth = Math.max(0, canvasWidth - 2 * styles.bgSideMarginPx - 2 * styles.padXPx);
-      const lines = wrapTextMultiline(coverTitle, availableTextWidth);
       
-      const lineMetrics = lines.map(line => {
-        const m = ctx.measureText(line);
-        const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
-        const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
-        return { height: ascent + descent };
-      });
+      // Calculate title bar height based on mode
+      let titleBarHeight = 0;
+      const baseGapPx = 8 * (CONFIG.PDF_DPI / 72);
       
-      const gap = styles.fontSizePx * 0.2;
-      const textBlockHeight = lineMetrics.reduce((sum, lm) => sum + lm.height, 0) + gap * Math.max(0, lineMetrics.length - 1);
-      const titleBarHeight = textBlockHeight + 2 * styles.padYPx;
+      if (!styles.isAdvancedMode) {
+        // Simple mode
+        if (styles.text && styles.text.length > 0) {
+          ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
+          const wrappedLines = wrapTextMultiline(styles.text, availableTextWidth);
+          let textBlockHeight = 0;
+          
+          wrappedLines.forEach((wrappedText, i) => {
+            const m = ctx.measureText(wrappedText);
+            const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
+            const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
+            textBlockHeight += ascent + descent;
+            if (i < wrappedLines.length - 1) {
+              textBlockHeight += baseGapPx;
+            }
+          });
+          
+          titleBarHeight = textBlockHeight + 2 * styles.padYPx;
+        }
+      } else {
+        // Advanced mode
+        if (styles.lines && styles.lines.length > 0) {
+          let textBlockHeight = 0;
+          
+          styles.lines.forEach((lineData, i) => {
+            ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
+            const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
+            
+            wrappedLines.forEach(wrappedText => {
+              const m = ctx.measureText(wrappedText);
+              const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
+              const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
+              textBlockHeight += ascent + descent;
+            });
+            
+            if (i < styles.lines.length - 1) {
+              textBlockHeight += baseGapPx;
+            }
+          });
+          
+          titleBarHeight = textBlockHeight + 2 * styles.padYPx;
+        }
+      }
       
       // Calculate layout
       const layout = calculateCollageLayout(canvasWidth, canvasHeight, titleBarHeight, styles.outerMarginPx);
@@ -1263,7 +1441,7 @@ const BooklistApp = (function() {
       }
       
       // Draw title bar
-      const { bgY, bgH } = drawTitleBar(ctx, coverTitle, styles, layout, canvasWidth);
+      const { bgY, bgH } = drawTitleBar(ctx, styles, layout, canvasWidth);
       
       // Draw bottom grid of covers
       const gridTopY = bgY + bgH + styles.outerMarginPx;
@@ -1294,6 +1472,27 @@ const BooklistApp = (function() {
   function autoRegenerateCoverIfAble() {
     if (elements.frontCoverUploader.classList.contains('has-image')) {
       generateCoverCollage();
+    }
+  }
+  
+  /**
+   * Toggles between simple and advanced cover text modes
+   */
+  function toggleCoverMode(isAdvanced) {
+    // Toggle input visibility
+    if (elements.coverSimpleMode) {
+      elements.coverSimpleMode.style.display = isAdvanced ? 'none' : 'block';
+    }
+    if (elements.coverAdvancedMode) {
+      elements.coverAdvancedMode.style.display = isAdvanced ? 'flex' : 'none';
+    }
+    
+    // Toggle style controls visibility
+    if (elements.coverSimpleStyle) {
+      elements.coverSimpleStyle.style.display = isAdvanced ? 'none' : 'block';
+    }
+    if (elements.coverAdvancedStyle) {
+      elements.coverAdvancedStyle.style.display = isAdvanced ? 'block' : 'none';
     }
   }
   
@@ -1463,18 +1662,29 @@ const BooklistApp = (function() {
       };
     });
     
-    const ctGroup = document.getElementById('cover-title-style-group');
+    // Cover title styles - shared settings
     styles.coverTitle = {
-      font: ctGroup?.querySelector('.font-select')?.value ?? 'Oswald',
-      sizePt: parseFloat(ctGroup?.querySelector('.font-size-input')?.value ?? '24'),
-      color: ctGroup?.querySelector('.color-picker')?.value ?? '#000000',
-      bold: !!ctGroup?.querySelector('.bold-toggle')?.classList.contains('active'),
-      italic: !!ctGroup?.querySelector('.italic-toggle')?.classList.contains('active'),
       outerMarginPt: parseFloat(document.getElementById('cover-title-outer-margin')?.value ?? '10'),
       padXPt: parseFloat(document.getElementById('cover-title-pad-x')?.value ?? '0'),
       padYPt: parseFloat(document.getElementById('cover-title-pad-y')?.value ?? '10'),
       sideMarginPt: parseFloat(document.getElementById('cover-title-side-margin')?.value ?? '0'),
-      bgColor: document.getElementById('cover-title-bg-color')?.value ?? '#FFFFFF',
+      bgColor: document.getElementById('cover-title-bg-color')?.value ?? '#000000',
+      // Simple mode styling
+      simple: {
+        font: elements.coverFontSelect?.value ?? "'Oswald', sans-serif",
+        sizePt: parseFloat(elements.coverFontSize?.value ?? '40'),
+        color: elements.coverTextColor?.value ?? '#FFFFFF',
+        bold: !!elements.coverBoldToggle?.classList.contains('active'),
+        italic: !!elements.coverItalicToggle?.classList.contains('active'),
+      },
+      // Advanced mode per-line styling
+      lines: elements.coverLines.map(line => ({
+        font: line.font?.value ?? "'Oswald', sans-serif",
+        sizePt: parseFloat(line.size?.value ?? '24'),
+        color: line.color?.value ?? '#FFFFFF',
+        bold: !!line.bold?.classList.contains('active'),
+        italic: !!line.italic?.classList.contains('active'),
+      })),
     };
     
     return styles;
@@ -1496,6 +1706,11 @@ const BooklistApp = (function() {
     // Get list name (used for filename)
     const listName = (elements.listNameInput?.value || '').trim();
     
+    // Capture cover text (both modes)
+    const isAdvancedMode = elements.coverAdvancedToggle?.checked || false;
+    const coverTitle = elements.coverTitleInput?.value || ''; // Simple mode text
+    const coverLineTexts = elements.coverLines.map(line => line.input?.value || ''); // Advanced mode texts
+    
     return {
       schema: 'booklist-v1',
       savedAt: new Date().toISOString(),
@@ -1508,7 +1723,9 @@ const BooklistApp = (function() {
         stretchBlockCovers: !!elements.stretchBlockCoversToggle?.checked,
         showQr: !!elements.toggleQrCode?.checked,
         showBranding: !!elements.toggleBranding?.checked,
-        coverTitle: elements.coverTitleInput?.value || '',
+        coverAdvancedMode: isAdvancedMode,
+        coverTitle, // Simple mode text (backwards compatible)
+        coverLineTexts, // Advanced mode texts
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: (elements.qrCodeTextArea?.innerText !== CONFIG.PLACEHOLDERS.qrText)
           ? (elements.qrCodeTextArea?.innerText || '')
@@ -1581,22 +1798,10 @@ const BooklistApp = (function() {
       if (italicBtn) italicBtn.classList.toggle('active', !!s.italic);
     });
     
+    // Cover title styles
     const ct = loadedStyles.coverTitle || {};
-    const ctGroup = document.getElementById('cover-title-style-group');
-    if (ctGroup) {
-      const fontSel = ctGroup.querySelector('.font-select');
-      const sizeInp = ctGroup.querySelector('.font-size-input');
-      const colorInp = ctGroup.querySelector('.color-picker');
-      const boldBtn = ctGroup.querySelector('.bold-toggle');
-      const italicBtn = ctGroup.querySelector('.italic-toggle');
-      
-      if (fontSel) fontSel.value = ct.font ?? fontSel.value;
-      if (sizeInp) sizeInp.value = ct.sizePt ?? sizeInp.value;
-      if (colorInp) colorInp.value = ct.color ?? colorInp.value;
-      if (boldBtn) boldBtn.classList.toggle('active', !!ct.bold);
-      if (italicBtn) italicBtn.classList.toggle('active', !!ct.italic);
-    }
     
+    // Shared settings
     const setNum = (id, val) => { const el = document.getElementById(id); if (el && typeof val === 'number') el.value = val; };
     const setStr = (id, val) => { const el = document.getElementById(id); if (el && typeof val === 'string') el.value = val; };
     
@@ -1605,6 +1810,26 @@ const BooklistApp = (function() {
     setNum('cover-title-pad-y', ct.padYPt);
     setNum('cover-title-side-margin', ct.sideMarginPt);
     setStr('cover-title-bg-color', ct.bgColor);
+    
+    // Simple mode styling
+    const simple = ct.simple || {};
+    if (elements.coverFontSelect) elements.coverFontSelect.value = simple.font ?? elements.coverFontSelect.value;
+    if (elements.coverFontSize) elements.coverFontSize.value = simple.sizePt ?? 40;
+    if (elements.coverTextColor) elements.coverTextColor.value = simple.color ?? '#FFFFFF';
+    if (elements.coverBoldToggle) elements.coverBoldToggle.classList.toggle('active', simple.bold !== false);
+    if (elements.coverItalicToggle) elements.coverItalicToggle.classList.toggle('active', !!simple.italic);
+    
+    // Advanced mode per-line styling
+    const savedLines = ct.lines || [];
+    const defaultSizes = [48, 28, 20];
+    elements.coverLines.forEach((line, i) => {
+      const saved = savedLines[i] || {};
+      if (line.font) line.font.value = saved.font ?? "'Oswald', sans-serif";
+      if (line.size) line.size.value = saved.sizePt ?? defaultSizes[i];
+      if (line.color) line.color.value = saved.color ?? '#FFFFFF';
+      if (line.bold) line.bold.classList.toggle('active', i === 0 ? saved.bold !== false : !!saved.bold);
+      if (line.italic) line.italic.classList.toggle('active', !!saved.italic);
+    });
   }
   
   function applyUploaderImage(uploaderEl, dataUrl) {
@@ -1639,7 +1864,26 @@ const BooklistApp = (function() {
     if (elements.toggleBranding) elements.toggleBranding.checked = !!loaded.ui?.showBranding;
     if (elements.stretchCoversToggle) elements.stretchCoversToggle.checked = !!loaded.ui?.stretchCovers;
     if (elements.stretchBlockCoversToggle) elements.stretchBlockCoversToggle.checked = !!loaded.ui?.stretchBlockCovers;
-    if (elements.coverTitleInput) elements.coverTitleInput.value = loaded.ui?.coverTitle || '';
+    
+    // Restore cover mode and text
+    const isAdvancedMode = !!loaded.ui?.coverAdvancedMode;
+    if (elements.coverAdvancedToggle) {
+      elements.coverAdvancedToggle.checked = isAdvancedMode;
+      toggleCoverMode(isAdvancedMode);
+    }
+    
+    // Simple mode text (with backwards compatibility)
+    if (elements.coverTitleInput) {
+      elements.coverTitleInput.value = loaded.ui?.coverTitle || '';
+    }
+    
+    // Advanced mode line texts
+    const savedLineTexts = loaded.ui?.coverLineTexts || [];
+    elements.coverLines.forEach((line, i) => {
+      if (line.input) {
+        line.input.value = savedLineTexts[i] || '';
+      }
+    });
     
     // QR Code URL
     if (elements.qrUrlInput) elements.qrUrlInput.value = loaded.ui?.qrCodeUrl || '';
@@ -1846,6 +2090,106 @@ const BooklistApp = (function() {
     elements.stretchCoversToggle.addEventListener('change', autoRegenerateCoverIfAble);
     elements.stretchBlockCoversToggle.addEventListener('change', applyBlockCoverStyle);
     
+    // Cover mode toggle
+    if (elements.coverAdvancedToggle) {
+      elements.coverAdvancedToggle.addEventListener('change', (e) => {
+        toggleCoverMode(e.target.checked);
+        debouncedSave();
+        autoRegenerateCoverIfAble();
+      });
+    }
+    
+    // Simple mode: textarea and style controls
+    if (elements.coverTitleInput) {
+      elements.coverTitleInput.addEventListener('input', () => {
+        debouncedSave();
+        autoRegenerateCoverIfAble();
+      });
+    }
+    
+    // Simple mode style controls
+    const simpleStyleElements = [
+      elements.coverFontSelect,
+      elements.coverFontSize,
+      elements.coverTextColor
+    ];
+    simpleStyleElements.forEach(el => {
+      if (el) {
+        el.addEventListener('input', () => {
+          debouncedSave();
+          autoRegenerateCoverIfAble();
+        });
+        el.addEventListener('change', () => {
+          debouncedSave();
+          autoRegenerateCoverIfAble();
+        });
+      }
+    });
+    
+    // Simple mode bold/italic toggles
+    if (elements.coverBoldToggle) {
+      elements.coverBoldToggle.addEventListener('click', () => {
+        elements.coverBoldToggle.classList.toggle('active');
+        debouncedSave();
+        autoRegenerateCoverIfAble();
+      });
+    }
+    if (elements.coverItalicToggle) {
+      elements.coverItalicToggle.addEventListener('click', () => {
+        elements.coverItalicToggle.classList.toggle('active');
+        debouncedSave();
+        autoRegenerateCoverIfAble();
+      });
+    }
+    
+    // Advanced mode: per-line inputs and style controls
+    elements.coverLines.forEach(line => {
+      // Text input
+      if (line.input) {
+        line.input.addEventListener('input', () => {
+          debouncedSave();
+          autoRegenerateCoverIfAble();
+        });
+      }
+      // Font select
+      if (line.font) {
+        line.font.addEventListener('change', () => {
+          debouncedSave();
+          autoRegenerateCoverIfAble();
+        });
+      }
+      // Size input
+      if (line.size) {
+        line.size.addEventListener('input', () => {
+          debouncedSave();
+          autoRegenerateCoverIfAble();
+        });
+      }
+      // Color picker
+      if (line.color) {
+        line.color.addEventListener('input', () => {
+          debouncedSave();
+          autoRegenerateCoverIfAble();
+        });
+      }
+      // Bold toggle
+      if (line.bold) {
+        line.bold.addEventListener('click', () => {
+          line.bold.classList.toggle('active');
+          debouncedSave();
+          autoRegenerateCoverIfAble();
+        });
+      }
+      // Italic toggle
+      if (line.italic) {
+        line.italic.addEventListener('click', () => {
+          line.italic.classList.toggle('active');
+          debouncedSave();
+          autoRegenerateCoverIfAble();
+        });
+      }
+    });
+    
     // Layout toggles
     elements.toggleQrCode.addEventListener('change', handleLayoutChange);
     elements.toggleBranding.addEventListener('change', handleLayoutChange);
@@ -1853,12 +2197,15 @@ const BooklistApp = (function() {
     // QR code
     elements.generateQrButton.addEventListener('click', generateQrCode);
     
-    // Spacing inputs for cover auto-regen
-    const spacingInputIds = ['cover-title-outer-margin', 'cover-title-pad-x', 'cover-title-pad-y', 'cover-title-side-margin'];
-    spacingInputIds.forEach(id => {
+    // Spacing inputs and background color for cover auto-regen
+    const coverLayoutInputIds = ['cover-title-outer-margin', 'cover-title-pad-x', 'cover-title-pad-y', 'cover-title-side-margin', 'cover-title-bg-color'];
+    coverLayoutInputIds.forEach(id => {
       const el = document.getElementById(id);
       if (el) {
-        ['input', 'change'].forEach(evt => el.addEventListener(evt, autoRegenerateCoverIfAble));
+        ['input', 'change'].forEach(evt => el.addEventListener(evt, () => {
+          debouncedSave();
+          autoRegenerateCoverIfAble();
+        }));
       }
     });
     
@@ -1952,6 +2299,9 @@ const BooklistApp = (function() {
     initializeBooklist();
     applyStyles();
     initializeSortable();
+    
+    // Set default cover mode (simple)
+    toggleCoverMode(false);
     
     // Try restoring draft
     restoreDraftLocalIfPresent();
