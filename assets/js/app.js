@@ -150,6 +150,9 @@ const BooklistApp = (function() {
       resetBlankButton: document.getElementById('reset-blank-button'),
       loadListInput: document.getElementById('load-list-input'),
       
+      // List name
+      listNameInput: document.getElementById('list-name-input'),
+      
       // Notification
       notificationArea: document.getElementById('notification-area'),
     };
@@ -1327,18 +1330,9 @@ const BooklistApp = (function() {
   async function exportPdf() {
     setLoading(elements.exportPdfButton, true, 'Generating...');
     
-    // Get file name
-    const coverTitle = (elements.coverTitleInput?.value || '').trim();
-    let baseName = 'booklist';
-    
-    if (coverTitle.length > 0) {
-      baseName = coverTitle;
-    } else {
-      const uploadedFileName = elements.frontCoverUploader?.dataset.fileName;
-      if (uploadedFileName) {
-        baseName = uploadedFileName.replace(/\.[^/.]+$/, "");
-      }
-    }
+    // Get file name from list name input (primary), or fallback to 'booklist'
+    const listName = (elements.listNameInput?.value || '').trim();
+    const baseName = listName.length > 0 ? listName : 'booklist';
     
     const safeBase = baseName.replace(/[^\w.-]+/g, '_');
     const suggestedName = `${safeBase}.pdf`;
@@ -1499,22 +1493,15 @@ const BooklistApp = (function() {
       customCoverData: b.customCoverData || null,
     }));
     
-    const coverTitle = (elements.coverTitleInput?.value || '').trim();
-    let fileNameHint = 'booklist';
-    
-    if (coverTitle.length > 0) {
-      fileNameHint = coverTitle;
-    } else {
-      const uploadedFileName = elements.frontCoverUploader?.dataset.fileName;
-      if (uploadedFileName) {
-        fileNameHint = uploadedFileName.replace(/\.[^/.]+$/, "");
-      }
-    }
+    // Get list name (used for filename)
+    const listName = (elements.listNameInput?.value || '').trim();
     
     return {
       schema: 'booklist-v1',
       savedAt: new Date().toISOString(),
-      meta: { fileNameHint },
+      meta: { 
+        listName: listName || 'booklist'
+      },
       books,
       ui: {
         stretchCovers: !!elements.stretchCoversToggle?.checked,
@@ -1538,7 +1525,7 @@ const BooklistApp = (function() {
   async function downloadBooklist(state) {
     const data = JSON.stringify(state, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
-    const safeBase = (state.meta?.fileNameHint || 'booklist').replace(/[^\w.-]+/g, '_');
+    const safeBase = (state.meta?.listName || 'booklist').replace(/[^\w.-]+/g, '_');
     const suggestedName = `${safeBase}.booklist`;
     
     const supportsFSAccess = 'showSaveFilePicker' in window &&
@@ -1641,22 +1628,18 @@ const BooklistApp = (function() {
       return;
     }
     
+    // Restore list name (with backwards compatibility for older files)
+    const listName = loaded.meta?.listName || loaded.meta?.fileNameHint || '';
+    if (elements.listNameInput) {
+      elements.listNameInput.value = listName !== 'booklist' ? listName : '';
+    }
+    
     // UI toggles
     if (elements.toggleQrCode) elements.toggleQrCode.checked = !!loaded.ui?.showQr;
     if (elements.toggleBranding) elements.toggleBranding.checked = !!loaded.ui?.showBranding;
     if (elements.stretchCoversToggle) elements.stretchCoversToggle.checked = !!loaded.ui?.stretchCovers;
     if (elements.stretchBlockCoversToggle) elements.stretchBlockCoversToggle.checked = !!loaded.ui?.stretchBlockCovers;
     if (elements.coverTitleInput) elements.coverTitleInput.value = loaded.ui?.coverTitle || '';
-    
-    // Restore file name hint
-    const coverTitle = (loaded.ui?.coverTitle || '').trim();
-    const fileNameHint = loaded.meta?.fileNameHint || '';
-    
-    if (elements.frontCoverUploader && fileNameHint && !coverTitle) {
-      elements.frontCoverUploader.dataset.fileName = `${fileNameHint}.png`;
-    } else if (elements.frontCoverUploader) {
-      delete elements.frontCoverUploader.dataset.fileName;
-    }
     
     // QR Code URL
     if (elements.qrUrlInput) elements.qrUrlInput.value = loaded.ui?.qrCodeUrl || '';
@@ -1852,6 +1835,11 @@ const BooklistApp = (function() {
       e.preventDefault();
       getBooks();
     });
+    
+    // List name input (triggers autosave)
+    if (elements.listNameInput) {
+      elements.listNameInput.addEventListener('input', debouncedSave);
+    }
     
     // Cover generation
     elements.generateCoverButton.addEventListener('click', generateCoverCollage);
