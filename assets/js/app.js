@@ -1479,20 +1479,20 @@ const BooklistApp = (function() {
    * Toggles between simple and advanced cover text modes
    */
   function toggleCoverMode(isAdvanced) {
-    // Toggle input visibility
+    // Toggle input visibility using classes
     if (elements.coverSimpleMode) {
-      elements.coverSimpleMode.style.display = isAdvanced ? 'none' : 'block';
+      elements.coverSimpleMode.classList.toggle('hidden', isAdvanced);
     }
     if (elements.coverAdvancedMode) {
-      elements.coverAdvancedMode.style.display = isAdvanced ? 'flex' : 'none';
+      elements.coverAdvancedMode.classList.toggle('visible', isAdvanced);
     }
     
-    // Toggle style controls visibility
+    // Toggle style controls visibility using classes
     if (elements.coverSimpleStyle) {
-      elements.coverSimpleStyle.style.display = isAdvanced ? 'none' : 'block';
+      elements.coverSimpleStyle.classList.toggle('hidden', isAdvanced);
     }
     if (elements.coverAdvancedStyle) {
-      elements.coverAdvancedStyle.style.display = isAdvanced ? 'block' : 'none';
+      elements.coverAdvancedStyle.classList.toggle('visible', isAdvanced);
     }
   }
   
