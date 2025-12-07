@@ -175,28 +175,122 @@
 
         <div class="form-group" id="cover-title-style-group">
           <label>Cover Header Style</label>
-          <div class="control-row">
-            <select class="font-select" aria-label="Cover title font family">
-              <option value="'Oswald', sans-serif">Oswald</option>
-              <option value="'Arvo', serif">Arvo</option>
-              <option value="'Anton', sans-serif">Anton</option>
-              <option value="'Lato', sans-serif">Lato</option>
-              <option value="'Roboto', sans-serif">Roboto</option>
-              <option value="'Georgia', serif">Georgia</option>
-              <option value="'Merriweather', serif">Merriweather</option>
-              <option value="'EB Garamond', serif">EB Garamond</option>
-              <option value="'Helvetica', sans-serif">Helvetica</option>
-              <option value="'Bangers', system-ui">Bangers</option>
-              <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
-              <option value="'Cinzel', serif">Cinzel</option>
-            </select>
-            <input class="font-size-input" type="number" min="8" value="40" aria-label="Cover title font size"/>
+          
+          <div class="control-row checkbox-row">
+            <input id="cover-advanced-toggle" type="checkbox"/>
+            <label for="cover-advanced-toggle">Multi-line mode (customize each line)</label>
           </div>
-          <div class="control-row">
-            <button class="bold-toggle active btn-icon" aria-label="Toggle bold" aria-pressed="true">B</button>
-            <button class="italic-toggle btn-icon" aria-label="Toggle italic" aria-pressed="false">I</button>
-            <input class="color-picker" type="color" value="#FFFFFF" aria-label="Cover title text color"/>
-            <div class="mini-label">BG:</div>
+          
+          <!-- Simple mode styling (shared for all text) -->
+          <div id="cover-simple-style">
+            <div class="control-row">
+              <select class="font-select" id="cover-font-select" aria-label="Cover title font family">
+                <option value="'Oswald', sans-serif">Oswald</option>
+                <option value="'Arvo', serif">Arvo</option>
+                <option value="'Anton', sans-serif">Anton</option>
+                <option value="'Lato', sans-serif">Lato</option>
+                <option value="'Roboto', sans-serif">Roboto</option>
+                <option value="'Georgia', serif">Georgia</option>
+                <option value="'Merriweather', serif">Merriweather</option>
+                <option value="'EB Garamond', serif">EB Garamond</option>
+                <option value="'Helvetica', sans-serif">Helvetica</option>
+                <option value="'Bangers', system-ui">Bangers</option>
+                <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                <option value="'Cinzel', serif">Cinzel</option>
+              </select>
+              <input class="font-size-input" id="cover-font-size" type="number" min="8" value="40" aria-label="Cover title font size"/>
+            </div>
+            <div class="control-row">
+              <button class="bold-toggle active btn-icon" id="cover-bold-toggle" aria-label="Toggle bold" aria-pressed="true">B</button>
+              <button class="italic-toggle btn-icon" id="cover-italic-toggle" aria-label="Toggle italic" aria-pressed="false">I</button>
+              <input class="color-picker" id="cover-text-color" type="color" value="#FFFFFF" aria-label="Cover title text color"/>
+            </div>
+          </div>
+          
+          <!-- Advanced mode: per-line styling -->
+          <div id="cover-advanced-style" style="display: none;">
+            <div class="line-style-group">
+              <div class="line-style-label">Line 1</div>
+              <div class="control-row">
+                <select class="font-select line-font" id="line-1-font" aria-label="Line 1 font">
+                  <option value="'Oswald', sans-serif">Oswald</option>
+                  <option value="'Arvo', serif">Arvo</option>
+                  <option value="'Anton', sans-serif">Anton</option>
+                  <option value="'Lato', sans-serif">Lato</option>
+                  <option value="'Roboto', sans-serif">Roboto</option>
+                  <option value="'Georgia', serif">Georgia</option>
+                  <option value="'Merriweather', serif">Merriweather</option>
+                  <option value="'EB Garamond', serif">EB Garamond</option>
+                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Bangers', system-ui">Bangers</option>
+                  <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                  <option value="'Cinzel', serif">Cinzel</option>
+                </select>
+                <input class="font-size-input line-size" id="line-1-size" type="number" min="8" value="48" aria-label="Line 1 size"/>
+              </div>
+              <div class="control-row">
+                <button class="bold-toggle active btn-icon line-bold" id="line-1-bold" aria-label="Line 1 bold">B</button>
+                <button class="italic-toggle btn-icon line-italic" id="line-1-italic" aria-label="Line 1 italic">I</button>
+                <input class="color-picker line-color" id="line-1-color" type="color" value="#FFFFFF" aria-label="Line 1 color"/>
+              </div>
+            </div>
+            
+            <div class="line-style-group">
+              <div class="line-style-label">Line 2</div>
+              <div class="control-row">
+                <select class="font-select line-font" id="line-2-font" aria-label="Line 2 font">
+                  <option value="'Oswald', sans-serif">Oswald</option>
+                  <option value="'Arvo', serif">Arvo</option>
+                  <option value="'Anton', sans-serif">Anton</option>
+                  <option value="'Lato', sans-serif">Lato</option>
+                  <option value="'Roboto', sans-serif">Roboto</option>
+                  <option value="'Georgia', serif">Georgia</option>
+                  <option value="'Merriweather', serif">Merriweather</option>
+                  <option value="'EB Garamond', serif">EB Garamond</option>
+                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Bangers', system-ui">Bangers</option>
+                  <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                  <option value="'Cinzel', serif">Cinzel</option>
+                </select>
+                <input class="font-size-input line-size" id="line-2-size" type="number" min="8" value="28" aria-label="Line 2 size"/>
+              </div>
+              <div class="control-row">
+                <button class="bold-toggle btn-icon line-bold" id="line-2-bold" aria-label="Line 2 bold">B</button>
+                <button class="italic-toggle btn-icon line-italic" id="line-2-italic" aria-label="Line 2 italic">I</button>
+                <input class="color-picker line-color" id="line-2-color" type="color" value="#FFFFFF" aria-label="Line 2 color"/>
+              </div>
+            </div>
+            
+            <div class="line-style-group">
+              <div class="line-style-label">Line 3</div>
+              <div class="control-row">
+                <select class="font-select line-font" id="line-3-font" aria-label="Line 3 font">
+                  <option value="'Oswald', sans-serif">Oswald</option>
+                  <option value="'Arvo', serif">Arvo</option>
+                  <option value="'Anton', sans-serif">Anton</option>
+                  <option value="'Lato', sans-serif">Lato</option>
+                  <option value="'Roboto', sans-serif">Roboto</option>
+                  <option value="'Georgia', serif">Georgia</option>
+                  <option value="'Merriweather', serif">Merriweather</option>
+                  <option value="'EB Garamond', serif">EB Garamond</option>
+                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Bangers', system-ui">Bangers</option>
+                  <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                  <option value="'Cinzel', serif">Cinzel</option>
+                </select>
+                <input class="font-size-input line-size" id="line-3-size" type="number" min="8" value="20" aria-label="Line 3 size"/>
+              </div>
+              <div class="control-row">
+                <button class="bold-toggle btn-icon line-bold" id="line-3-bold" aria-label="Line 3 bold">B</button>
+                <button class="italic-toggle btn-icon line-italic" id="line-3-italic" aria-label="Line 3 italic">I</button>
+                <input class="color-picker line-color" id="line-3-color" type="color" value="#FFFFFF" aria-label="Line 3 color"/>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Shared settings for both modes -->
+          <div class="control-row" style="margin-top: 10px;">
+            <div class="mini-label">Background:</div>
             <input id="cover-title-bg-color" class="color-picker" type="color" value="#000000" aria-label="Cover title background color"/>
           </div>
           
@@ -299,8 +393,19 @@
                 Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool below<br/>(This will use the first 12 covers from your list to create a collage)
               </div>
               <div id="cover-generate-controls">
-                <label for="cover-title-input" class="sr-only">Cover title text</label>
-                <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
+                <!-- Simple mode: single textarea -->
+                <div id="cover-simple-mode">
+                  <label for="cover-title-input" class="sr-only">Cover title text</label>
+                  <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
+                </div>
+                
+                <!-- Advanced mode: 3 line inputs -->
+                <div id="cover-advanced-mode" style="display: none;">
+                  <input type="text" class="cover-line-input" id="cover-line-1" placeholder="Line 1 (e.g., Main Title)" aria-label="Cover line 1 text"/>
+                  <input type="text" class="cover-line-input" id="cover-line-2" placeholder="Line 2 (e.g., Subtitle)" aria-label="Cover line 2 text"/>
+                  <input type="text" class="cover-line-input" id="cover-line-3" placeholder="Line 3 (e.g., Date/Location)" aria-label="Cover line 3 text"/>
+                </div>
+                
                 <button id="generate-cover-button" class="btn btn-primary">Auto-Generate Cover</button>
               </div>
               <input type="file" accept="image/*" aria-hidden="true"/>
