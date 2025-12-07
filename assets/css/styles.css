@@ -53,6 +53,43 @@ body {
   overflow: hidden; 
 }
 
+/* --- LOADING STATE --- */
+.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.is-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Hide spinner on buttons with text (they show "Loading..." etc) */
+button.is-loading::after {
+  display: none;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Loading state for images/covers */
+.cover-carousel.is-loading img,
+.cover-uploader.is-loading img {
+  opacity: 0.5;
+}
+
 /* --- HEADER --- */
 .app-header {
   background-color: var(--secondary-color);
@@ -344,20 +381,51 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   right: auto; left: 100%; margin-left: 5px; margin-right: 0; 
 }
 .controls-right::after { left: auto; right: 100%; }
-.drag-handle { cursor: grab; font-size: 1.5rem; line-height: 1; color: #555; }
+.drag-handle { 
+  cursor: grab; 
+  font-size: 1.5rem; 
+  line-height: 1; 
+  color: #555;
+  padding: 4px;
+  border-radius: 3px;
+}
+.drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+.drag-handle:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
 .item-number { font-size: 1.2rem; font-weight: bold; color: #555; }
-.delete-button { background: none; border: none; color: #cc0000; font-weight: bold; font-size: 1.5rem; line-height: 1; padding: 0; cursor: pointer; }
+.delete-button { 
+  background: none; 
+  border: none; 
+  color: #cc0000; 
+  font-weight: bold; 
+  font-size: 1.5rem; 
+  line-height: 1; 
+  padding: 0; 
+  cursor: pointer;
+}
+.delete-button:focus {
+  outline: 2px solid var(--danger-color);
+  outline-offset: 2px;
+}
 .magic-button {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--primary-color); /* Uses your nice blue */
+  color: var(--primary-color);
   font-size: 1rem;
   padding: 2px 0;
   transition: transform 0.2s;
 }
 .magic-button:hover {
   transform: scale(1.2);
+}
+.magic-button:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
 /* Item Details */
@@ -382,12 +450,12 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 /* RESTORED: Visible borders on editable fields */
 .editable-field {
   width: 100%; 
-  border: 1px solid #eee; /* <-- Changed from transparent back to #eee */
+  border: 1px solid #eee;
   background: transparent; 
   padding: 0; margin: 0; line-height: 1.1;
   box-sizing: border-box; transition: border-color 0.2s;
 }
-.editable-field:hover { border-color: #999; } /* Original hover color */
+.editable-field:hover { border-color: #999; }
 .editable-field:focus { border-color: #999; outline: none; }
 
 .title-field { font-family: var(--title-font); color: var(--title-color); font-size: var(--title-font-size); font-weight: var(--title-font-weight); font-style: var(--title-font-style); margin-bottom: 0; }
@@ -480,5 +548,55 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .carousel-controls { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 90px; margin: 0 auto 10px auto; }
 .carousel-buttons-container { display: flex; justify-content: space-between; width: 100%; gap: 4px; }
 .carousel-button { background: #f0f0f0; border: 1px solid #ccc; padding: 4px; cursor: pointer; border-radius: 3px; font-size: 1.2em; font-weight: bold; display: flex; align-items: center; justify-content: center; height: auto; min-width: 0; width: calc(50% - 2px); }
+.carousel-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.carousel-button:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
 
+/* --- ACCESSIBILITY: Focus Indicators --- */
+.tab-btn:focus,
+.btn:focus,
+.btn-header:focus,
+.btn-header-primary:focus,
+.add-to-list-button:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
 
+/* Skip link (hidden until focused) */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--primary-color);
+  color: white;
+  padding: 8px 16px;
+  z-index: 1001;
+  text-decoration: none;
+  font-weight: 600;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* Screen reader only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Live region for screen reader announcements */
+[aria-live] {
+  position: relative;
+}
