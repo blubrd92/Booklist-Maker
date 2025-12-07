@@ -517,6 +517,12 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 }
 
 /* Simple mode textarea */
+#cover-simple-mode {
+  display: block;
+}
+#cover-simple-mode.hidden {
+  display: none;
+}
 #cover-simple-mode textarea {
   width: 100%;
   padding: 10px;
@@ -528,9 +534,13 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 
 /* Advanced mode line inputs */
 #cover-advanced-mode {
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 6px;
+  pointer-events: auto;
+}
+#cover-advanced-mode.visible {
+  display: flex;
 }
 .cover-line-input {
   width: 100%;
@@ -546,6 +556,20 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .cover-line-input:focus {
   border-color: var(--primary-color);
   outline: none;
+}
+
+/* Style control visibility */
+#cover-simple-style {
+  display: block;
+}
+#cover-simple-style.hidden {
+  display: none;
+}
+#cover-advanced-style {
+  display: none;
+}
+#cover-advanced-style.visible {
+  display: block;
 }
 
 /* Line style groups in settings */
