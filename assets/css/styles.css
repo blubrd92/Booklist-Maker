@@ -511,7 +511,6 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 #cover-generate-controls {
   position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
   width: 90%; display: flex; flex-direction: column; gap: 8px; pointer-events: none;
-  z-index: 10;
 }
 #generate-cover-button {
   width: 100%; padding: 10px; box-sizing: border-box; pointer-events: auto;
@@ -540,25 +539,20 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   gap: 6px;
   pointer-events: auto;
   width: 100%;
-  background: rgba(255, 0, 0, 0.3); /* DEBUG: red background to see where it is */
-  padding: 10px;
-  border-radius: 4px;
 }
 #cover-advanced-mode.visible {
   display: flex;
 }
 .cover-line-input {
   width: 100%;
-  padding: 12px 10px;
-  font-size: 1rem;
-  border: 3px solid #ff0000 !important;
+  padding: 10px;
+  font-size: 0.95rem;
+  border: 1px solid var(--border-color);
   border-radius: var(--radius);
   text-align: center;
-  background: yellow !important;
+  background: rgba(255, 255, 255, 0.95);
   pointer-events: auto;
   box-sizing: border-box;
-  min-height: 44px;
-  color: #000;
 }
 .cover-line-input::placeholder {
   color: #888;
@@ -613,7 +607,7 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   width: 480px; height: 144px; border: 1px dashed #ccc;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.custom-uploader input { display: none; }
+.custom-uploader input[type="file"] { display: none; }
 .custom-uploader img { max-height: 100%; max-width: 100%; }
 
 .qr-code-container {
