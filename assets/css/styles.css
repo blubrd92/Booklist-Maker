@@ -510,12 +510,69 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 #front-cover-uploader img { max-width: 100%; max-height: 100%; object-fit: contain; }
 #cover-generate-controls {
   position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-  width: 90%; display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+  width: 90%; display: flex; flex-direction: column; gap: 8px; pointer-events: none;
 }
-#cover-title-input, #generate-cover-button {
+#generate-cover-button {
   width: 100%; padding: 10px; box-sizing: border-box; pointer-events: auto;
 }
-#cover-title-input { resize: vertical; text-align: center; }
+
+/* Simple mode textarea */
+#cover-simple-mode textarea {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  resize: vertical;
+  text-align: center;
+}
+
+/* Advanced mode line inputs */
+#cover-advanced-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cover-line-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  text-align: center;
+  background: rgba(255, 255, 255, 0.95);
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+.cover-line-input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+/* Line style groups in settings */
+.line-style-group {
+  background: #f8f9fa;
+  padding: 8px;
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+}
+.line-style-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-light);
+  margin-bottom: 6px;
+}
+.line-style-group .control-row {
+  margin-bottom: 4px;
+}
+.line-style-group .control-row:last-child {
+  margin-bottom: 0;
+}
+.line-style-group .font-select {
+  flex: 1;
+}
+.line-style-group .font-size-input {
+  width: 55px;
+}
 
 /* Branding & QR */
 .custom-uploader {
