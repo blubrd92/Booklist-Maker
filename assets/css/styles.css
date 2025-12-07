@@ -323,7 +323,32 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   margin-left: auto; margin-right: auto; 
   flex-shrink: 0;
 }
-.toolbar h2 { margin: 0; font-size: 1.5rem; color: var(--secondary-color); }
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.toolbar-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--secondary-color);
+  white-space: nowrap;
+}
+.list-name-input {
+  width: 280px;
+  padding: 8px 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: white;
+  color: var(--secondary-color);
+}
+.list-name-input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
 .toolbar-hint { font-size: 0.9rem; color: var(--text-light); }
 
 /* --- PREVIEW AREA --- */
@@ -508,7 +533,11 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   flex-grow: 1; height: 100%; display: flex; flex-direction: column;
   justify-content: center; text-align: center;
   border: 1px solid #eee; padding: 4px; box-sizing: border-box;
-  font-family: var(--qr-font, 'Calibri'); font-size: var(--qr-font-size, 13pt); color: var(--qr-color, #000);
+  font-family: var(--qr-font, 'Calibri'); 
+  font-size: var(--qr-font-size, 13pt); 
+  color: var(--qr-color, #000);
+  font-weight: var(--qr-font-weight, normal);
+  font-style: var(--qr-font-style, normal);
 }
 #qr-code-text:hover { border-color: #ccc; }
 #qr-code-canvas {
