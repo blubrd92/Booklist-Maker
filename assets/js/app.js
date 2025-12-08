@@ -1098,7 +1098,7 @@ const BooklistApp = (function() {
       };
     } else {
       // Advanced mode: per-line styling
-      const lineSpacingPt = parseFloat(elements.coverLineSpacing?.value || '8');
+      const lineSpacingPt = parseFloat(elements.coverLineSpacing?.value || '10');
       const lines = elements.coverLines.map(line => {
         const text = (line.input?.value || '').trim();
         if (!text) return null; // Skip empty lines
@@ -1713,7 +1713,7 @@ const BooklistApp = (function() {
         bold: !!line.bold?.classList.contains('active'),
         italic: !!line.italic?.classList.contains('active'),
       })),
-      lineSpacingPt: parseFloat(elements.coverLineSpacing?.value ?? '8'),
+      lineSpacingPt: parseFloat(elements.coverLineSpacing?.value ?? '10'),
     };
     
     return styles;
@@ -1862,7 +1862,7 @@ const BooklistApp = (function() {
     
     // Line spacing
     if (elements.coverLineSpacing) {
-      elements.coverLineSpacing.value = ct.lineSpacingPt ?? 8;
+      elements.coverLineSpacing.value = ct.lineSpacingPt ?? 10;
     }
   }
   
