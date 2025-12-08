@@ -15,59 +15,69 @@
   <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bebas+Neue&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div id="notification-area"></div>
+  <!-- Accessibility: Skip to main content link -->
+  <a href="#preview-area" class="skip-link">Skip to preview</a>
+  
+  <div id="notification-area" role="alert" aria-live="polite"></div>
 
-  <nav class="app-header">
+  <nav class="app-header" role="banner">
     <div class="logo">
-      <i class="fa-solid fa-book-open"></i> Booklist Maker
+      <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklist Maker
     </div>
     
     <div class="header-actions">
-      <button id="load-list-button" class="btn btn-header" title="Load Saved List">
-        <i class="fa-solid fa-upload"></i> Load
+      <button id="load-list-button" class="btn btn-header" title="Load Saved List" aria-label="Load saved booklist file">
+        <i class="fa-solid fa-upload" aria-hidden="true"></i> Load
       </button>
-      <button id="save-list-button" class="btn btn-header" title="Save Current List">
-        <i class="fa-solid fa-download"></i> Save
+      <button id="save-list-button" class="btn btn-header" title="Save Current List" aria-label="Save current booklist to file">
+        <i class="fa-solid fa-download" aria-hidden="true"></i> Save
       </button>
-      <button id="reset-blank-button" class="btn btn-header" title="Reset to Blank">
-        <i class="fa-solid fa-rotate-right"></i> Reset
+      <button id="reset-blank-button" class="btn btn-header" title="Reset to Blank" aria-label="Reset to blank booklist">
+        <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Reset
       </button>
-      <button id="export-pdf-button" class="btn btn-header-primary" title="Generate PDF">
-        <i class="fa-solid fa-file-pdf"></i> Generate PDF
+      <button id="export-pdf-button" class="btn btn-header-primary" title="Generate PDF" aria-label="Generate PDF of booklist">
+        <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Generate PDF
       </button>
-      <input type="file" id="load-list-input" accept=".booklist,.json,application/json" style="display: none;" />
+      <input type="file" id="load-list-input" accept=".booklist,.json,application/json" style="display: none;" aria-hidden="true" />
     </div>
   </nav>
 
   <div class="app-container">
     
-    <aside class="sidebar">
+    <aside class="sidebar" role="complementary" aria-label="Search and Settings">
       
-      <div class="sidebar-tabs">
-        <button class="tab-btn active" onclick="openTab(event, 'tab-search')">
-          <i class="fa-solid fa-magnifying-glass"></i> Search
+      <div class="sidebar-tabs" role="tablist">
+        <button class="tab-btn active" onclick="openTab(event, 'tab-search')" role="tab" aria-selected="true" aria-controls="tab-search">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search
         </button>
-        <button class="tab-btn" onclick="openTab(event, 'tab-settings')">
-          <i class="fa-solid fa-sliders"></i> Settings
+        <button class="tab-btn" onclick="openTab(event, 'tab-settings')" role="tab" aria-selected="false" aria-controls="tab-settings">
+          <i class="fa-solid fa-sliders" aria-hidden="true"></i> Settings
         </button>
       </div>
 
-      <div id="tab-search" class="tab-content active">
+      <div id="tab-search" class="tab-content active" role="tabpanel" aria-labelledby="search-tab">
         <div class="sidebar-card">
           <div class="card-body">
-            <form id="search-form" class="search-form">
+            <form id="search-form" class="search-form" role="search">
               <div class="form-group">
+                <label for="keywordInput" class="sr-only">Search keywords</label>
                 <input id="keywordInput" type="text" placeholder="Keyword..."/>
               </div>
               <div class="advanced-search-toggle">
                 <details>
                   <summary>Advanced Fields</summary>
                   <div class="advanced-fields-grid">
+                    <label for="titleInput" class="sr-only">Title</label>
                     <input id="titleInput" type="text" placeholder="Title"/>
+                    <label for="authorInput" class="sr-only">Author</label>
                     <input id="authorInput" type="text" placeholder="Author"/>
+                    <label for="subjectInput" class="sr-only">Subject</label>
                     <input id="subjectInput" type="text" placeholder="Subject"/>
+                    <label for="isbnInput" class="sr-only">ISBN</label>
                     <input id="isbnInput" type="text" placeholder="ISBN"/>
+                    <label for="publisherInput" class="sr-only">Publisher</label>
                     <input id="publisherInput" type="text" placeholder="Publisher"/>
+                    <label for="personInput" class="sr-only">Contributor</label>
                     <input id="personInput" type="text" placeholder="Contributor"/>
                   </div>
                 </details>
@@ -76,15 +86,15 @@
             </form>
           </div>
         </div>
-        <div id="results-container" class="results-scroll-area"></div>
+        <div id="results-container" class="results-scroll-area" role="region" aria-label="Search results" aria-live="polite"></div>
       </div>
 
-      <div id="tab-settings" class="tab-content export-controls">
+      <div id="tab-settings" class="tab-content export-controls" role="tabpanel" aria-labelledby="settings-tab">
         
         <div class="form-group" data-style-group="title">
           <label>Book Title</label>
           <div class="control-row">
-            <select class="font-select">
+            <select class="font-select" aria-label="Title font family">
               <option value="'Georgia', serif">Georgia</option>
               <option value="'Calibri', sans-serif">Calibri</option>
               <option value="'Arvo', serif">Arvo</option>
@@ -98,19 +108,19 @@
               <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
               <option value="'Cinzel', serif">Cinzel</option>
             </select>
-            <input class="font-size-input" type="number" min="8" value="14"/>
+            <input class="font-size-input" type="number" min="8" value="14" aria-label="Title font size"/>
           </div>
           <div class="control-row">
-            <button class="bold-toggle btn-icon">B</button>
-            <button class="italic-toggle btn-icon">I</button>
-            <input class="color-picker" type="color" value="#000000"/>
+            <button class="bold-toggle btn-icon" aria-label="Toggle bold" aria-pressed="false">B</button>
+            <button class="italic-toggle btn-icon" aria-label="Toggle italic" aria-pressed="false">I</button>
+            <input class="color-picker" type="color" value="#000000" aria-label="Title color"/>
           </div>
         </div>
 
         <div class="form-group" data-style-group="author">
           <label>Author / Call #</label>
           <div class="control-row">
-            <select class="font-select">
+            <select class="font-select" aria-label="Author font family">
               <option value="'Calibri', sans-serif">Calibri</option>
               <option value="'Georgia', serif">Georgia</option>
               <option value="'Arvo', serif">Arvo</option>
@@ -124,19 +134,19 @@
               <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
               <option value="'Cinzel', serif">Cinzel</option>
             </select>
-            <input class="font-size-input" type="number" min="8" value="12"/>
+            <input class="font-size-input" type="number" min="8" value="12" aria-label="Author font size"/>
           </div>
           <div class="control-row">
-            <button class="bold-toggle active btn-icon">B</button>
-            <button class="italic-toggle btn-icon">I</button>
-            <input class="color-picker" type="color" value="#000000"/>
+            <button class="bold-toggle active btn-icon" aria-label="Toggle bold" aria-pressed="true">B</button>
+            <button class="italic-toggle btn-icon" aria-label="Toggle italic" aria-pressed="false">I</button>
+            <input class="color-picker" type="color" value="#000000" aria-label="Author color"/>
           </div>
         </div>
 
         <div class="form-group" data-style-group="desc">
           <label>Description</label>
           <div class="control-row">
-            <select class="font-select">
+            <select class="font-select" aria-label="Description font family">
               <option value="'Calibri', sans-serif">Calibri</option>
               <option value="'Georgia', serif">Georgia</option>
               <option value="'Arvo', serif">Arvo</option>
@@ -147,12 +157,12 @@
               <option value="'Helvetica', sans-serif">Helvetica</option>
               <option value="'Times New Roman', serif">Times New Roman</option>
             </select>
-            <input class="font-size-input" type="number" min="8" value="10"/>
+            <input class="font-size-input" type="number" min="8" value="10" aria-label="Description font size"/>
           </div>
           <div class="control-row">
-            <button class="bold-toggle btn-icon">B</button>
-            <button class="italic-toggle btn-icon">I</button>
-            <input class="color-picker" type="color" value="#000000"/>
+            <button class="bold-toggle btn-icon" aria-label="Toggle bold" aria-pressed="false">B</button>
+            <button class="italic-toggle btn-icon" aria-label="Toggle italic" aria-pressed="false">I</button>
+            <input class="color-picker" type="color" value="#000000" aria-label="Description color"/>
           </div>
         </div>
 
@@ -165,41 +175,140 @@
 
         <div class="form-group" id="cover-title-style-group">
           <label>Cover Header Style</label>
-          <div class="control-row">
-            <select class="font-select">
-              <option value="'Oswald', sans-serif">Oswald</option>
-              <option value="'Arvo', serif">Arvo</option>
-              <option value="'Anton', sans-serif">Anton</option>
-              <option value="'Lato', sans-serif">Lato</option>
-              <option value="'Roboto', sans-serif">Roboto</option>
-              <option value="'Georgia', serif">Georgia</option>
-              <option value="'Merriweather', serif">Merriweather</option>
-              <option value="'EB Garamond', serif">EB Garamond</option>
-              <option value="'Helvetica', sans-serif">Helvetica</option>
-              <option value="'Bangers', system-ui">Bangers</option>
-              <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
-              <option value="'Cinzel', serif">Cinzel</option>
-            </select>
-            <input class="font-size-input" type="number" min="8" value="40"/>
+          
+          <div class="control-row checkbox-row">
+            <input id="cover-advanced-toggle" type="checkbox"/>
+            <label for="cover-advanced-toggle">Multi-line mode (customize each line)</label>
           </div>
-          <div class="control-row">
-            <button class="bold-toggle active btn-icon">B</button>
-            <button class="italic-toggle btn-icon">I</button>
-            <input class="color-picker" type="color" value="#FFFFFF"/>
-            <div class="mini-label">BG:</div>
-            <input id="cover-title-bg-color" class="color-picker" type="color" value="#000000"/>
+          
+          <!-- Simple mode styling (shared for all text) -->
+          <div id="cover-simple-style">
+            <div class="control-row">
+              <select class="font-select" id="cover-font-select" aria-label="Cover title font family">
+                <option value="'Oswald', sans-serif">Oswald</option>
+                <option value="'Arvo', serif">Arvo</option>
+                <option value="'Anton', sans-serif">Anton</option>
+                <option value="'Lato', sans-serif">Lato</option>
+                <option value="'Roboto', sans-serif">Roboto</option>
+                <option value="'Georgia', serif">Georgia</option>
+                <option value="'Merriweather', serif">Merriweather</option>
+                <option value="'EB Garamond', serif">EB Garamond</option>
+                <option value="'Helvetica', sans-serif">Helvetica</option>
+                <option value="'Bangers', system-ui">Bangers</option>
+                <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                <option value="'Cinzel', serif">Cinzel</option>
+              </select>
+              <input class="font-size-input" id="cover-font-size" type="number" min="8" value="40" aria-label="Cover title font size"/>
+            </div>
+            <div class="control-row">
+              <button class="bold-toggle active btn-icon" id="cover-bold-toggle" aria-label="Toggle bold" aria-pressed="true">B</button>
+              <button class="italic-toggle btn-icon" id="cover-italic-toggle" aria-label="Toggle italic" aria-pressed="false">I</button>
+              <input class="color-picker" id="cover-text-color" type="color" value="#FFFFFF" aria-label="Cover title text color"/>
+            </div>
+          </div>
+          
+          <!-- Advanced mode: per-line styling -->
+          <div id="cover-advanced-style">
+            <div class="line-style-group">
+              <div class="line-style-label">Line 1</div>
+              <div class="control-row">
+                <select class="font-select line-font" id="line-1-font" aria-label="Line 1 font">
+                  <option value="'Oswald', sans-serif">Oswald</option>
+                  <option value="'Arvo', serif">Arvo</option>
+                  <option value="'Anton', sans-serif">Anton</option>
+                  <option value="'Lato', sans-serif">Lato</option>
+                  <option value="'Roboto', sans-serif">Roboto</option>
+                  <option value="'Georgia', serif">Georgia</option>
+                  <option value="'Merriweather', serif">Merriweather</option>
+                  <option value="'EB Garamond', serif">EB Garamond</option>
+                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Bangers', system-ui">Bangers</option>
+                  <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                  <option value="'Cinzel', serif">Cinzel</option>
+                </select>
+                <input class="font-size-input line-size" id="line-1-size" type="number" min="8" value="48" aria-label="Line 1 size"/>
+              </div>
+              <div class="control-row">
+                <button class="bold-toggle active btn-icon line-bold" id="line-1-bold" aria-label="Line 1 bold">B</button>
+                <button class="italic-toggle btn-icon line-italic" id="line-1-italic" aria-label="Line 1 italic">I</button>
+                <input class="color-picker line-color" id="line-1-color" type="color" value="#FFFFFF" aria-label="Line 1 color"/>
+              </div>
+            </div>
+            
+            <div class="line-style-group">
+              <div class="line-style-label">Line 2</div>
+              <div class="control-row">
+                <select class="font-select line-font" id="line-2-font" aria-label="Line 2 font">
+                  <option value="'Oswald', sans-serif">Oswald</option>
+                  <option value="'Arvo', serif">Arvo</option>
+                  <option value="'Anton', sans-serif">Anton</option>
+                  <option value="'Lato', sans-serif">Lato</option>
+                  <option value="'Roboto', sans-serif">Roboto</option>
+                  <option value="'Georgia', serif">Georgia</option>
+                  <option value="'Merriweather', serif">Merriweather</option>
+                  <option value="'EB Garamond', serif">EB Garamond</option>
+                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Bangers', system-ui">Bangers</option>
+                  <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                  <option value="'Cinzel', serif">Cinzel</option>
+                </select>
+                <input class="font-size-input line-size" id="line-2-size" type="number" min="8" value="28" aria-label="Line 2 size"/>
+              </div>
+              <div class="control-row">
+                <button class="bold-toggle btn-icon line-bold" id="line-2-bold" aria-label="Line 2 bold">B</button>
+                <button class="italic-toggle btn-icon line-italic" id="line-2-italic" aria-label="Line 2 italic">I</button>
+                <input class="color-picker line-color" id="line-2-color" type="color" value="#FFFFFF" aria-label="Line 2 color"/>
+              </div>
+            </div>
+            
+            <div class="line-style-group">
+              <div class="line-style-label">Line 3</div>
+              <div class="control-row">
+                <select class="font-select line-font" id="line-3-font" aria-label="Line 3 font">
+                  <option value="'Oswald', sans-serif">Oswald</option>
+                  <option value="'Arvo', serif">Arvo</option>
+                  <option value="'Anton', sans-serif">Anton</option>
+                  <option value="'Lato', sans-serif">Lato</option>
+                  <option value="'Roboto', sans-serif">Roboto</option>
+                  <option value="'Georgia', serif">Georgia</option>
+                  <option value="'Merriweather', serif">Merriweather</option>
+                  <option value="'EB Garamond', serif">EB Garamond</option>
+                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Bangers', system-ui">Bangers</option>
+                  <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                  <option value="'Cinzel', serif">Cinzel</option>
+                </select>
+                <input class="font-size-input line-size" id="line-3-size" type="number" min="8" value="20" aria-label="Line 3 size"/>
+              </div>
+              <div class="control-row">
+                <button class="bold-toggle btn-icon line-bold" id="line-3-bold" aria-label="Line 3 bold">B</button>
+                <button class="italic-toggle btn-icon line-italic" id="line-3-italic" aria-label="Line 3 italic">I</button>
+                <input class="color-picker line-color" id="line-3-color" type="color" value="#FFFFFF" aria-label="Line 3 color"/>
+              </div>
+            </div>
+            
+            <div class="control-row" style="margin-top: 8px;">
+              <label for="cover-line-spacing" class="mini-label" style="white-space: nowrap;">Line Spacing (pt):</label>
+              <input id="cover-line-spacing" class="font-size-input" type="number" min="0" max="50" value="10" aria-label="Line spacing in points"/>
+            </div>
+          </div>
+          
+          <!-- Shared settings for both modes -->
+          <div class="control-row" style="margin-top: 10px;">
+            <div class="mini-label">Background:</div>
+            <input id="cover-title-bg-color" class="color-picker" type="color" value="#000000" aria-label="Cover title background color"/>
           </div>
           
           <details class="advanced-settings">
             <summary>Margins & Padding</summary>
             <div class="grid-2">
-              <label>Outer Margin</label>
+              <label for="cover-title-outer-margin">Outer Margin</label>
               <input id="cover-title-outer-margin" class="font-size-input" type="number" value="10"/>
-              <label>Side Margin</label>
+              <label for="cover-title-side-margin">Side Margin</label>
               <input id="cover-title-side-margin" class="font-size-input" type="number" value="0"/>
-              <label>BG Pad X</label>
+              <label for="cover-title-pad-x">BG Pad X</label>
               <input id="cover-title-pad-x" class="font-size-input" type="number" value="0"/>
-              <label>BG Pad Y</label>
+              <label for="cover-title-pad-y">BG Pad Y</label>
               <input id="cover-title-pad-y" class="font-size-input" type="number" value="10"/>
             </div>
           </details>
@@ -223,7 +332,7 @@
         </div>
 
         <div class="form-group" id="qr-code-controls">
-          <label>QR Code URL</label>
+          <label for="qr-url-input">QR Code URL</label>
           <div class="control-row">
               <input id="qr-url-input" type="text" placeholder="https://..."/>
               <button id="generate-qr-button" class="btn btn-sm btn-primary">Update</button>
@@ -232,7 +341,7 @@
           <div class="form-group" data-style-group="qr" style="margin-top:15px;">
               <label>QR Text Style</label>
               <div class="control-row">
-                  <select class="font-select">
+                  <select class="font-select" aria-label="QR text font family">
                   <option value="'Calibri', sans-serif">Calibri</option>
                   <option value="'Georgia', serif">Georgia</option>
                   <option value="'Arvo', serif">Arvo</option>
@@ -243,12 +352,12 @@
                   <option value="'Helvetica', sans-serif">Helvetica</option>
                   <option value="'Times New Roman', serif">Times New Roman</option>
                   </select>
-                  <input class="font-size-input" type="number" min="8" value="13"/>
+                  <input class="font-size-input" type="number" min="8" value="13" aria-label="QR text font size"/>
               </div>
               <div class="control-row">
-                  <button class="bold-toggle active btn-icon">B</button>
-                  <button class="italic-toggle btn-icon">I</button>
-                  <input class="color-picker" type="color" value="#000000"/>
+                  <button class="bold-toggle active btn-icon" aria-label="Toggle bold" aria-pressed="true">B</button>
+                  <button class="italic-toggle btn-icon" aria-label="Toggle italic" aria-pressed="false">I</button>
+                  <input class="color-picker" type="color" value="#000000" aria-label="QR text color"/>
               </div>
           </div>
         </div>
@@ -256,73 +365,72 @@
       </div>
     </aside>
 
-    <main class="main-content">
+    <main class="main-content" role="main">
       <div class="toolbar">
-        <h2>Preview</h2>
+        <div class="toolbar-left">
+          <label for="list-name-input" class="toolbar-label">List Name:</label>
+          <input type="text" id="list-name-input" class="list-name-input" placeholder="My Booklist" aria-label="Name for this booklist"/>
+        </div>
         <div class="toolbar-hint">
-            <i class="fa-solid fa-circle-info"></i> Edit text directly on the page.
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i> Edit text directly on the page.
         </div>
       </div>
 
-      <div id="preview-area">
+      <div id="preview-area" role="region" aria-label="Booklist preview">
         <div class="page" id="print-page-1">
-          <div class="panel" id="back-cover-panel">
+          <div class="panel" id="back-cover-panel" role="list" aria-label="Back cover books">
             <div class="qr-code-container" id="qr-code-area">
-              <div id="qr-code-text" class="editable-field" contenteditable="true">Enter your blurb here. To link to an online list (like Bibliocommons), go to the Settings tab and paste the URL in the 'QR Code URL' field and click update. Remember to test the code with your phone!</div>
-              <div id="qr-code-canvas">
+              <div id="qr-code-text" class="editable-field" contenteditable="true" role="textbox" aria-label="QR code description text">Enter your blurb here. To link to an online list (like Bibliocommons), go to the Settings tab and paste the URL in the 'QR Code URL' field and click update. Remember to test the code with your phone!</div>
+              <div id="qr-code-canvas" aria-label="QR code image">
                 <img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>
               </div>
             </div>
-            <label class="custom-uploader" id="branding-uploader">
+            <label class="custom-uploader" id="branding-uploader" role="button" aria-label="Upload library branding image">
               <img alt="Library Branding Placeholder" src="assets/img/branding-default.png"/>
-              <input type="file" accept="image/*"/>
+              <input type="file" accept="image/*" aria-hidden="true"/>
             </label>
           </div>
 
           <div class="panel" id="front-cover-panel">
-            <div class="custom-uploader" id="front-cover-uploader">
+            <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or generate front cover image">
               <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
                 Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool below<br/>(This will use the first 12 covers from your list to create a collage)
               </div>
               <div id="cover-generate-controls">
-                <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
+                <!-- Simple mode: single textarea -->
+                <div id="cover-simple-mode">
+                  <label for="cover-title-input" class="sr-only">Cover title text</label>
+                  <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
+                </div>
+                
+                <!-- Advanced mode: 3 line inputs -->
+                <div id="cover-advanced-mode">
+                  <input type="text" class="cover-line-input" id="cover-line-1" placeholder="Line 1" aria-label="Cover line 1 text"/>
+                  <input type="text" class="cover-line-input" id="cover-line-2" placeholder="Line 2" aria-label="Cover line 2 text"/>
+                  <input type="text" class="cover-line-input" id="cover-line-3" placeholder="Line 3" aria-label="Cover line 3 text"/>
+                </div>
+                
                 <button id="generate-cover-button" class="btn btn-primary">Auto-Generate Cover</button>
               </div>
-              <input type="file" accept="image/*"/>
+              <input type="file" accept="image/*" aria-hidden="true"/>
             </div>
           </div>
-          <div class="page-divider"></div>
+          <div class="page-divider" aria-hidden="true"></div>
         </div>
 
         <div class="page" id="print-page-2">
-          <div class="panel book-panel" id="inside-left-panel"></div>
-          <div class="panel book-panel" id="inside-right-panel"></div>
-          <div class="page-divider"></div>
+          <div class="panel book-panel" id="inside-left-panel" role="list" aria-label="Inside left panel books"></div>
+          <div class="panel book-panel" id="inside-right-panel" role="list" aria-label="Inside right panel books"></div>
+          <div class="page-divider" aria-hidden="true"></div>
         </div>
       </div>
     </main>
   </div>
 
-  <script>
-    function openTab(evt, tabName) {
-      var i, tabcontent, tablinks;
-      tabcontent = document.getElementsByClassName("tab-content");
-      for (i = 0; i < tabcontent.length; i++) {
-        tabcontent[i].classList.remove("active");
-      }
-      tablinks = document.getElementsByClassName("tab-btn");
-      for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].classList.remove("active");
-      }
-      document.getElementById(tabName).classList.add("active");
-      evt.currentTarget.classList.add("active");
-    }
-  </script>
-
   <script src="assets/js/app.js"></script>
 
-  <div class="font-preloader">
+  <div class="font-preloader" aria-hidden="true">
     <span style="font-family: 'Oswald', sans-serif; font-weight: 400;">.</span>
     <span style="font-family: 'Oswald', sans-serif; font-weight: 700;">.</span>
     <span style="font-family: 'Anton', sans-serif; font-weight: 400;">.</span>
@@ -354,7 +462,4 @@
   
 </body>
 </html>
-
-
-
 
