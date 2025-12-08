@@ -98,6 +98,19 @@ const BooklistApp = (function() {
     };
   })();
   
+  // Debounced cover regeneration to prevent lag on rapid changes
+  const debouncedCoverRegen = (() => {
+    let t;
+    return () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        if (elements.frontCoverUploader?.classList.contains('has-image')) {
+          generateCoverCollage();
+        }
+      }, 350); // Slightly longer delay for cover regeneration
+    };
+  })();
+  
   // ---------------------------------------------------------------------------
   // DOM Element References (cached on init)
   // ---------------------------------------------------------------------------
@@ -497,6 +510,13 @@ const BooklistApp = (function() {
     titleElement.className = 'book-title';
     titleElement.textContent = book.title;
     
+    // Author
+    const authorElement = document.createElement('p');
+    authorElement.className = 'book-author';
+    const authorName = book.author_name ? book.author_name[0] : 'Unknown Author';
+    authorElement.textContent = authorName;
+    authorElement.title = authorName; // Tooltip for full name on hover
+    
     // Actions group
     const actionsGroup = document.createElement('div');
     actionsGroup.className = 'card-actions-group';
@@ -530,6 +550,7 @@ const BooklistApp = (function() {
     // Assemble
     bookElement.appendChild(coverCarousel);
     bookElement.appendChild(titleElement);
+    bookElement.appendChild(authorElement);
     actionsGroup.appendChild(carouselControls);
     actionsGroup.appendChild(addButton);
     bookElement.appendChild(actionsGroup);
@@ -2116,7 +2137,7 @@ const BooklistApp = (function() {
     if (elements.coverTitleInput) {
       elements.coverTitleInput.addEventListener('input', () => {
         debouncedSave();
-        autoRegenerateCoverIfAble();
+        debouncedCoverRegen();
       });
     }
     
@@ -2130,11 +2151,11 @@ const BooklistApp = (function() {
       if (el) {
         el.addEventListener('input', () => {
           debouncedSave();
-          autoRegenerateCoverIfAble();
+          debouncedCoverRegen();
         });
         el.addEventListener('change', () => {
           debouncedSave();
-          autoRegenerateCoverIfAble();
+          debouncedCoverRegen();
         });
       }
     });
@@ -2157,35 +2178,35 @@ const BooklistApp = (function() {
     
     // Advanced mode: per-line inputs and style controls
     elements.coverLines.forEach(line => {
-      // Text input
+      // Text input (debounced for rapid typing)
       if (line.input) {
         line.input.addEventListener('input', () => {
           debouncedSave();
-          autoRegenerateCoverIfAble();
+          debouncedCoverRegen();
         });
       }
-      // Font select
+      // Font select (instant - discrete change)
       if (line.font) {
         line.font.addEventListener('change', () => {
           debouncedSave();
           autoRegenerateCoverIfAble();
         });
       }
-      // Size input
+      // Size input (debounced for rapid changes)
       if (line.size) {
         line.size.addEventListener('input', () => {
           debouncedSave();
-          autoRegenerateCoverIfAble();
+          debouncedCoverRegen();
         });
       }
-      // Color picker
+      // Color picker (debounced for dragging)
       if (line.color) {
         line.color.addEventListener('input', () => {
           debouncedSave();
-          autoRegenerateCoverIfAble();
+          debouncedCoverRegen();
         });
       }
-      // Bold toggle
+      // Bold toggle (instant - discrete change)
       if (line.bold) {
         line.bold.addEventListener('click', () => {
           line.bold.classList.toggle('active');
@@ -2193,7 +2214,7 @@ const BooklistApp = (function() {
           autoRegenerateCoverIfAble();
         });
       }
-      // Italic toggle
+      // Italic toggle (instant - discrete change)
       if (line.italic) {
         line.italic.addEventListener('click', () => {
           line.italic.classList.toggle('active');
@@ -2217,7 +2238,7 @@ const BooklistApp = (function() {
       if (el) {
         ['input', 'change'].forEach(evt => el.addEventListener(evt, () => {
           debouncedSave();
-          autoRegenerateCoverIfAble();
+          debouncedCoverRegen();
         }));
       }
     });
@@ -2228,13 +2249,13 @@ const BooklistApp = (function() {
         input.addEventListener('change', () => {
           applyStyles();
           if (group.id === 'cover-title-style-group') {
-            autoRegenerateCoverIfAble();
+            debouncedCoverRegen();
           }
         });
         input.addEventListener('input', () => {
           applyStyles();
           if (group.id === 'cover-title-style-group') {
-            autoRegenerateCoverIfAble();
+            debouncedCoverRegen();
           }
         });
       });
