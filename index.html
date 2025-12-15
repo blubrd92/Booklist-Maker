@@ -12,7 +12,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <link rel="stylesheet" href="assets/css/styles.css"/>
-  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bebas+Neue&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Google Fonts: All application fonts loaded via CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Bangers&family=Bebas+Neue&family=Cinzel:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Merriweather:ital,wght@0,400;0,700;1,400;1,700&family=Oswald:wght@400;700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <!-- Accessibility: Skip to main content link -->
@@ -95,18 +98,21 @@
           <label>Book Title</label>
           <div class="control-row">
             <select class="font-select" aria-label="Title font family">
-              <option value="'Georgia', serif">Georgia</option>
-              <option value="'Calibri', sans-serif">Calibri</option>
+              <option value="'Anton', sans-serif">Anton</option>
               <option value="'Arvo', serif">Arvo</option>
-              <option value="'Lato', sans-serif">Lato</option>
-              <option value="'Roboto', sans-serif">Roboto</option>
-              <option value="'Merriweather', serif">Merriweather</option>
-              <option value="'EB Garamond', serif">EB Garamond</option>
-              <option value="'Helvetica', sans-serif">Helvetica</option>
-              <option value="'Times New Roman', serif">Times New Roman</option>
               <option value="'Bangers', system-ui">Bangers</option>
               <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+              <option value="'Calibri', sans-serif">Calibri</option>
               <option value="'Cinzel', serif">Cinzel</option>
+              <option value="'EB Garamond', serif">EB Garamond</option>
+              <option value="'Georgia', serif" selected>Georgia</option>
+              <option value="'Helvetica', sans-serif">Helvetica</option>
+              <option value="'Lato', sans-serif">Lato</option>
+              <option value="'Merriweather', serif">Merriweather</option>
+              <option value="'Oswald', sans-serif">Oswald</option>
+              <option value="'Roboto', sans-serif">Roboto</option>
+              <option value="'Roboto Slab', serif">Roboto Slab</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
             </select>
             <input class="font-size-input" type="number" min="8" value="14" aria-label="Title font size"/>
           </div>
@@ -121,18 +127,21 @@
           <label>Author / Call #</label>
           <div class="control-row">
             <select class="font-select" aria-label="Author font family">
-              <option value="'Calibri', sans-serif">Calibri</option>
-              <option value="'Georgia', serif">Georgia</option>
+              <option value="'Anton', sans-serif">Anton</option>
               <option value="'Arvo', serif">Arvo</option>
-              <option value="'Lato', sans-serif">Lato</option>
-              <option value="'Roboto', sans-serif">Roboto</option>
-              <option value="'Merriweather', serif">Merriweather</option>
-              <option value="'EB Garamond', serif">EB Garamond</option>
-              <option value="'Helvetica', sans-serif">Helvetica</option>
-              <option value="'Times New Roman', serif">Times New Roman</option>
               <option value="'Bangers', system-ui">Bangers</option>
               <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+              <option value="'Calibri', sans-serif" selected>Calibri</option>
               <option value="'Cinzel', serif">Cinzel</option>
+              <option value="'EB Garamond', serif">EB Garamond</option>
+              <option value="'Georgia', serif">Georgia</option>
+              <option value="'Helvetica', sans-serif">Helvetica</option>
+              <option value="'Lato', sans-serif">Lato</option>
+              <option value="'Merriweather', serif">Merriweather</option>
+              <option value="'Oswald', sans-serif">Oswald</option>
+              <option value="'Roboto', sans-serif">Roboto</option>
+              <option value="'Roboto Slab', serif">Roboto Slab</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
             </select>
             <input class="font-size-input" type="number" min="8" value="12" aria-label="Author font size"/>
           </div>
@@ -147,14 +156,20 @@
           <label>Description</label>
           <div class="control-row">
             <select class="font-select" aria-label="Description font family">
-              <option value="'Calibri', sans-serif">Calibri</option>
-              <option value="'Georgia', serif">Georgia</option>
+              <option value="'Anton', sans-serif">Anton</option>
               <option value="'Arvo', serif">Arvo</option>
-              <option value="'Lato', sans-serif">Lato</option>
-              <option value="'Roboto', sans-serif">Roboto</option>
-              <option value="'Merriweather', serif">Merriweather</option>
+              <option value="'Bangers', system-ui">Bangers</option>
+              <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+              <option value="'Calibri', sans-serif" selected>Calibri</option>
+              <option value="'Cinzel', serif">Cinzel</option>
               <option value="'EB Garamond', serif">EB Garamond</option>
+              <option value="'Georgia', serif">Georgia</option>
               <option value="'Helvetica', sans-serif">Helvetica</option>
+              <option value="'Lato', sans-serif">Lato</option>
+              <option value="'Merriweather', serif">Merriweather</option>
+              <option value="'Oswald', sans-serif">Oswald</option>
+              <option value="'Roboto', sans-serif">Roboto</option>
+              <option value="'Roboto Slab', serif">Roboto Slab</option>
               <option value="'Times New Roman', serif">Times New Roman</option>
             </select>
             <input class="font-size-input" type="number" min="8" value="10" aria-label="Description font size"/>
@@ -185,18 +200,21 @@
           <div id="cover-simple-style">
             <div class="control-row">
               <select class="font-select" id="cover-font-select" aria-label="Cover title font family">
-                <option value="'Oswald', sans-serif">Oswald</option>
-                <option value="'Arvo', serif">Arvo</option>
                 <option value="'Anton', sans-serif">Anton</option>
-                <option value="'Lato', sans-serif">Lato</option>
-                <option value="'Roboto', sans-serif">Roboto</option>
-                <option value="'Georgia', serif">Georgia</option>
-                <option value="'Merriweather', serif">Merriweather</option>
-                <option value="'EB Garamond', serif">EB Garamond</option>
-                <option value="'Helvetica', sans-serif">Helvetica</option>
+                <option value="'Arvo', serif">Arvo</option>
                 <option value="'Bangers', system-ui">Bangers</option>
                 <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                <option value="'Calibri', sans-serif">Calibri</option>
                 <option value="'Cinzel', serif">Cinzel</option>
+                <option value="'EB Garamond', serif">EB Garamond</option>
+                <option value="'Georgia', serif">Georgia</option>
+                <option value="'Helvetica', sans-serif">Helvetica</option>
+                <option value="'Lato', sans-serif">Lato</option>
+                <option value="'Merriweather', serif">Merriweather</option>
+                <option value="'Oswald', sans-serif" selected>Oswald</option>
+                <option value="'Roboto', sans-serif">Roboto</option>
+                <option value="'Roboto Slab', serif">Roboto Slab</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
               </select>
               <input class="font-size-input" id="cover-font-size" type="number" min="8" value="40" aria-label="Cover title font size"/>
             </div>
@@ -213,18 +231,21 @@
               <div class="line-style-label">Line 1</div>
               <div class="control-row">
                 <select class="font-select line-font" id="line-1-font" aria-label="Line 1 font">
-                  <option value="'Oswald', sans-serif">Oswald</option>
-                  <option value="'Arvo', serif">Arvo</option>
                   <option value="'Anton', sans-serif">Anton</option>
-                  <option value="'Lato', sans-serif">Lato</option>
-                  <option value="'Roboto', sans-serif">Roboto</option>
-                  <option value="'Georgia', serif">Georgia</option>
-                  <option value="'Merriweather', serif">Merriweather</option>
-                  <option value="'EB Garamond', serif">EB Garamond</option>
-                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Arvo', serif">Arvo</option>
                   <option value="'Bangers', system-ui">Bangers</option>
                   <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                  <option value="'Calibri', sans-serif">Calibri</option>
                   <option value="'Cinzel', serif">Cinzel</option>
+                  <option value="'EB Garamond', serif">EB Garamond</option>
+                  <option value="'Georgia', serif">Georgia</option>
+                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Lato', sans-serif">Lato</option>
+                  <option value="'Merriweather', serif">Merriweather</option>
+                  <option value="'Oswald', sans-serif" selected>Oswald</option>
+                  <option value="'Roboto', sans-serif">Roboto</option>
+                  <option value="'Roboto Slab', serif">Roboto Slab</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
                 </select>
                 <input class="font-size-input line-size" id="line-1-size" type="number" min="8" value="48" aria-label="Line 1 size"/>
               </div>
@@ -239,18 +260,21 @@
               <div class="line-style-label">Line 2</div>
               <div class="control-row">
                 <select class="font-select line-font" id="line-2-font" aria-label="Line 2 font">
-                  <option value="'Oswald', sans-serif">Oswald</option>
-                  <option value="'Arvo', serif">Arvo</option>
                   <option value="'Anton', sans-serif">Anton</option>
-                  <option value="'Lato', sans-serif">Lato</option>
-                  <option value="'Roboto', sans-serif">Roboto</option>
-                  <option value="'Georgia', serif">Georgia</option>
-                  <option value="'Merriweather', serif">Merriweather</option>
-                  <option value="'EB Garamond', serif">EB Garamond</option>
-                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Arvo', serif">Arvo</option>
                   <option value="'Bangers', system-ui">Bangers</option>
                   <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                  <option value="'Calibri', sans-serif">Calibri</option>
                   <option value="'Cinzel', serif">Cinzel</option>
+                  <option value="'EB Garamond', serif">EB Garamond</option>
+                  <option value="'Georgia', serif">Georgia</option>
+                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Lato', sans-serif">Lato</option>
+                  <option value="'Merriweather', serif">Merriweather</option>
+                  <option value="'Oswald', sans-serif" selected>Oswald</option>
+                  <option value="'Roboto', sans-serif">Roboto</option>
+                  <option value="'Roboto Slab', serif">Roboto Slab</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
                 </select>
                 <input class="font-size-input line-size" id="line-2-size" type="number" min="8" value="28" aria-label="Line 2 size"/>
               </div>
@@ -265,18 +289,21 @@
               <div class="line-style-label">Line 3</div>
               <div class="control-row">
                 <select class="font-select line-font" id="line-3-font" aria-label="Line 3 font">
-                  <option value="'Oswald', sans-serif">Oswald</option>
-                  <option value="'Arvo', serif">Arvo</option>
                   <option value="'Anton', sans-serif">Anton</option>
-                  <option value="'Lato', sans-serif">Lato</option>
-                  <option value="'Roboto', sans-serif">Roboto</option>
-                  <option value="'Georgia', serif">Georgia</option>
-                  <option value="'Merriweather', serif">Merriweather</option>
-                  <option value="'EB Garamond', serif">EB Garamond</option>
-                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Arvo', serif">Arvo</option>
                   <option value="'Bangers', system-ui">Bangers</option>
                   <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                  <option value="'Calibri', sans-serif">Calibri</option>
                   <option value="'Cinzel', serif">Cinzel</option>
+                  <option value="'EB Garamond', serif">EB Garamond</option>
+                  <option value="'Georgia', serif">Georgia</option>
+                  <option value="'Helvetica', sans-serif">Helvetica</option>
+                  <option value="'Lato', sans-serif">Lato</option>
+                  <option value="'Merriweather', serif">Merriweather</option>
+                  <option value="'Oswald', sans-serif" selected>Oswald</option>
+                  <option value="'Roboto', sans-serif">Roboto</option>
+                  <option value="'Roboto Slab', serif">Roboto Slab</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
                 </select>
                 <input class="font-size-input line-size" id="line-3-size" type="number" min="8" value="20" aria-label="Line 3 size"/>
               </div>
@@ -342,15 +369,21 @@
               <label>QR Text Style</label>
               <div class="control-row">
                   <select class="font-select" aria-label="QR text font family">
-                  <option value="'Calibri', sans-serif">Calibri</option>
-                  <option value="'Georgia', serif">Georgia</option>
-                  <option value="'Arvo', serif">Arvo</option>
-                  <option value="'Lato', sans-serif">Lato</option>
-                  <option value="'Roboto', sans-serif">Roboto</option>
-                  <option value="'Merriweather', serif">Merriweather</option>
-                  <option value="'EB Garamond', serif">EB Garamond</option>
-                  <option value="'Helvetica', sans-serif">Helvetica</option>
-                  <option value="'Times New Roman', serif">Times New Roman</option>
+                    <option value="'Anton', sans-serif">Anton</option>
+                    <option value="'Arvo', serif">Arvo</option>
+                    <option value="'Bangers', system-ui">Bangers</option>
+                    <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                    <option value="'Calibri', sans-serif" selected>Calibri</option>
+                    <option value="'Cinzel', serif">Cinzel</option>
+                    <option value="'EB Garamond', serif">EB Garamond</option>
+                    <option value="'Georgia', serif">Georgia</option>
+                    <option value="'Helvetica', sans-serif">Helvetica</option>
+                    <option value="'Lato', sans-serif">Lato</option>
+                    <option value="'Merriweather', serif">Merriweather</option>
+                    <option value="'Oswald', sans-serif">Oswald</option>
+                    <option value="'Roboto', sans-serif">Roboto</option>
+                    <option value="'Roboto Slab', serif">Roboto Slab</option>
+                    <option value="'Times New Roman', serif">Times New Roman</option>
                   </select>
                   <input class="font-size-input" type="number" min="8" value="13" aria-label="QR text font size"/>
               </div>
@@ -430,36 +463,49 @@
 
   <script src="assets/js/app.js"></script>
 
+  <!-- Font preloader: ensures Google Fonts are ready before canvas drawing -->
   <div class="font-preloader" aria-hidden="true">
-    <span style="font-family: 'Oswald', sans-serif; font-weight: 400;">.</span>
-    <span style="font-family: 'Oswald', sans-serif; font-weight: 700;">.</span>
+    <!-- Anton -->
     <span style="font-family: 'Anton', sans-serif; font-weight: 400;">.</span>
-    <span style="font-family: 'EB Garamond', serif; font-weight: 400; font-style: normal;">.</span>
-    <span style="font-family: 'EB Garamond', serif; font-weight: 400; font-style: italic;">.</span>
-    <span style="font-family: 'EB Garamond', serif; font-weight: 700; font-style: normal;">.</span>
-    <span style="font-family: 'EB Garamond', serif; font-weight: 700; font-style: italic;">.</span>
-    <span style="font-family: 'Lato', sans-serif; font-weight: 400; font-style: normal;">.</span>
-    <span style="font-family: 'Lato', sans-serif; font-weight: 400; font-style: italic;">.</span>
-    <span style="font-family: 'Lato', sans-serif; font-weight: 700; font-style: normal;">.</span>
-    <span style="font-family: 'Lato', sans-serif; font-weight: 700; font-style: italic;">.</span>
-    <span style="font-family: 'Merriweather', serif; font-weight: 400; font-style: normal;">.</span>
-    <span style="font-family: 'Merriweather', serif; font-weight: 400; font-style: italic;">.</span>
-    <span style="font-family: 'Merriweather', serif; font-weight: 700; font-style: normal;">.</span>
-    <span style="font-family: 'Merriweather', serif; font-weight: 700; font-style: italic;">.</span>
-    <span style="font-family: 'Roboto', sans-serif; font-weight: 400; font-style: normal;">.</span>
-    <span style="font-family: 'Roboto', sans-serif; font-weight: 400; font-style: italic;">.</span>
-    <span style="font-family: 'Roboto', sans-serif; font-weight: 700; font-style: normal;">.</span>
-    <span style="font-family: 'Roboto', sans-serif; font-weight: 700; font-style: italic;">.</span>
+    <!-- Arvo -->
     <span style="font-family: 'Arvo', serif; font-weight: 400; font-style: normal;">.</span>
     <span style="font-family: 'Arvo', serif; font-weight: 400; font-style: italic;">.</span>
     <span style="font-family: 'Arvo', serif; font-weight: 700; font-style: normal;">.</span>
     <span style="font-family: 'Arvo', serif; font-weight: 700; font-style: italic;">.</span>
+    <!-- Bangers -->
     <span style="font-family: 'Bangers', system-ui; font-weight: 400;">.</span>
+    <!-- Bebas Neue -->
     <span style="font-family: 'Bebas Neue', sans-serif; font-weight: 400;">.</span>
+    <!-- Cinzel -->
     <span style="font-family: 'Cinzel', serif; font-weight: 400;">.</span>
     <span style="font-family: 'Cinzel', serif; font-weight: 700;">.</span>
+    <!-- EB Garamond -->
+    <span style="font-family: 'EB Garamond', serif; font-weight: 400; font-style: normal;">.</span>
+    <span style="font-family: 'EB Garamond', serif; font-weight: 400; font-style: italic;">.</span>
+    <span style="font-family: 'EB Garamond', serif; font-weight: 700; font-style: normal;">.</span>
+    <span style="font-family: 'EB Garamond', serif; font-weight: 700; font-style: italic;">.</span>
+    <!-- Lato -->
+    <span style="font-family: 'Lato', sans-serif; font-weight: 400; font-style: normal;">.</span>
+    <span style="font-family: 'Lato', sans-serif; font-weight: 400; font-style: italic;">.</span>
+    <span style="font-family: 'Lato', sans-serif; font-weight: 700; font-style: normal;">.</span>
+    <span style="font-family: 'Lato', sans-serif; font-weight: 700; font-style: italic;">.</span>
+    <!-- Merriweather -->
+    <span style="font-family: 'Merriweather', serif; font-weight: 400; font-style: normal;">.</span>
+    <span style="font-family: 'Merriweather', serif; font-weight: 400; font-style: italic;">.</span>
+    <span style="font-family: 'Merriweather', serif; font-weight: 700; font-style: normal;">.</span>
+    <span style="font-family: 'Merriweather', serif; font-weight: 700; font-style: italic;">.</span>
+    <!-- Oswald -->
+    <span style="font-family: 'Oswald', sans-serif; font-weight: 400;">.</span>
+    <span style="font-family: 'Oswald', sans-serif; font-weight: 700;">.</span>
+    <!-- Roboto -->
+    <span style="font-family: 'Roboto', sans-serif; font-weight: 400; font-style: normal;">.</span>
+    <span style="font-family: 'Roboto', sans-serif; font-weight: 400; font-style: italic;">.</span>
+    <span style="font-family: 'Roboto', sans-serif; font-weight: 700; font-style: normal;">.</span>
+    <span style="font-family: 'Roboto', sans-serif; font-weight: 700; font-style: italic;">.</span>
+    <!-- Roboto Slab (no italics available) -->
+    <span style="font-family: 'Roboto Slab', serif; font-weight: 400;">.</span>
+    <span style="font-family: 'Roboto Slab', serif; font-weight: 700;">.</span>
   </div>
   
 </body>
 </html>
-
