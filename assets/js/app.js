@@ -215,6 +215,21 @@ const BooklistApp = (function() {
   }
   
   // ---------------------------------------------------------------------------
+  // Utility: Paste Handler (strips formatting, inserts plain text)
+  // ---------------------------------------------------------------------------
+  function handlePastePlainText(e) {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    
+    selection.deleteFromDocument();
+    selection.getRangeAt(0).insertNode(document.createTextNode(text));
+    selection.collapseToEnd();
+  }
+  
+  // ---------------------------------------------------------------------------
   // Utility: Placeholder Field Management (DRY)
   // ---------------------------------------------------------------------------
   function setupPlaceholderField(element, placeholderText, options = {}) {
@@ -389,6 +404,7 @@ const BooklistApp = (function() {
       title: CONFIG.PLACEHOLDERS.title,
       author: CONFIG.PLACEHOLDERS.author,
       callNumber: CONFIG.PLACEHOLDERS.callNumber,
+      authorDisplay: CONFIG.PLACEHOLDERS.authorWithCall,
       description: CONFIG.PLACEHOLDERS.description,
       cover_i: null,
       customCoverData: CONFIG.PLACEHOLDER_COVER_URL,
@@ -664,6 +680,7 @@ const BooklistApp = (function() {
           title: book.title,
           author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
           callNumber: CONFIG.PLACEHOLDERS.callNumber,
+          authorDisplay: null, // Will be constructed on first render
           description: 'Fetching book description... May take a few minutes.',
           cover_ids: carouselState.allCoverIds,
           currentCoverIndex: carouselState.currentCoverIndex,
@@ -856,7 +873,29 @@ const BooklistApp = (function() {
   
   function handleMagicButtonClick(bookItem) {
     const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
-    let currentAuthor = (bookItem.author || '').replace(/\u00a0/g, " ").trim();
+    
+    // Parse author from authorDisplay (lazy parsing for AI description)
+    let currentAuthor = '';
+    const displayText = (bookItem.authorDisplay || '').replace(/\u00a0/g, " ");
+    
+    // Remove "By " prefix if present
+    let text = displayText;
+    if (text.match(/^By\s/i)) {
+      text = text.replace(/^By\s/i, '');
+    }
+    
+    // Extract author (everything before the last ' - ')
+    const lastDashIndex = text.lastIndexOf(' - ');
+    if (lastDashIndex !== -1) {
+      currentAuthor = text.substring(0, lastDashIndex).replace(/\n/g, ' ').trim();
+    } else {
+      currentAuthor = text.replace(/\n/g, ' ').trim();
+    }
+    
+    // Fallback to stored author field if authorDisplay not set
+    if (!currentAuthor && bookItem.author) {
+      currentAuthor = bookItem.author.replace(/\u00a0/g, " ").trim();
+    }
     
     if (currentAuthor.toLowerCase() === 'by') currentAuthor = '';
     
@@ -865,6 +904,9 @@ const BooklistApp = (function() {
       showNotification('Please enter a Title and Author first.', 'error');
       return;
     }
+    
+    // Update bookItem.author with parsed value for getAiDescription
+    bookItem.author = currentAuthor;
     
     bookItem.description = "Fetching title description... May take a few minutes.";
     renderBooklist();
@@ -938,6 +980,7 @@ const BooklistApp = (function() {
     titleField.innerText = bookItem.title;
     titleField.setAttribute('role', 'textbox');
     titleField.setAttribute('aria-label', 'Book title');
+    titleField.addEventListener('paste', handlePastePlainText);
     titleField.oninput = (e) => {
       bookItem.title = e.target.innerText;
       if (bookItem.isBlank && bookItem.title !== CONFIG.PLACEHOLDERS.title) {
@@ -949,25 +992,20 @@ const BooklistApp = (function() {
     const authorField = document.createElement('div');
     authorField.className = 'editable-field author-field';
     authorField.contentEditable = true;
-    authorField.innerText = bookItem.author.startsWith('[Enter')
-      ? `${bookItem.author} - ${bookItem.callNumber}`
-      : `By ${bookItem.author} - ${bookItem.callNumber}`;
+    // Use authorDisplay if set, otherwise construct from author/callNumber
+    if (bookItem.authorDisplay !== null && bookItem.authorDisplay !== undefined) {
+      authorField.innerText = bookItem.authorDisplay;
+    } else {
+      authorField.innerText = bookItem.author.startsWith('[Enter')
+        ? `${bookItem.author} - ${bookItem.callNumber}`
+        : `By ${bookItem.author} - ${bookItem.callNumber}`;
+    }
     authorField.setAttribute('role', 'textbox');
     authorField.setAttribute('aria-label', 'Author and call number');
+    authorField.addEventListener('paste', handlePastePlainText);
     authorField.oninput = (e) => {
-      let text = e.target.innerText.replace(/\u00a0/g, " ");
-      
-      if (text.match(/^By\s/i)) {
-        text = text.replace(/^By\s/i, '');
-      }
-      
-      if (text.includes(' - ')) {
-        const parts = text.split(' - ');
-        bookItem.author = (parts[0] || '').trim();
-        bookItem.callNumber = (parts[1] || '').trim();
-      } else {
-        bookItem.author = text.trim();
-      }
+      // Store the raw display text exactly as typed
+      bookItem.authorDisplay = e.target.innerText;
     };
     
     // Description field
@@ -977,6 +1015,7 @@ const BooklistApp = (function() {
     descriptionField.innerText = bookItem.description;
     descriptionField.setAttribute('role', 'textbox');
     descriptionField.setAttribute('aria-label', 'Book description');
+    descriptionField.addEventListener('paste', handlePastePlainText);
     descriptionField.oninput = (e) => {
       bookItem.description = e.target.innerText;
     };
@@ -1726,6 +1765,7 @@ const BooklistApp = (function() {
       title: b.title,
       author: b.author,
       callNumber: b.callNumber,
+      authorDisplay: b.authorDisplay || null,
       description: b.description,
       cover_ids: Array.isArray(b.cover_ids) ? b.cover_ids : [],
       currentCoverIndex: typeof b.currentCoverIndex === 'number' ? b.currentCoverIndex : 0,
@@ -1970,6 +2010,7 @@ const BooklistApp = (function() {
       title: b.title ?? CONFIG.PLACEHOLDERS.title,
       author: b.author ?? CONFIG.PLACEHOLDERS.author,
       callNumber: b.callNumber ?? CONFIG.PLACEHOLDERS.callNumber,
+      authorDisplay: b.authorDisplay || null,
       description: b.description ?? CONFIG.PLACEHOLDERS.description,
       cover_ids: Array.isArray(b.cover_ids) ? b.cover_ids : [],
       currentCoverIndex: typeof b.currentCoverIndex === 'number' ? b.currentCoverIndex : 0,
