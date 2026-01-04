@@ -630,6 +630,11 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   text-align: center; color: white; background: var(--danger-color);
   transform: translateY(-100%); transition: transform 0.3s, visibility 0.3s; z-index: 1000;
   visibility: hidden;
+  height: 50px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 #notification-area.show { transform: translateY(0); visibility: visible; }
 #notification-area.success { background: var(--success-color); }
@@ -702,3 +707,4 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 [aria-live] {
   position: relative;
 }
+
