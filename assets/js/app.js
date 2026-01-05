@@ -883,7 +883,7 @@ const BooklistApp = (function() {
     const magicButton = document.createElement('button');
     magicButton.className = 'magic-button';
     magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
-    magicButton.title = 'Fetch AI description';
+    magicButton.title = 'Fetch description';
     magicButton.setAttribute('aria-label', 'Fetch AI description for this book');
     magicButton.onclick = () => handleMagicButtonClick(bookItem);
     
@@ -1697,35 +1697,45 @@ const BooklistApp = (function() {
   
   /**
    * Layout: Classic Grid (original layout)
-   * 3 covers on top, title bar, 3x3 grid below
+   * 3 covers on top (flush), title bar, 3x3 grid below (flush to bottom)
    */
   function drawLayoutClassic(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
-    const layout = calculateCollageLayout(canvasWidth, canvasHeight, titleBarHeight, styles.outerMarginPx);
-    layout.topRowY = 0;
+    const margin = styles.outerMarginPx;
+    const bookAspect = 0.75;
     
-    // Draw top row of covers
+    // 4 rows total, need to fill entire height
+    const numRows = 4;
+    const availableHeight = canvasHeight - titleBarHeight - 2 * margin; // margins around title only
+    const vGutterRatio = 0.10;
+    const totalVGutters = (numRows - 1) * vGutterRatio;
+    const slotHeight = availableHeight / (numRows + totalVGutters);
+    const vGutter = slotHeight * vGutterRatio;
+    const slotWidth = slotHeight * bookAspect;
+    const hGutter = (canvasWidth - 3 * slotWidth) / 4;
+    
+    // Draw top row flush at y=0
     let imageIndex = 0;
     for (let col = 0; col < 3; col++) {
-      const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
-      drawCoverImage(ctx, images[imageIndex], slotX, layout.topRowY, layout.slotWidth, layout.slotHeight, shouldStretch);
+      const slotX = hGutter + col * (slotWidth + hGutter);
+      drawCoverImage(ctx, images[imageIndex], slotX, 0, slotWidth, slotHeight, shouldStretch);
       imageIndex++;
     }
     
     // Draw title bar
-    const titleY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
+    const titleY = slotHeight + margin;
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // Draw bottom grid of covers
-    const gridTopY = titleY + bgH + styles.outerMarginPx;
+    // Draw bottom grid flush to bottom
+    const gridTopY = titleY + bgH + margin;
     for (let row = 0; row < 3; row++) {
-      const currentRowY = gridTopY + row * (layout.slotHeight + layout.vGutter);
+      const currentRowY = gridTopY + row * (slotHeight + vGutter);
       for (let col = 0; col < 3; col++) {
-        const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
-        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, layout.slotWidth, layout.slotHeight, shouldStretch);
+        const slotX = hGutter + col * (slotWidth + hGutter);
+        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, slotWidth, slotHeight, shouldStretch);
         imageIndex++;
       }
     }
@@ -1739,75 +1749,75 @@ const BooklistApp = (function() {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     
-    const shelfLineWidth = 6 * (CONFIG.PDF_DPI / 72); // 6pt line
-    const shelfColor = '#5D4037'; // Brown wood color
+    const shelfLineWidth = 6 * (CONFIG.PDF_DPI / 72);
+    const shelfColor = '#5D4037';
     const shelfOverhang = 20 * (CONFIG.PDF_DPI / 72);
-    const shelfExtraSpace = shelfLineWidth * 4; // Extra space for shelves
+    const margin = styles.outerMarginPx;
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
+    const bookAspect = 0.75;
     
-    // Recalculate layout accounting for shelf space
-    const totalShelfSpace = shelfExtraSpace; // Only account for shelves in grid area
-    const adjustedHeight = canvasHeight - totalShelfSpace;
-    const layout = calculateCollageLayout(canvasWidth, adjustedHeight, titleBarHeight, styles.outerMarginPx);
-    layout.topRowY = 0;
+    // 4 rows with shelf lines: need to account for 4 shelves
+    const numRows = 4;
+    const totalShelfHeight = 4 * shelfLineWidth;
+    const availableHeight = canvasHeight - titleBarHeight - 2 * margin - totalShelfHeight;
+    const vGutterRatio = 0.08;
+    const totalVGutters = (numRows - 1) * vGutterRatio;
+    const slotHeight = availableHeight / (numRows + totalVGutters);
+    const vGutter = slotHeight * vGutterRatio;
+    const slotWidth = slotHeight * bookAspect;
+    const hGutter = (canvasWidth - 3 * slotWidth) / 4;
     
-    // Draw top row of covers
+    // Draw top row flush at y=0
     let imageIndex = 0;
     for (let col = 0; col < 3; col++) {
-      const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
-      drawCoverImage(ctx, images[imageIndex], slotX, layout.topRowY, layout.slotWidth, layout.slotHeight, shouldStretch);
+      const slotX = hGutter + col * (slotWidth + hGutter);
+      drawCoverImage(ctx, images[imageIndex], slotX, 0, slotWidth, slotHeight, shouldStretch);
       imageIndex++;
     }
     
     // Draw shelf under top row
-    const topShelfY = layout.topRowY + layout.slotHeight;
+    const topShelfY = slotHeight;
     ctx.fillStyle = shelfColor;
-    ctx.fillRect(layout.hGutter - shelfOverhang, topShelfY, canvasWidth - 2 * layout.hGutter + 2 * shelfOverhang, shelfLineWidth);
+    ctx.fillRect(hGutter - shelfOverhang, topShelfY, canvasWidth - 2 * hGutter + 2 * shelfOverhang, shelfLineWidth);
     
     // Draw title bar
-    const titleY = topShelfY + shelfLineWidth + styles.outerMarginPx;
+    const titleY = topShelfY + shelfLineWidth + margin;
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // Draw bottom grid of covers with shelves
-    const gridTopY = titleY + bgH + styles.outerMarginPx;
-    const rowHeight = layout.slotHeight + layout.vGutter + shelfLineWidth;
+    // Draw bottom grid with shelves
+    const gridTopY = titleY + bgH + margin;
     
     for (let row = 0; row < 3; row++) {
-      const currentRowY = gridTopY + row * rowHeight;
+      const currentRowY = gridTopY + row * (slotHeight + vGutter + shelfLineWidth);
       for (let col = 0; col < 3; col++) {
-        const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
-        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, layout.slotWidth, layout.slotHeight, shouldStretch);
+        const slotX = hGutter + col * (slotWidth + hGutter);
+        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, slotWidth, slotHeight, shouldStretch);
         imageIndex++;
       }
       
-      // Draw shelf under this row (ensure it stays within canvas)
-      const shelfY = currentRowY + layout.slotHeight;
-      if (shelfY + shelfLineWidth <= canvasHeight) {
-        ctx.fillStyle = shelfColor;
-        ctx.fillRect(layout.hGutter - shelfOverhang, shelfY, canvasWidth - 2 * layout.hGutter + 2 * shelfOverhang, shelfLineWidth);
-      }
+      // Draw shelf under this row
+      const shelfY = currentRowY + slotHeight;
+      ctx.fillStyle = shelfColor;
+      ctx.fillRect(hGutter - shelfOverhang, shelfY, canvasWidth - 2 * hGutter + 2 * shelfOverhang, shelfLineWidth);
     }
   }
   
   /**
    * Layout: Title Top
-   * Title bar at the very top, then 4 rows of 3 covers
-   */
-  /**
-   * Layout: Title Top
-   * Title bar flush at top, 4 rows of 3 covers filling to bottom
+   * Title bar flush at top, 4 rows of 3 covers with margin at bottom
    */
   function drawLayoutTitleTop(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
+    const margin = styles.outerMarginPx;
     
     // Draw title bar flush at top
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
     
-    // Calculate cover grid (4 rows x 3 cols) filling remaining space
-    const gridTopY = bgH;
-    const availableHeight = canvasHeight - gridTopY;
+    // Calculate cover grid (4 rows x 3 cols) with margin at bottom
+    const gridTopY = bgH + margin;
+    const availableHeight = canvasHeight - gridTopY - margin; // margin at bottom
     const rows = 4;
     const cols = 3;
     
@@ -1832,17 +1842,18 @@ const BooklistApp = (function() {
   
   /**
    * Layout: Title Bottom
-   * 4 rows of 3 covers starting flush at top, title bar flush at bottom
+   * 4 rows of 3 covers with margin at top, title bar flush at bottom
    */
   function drawLayoutTitleBottom(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
+    const margin = styles.outerMarginPx;
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
     
-    // Covers start at top, title at bottom
-    const gridTopY = 0;
-    const availableHeight = canvasHeight - titleBarHeight;
+    // Covers start with margin at top, title flush at bottom
+    const gridTopY = margin;
+    const availableHeight = canvasHeight - titleBarHeight - margin - margin; // margin at top, margin between covers and title
     const rows = 4;
     const cols = 3;
     
@@ -1871,7 +1882,7 @@ const BooklistApp = (function() {
   
   /**
    * Layout: Staggered
-   * Dense brick pattern: 4 rows of 3 covers (offset), fills canvas, partials on edges
+   * Dense brick pattern filling edge-to-edge, offset rows, partial covers bleeding off edges
    */
   function drawLayoutStaggered(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
@@ -1881,58 +1892,55 @@ const BooklistApp = (function() {
     const bookAspect = 0.667;
     const gutter = 6 * (CONFIG.PDF_DPI / 72);
     
-    // 4 rows of 3 covers = 12 covers, plus title in middle
+    // 4 rows of covers plus title
     const numRows = 4;
-    const coversPerRow = 3;
     const availableHeight = canvasHeight - titleBarHeight - gutter;
     const slotHeight = (availableHeight - (numRows - 1) * gutter) / numRows;
     const slotWidth = slotHeight * bookAspect;
     
-    // Calculate positioning - 3 covers centered with partials bleeding off edges
-    const mainRowWidth = coversPerRow * slotWidth + (coversPerRow - 1) * gutter;
-    const baseStartX = (canvasWidth - mainRowWidth) / 2;
+    // Calculate how many covers fit across (we want edge-to-edge coverage)
+    // Fill width: covers should go from edge to edge with gutters between
+    const coversAcross = Math.ceil((canvasWidth + gutter) / (slotWidth + gutter));
+    const totalRowWidth = coversAcross * slotWidth + (coversAcross - 1) * gutter;
+    
+    // Center the row (will bleed off both edges equally)
+    const baseStartX = (canvasWidth - totalRowWidth) / 2;
     const offsetAmount = (slotWidth + gutter) / 2;
     
     let imageIndex = 0;
     let currentY = 0;
     
-    // Helper to draw a brick row
-    const drawBrickRow = (y, offset) => {
+    // Helper to draw a full-width brick row
+    const drawBrickRow = (y, offset, imgOffset) => {
       const startX = baseStartX + offset;
       
-      // Left partial (bleed)
-      drawCoverImage(ctx, images[(imageIndex + 2) % 12], startX - slotWidth - gutter, y, slotWidth, slotHeight, shouldStretch);
-      
-      // Main 3 covers (complete)
-      for (let i = 0; i < coversPerRow; i++) {
+      for (let i = 0; i < coversAcross; i++) {
         const x = startX + i * (slotWidth + gutter);
-        drawCoverImage(ctx, images[imageIndex], x, y, slotWidth, slotHeight, shouldStretch);
-        imageIndex++;
+        // Use modulo to cycle through the 12 images, offset by row
+        const imgIdx = (imgOffset + i) % 12;
+        drawCoverImage(ctx, images[imgIdx], x, y, slotWidth, slotHeight, shouldStretch);
       }
-      
-      // Right partial (bleed)
-      drawCoverImage(ctx, images[(imageIndex - 3) % 12], startX + mainRowWidth + gutter, y, slotWidth, slotHeight, shouldStretch);
     };
     
-    // Top 2 rows (images 0-5)
-    drawBrickRow(currentY, 0);
+    // Top 2 rows
+    drawBrickRow(currentY, 0, 0);
     currentY += slotHeight + gutter;
-    drawBrickRow(currentY, -offsetAmount);
+    drawBrickRow(currentY, -offsetAmount, 3);
     currentY += slotHeight + gutter;
     
     // Title bar
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, currentY);
     currentY += bgH + gutter;
     
-    // Bottom 2 rows (images 6-11)
-    drawBrickRow(currentY, 0);
+    // Bottom 2 rows
+    drawBrickRow(currentY, 0, 6);
     currentY += slotHeight + gutter;
-    drawBrickRow(currentY, -offsetAmount);
+    drawBrickRow(currentY, -offsetAmount, 9);
   }
   
   /**
    * Layout: Filmstrip
-   * Dense horizontal rows with alternating offset, bleeds on edges, fills canvas
+   * Dense horizontal rows filling edge-to-edge with alternating offset
    */
   function drawLayoutFilmstrip(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
@@ -1942,35 +1950,31 @@ const BooklistApp = (function() {
     const bookAspect = 0.667;
     const gutter = 5 * (CONFIG.PDF_DPI / 72);
     
-    // 4 rows of 3 covers = 12 total, plus title
+    // 4 rows of covers plus title
     const numRows = 4;
-    const coversPerRow = 3;
     const availableHeight = canvasHeight - titleBarHeight - gutter;
     const slotHeight = (availableHeight - (numRows - 1) * gutter) / numRows;
     const slotWidth = slotHeight * bookAspect;
     
-    // Position to fill width with bleeds
-    const mainRowWidth = coversPerRow * slotWidth + (coversPerRow - 1) * gutter;
-    const baseStartX = (canvasWidth - mainRowWidth) / 2;
-    const offsetPx = slotWidth * 0.4;
+    // Calculate how many covers fit across (edge-to-edge)
+    const coversAcross = Math.ceil((canvasWidth + gutter) / (slotWidth + gutter));
+    const totalRowWidth = coversAcross * slotWidth + (coversAcross - 1) * gutter;
+    
+    // Center the row (will bleed off both edges equally)
+    const baseStartX = (canvasWidth - totalRowWidth) / 2;
+    const offsetPx = slotWidth * 0.35;
     
     let currentY = 0;
     
-    // Helper to draw filmstrip row with bleeds
-    const drawFilmRow = (y, offset, imgStart) => {
+    // Helper to draw a full-width filmstrip row
+    const drawFilmRow = (y, offset, imgOffset) => {
       const startX = baseStartX + offset;
       
-      // Left bleed
-      drawCoverImage(ctx, images[(imgStart + 2) % 12], startX - slotWidth - gutter, y, slotWidth, slotHeight, shouldStretch);
-      
-      // Main 3 covers
-      for (let i = 0; i < coversPerRow; i++) {
+      for (let i = 0; i < coversAcross; i++) {
         const x = startX + i * (slotWidth + gutter);
-        drawCoverImage(ctx, images[imgStart + i], x, y, slotWidth, slotHeight, shouldStretch);
+        const imgIdx = (imgOffset + i) % 12;
+        drawCoverImage(ctx, images[imgIdx], x, y, slotWidth, slotHeight, shouldStretch);
       }
-      
-      // Right bleed
-      drawCoverImage(ctx, images[imgStart % 12], startX + mainRowWidth + gutter, y, slotWidth, slotHeight, shouldStretch);
     };
     
     // Top 2 rows (offset alternating)
@@ -1991,55 +1995,57 @@ const BooklistApp = (function() {
   
   /**
    * Layout: Wave
-   * Grid with vertical offsets, flush top and bottom
+   * Grid with vertical offsets creating wave pattern, proper gutters between covers
    */
   function drawLayoutWave(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
+    const margin = styles.outerMarginPx;
     const bookAspect = 0.75;
-    const waveOffset = 15 * (CONFIG.PDF_DPI / 72);
+    const waveOffset = 20 * (CONFIG.PDF_DPI / 72);
     
-    // 4 rows: 1 top + 3 bottom, account for wave offset space
+    // 4 rows: 1 top + 3 bottom, with gutters and wave space
     const numRows = 4;
-    const availableHeight = canvasHeight - titleBarHeight - waveOffset;
     const vGutterRatio = 0.12;
+    const availableHeight = canvasHeight - titleBarHeight - 2 * margin - waveOffset * 2;
     const totalVGutters = (numRows - 1) * vGutterRatio;
     const slotHeight = availableHeight / (numRows + totalVGutters);
     const vGutter = slotHeight * vGutterRatio;
     const slotWidth = slotHeight * bookAspect;
     const hGutter = (canvasWidth - 3 * slotWidth) / 4;
     
-    // Wave pattern: center column offset up
-    const colOffsets = [waveOffset, 0, waveOffset];
-    
+    // Wave pattern: alternating columns offset
     let imageIndex = 0;
     
-    // Top row (starts at 0)
+    // Top row with wave (starts with margin + wave space)
+    const topRowY = waveOffset;
+    const topOffsets = [waveOffset, 0, waveOffset]; // Center column higher
     for (let col = 0; col < 3; col++) {
       const x = hGutter + col * (slotWidth + hGutter);
-      const y = colOffsets[col];
+      const y = topRowY + topOffsets[col];
       drawCoverImage(ctx, images[imageIndex], x, y, slotWidth, slotHeight, shouldStretch);
       imageIndex++;
     }
     
     // Title bar
-    const titleY = slotHeight + waveOffset + styles.outerMarginPx;
+    const titleY = topRowY + slotHeight + waveOffset + margin;
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // Bottom 3 rows with alternating wave
-    const gridTopY = titleY + bgH + styles.outerMarginPx;
+    // Bottom 3 rows with alternating wave pattern
+    const gridTopY = titleY + bgH + margin;
     const wavePatterns = [
-      [0, waveOffset, 0],
-      [waveOffset, 0, waveOffset],
-      [0, waveOffset, 0]
+      [0, waveOffset, 0],           // Row 1: center lower
+      [waveOffset, 0, waveOffset],  // Row 2: center higher  
+      [0, waveOffset, 0]            // Row 3: center lower
     ];
     
     for (let row = 0; row < 3; row++) {
+      const baseY = gridTopY + row * (slotHeight + vGutter);
       for (let col = 0; col < 3; col++) {
         const x = hGutter + col * (slotWidth + hGutter);
-        const y = gridTopY + row * (slotHeight + vGutter) + wavePatterns[row][col];
+        const y = baseY + wavePatterns[row][col];
         drawCoverImage(ctx, images[imageIndex], x, y, slotWidth, slotHeight, shouldStretch);
         imageIndex++;
       }
