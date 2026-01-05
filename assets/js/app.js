@@ -1872,7 +1872,7 @@ const BooklistApp = (function() {
    */
   /**
    * Layout: Staggered
-   * Alternating rows of 2 and 3 covers with partial covers filling the gaps on edges
+   * Alternating rows of 2 and 3 covers, centered, with partial repeated covers on edges for visual fullness
    */
   function drawLayoutStaggered(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
@@ -1880,14 +1880,15 @@ const BooklistApp = (function() {
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
     const margin = styles.outerMarginPx;
-    const gutter = 10 * (CONFIG.PDF_DPI / 72);
+    const gutter = 8 * (CONFIG.PDF_DPI / 72);
     
     // Pattern: 2, 3, title, 2, 3, 2 = 12 covers
     const bookAspect = 0.667;
     const rows = 5;
     
-    // Size based on 3 covers fitting
-    const maxWidth = (canvasWidth - 2 * margin - 2 * gutter) / 3;
+    // Size based on 3 covers fitting with room for edge partials
+    const mainAreaWidth = canvasWidth * 0.85;
+    const maxWidth = (mainAreaWidth - 2 * gutter) / 3;
     const availableHeight = canvasHeight - titleBarHeight - 2 * margin;
     const slotHeight = (availableHeight - (rows - 1) * gutter) / rows;
     const slotWidth = Math.min(maxWidth, slotHeight * bookAspect);
@@ -1896,48 +1897,48 @@ const BooklistApp = (function() {
     let imageIndex = 0;
     let currentY = margin;
     
-    // Helper to draw a row with partial covers on edges
-    const drawRowWithPartials = (count, repeatImgIdx1, repeatImgIdx2) => {
+    // Helper to draw a centered row with optional edge partials
+    const drawRow = (count, addPartials) => {
       const rowWidth = count * slotWidth + (count - 1) * gutter;
       const startX = (canvasWidth - rowWidth) / 2;
       
-      // Draw partial cover on left edge (cut off)
-      if (repeatImgIdx1 !== null) {
-        const partialX = startX - slotWidth * 0.6 - gutter;
-        drawCoverImage(ctx, images[repeatImgIdx1 % 12], partialX, currentY, slotWidth, actualHeight, shouldStretch);
+      // Draw partial covers on edges (repeated, clipped by canvas)
+      if (addPartials) {
+        // Left partial - show right ~40% of a cover
+        const leftPartialX = startX - slotWidth - gutter;
+        drawCoverImage(ctx, images[imageIndex % 12], leftPartialX, currentY, slotWidth, actualHeight, shouldStretch);
+        
+        // Right partial - show left ~40% of a cover  
+        const rightPartialX = startX + rowWidth + gutter;
+        drawCoverImage(ctx, images[(imageIndex + count - 1) % 12], rightPartialX, currentY, slotWidth, actualHeight, shouldStretch);
       }
       
-      // Draw main covers
+      // Draw main covers (these are the complete ones)
       for (let i = 0; i < count; i++) {
-        drawCoverImage(ctx, images[imageIndex++], startX + i * (slotWidth + gutter), currentY, slotWidth, actualHeight, shouldStretch);
-      }
-      
-      // Draw partial cover on right edge (cut off)
-      if (repeatImgIdx2 !== null) {
-        const partialX = startX + rowWidth + gutter - slotWidth * 0.4;
-        drawCoverImage(ctx, images[repeatImgIdx2 % 12], partialX, currentY, slotWidth, actualHeight, shouldStretch);
+        drawCoverImage(ctx, images[imageIndex], startX + i * (slotWidth + gutter), currentY, slotWidth, actualHeight, shouldStretch);
+        imageIndex++;
       }
       
       currentY += actualHeight + gutter;
     };
     
     // Top section: 2 (with partials), then 3
-    drawRowWithPartials(2, 0, 1);  // Repeat first two covers on edges
-    drawRowWithPartials(3, null, null);  // Full row, no partials needed
+    drawRow(2, true);
+    drawRow(3, false);
     
     // Title bar
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, currentY);
     currentY += bgH + gutter;
     
     // Bottom section: 2, 3, 2 (with partials on 2-cover rows)
-    drawRowWithPartials(2, 5, 6);
-    drawRowWithPartials(3, null, null);
-    drawRowWithPartials(2, 9, 10);
+    drawRow(2, true);
+    drawRow(3, false);
+    drawRow(2, true);
   }
   
   /**
    * Layout: Filmstrip
-   * Horizontal bands of covers at top and bottom bleeding off edges, title in middle
+   * Dense horizontal rows bleeding off edges, title in middle
    */
   function drawLayoutFilmstrip(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
@@ -1949,84 +1950,110 @@ const BooklistApp = (function() {
     
     const bookAspect = 0.667;
     
-    // Calculate strip height (each strip is 2 rows)
-    const availableHeight = canvasHeight - titleBarHeight - 2 * margin;
-    const stripHeight = (availableHeight - 2 * gutter) / 4; // 4 rows total
-    const slotHeight = stripHeight;
+    // 4 rows of covers (2 above title, 2 below), each row has 4 visible + partials
+    const availableHeight = canvasHeight - titleBarHeight - 2 * margin - 3 * gutter;
+    const slotHeight = availableHeight / 4;
     const slotWidth = slotHeight * bookAspect;
     
-    // Top strip: 2 rows, covers bleeding off left and right
-    let imageIndex = 0;
-    
-    // Helper to draw a filmstrip row (bleeds off edges)
-    const drawFilmstripRow = (y, startImgIdx) => {
-      // Calculate how many covers fit, plus partials
-      const coverSpacing = slotWidth + gutter;
-      const coversAcross = Math.ceil(canvasWidth / coverSpacing) + 1;
-      const totalWidth = coversAcross * slotWidth + (coversAcross - 1) * gutter;
-      const startX = (canvasWidth - totalWidth) / 2 - slotWidth * 0.3; // Offset to create bleed
+    // Helper to draw a filmstrip row with edge bleeds
+    const drawFilmstripRow = (y, imgIndices, offset) => {
+      // Calculate positions - 4 main covers centered, with partials bleeding off
+      const mainWidth = 4 * slotWidth + 3 * gutter;
+      const startX = (canvasWidth - mainWidth) / 2 + offset;
       
-      for (let i = 0; i < coversAcross; i++) {
-        const imgIdx = (startImgIdx + i) % 12;
-        const x = startX + i * coverSpacing;
-        drawCoverImage(ctx, images[imgIdx], x, y, slotWidth, slotHeight, shouldStretch);
+      // Draw from left edge partial to right edge partial
+      const leftPartialX = startX - slotWidth - gutter;
+      const rightPartialX = startX + mainWidth + gutter;
+      
+      // Left partial (repeats last of this row)
+      drawCoverImage(ctx, images[imgIndices[imgIndices.length - 1]], leftPartialX, y, slotWidth, slotHeight, shouldStretch);
+      
+      // Main 4 covers (or 3 if that's what's passed)
+      for (let i = 0; i < imgIndices.length; i++) {
+        drawCoverImage(ctx, images[imgIndices[i]], startX + i * (slotWidth + gutter), y, slotWidth, slotHeight, shouldStretch);
       }
+      
+      // Right partial (repeats first of this row)
+      drawCoverImage(ctx, images[imgIndices[0]], rightPartialX, y, slotWidth, slotHeight, shouldStretch);
     };
     
-    // Top filmstrip (2 rows)
-    drawFilmstripRow(0, 0);
-    drawFilmstripRow(slotHeight + gutter, 3);
-    imageIndex = 6;
+    // Row 1: covers 0-2 (3 covers, offset left)
+    let currentY = margin;
+    drawFilmstripRow(currentY, [0, 1, 2], -slotWidth * 0.3);
+    currentY += slotHeight + gutter;
+    
+    // Row 2: covers 3-5 (3 covers, offset right)
+    drawFilmstripRow(currentY, [3, 4, 5], slotWidth * 0.3);
+    currentY += slotHeight + gutter;
     
     // Title bar
-    const titleY = 2 * slotHeight + 2 * gutter + margin;
-    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, currentY);
+    currentY += bgH + gutter;
     
-    // Bottom filmstrip (2 rows)
-    const bottomStartY = titleY + bgH + margin;
-    drawFilmstripRow(bottomStartY, 6);
-    drawFilmstripRow(bottomStartY + slotHeight + gutter, 9);
+    // Row 3: covers 6-8 (3 covers, offset left)
+    drawFilmstripRow(currentY, [6, 7, 8], -slotWidth * 0.3);
+    currentY += slotHeight + gutter;
+    
+    // Row 4: covers 9-11 (3 covers, offset right)
+    drawFilmstripRow(currentY, [9, 10, 11], slotWidth * 0.3);
   }
   
   /**
    * Layout: Wave
-   * Rows with vertical offsets creating an undulating wave effect
+   * Grid with subtle vertical offsets creating gentle wave pattern
    */
   function drawLayoutWave(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
-    const layout = calculateCollageLayout(canvasWidth, canvasHeight, titleBarHeight, styles.outerMarginPx);
-    layout.topRowY = 0;
+    const margin = styles.outerMarginPx;
     
-    // Wave offsets for each column (creates undulation)
-    const waveOffset = layout.slotHeight * 0.15;
-    const colOffsets = [0, -waveOffset, 0]; // Middle column higher
+    // Calculate layout with extra vertical space for wave offset
+    const waveOffset = 12 * (CONFIG.PDF_DPI / 72); // Subtle offset
+    const availableHeight = canvasHeight - titleBarHeight - 2 * margin - waveOffset * 2;
     
-    // Draw top row with wave
+    const bookAspect = 0.667;
+    const rows = 4; // 1 top + 3 bottom
+    const cols = 3;
+    const vGutter = 8 * (CONFIG.PDF_DPI / 72);
+    
+    const slotHeight = (availableHeight - (rows - 1) * vGutter) / rows;
+    const slotWidth = slotHeight * bookAspect;
+    const hGutter = (canvasWidth - cols * slotWidth) / (cols + 1);
+    
+    // Wave pattern: columns offset up/down alternately
+    // Pattern for each column: [left, center, right]
+    const topRowOffsets = [waveOffset, 0, waveOffset]; // Center higher
+    const bottomOffsets = [
+      [0, waveOffset, 0],      // Row 1: sides higher
+      [waveOffset, 0, waveOffset], // Row 2: center higher
+      [0, waveOffset, 0]       // Row 3: sides higher
+    ];
+    
     let imageIndex = 0;
+    
+    // Top row with wave
+    const topRowY = margin + waveOffset;
     for (let col = 0; col < 3; col++) {
-      const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
-      const slotY = layout.topRowY + colOffsets[col] + waveOffset; // Normalize so middle is at base
-      drawCoverImage(ctx, images[imageIndex], slotX, slotY, layout.slotWidth, layout.slotHeight, shouldStretch);
+      const slotX = hGutter + col * (slotWidth + hGutter);
+      const slotY = topRowY + topRowOffsets[col];
+      drawCoverImage(ctx, images[imageIndex], slotX, slotY, slotWidth, slotHeight, shouldStretch);
       imageIndex++;
     }
     
-    // Draw title bar
-    const titleY = layout.topRowY + layout.slotHeight + waveOffset + styles.outerMarginPx;
+    // Title bar
+    const titleY = topRowY + slotHeight + waveOffset + margin;
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // Draw bottom grid with alternating wave pattern
-    const gridTopY = titleY + bgH + styles.outerMarginPx;
-    const reverseOffsets = [[-waveOffset, 0, -waveOffset], [0, -waveOffset, 0], [-waveOffset, 0, -waveOffset]];
-    
+    // Bottom grid with wave
+    const gridTopY = titleY + bgH + margin;
     for (let row = 0; row < 3; row++) {
-      const baseY = gridTopY + row * (layout.slotHeight + layout.vGutter);
+      const baseY = gridTopY + row * (slotHeight + vGutter);
       for (let col = 0; col < 3; col++) {
-        const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
-        const slotY = baseY + reverseOffsets[row][col] + waveOffset;
-        drawCoverImage(ctx, images[imageIndex], slotX, slotY, layout.slotWidth, layout.slotHeight, shouldStretch);
+        const slotX = hGutter + col * (slotWidth + hGutter);
+        const slotY = baseY + bottomOffsets[row][col];
+        drawCoverImage(ctx, images[imageIndex], slotX, slotY, slotWidth, slotHeight, shouldStretch);
         imageIndex++;
       }
     }
@@ -2034,113 +2061,86 @@ const BooklistApp = (function() {
   
   /**
    * Layout: Spotlight
-   * One large featured cover on left, title below it, smaller grid on right
+   * Title at top, one large featured cover in center, surrounded by smaller covers
    */
   function drawLayoutSpotlight(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     
     const margin = styles.outerMarginPx;
-    const gutter = 10 * (CONFIG.PDF_DPI / 72);
+    const gutter = 8 * (CONFIG.PDF_DPI / 72);
     const bookAspect = 0.667;
     
-    // Featured cover: ~40% of width
-    const featuredWidth = canvasWidth * 0.38;
-    const featuredHeight = featuredWidth / bookAspect;
+    // Title bar at top (flush)
+    const titleY = 0;
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // Draw featured cover
-    drawCoverImage(ctx, images[0], margin, margin, featuredWidth, featuredHeight, shouldStretch);
+    // Available space below title
+    const contentTop = bgH + margin;
+    const contentHeight = canvasHeight - contentTop - margin;
     
-    // Title bar below featured cover (same width as featured)
-    const titleY = margin + featuredHeight + gutter;
-    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
+    // Layout: 
+    // Row 1: 4 small covers
+    // Row 2: small | BIG COVER | small  
+    // Row 3: 4 small covers
     
-    // Draw title bar manually at specific width
-    const { wrapTextMultiline } = createTextWrapper(ctx);
-    const processedLines = [];
-    const defaultGapPx = 8 * (CONFIG.PDF_DPI / 72);
-    const lineGapPx = styles.lineSpacingPx !== undefined ? styles.lineSpacingPx : defaultGapPx;
-    const availableTextWidth = featuredWidth - 2 * styles.padXPx;
-    
-    if (!styles.isAdvancedMode) {
-      if (styles.text && styles.text.length > 0) {
-        ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
-        const wrappedLines = wrapTextMultiline(styles.text, availableTextWidth);
-        wrappedLines.forEach(wrappedText => {
-          const m = ctx.measureText(wrappedText);
-          const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
-          const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
-          processedLines.push({ text: wrappedText, font: styles.font, fontStyle: styles.fontStyle, sizePx: styles.fontSizePx, color: styles.color, ascent, descent, height: ascent + descent });
-        });
-      }
-    } else {
-      if (styles.lines && styles.lines.length > 0) {
-        styles.lines.forEach(lineData => {
-          ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
-          const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
-          wrappedLines.forEach(wrappedText => {
-            const m = ctx.measureText(wrappedText);
-            const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
-            const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
-            processedLines.push({ text: wrappedText, font: lineData.font, fontStyle: lineData.fontStyle, sizePx: lineData.sizePx, color: lineData.color, ascent, descent, height: ascent + descent });
-          });
-        });
-      }
-    }
-    
-    let actualTitleHeight = titleBarHeight;
-    if (processedLines.length > 0) {
-      let textBlockHeight = 0;
-      processedLines.forEach((line, i) => {
-        textBlockHeight += line.height;
-        if (i < processedLines.length - 1) textBlockHeight += lineGapPx;
-      });
-      
-      actualTitleHeight = textBlockHeight + 2 * styles.padYPx;
-      
-      ctx.fillStyle = styles.bgColor;
-      ctx.fillRect(margin, titleY, featuredWidth, actualTitleHeight);
-      
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      
-      let y = titleY + styles.padYPx;
-      processedLines.forEach((line, i) => {
-        ctx.font = `${line.fontStyle} ${line.sizePx}px ${line.font}, sans-serif`;
-        ctx.fillStyle = line.color;
-        ctx.fillText(line.text.trim(), margin + featuredWidth / 2, y + line.ascent);
-        y += line.height;
-        if (i < processedLines.length - 1) y += lineGapPx;
-      });
-    }
-    
-    // Right side: grid of 11 smaller covers (3 cols x 4 rows, minus featured)
-    const rightX = margin + featuredWidth + gutter;
-    const rightWidth = canvasWidth - rightX - margin;
-    const rightHeight = canvasHeight - 2 * margin;
-    
-    const smallCols = 3;
-    const smallRows = 4;
-    const smallGutter = 6 * (CONFIG.PDF_DPI / 72);
-    const smallWidth = (rightWidth - (smallCols - 1) * smallGutter) / smallCols;
+    // Calculate sizes
+    // Small covers: fit 4 across
+    const smallWidth = (canvasWidth - 2 * margin - 3 * gutter) / 4;
     const smallHeight = smallWidth / bookAspect;
     
-    // Adjust if too tall
-    const totalSmallHeight = smallRows * smallHeight + (smallRows - 1) * smallGutter;
-    const scale = Math.min(1, rightHeight / totalSmallHeight);
+    // Big cover: spans height of middle section (roughly 2x small height)
+    const bigHeight = smallHeight * 2 + gutter;
+    const bigWidth = bigHeight * bookAspect;
+    
+    // Check if layout fits, scale if needed
+    const totalHeight = smallHeight * 3 + gutter * 2;
+    const scale = Math.min(1, contentHeight / totalHeight);
+    
     const finalSmallWidth = smallWidth * scale;
     const finalSmallHeight = smallHeight * scale;
-    const finalSmallGutter = smallGutter * scale;
+    const finalBigWidth = bigWidth * scale;
+    const finalBigHeight = bigHeight * scale;
+    const finalGutter = gutter * scale;
     
-    let imageIndex = 1;
-    for (let row = 0; row < smallRows; row++) {
-      for (let col = 0; col < smallCols; col++) {
-        if (imageIndex >= 12) break;
-        const x = rightX + col * (finalSmallWidth + finalSmallGutter);
-        const y = margin + row * (finalSmallHeight + finalSmallGutter);
-        drawCoverImage(ctx, images[imageIndex], x, y, finalSmallWidth, finalSmallHeight, shouldStretch);
-        imageIndex++;
-      }
+    // Row 1: 4 small covers (indices 1-4, saving 0 for spotlight)
+    let currentY = contentTop;
+    const row1Width = 4 * finalSmallWidth + 3 * finalGutter;
+    const row1StartX = (canvasWidth - row1Width) / 2;
+    
+    for (let i = 0; i < 4; i++) {
+      const x = row1StartX + i * (finalSmallWidth + finalGutter);
+      drawCoverImage(ctx, images[i + 1], x, currentY, finalSmallWidth, finalSmallHeight, shouldStretch);
+    }
+    currentY += finalSmallHeight + finalGutter;
+    
+    // Row 2: small cover, BIG cover (index 0), small cover
+    // Center the big cover, place smalls on sides
+    const bigX = (canvasWidth - finalBigWidth) / 2;
+    const sideSmallX1 = bigX - finalSmallWidth - finalGutter;
+    const sideSmallX2 = bigX + finalBigWidth + finalGutter;
+    
+    // Side covers are vertically centered with big cover
+    const sideCoverY = currentY + (finalBigHeight - finalSmallHeight) / 2;
+    
+    // Left small (index 5)
+    drawCoverImage(ctx, images[5], sideSmallX1, sideCoverY, finalSmallWidth, finalSmallHeight, shouldStretch);
+    
+    // Big center cover (index 0 - the spotlight)
+    drawCoverImage(ctx, images[0], bigX, currentY, finalBigWidth, finalBigHeight, shouldStretch);
+    
+    // Right small (index 6)
+    drawCoverImage(ctx, images[6], sideSmallX2, sideCoverY, finalSmallWidth, finalSmallHeight, shouldStretch);
+    
+    currentY += finalBigHeight + finalGutter;
+    
+    // Row 3: 5 small covers (indices 7-11)
+    const row3Width = 5 * finalSmallWidth + 4 * finalGutter;
+    const row3StartX = (canvasWidth - row3Width) / 2;
+    
+    for (let i = 0; i < 5; i++) {
+      const x = row3StartX + i * (finalSmallWidth + finalGutter);
+      drawCoverImage(ctx, images[i + 7], x, currentY, finalSmallWidth, finalSmallHeight, shouldStretch);
     }
   }
   
