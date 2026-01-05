@@ -382,10 +382,10 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
     position: absolute; top: 0;
     display: flex; flex-direction: column; align-items: center; 
     justify-content: center;
-    gap: 4px;
+    gap: 6px;
     color: #888; right: 100%; margin-right: 4px;
     background-color: rgba(230, 230, 230, 0.85);
-    padding: 8px 5px; border-radius: 4px;
+    padding: 8px 6px; border-radius: 4px;
     height: 132px;
     box-sizing: border-box;
 }
@@ -399,7 +399,7 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .controls-right::after { left: auto; right: 100%; }
 .drag-handle { 
   cursor: grab; 
-  font-size: 1.1rem; 
+  font-size: 1.4rem; 
   line-height: 1; 
   color: #555;
   padding: 2px;
@@ -412,13 +412,13 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
-.item-number { font-size: 0.95rem; font-weight: bold; color: #555; }
+.item-number { font-size: 1.1rem; font-weight: bold; color: #555; }
 .delete-button { 
   background: none; 
   border: none; 
   color: #cc0000; 
   font-weight: bold; 
-  font-size: 1.1rem; 
+  font-size: 1.4rem; 
   line-height: 1; 
   padding: 0; 
   cursor: pointer;
@@ -435,7 +435,7 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   border: none;
   cursor: pointer;
   color: var(--primary-color);
-  font-size: 0.85rem;
+  font-size: 1.05rem;
   padding: 1px 0;
   transition: transform 0.2s;
 }
@@ -453,7 +453,7 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   border: none;
   cursor: pointer;
   color: #ccc;
-  font-size: 0.85rem;
+  font-size: 1.05rem;
   padding: 1px 0;
   transition: color 0.2s, transform 0.2s;
 }
