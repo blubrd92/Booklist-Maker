@@ -413,7 +413,7 @@ const BooklistApp = (function() {
       customCoverData: CONFIG.PLACEHOLDER_COVER_URL,
       cover_ids: [],
       currentCoverIndex: 0,
-      includeInCollage: true
+      includeInCollage: false // Blank books don't count toward collage
     };
   }
   
@@ -678,6 +678,9 @@ const BooklistApp = (function() {
     
     if (!isAdded) {
       if (firstBlankIndex !== -1) {
+        // Only auto-star if under 12 starred books
+        const currentStarredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+        
         const newBook = {
           key: book.key,
           isBlank: false,
@@ -688,7 +691,7 @@ const BooklistApp = (function() {
           description: 'Fetching book description... May take a few minutes.',
           cover_ids: carouselState.allCoverIds,
           currentCoverIndex: carouselState.currentCoverIndex,
-          includeInCollage: true
+          includeInCollage: currentStarredCount < CONFIG.MIN_COVERS_FOR_COLLAGE
         };
         myBooklist[firstBlankIndex] = newBook;
         addButton.innerHTML = '&#10003;';
@@ -1498,11 +1501,14 @@ const BooklistApp = (function() {
         case 'titleBottom':
           drawLayoutTitleBottom(ctx, canvas, images, styles, shouldStretchCovers);
           break;
-        case 'scattered':
-          drawLayoutScattered(ctx, canvas, images, styles, shouldStretchCovers);
+        case 'pyramid':
+          drawLayoutPyramid(ctx, canvas, images, styles, shouldStretchCovers);
           break;
-        case 'banner':
-          drawLayoutBanner(ctx, canvas, images, styles, shouldStretchCovers);
+        case 'staggered':
+          drawLayoutStaggered(ctx, canvas, images, styles, shouldStretchCovers);
+          break;
+        case 'gridWide':
+          drawLayoutGridWide(ctx, canvas, images, styles, shouldStretchCovers);
           break;
         case 'classic':
         default:
@@ -1789,12 +1795,12 @@ const BooklistApp = (function() {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     
-    // Draw title bar at top
-    const titleY = styles.outerMarginPx;
+    // Draw title bar flush at top (no margin)
+    const titleY = 0;
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
     // Calculate cover grid (4 rows x 3 cols below title)
-    const gridTopY = titleY + bgH + styles.outerMarginPx;
+    const gridTopY = bgH + styles.outerMarginPx;
     const availableHeight = canvasHeight - gridTopY - styles.outerMarginPx;
     const rows = 4;
     const cols = 3;
@@ -1820,7 +1826,7 @@ const BooklistApp = (function() {
   
   /**
    * Layout: Title Bottom
-   * 4 rows of 3 covers, then title bar at the bottom
+   * 4 rows of 3 covers, then title bar flush at the bottom
    */
   function drawLayoutTitleBottom(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
@@ -1830,7 +1836,7 @@ const BooklistApp = (function() {
     
     // Calculate cover grid (4 rows x 3 cols)
     const gridTopY = styles.outerMarginPx;
-    const availableHeight = canvasHeight - gridTopY - titleBarHeight - 2 * styles.outerMarginPx;
+    const availableHeight = canvasHeight - gridTopY - titleBarHeight - styles.outerMarginPx;
     const rows = 4;
     const cols = 3;
     
@@ -1852,109 +1858,241 @@ const BooklistApp = (function() {
       }
     }
     
-    // Draw title bar at bottom
-    const titleY = gridTopY + rows * slotHeight + (rows - 1) * vGutter + styles.outerMarginPx;
+    // Draw title bar flush at bottom
+    const titleY = canvasHeight - titleBarHeight;
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
   }
   
   /**
-   * Layout: Scattered
-   * Same grid as classic but covers are randomly tilted ±3°
+   * Layout: Pyramid
+   * 1 cover on top, then 2, then 3, then title, then 3, then 3
    */
-  function drawLayoutScattered(ctx, canvas, images, styles, shouldStretch) {
-    const canvasWidth = canvas.width;
-    const canvasHeight = canvas.height;
-    
-    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
-    const layout = calculateCollageLayout(canvasWidth, canvasHeight, titleBarHeight, styles.outerMarginPx);
-    layout.topRowY = 0;
-    
-    // Seeded random for consistent results
-    const tilts = [-3, 2, -2, 3, -1, 2, -3, 1, 3, -2, 2, -1];
-    
-    // Helper to draw a tilted cover
-    const drawTiltedCover = (img, x, y, w, h, tiltDeg) => {
-      ctx.save();
-      const centerX = x + w / 2;
-      const centerY = y + h / 2;
-      ctx.translate(centerX, centerY);
-      ctx.rotate(tiltDeg * Math.PI / 180);
-      ctx.translate(-centerX, -centerY);
-      drawCoverImage(ctx, img, x, y, w, h, shouldStretch);
-      ctx.restore();
-    };
-    
-    // Draw top row of covers (tilted)
-    let imageIndex = 0;
-    for (let col = 0; col < 3; col++) {
-      const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
-      drawTiltedCover(images[imageIndex], slotX, layout.topRowY, layout.slotWidth, layout.slotHeight, tilts[imageIndex]);
-      imageIndex++;
-    }
-    
-    // Draw title bar (not tilted)
-    const titleY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
-    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
-    
-    // Draw bottom grid of covers (tilted)
-    const gridTopY = titleY + bgH + styles.outerMarginPx;
-    for (let row = 0; row < 3; row++) {
-      const currentRowY = gridTopY + row * (layout.slotHeight + layout.vGutter);
-      for (let col = 0; col < 3; col++) {
-        const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
-        drawTiltedCover(images[imageIndex], slotX, currentRowY, layout.slotWidth, layout.slotHeight, tilts[imageIndex]);
-        imageIndex++;
-      }
-    }
-  }
-  
-  /**
-   * Layout: Banner
-   * 2 rows of 3 covers, wide title banner, 2 rows of 3 covers
-   */
-  function drawLayoutBanner(ctx, canvas, images, styles, shouldStretch) {
+  function drawLayoutPyramid(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
     const margin = styles.outerMarginPx;
+    const gutter = 8 * (CONFIG.PDF_DPI / 72);
     
-    // Calculate layout: 4 total rows of covers split 2-2 with title in middle
-    const rows = 4;
-    const cols = 3;
-    const vGutterRatio = 0.12;
+    // Calculate cover size based on fitting 3 across with gutters
+    const bookAspect = 0.667;
+    const maxWidth = (canvasWidth - 2 * margin - 2 * gutter) / 3;
+    const slotWidth = maxWidth;
+    const slotHeight = slotWidth / bookAspect;
+    
+    // Pyramid section height (rows: 1, 2, 3 covers)
+    const pyramidHeight = 3 * slotHeight + 2 * gutter;
+    const bottomGridHeight = 2 * slotHeight + gutter;
+    const totalNeeded = pyramidHeight + titleBarHeight + bottomGridHeight + 3 * margin;
+    const scale = Math.min(1, (canvasHeight - margin) / totalNeeded);
+    
+    const scaledWidth = slotWidth * scale;
+    const scaledHeight = slotHeight * scale;
+    const scaledGutter = gutter * scale;
+    
+    let imageIndex = 0;
+    let currentY = margin;
+    
+    // Row 1: 1 cover centered
+    const x1 = (canvasWidth - scaledWidth) / 2;
+    drawCoverImage(ctx, images[imageIndex++], x1, currentY, scaledWidth, scaledHeight, shouldStretch);
+    currentY += scaledHeight + scaledGutter;
+    
+    // Row 2: 2 covers centered
+    const row2Width = 2 * scaledWidth + scaledGutter;
+    const x2Start = (canvasWidth - row2Width) / 2;
+    for (let i = 0; i < 2; i++) {
+      drawCoverImage(ctx, images[imageIndex++], x2Start + i * (scaledWidth + scaledGutter), currentY, scaledWidth, scaledHeight, shouldStretch);
+    }
+    currentY += scaledHeight + scaledGutter;
+    
+    // Row 3: 3 covers
+    const row3Width = 3 * scaledWidth + 2 * scaledGutter;
+    const x3Start = (canvasWidth - row3Width) / 2;
+    for (let i = 0; i < 3; i++) {
+      drawCoverImage(ctx, images[imageIndex++], x3Start + i * (scaledWidth + scaledGutter), currentY, scaledWidth, scaledHeight, shouldStretch);
+    }
+    currentY += scaledHeight + margin;
+    
+    // Title bar
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, currentY);
+    currentY += bgH + margin;
+    
+    // Bottom: 2 rows of 3 covers
+    for (let row = 0; row < 2; row++) {
+      for (let i = 0; i < 3; i++) {
+        drawCoverImage(ctx, images[imageIndex++], x3Start + i * (scaledWidth + scaledGutter), currentY, scaledWidth, scaledHeight, shouldStretch);
+      }
+      currentY += scaledHeight + scaledGutter;
+    }
+  }
+  
+  /**
+   * Layout: Staggered
+   * Alternating rows of 2 and 3 covers for a dynamic look
+   */
+  function drawLayoutStaggered(ctx, canvas, images, styles, shouldStretch) {
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    
+    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
+    const margin = styles.outerMarginPx;
+    const gutter = 10 * (CONFIG.PDF_DPI / 72);
+    
+    // Pattern: 2, 3, title, 2, 3, 2 = 12 covers
+    const bookAspect = 0.667;
+    const rows = 5; // 5 rows of covers
+    
+    // Size based on 3 covers fitting
+    const maxWidth = (canvasWidth - 2 * margin - 2 * gutter) / 3;
+    const availableHeight = canvasHeight - titleBarHeight - 2 * margin;
+    const slotHeight = (availableHeight - (rows - 1) * gutter) / rows;
+    const slotWidth = Math.min(maxWidth, slotHeight * bookAspect);
+    const actualHeight = slotWidth / bookAspect;
+    
+    let imageIndex = 0;
+    let currentY = margin;
+    
+    // Helper to draw a row
+    const drawRow = (count) => {
+      const rowWidth = count * slotWidth + (count - 1) * gutter;
+      const startX = (canvasWidth - rowWidth) / 2;
+      for (let i = 0; i < count; i++) {
+        drawCoverImage(ctx, images[imageIndex++], startX + i * (slotWidth + gutter), currentY, slotWidth, actualHeight, shouldStretch);
+      }
+      currentY += actualHeight + gutter;
+    };
+    
+    // Top section: 2, then 3
+    drawRow(2);
+    drawRow(3);
+    
+    // Title bar
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, currentY);
+    currentY += bgH + gutter;
+    
+    // Bottom section: 2, 3, 2
+    drawRow(2);
+    drawRow(3);
+    drawRow(2);
+  }
+  
+  /**
+   * Layout: Grid Wide
+   * 2 columns of 3 covers, title in middle column, 2 columns of 3 covers
+   */
+  function drawLayoutGridWide(ctx, canvas, images, styles, shouldStretch) {
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    
+    const margin = styles.outerMarginPx;
+    const gutter = 8 * (CONFIG.PDF_DPI / 72);
+    
+    // Left column: 3 covers, Center: title, Right column: 3 covers (top half)
+    // Then 2 rows of 3 covers (bottom half)
     const bookAspect = 0.667;
     
-    const availableHeight = canvasHeight - titleBarHeight - 4 * margin;
-    const totalVGutters = (rows - 1) * vGutterRatio;
-    const slotHeight = availableHeight / (rows + totalVGutters);
-    const vGutter = slotHeight * vGutterRatio;
-    const slotWidth = slotHeight * bookAspect;
-    const hGutter = (canvasWidth - cols * slotWidth) / (cols + 1);
+    // Size covers for 2 columns with title space in middle
+    const titleWidth = canvasWidth * 0.28;
+    const sideWidth = (canvasWidth - titleWidth - 2 * margin - 2 * gutter) / 2;
+    const slotWidth = sideWidth;
+    const slotHeight = slotWidth / bookAspect;
     
-    // Draw top 2 rows
+    // Top section height (3 covers stacked)
+    const topSectionHeight = 3 * slotHeight + 2 * gutter;
+    
     let imageIndex = 0;
-    for (let row = 0; row < 2; row++) {
-      const currentRowY = margin + row * (slotHeight + vGutter);
-      for (let col = 0; col < cols; col++) {
-        const slotX = hGutter + col * (slotWidth + hGutter);
-        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, slotWidth, slotHeight, shouldStretch);
-        imageIndex++;
+    
+    // Left column: 3 covers
+    const leftX = margin;
+    for (let i = 0; i < 3; i++) {
+      const y = margin + i * (slotHeight + gutter);
+      drawCoverImage(ctx, images[imageIndex++], leftX, y, slotWidth, slotHeight, shouldStretch);
+    }
+    
+    // Right column: 3 covers
+    const rightX = canvasWidth - margin - slotWidth;
+    for (let i = 0; i < 3; i++) {
+      const y = margin + i * (slotHeight + gutter);
+      drawCoverImage(ctx, images[imageIndex++], rightX, y, slotWidth, slotHeight, shouldStretch);
+    }
+    
+    // Title bar in center (vertically centered in top section)
+    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
+    const titleX = margin + slotWidth + gutter;
+    const titleY = margin + (topSectionHeight - titleBarHeight) / 2;
+    
+    // Draw title bar with custom positioning
+    const { wrapTextMultiline } = createTextWrapper(ctx);
+    const processedLines = [];
+    const defaultGapPx = 8 * (CONFIG.PDF_DPI / 72);
+    const lineGapPx = styles.lineSpacingPx !== undefined ? styles.lineSpacingPx : defaultGapPx;
+    const availableTextWidth = titleWidth - 2 * styles.padXPx;
+    
+    if (!styles.isAdvancedMode) {
+      if (styles.text && styles.text.length > 0) {
+        ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
+        const wrappedLines = wrapTextMultiline(styles.text, availableTextWidth);
+        wrappedLines.forEach(wrappedText => {
+          const m = ctx.measureText(wrappedText);
+          const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
+          const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
+          processedLines.push({ text: wrappedText, font: styles.font, fontStyle: styles.fontStyle, sizePx: styles.fontSizePx, color: styles.color, ascent, descent, height: ascent + descent });
+        });
+      }
+    } else {
+      if (styles.lines && styles.lines.length > 0) {
+        styles.lines.forEach(lineData => {
+          ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
+          const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
+          wrappedLines.forEach(wrappedText => {
+            const m = ctx.measureText(wrappedText);
+            const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
+            const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
+            processedLines.push({ text: wrappedText, font: lineData.font, fontStyle: lineData.fontStyle, sizePx: lineData.sizePx, color: lineData.color, ascent, descent, height: ascent + descent });
+          });
+        });
       }
     }
     
-    // Draw title bar in middle
-    const titleY = margin + 2 * slotHeight + vGutter + margin;
-    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+    if (processedLines.length > 0) {
+      let textBlockHeight = 0;
+      processedLines.forEach((line, i) => {
+        textBlockHeight += line.height;
+        if (i < processedLines.length - 1) textBlockHeight += lineGapPx;
+      });
+      
+      const bgH = textBlockHeight + 2 * styles.padYPx;
+      const bgY = margin + (topSectionHeight - bgH) / 2;
+      
+      ctx.fillStyle = styles.bgColor;
+      ctx.fillRect(titleX, bgY, titleWidth, bgH);
+      
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      
+      let y = bgY + styles.padYPx;
+      processedLines.forEach((line, i) => {
+        ctx.font = `${line.fontStyle} ${line.sizePx}px ${line.font}, sans-serif`;
+        ctx.fillStyle = line.color;
+        ctx.fillText(line.text.trim(), titleX + titleWidth / 2, y + line.ascent);
+        y += line.height;
+        if (i < processedLines.length - 1) y += lineGapPx;
+      });
+    }
     
-    // Draw bottom 2 rows
-    const bottomStartY = titleY + bgH + margin;
+    // Bottom section: 2 rows of 3 covers
+    const bottomY = margin + topSectionHeight + margin;
+    const bottomSlotWidth = (canvasWidth - 2 * margin - 2 * gutter) / 3;
+    const bottomSlotHeight = bottomSlotWidth / bookAspect;
+    const bottomGutter = gutter;
+    
     for (let row = 0; row < 2; row++) {
-      const currentRowY = bottomStartY + row * (slotHeight + vGutter);
-      for (let col = 0; col < cols; col++) {
-        const slotX = hGutter + col * (slotWidth + hGutter);
-        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, slotWidth, slotHeight, shouldStretch);
-        imageIndex++;
+      const rowY = bottomY + row * (bottomSlotHeight + bottomGutter);
+      for (let col = 0; col < 3; col++) {
+        const x = margin + col * (bottomSlotWidth + bottomGutter);
+        drawCoverImage(ctx, images[imageIndex++], x, rowY, bottomSlotWidth, bottomSlotHeight, shouldStretch);
       }
     }
   }
@@ -2440,19 +2578,26 @@ const BooklistApp = (function() {
     
     // Books
     const incoming = Array.isArray(loaded.books) ? loaded.books : [];
-    myBooklist = incoming.slice(0, CONFIG.TOTAL_SLOTS).map(b => ({
-      key: b.key,
-      isBlank: !!b.isBlank,
-      title: b.title ?? CONFIG.PLACEHOLDERS.title,
-      author: b.author ?? CONFIG.PLACEHOLDERS.author,
-      callNumber: b.callNumber ?? CONFIG.PLACEHOLDERS.callNumber,
-      authorDisplay: b.authorDisplay || null,
-      description: b.description ?? CONFIG.PLACEHOLDERS.description,
-      cover_ids: Array.isArray(b.cover_ids) ? b.cover_ids : [],
-      currentCoverIndex: typeof b.currentCoverIndex === 'number' ? b.currentCoverIndex : 0,
-      customCoverData: b.customCoverData || null,
-      includeInCollage: b.includeInCollage !== false, // default true for backwards compatibility
-    }));
+    let starCount = 0;
+    myBooklist = incoming.slice(0, CONFIG.TOTAL_SLOTS).map(b => {
+      const wasStarred = b.includeInCollage !== false;
+      const shouldStar = wasStarred && !b.isBlank && starCount < CONFIG.MIN_COVERS_FOR_COLLAGE;
+      if (shouldStar) starCount++;
+      
+      return {
+        key: b.key,
+        isBlank: !!b.isBlank,
+        title: b.title ?? CONFIG.PLACEHOLDERS.title,
+        author: b.author ?? CONFIG.PLACEHOLDERS.author,
+        callNumber: b.callNumber ?? CONFIG.PLACEHOLDERS.callNumber,
+        authorDisplay: b.authorDisplay || null,
+        description: b.description ?? CONFIG.PLACEHOLDERS.description,
+        cover_ids: Array.isArray(b.cover_ids) ? b.cover_ids : [],
+        currentCoverIndex: typeof b.currentCoverIndex === 'number' ? b.currentCoverIndex : 0,
+        customCoverData: b.customCoverData || null,
+        includeInCollage: shouldStar,
+      };
+    });
     
     while (myBooklist.length < CONFIG.TOTAL_SLOTS) {
       myBooklist.push(createBlankBook());
@@ -2611,6 +2756,7 @@ const BooklistApp = (function() {
           });
           option.classList.add('selected');
           debouncedSave();
+          autoRegenerateCoverIfAble();
         });
       });
     }
