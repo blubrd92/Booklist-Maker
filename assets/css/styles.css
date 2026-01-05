@@ -379,26 +379,30 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 
 /* --- DRAG CONTROLS --- */
 .list-item-controls {
-    position: absolute; top: 50%; transform: translateY(-50%);
-    display: flex; flex-direction: column; align-items: center; gap: 5px;
-    color: #888; right: 100%; margin-right: 5px;
+    position: absolute; top: 0;
+    display: flex; flex-direction: column; align-items: center; 
+    justify-content: center;
+    gap: 4px;
+    color: #888; right: 100%; margin-right: 4px;
     background-color: rgba(230, 230, 230, 0.85);
-    padding: 8px 5px; border-radius: 5px;
+    padding: 8px 5px; border-radius: 4px;
+    height: 132px;
+    box-sizing: border-box;
 }
 .list-item-controls::after {
     content: ''; position: absolute; top: 0; bottom: 0; left: 100%;
     width: 10px; background: transparent;
 }
 .controls-right { 
-  right: auto; left: 100%; margin-left: 5px; margin-right: 0; 
+  right: auto; left: 100%; margin-left: 4px; margin-right: 0; 
 }
 .controls-right::after { left: auto; right: 100%; }
 .drag-handle { 
   cursor: grab; 
-  font-size: 1.5rem; 
+  font-size: 1.1rem; 
   line-height: 1; 
   color: #555;
-  padding: 4px;
+  padding: 2px;
   border-radius: 3px;
 }
 .drag-handle:hover {
@@ -408,16 +412,19 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
-.item-number { font-size: 1.2rem; font-weight: bold; color: #555; }
+.item-number { font-size: 0.95rem; font-weight: bold; color: #555; }
 .delete-button { 
   background: none; 
   border: none; 
   color: #cc0000; 
   font-weight: bold; 
-  font-size: 1.5rem; 
+  font-size: 1.1rem; 
   line-height: 1; 
   padding: 0; 
   cursor: pointer;
+}
+.delete-button:hover {
+  color: #990000;
 }
 .delete-button:focus {
   outline: 2px solid var(--danger-color);
@@ -428,15 +435,41 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   border: none;
   cursor: pointer;
   color: var(--primary-color);
-  font-size: 1rem;
-  padding: 2px 0;
+  font-size: 0.85rem;
+  padding: 1px 0;
   transition: transform 0.2s;
 }
 .magic-button:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
 }
 .magic-button:focus {
   outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Star button for collage inclusion */
+.star-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 0.85rem;
+  padding: 1px 0;
+  transition: color 0.2s, transform 0.2s;
+}
+.star-button:hover:not(.disabled) {
+  transform: scale(1.15);
+}
+.star-button.active {
+  color: #f1c40f;
+}
+.star-button.disabled {
+  color: #ddd;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.star-button:focus {
+  outline: 2px solid #f1c40f;
   outline-offset: 2px;
 }
 
@@ -589,6 +622,65 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   width: 55px;
 }
 
+/* --- LAYOUT SELECTOR (in Settings tab) --- */
+#collage-layout-details {
+  margin-top: 5px;
+}
+
+#collage-layout-selector {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+}
+
+.layout-option {
+  width: 50px;
+  height: 65px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  padding: 4px;
+}
+
+.layout-option:hover {
+  border-color: var(--primary-color);
+}
+
+.layout-option.selected {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+}
+
+.layout-option svg {
+  width: 32px;
+  height: 40px;
+  fill: #666;
+}
+
+.layout-option.selected svg {
+  fill: var(--primary-color);
+}
+
+.layout-option-label {
+  font-size: 0.6rem;
+  color: var(--text-light);
+  margin-top: 2px;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.layout-option.selected .layout-option-label {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
 /* Branding & QR */
 .custom-uploader {
   width: 480px; height: 144px; border: 1px dashed #ccc;
@@ -630,6 +722,11 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   text-align: center; color: white; background: var(--danger-color);
   transform: translateY(-100%); transition: transform 0.3s, visibility 0.3s; z-index: 1000;
   visibility: hidden;
+  height: 50px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 #notification-area.show { transform: translateY(0); visibility: visible; }
 #notification-area.success { background: var(--success-color); }
