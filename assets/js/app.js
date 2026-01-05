@@ -884,7 +884,7 @@ const BooklistApp = (function() {
     magicButton.className = 'magic-button';
     magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
     magicButton.title = 'Fetch description';
-    magicButton.setAttribute('aria-label', 'Fetch AI description for this book');
+    magicButton.setAttribute('aria-label', 'Fetch description for this book');
     magicButton.onclick = () => handleMagicButtonClick(bookItem);
     
     // Item number
@@ -903,8 +903,8 @@ const BooklistApp = (function() {
     deleteButton.onclick = () => handleDeleteBook(bookItem, index);
     
     controlsDiv.appendChild(dragHandle);
-    controlsDiv.appendChild(starButton);
     controlsDiv.appendChild(magicButton);
+    controlsDiv.appendChild(starButton);
     controlsDiv.appendChild(itemNumber);
     controlsDiv.appendChild(deleteButton);
     
@@ -1501,6 +1501,9 @@ const BooklistApp = (function() {
         case 'staggered':
           drawLayoutStaggered(ctx, canvas, images, styles, shouldStretchCovers);
           break;
+        case 'tilted':
+          drawLayoutTilted(ctx, canvas, images, styles, shouldStretchCovers);
+          break;
         case 'classic':
         default:
           drawLayoutClassic(ctx, canvas, images, styles, shouldStretchCovers);
@@ -1937,6 +1940,105 @@ const BooklistApp = (function() {
     drawBrickRow(currentY, bottomSlotHeight, true, 9);
   }
   
+  /**
+   * Layout: Tilted
+   * Rotated diagonal covers filling edge-to-edge, title bar in middle
+   */
+  function drawLayoutTilted(ctx, canvas, images, styles, shouldStretch) {
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    
+    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
+    const bookAspect = 0.667;
+    const rotationAngle = -25 * (Math.PI / 180); // 25 degrees counter-clockwise
+    const titleGutter = 10 * (CONFIG.PDF_DPI / 72);
+    
+    // Calculate cover size - we need them smaller due to rotation overlap
+    const numRows = 4; // 2 above, 2 below title
+    const availableHeight = canvasHeight - titleBarHeight - 2 * titleGutter;
+    const rowHeight = availableHeight / numRows;
+    const slotHeight = rowHeight * 0.85; // Slightly smaller to account for rotation
+    const slotWidth = slotHeight * bookAspect;
+    
+    // Horizontal spacing - tighter due to diagonal arrangement
+    const hSpacing = slotWidth * 0.75;
+    const vSpacing = rowHeight;
+    
+    // Helper to draw a rotated cover
+    const drawRotatedCover = (img, centerX, centerY, w, h) => {
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(rotationAngle);
+      
+      if (img && img.complete && img.naturalWidth > 0) {
+        const imgAspect = img.naturalWidth / img.naturalHeight;
+        const slotAspect = w / h;
+        let drawW, drawH, offsetX = 0, offsetY = 0;
+        
+        if (shouldStretch) {
+          drawW = w;
+          drawH = h;
+        } else if (imgAspect > slotAspect) {
+          drawH = h;
+          drawW = h * imgAspect;
+          offsetX = (w - drawW) / 2;
+        } else {
+          drawW = w;
+          drawH = w / imgAspect;
+          offsetY = (h - drawH) / 2;
+        }
+        
+        ctx.beginPath();
+        ctx.rect(-w/2, -h/2, w, h);
+        ctx.clip();
+        ctx.drawImage(img, -w/2 + offsetX, -h/2 + offsetY, drawW, drawH);
+      } else {
+        ctx.fillStyle = '#ddd';
+        ctx.fillRect(-w/2, -h/2, w, h);
+      }
+      
+      ctx.restore();
+    };
+    
+    // Helper to draw a row of tilted covers filling edge-to-edge
+    const drawTiltedRow = (baseY, imgOffset, yVariation) => {
+      // Calculate how many covers needed to fill width (with extra for rotation bleed)
+      const coversNeeded = Math.ceil(canvasWidth / hSpacing) + 4;
+      const startX = -slotWidth;
+      
+      for (let i = 0; i < coversNeeded; i++) {
+        const imgIdx = (imgOffset + i) % 12;
+        const x = startX + i * hSpacing;
+        // Add slight Y variation for visual interest
+        const yOffset = (i % 2 === 0) ? 0 : yVariation;
+        const y = baseY + yOffset;
+        drawRotatedCover(images[imgIdx], x, y, slotWidth, slotHeight);
+      }
+    };
+    
+    // Top section: 2 rows
+    const yVariation = slotHeight * 0.15;
+    let currentY = slotHeight / 2 + 5;
+    drawTiltedRow(currentY, 0, yVariation);
+    currentY += vSpacing;
+    drawTiltedRow(currentY, 4, -yVariation);
+    currentY += vSpacing * 0.5;
+    
+    // Title bar
+    currentY += titleGutter / 2;
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, currentY);
+    currentY += bgH + titleGutter / 2;
+    
+    // Bottom section: 2 rows - fill remaining space
+    const bottomAvailable = canvasHeight - currentY;
+    const bottomRowHeight = bottomAvailable / 2;
+    
+    currentY += bottomRowHeight * 0.4;
+    drawTiltedRow(currentY, 8, yVariation);
+    currentY += bottomRowHeight;
+    drawTiltedRow(currentY, 2, -yVariation);
+  }
+
   function autoRegenerateCoverIfAble() {
     if (elements.frontCoverUploader.classList.contains('has-image')) {
       generateCoverCollage();
