@@ -344,6 +344,115 @@
             <input id="stretch-covers-toggle" type="checkbox" checked/>
             <label for="stretch-covers-toggle">Stretch Header Covers</label>
           </div>
+          
+          <details class="advanced-settings" id="collage-layout-details" style="margin-top: 10px;">
+            <summary>Collage Layout</summary>
+            <p style="font-size: 0.75rem; color: #666; margin: 6px 0;">Star up to 12 books to include in the collage.</p>
+            <div id="collage-layout-selector" aria-label="Select collage layout">
+              <div class="layout-option selected" data-layout="classic" title="Classic: 3 top, title, 3x3 grid">
+                <svg viewBox="0 0 40 50">
+                  <rect x="2" y="2" width="10" height="12" rx="1"/>
+                  <rect x="15" y="2" width="10" height="12" rx="1"/>
+                  <rect x="28" y="2" width="10" height="12" rx="1"/>
+                  <rect x="2" y="17" width="36" height="5" rx="1"/>
+                  <rect x="2" y="25" width="10" height="12" rx="1"/>
+                  <rect x="15" y="25" width="10" height="12" rx="1"/>
+                  <rect x="28" y="25" width="10" height="12" rx="1"/>
+                  <rect x="2" y="39" width="10" height="10" rx="1"/>
+                  <rect x="15" y="39" width="10" height="10" rx="1"/>
+                  <rect x="28" y="39" width="10" height="10" rx="1"/>
+                </svg>
+                <span class="layout-option-label">Classic</span>
+              </div>
+              <div class="layout-option" data-layout="bookshelf" title="Bookshelf: with shelf lines">
+                <svg viewBox="0 0 40 50">
+                  <rect x="2" y="2" width="10" height="11" rx="1"/>
+                  <rect x="15" y="2" width="10" height="11" rx="1"/>
+                  <rect x="28" y="2" width="10" height="11" rx="1"/>
+                  <rect x="0" y="13" width="40" height="2"/>
+                  <rect x="2" y="18" width="36" height="4" rx="1"/>
+                  <rect x="2" y="25" width="10" height="11" rx="1"/>
+                  <rect x="15" y="25" width="10" height="11" rx="1"/>
+                  <rect x="28" y="25" width="10" height="11" rx="1"/>
+                  <rect x="0" y="36" width="40" height="2"/>
+                  <rect x="2" y="40" width="10" height="8" rx="1"/>
+                  <rect x="15" y="40" width="10" height="8" rx="1"/>
+                  <rect x="28" y="40" width="10" height="8" rx="1"/>
+                  <rect x="0" y="48" width="40" height="2"/>
+                </svg>
+                <span class="layout-option-label">Bookshelf</span>
+              </div>
+              <div class="layout-option" data-layout="titleTop" title="Title Top: title at top, 4 rows">
+                <svg viewBox="0 0 40 50">
+                  <rect x="2" y="2" width="36" height="5" rx="1"/>
+                  <rect x="2" y="10" width="10" height="9" rx="1"/>
+                  <rect x="15" y="10" width="10" height="9" rx="1"/>
+                  <rect x="28" y="10" width="10" height="9" rx="1"/>
+                  <rect x="2" y="21" width="10" height="9" rx="1"/>
+                  <rect x="15" y="21" width="10" height="9" rx="1"/>
+                  <rect x="28" y="21" width="10" height="9" rx="1"/>
+                  <rect x="2" y="32" width="10" height="9" rx="1"/>
+                  <rect x="15" y="32" width="10" height="9" rx="1"/>
+                  <rect x="28" y="32" width="10" height="9" rx="1"/>
+                  <rect x="2" y="43" width="10" height="6" rx="1"/>
+                  <rect x="15" y="43" width="10" height="6" rx="1"/>
+                  <rect x="28" y="43" width="10" height="6" rx="1"/>
+                </svg>
+                <span class="layout-option-label">Title Top</span>
+              </div>
+              <div class="layout-option" data-layout="titleBottom" title="Title Bottom: 4 rows, title at bottom">
+                <svg viewBox="0 0 40 50">
+                  <rect x="2" y="2" width="10" height="9" rx="1"/>
+                  <rect x="15" y="2" width="10" height="9" rx="1"/>
+                  <rect x="28" y="2" width="10" height="9" rx="1"/>
+                  <rect x="2" y="13" width="10" height="9" rx="1"/>
+                  <rect x="15" y="13" width="10" height="9" rx="1"/>
+                  <rect x="28" y="13" width="10" height="9" rx="1"/>
+                  <rect x="2" y="24" width="10" height="9" rx="1"/>
+                  <rect x="15" y="24" width="10" height="9" rx="1"/>
+                  <rect x="28" y="24" width="10" height="9" rx="1"/>
+                  <rect x="2" y="35" width="10" height="9" rx="1"/>
+                  <rect x="15" y="35" width="10" height="9" rx="1"/>
+                  <rect x="28" y="35" width="10" height="9" rx="1"/>
+                  <rect x="2" y="46" width="36" height="4" rx="1"/>
+                </svg>
+                <span class="layout-option-label">Title Bottom</span>
+              </div>
+              <div class="layout-option" data-layout="scattered" title="Scattered: tilted covers">
+                <svg viewBox="0 0 40 50">
+                  <rect x="3" y="3" width="10" height="12" rx="1" transform="rotate(-3 8 9)"/>
+                  <rect x="15" y="1" width="10" height="12" rx="1" transform="rotate(2 20 7)"/>
+                  <rect x="27" y="3" width="10" height="12" rx="1" transform="rotate(-2 32 9)"/>
+                  <rect x="2" y="17" width="36" height="5" rx="1"/>
+                  <rect x="3" y="25" width="10" height="12" rx="1" transform="rotate(2 8 31)"/>
+                  <rect x="15" y="24" width="10" height="12" rx="1" transform="rotate(-3 20 30)"/>
+                  <rect x="27" y="25" width="10" height="12" rx="1" transform="rotate(3 32 31)"/>
+                  <rect x="2" y="39" width="10" height="10" rx="1" transform="rotate(-2 7 44)"/>
+                  <rect x="15" y="40" width="10" height="10" rx="1" transform="rotate(2 20 45)"/>
+                  <rect x="28" y="39" width="10" height="10" rx="1" transform="rotate(-3 33 44)"/>
+                </svg>
+                <span class="layout-option-label">Scattered</span>
+              </div>
+              <div class="layout-option" data-layout="banner" title="Banner: 2 rows, title, 2 rows">
+                <svg viewBox="0 0 40 50">
+                  <rect x="2" y="2" width="10" height="10" rx="1"/>
+                  <rect x="15" y="2" width="10" height="10" rx="1"/>
+                  <rect x="28" y="2" width="10" height="10" rx="1"/>
+                  <rect x="2" y="14" width="10" height="10" rx="1"/>
+                  <rect x="15" y="14" width="10" height="10" rx="1"/>
+                  <rect x="28" y="14" width="10" height="10" rx="1"/>
+                  <rect x="2" y="26" width="36" height="5" rx="1"/>
+                  <rect x="2" y="33" width="10" height="10" rx="1"/>
+                  <rect x="15" y="33" width="10" height="10" rx="1"/>
+                  <rect x="28" y="33" width="10" height="10" rx="1"/>
+                  <rect x="2" y="45" width="10" height="5" rx="1"/>
+                  <rect x="15" y="45" width="10" height="5" rx="1"/>
+                  <rect x="28" y="45" width="10" height="5" rx="1"/>
+                </svg>
+                <span class="layout-option-label">Banner</span>
+              </div>
+            </div>
+          </details>
         </div>
 
         <div class="form-group">
@@ -405,7 +514,7 @@
           <input type="text" id="list-name-input" class="list-name-input" placeholder="My Booklist" aria-label="Name for this booklist"/>
         </div>
         <div class="toolbar-hint">
-            <i class="fa-solid fa-circle-info" aria-hidden="true"></i> Edit text directly on the page.
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i> Edit text directly. Star books to include in collage.
         </div>
       </div>
 
@@ -428,7 +537,7 @@
             <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or generate front cover image">
               <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
-                Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool below<br/>(This will use the first 12 covers from your list to create a collage)
+                Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool below<br/>(Star at least 12 books to include in collage)
               </div>
               <div id="cover-generate-controls">
                 <!-- Simple mode: single textarea -->
