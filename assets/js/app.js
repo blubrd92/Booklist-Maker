@@ -150,6 +150,9 @@ const BooklistApp = (function() {
       coverAdvancedStyle: document.getElementById('cover-advanced-style'),
       coverLineSpacing: document.getElementById('cover-line-spacing'),
       
+      // Collage layout selector (in Settings)
+      collageLayoutSelector: document.getElementById('collage-layout-selector'),
+      
       // Simple mode elements
       coverTitleInput: document.getElementById('cover-title-input'),
       coverFontSelect: document.getElementById('cover-font-select'),
@@ -212,6 +215,21 @@ const BooklistApp = (function() {
       // Notification
       notificationArea: document.getElementById('notification-area'),
     };
+  }
+  
+  // ---------------------------------------------------------------------------
+  // Utility: Paste Handler (strips formatting, inserts plain text)
+  // ---------------------------------------------------------------------------
+  function handlePastePlainText(e) {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    
+    selection.deleteFromDocument();
+    selection.getRangeAt(0).insertNode(document.createTextNode(text));
+    selection.collapseToEnd();
   }
   
   // ---------------------------------------------------------------------------
@@ -389,11 +407,13 @@ const BooklistApp = (function() {
       title: CONFIG.PLACEHOLDERS.title,
       author: CONFIG.PLACEHOLDERS.author,
       callNumber: CONFIG.PLACEHOLDERS.callNumber,
+      authorDisplay: CONFIG.PLACEHOLDERS.authorWithCall,
       description: CONFIG.PLACEHOLDERS.description,
       cover_i: null,
       customCoverData: CONFIG.PLACEHOLDER_COVER_URL,
       cover_ids: [],
-      currentCoverIndex: 0
+      currentCoverIndex: 0,
+      includeInCollage: true
     };
   }
   
@@ -664,9 +684,11 @@ const BooklistApp = (function() {
           title: book.title,
           author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
           callNumber: CONFIG.PLACEHOLDERS.callNumber,
+          authorDisplay: null, // Will be constructed on first render
           description: 'Fetching book description... May take a few minutes.',
           cover_ids: carouselState.allCoverIds,
           currentCoverIndex: carouselState.currentCoverIndex,
+          includeInCollage: true
         };
         myBooklist[firstBlankIndex] = newBook;
         addButton.innerHTML = '&#10003;';
@@ -824,12 +846,41 @@ const BooklistApp = (function() {
     dragHandle.setAttribute('role', 'button');
     dragHandle.setAttribute('aria-label', 'Drag to reorder');
     dragHandle.setAttribute('tabindex', '0');
+    dragHandle.title = 'Drag to reorder';
+    
+    // Star toggle (include in collage)
+    const starButton = document.createElement('button');
+    starButton.className = 'star-button';
+    
+    // Count currently starred books
+    const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+    const isStarred = bookItem.includeInCollage;
+    const atLimit = starredCount >= CONFIG.MIN_COVERS_FOR_COLLAGE;
+    
+    if (isStarred) {
+      starButton.classList.add('active');
+    } else if (atLimit) {
+      starButton.classList.add('disabled');
+      starButton.disabled = true;
+    }
+    
+    starButton.innerHTML = '<i class="fa-solid fa-star"></i>';
+    starButton.title = isStarred ? 'Remove from collage' : (atLimit ? '12 covers already selected' : 'Include in collage');
+    starButton.setAttribute('aria-label', 'Toggle inclusion in cover collage');
+    starButton.setAttribute('aria-pressed', isStarred ? 'true' : 'false');
+    starButton.onclick = () => {
+      if (!isStarred && atLimit) return; // Can't add more if at limit
+      
+      bookItem.includeInCollage = !bookItem.includeInCollage;
+      debouncedSave();
+      renderBooklist(); // Re-render to update all star states
+    };
     
     // Magic button (fetch description)
     const magicButton = document.createElement('button');
     magicButton.className = 'magic-button';
     magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
-    magicButton.title = "Fetch Description";
+    magicButton.title = 'Fetch AI description';
     magicButton.setAttribute('aria-label', 'Fetch AI description for this book');
     magicButton.onclick = () => handleMagicButtonClick(bookItem);
     
@@ -838,15 +889,18 @@ const BooklistApp = (function() {
     itemNumber.className = 'item-number';
     itemNumber.textContent = index + 1;
     itemNumber.setAttribute('aria-hidden', 'true');
+    itemNumber.title = `Book #${index + 1}`;
     
     // Delete button
     const deleteButton = document.createElement('button');
     deleteButton.className = 'delete-button';
     deleteButton.innerHTML = '&times;';
+    deleteButton.title = 'Remove from list';
     deleteButton.setAttribute('aria-label', `Remove book ${index + 1} from list`);
     deleteButton.onclick = () => handleDeleteBook(bookItem, index);
     
     controlsDiv.appendChild(dragHandle);
+    controlsDiv.appendChild(starButton);
     controlsDiv.appendChild(magicButton);
     controlsDiv.appendChild(itemNumber);
     controlsDiv.appendChild(deleteButton);
@@ -856,7 +910,29 @@ const BooklistApp = (function() {
   
   function handleMagicButtonClick(bookItem) {
     const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
-    let currentAuthor = (bookItem.author || '').replace(/\u00a0/g, " ").trim();
+    
+    // Parse author from authorDisplay (lazy parsing for AI description)
+    let currentAuthor = '';
+    const displayText = (bookItem.authorDisplay || '').replace(/\u00a0/g, " ");
+    
+    // Remove "By " prefix if present
+    let text = displayText;
+    if (text.match(/^By\s/i)) {
+      text = text.replace(/^By\s/i, '');
+    }
+    
+    // Extract author (everything before the last ' - ')
+    const lastDashIndex = text.lastIndexOf(' - ');
+    if (lastDashIndex !== -1) {
+      currentAuthor = text.substring(0, lastDashIndex).replace(/\n/g, ' ').trim();
+    } else {
+      currentAuthor = text.replace(/\n/g, ' ').trim();
+    }
+    
+    // Fallback to stored author field if authorDisplay not set
+    if (!currentAuthor && bookItem.author) {
+      currentAuthor = bookItem.author.replace(/\u00a0/g, " ").trim();
+    }
     
     if (currentAuthor.toLowerCase() === 'by') currentAuthor = '';
     
@@ -865,6 +941,9 @@ const BooklistApp = (function() {
       showNotification('Please enter a Title and Author first.', 'error');
       return;
     }
+    
+    // Update bookItem.author with parsed value for getAiDescription
+    bookItem.author = currentAuthor;
     
     bookItem.description = "Fetching title description... May take a few minutes.";
     renderBooklist();
@@ -938,6 +1017,7 @@ const BooklistApp = (function() {
     titleField.innerText = bookItem.title;
     titleField.setAttribute('role', 'textbox');
     titleField.setAttribute('aria-label', 'Book title');
+    titleField.addEventListener('paste', handlePastePlainText);
     titleField.oninput = (e) => {
       bookItem.title = e.target.innerText;
       if (bookItem.isBlank && bookItem.title !== CONFIG.PLACEHOLDERS.title) {
@@ -949,25 +1029,20 @@ const BooklistApp = (function() {
     const authorField = document.createElement('div');
     authorField.className = 'editable-field author-field';
     authorField.contentEditable = true;
-    authorField.innerText = bookItem.author.startsWith('[Enter')
-      ? `${bookItem.author} - ${bookItem.callNumber}`
-      : `By ${bookItem.author} - ${bookItem.callNumber}`;
+    // Use authorDisplay if set, otherwise construct from author/callNumber
+    if (bookItem.authorDisplay !== null && bookItem.authorDisplay !== undefined) {
+      authorField.innerText = bookItem.authorDisplay;
+    } else {
+      authorField.innerText = bookItem.author.startsWith('[Enter')
+        ? `${bookItem.author} - ${bookItem.callNumber}`
+        : `By ${bookItem.author} - ${bookItem.callNumber}`;
+    }
     authorField.setAttribute('role', 'textbox');
     authorField.setAttribute('aria-label', 'Author and call number');
+    authorField.addEventListener('paste', handlePastePlainText);
     authorField.oninput = (e) => {
-      let text = e.target.innerText.replace(/\u00a0/g, " ");
-      
-      if (text.match(/^By\s/i)) {
-        text = text.replace(/^By\s/i, '');
-      }
-      
-      if (text.includes(' - ')) {
-        const parts = text.split(' - ');
-        bookItem.author = (parts[0] || '').trim();
-        bookItem.callNumber = (parts[1] || '').trim();
-      } else {
-        bookItem.author = text.trim();
-      }
+      // Store the raw display text exactly as typed
+      bookItem.authorDisplay = e.target.innerText;
     };
     
     // Description field
@@ -977,6 +1052,7 @@ const BooklistApp = (function() {
     descriptionField.innerText = bookItem.description;
     descriptionField.setAttribute('role', 'textbox');
     descriptionField.setAttribute('aria-label', 'Book description');
+    descriptionField.addEventListener('paste', handlePastePlainText);
     descriptionField.oninput = (e) => {
       bookItem.description = e.target.innerText;
     };
@@ -1369,15 +1445,24 @@ const BooklistApp = (function() {
     setLoading(button, true, 'Generating...');
     
     const shouldStretchCovers = elements.stretchCoversToggle.checked;
+    const selectedLayout = elements.collageLayoutSelector?.querySelector('.layout-option.selected')?.dataset.layout || 'classic';
     
-    // Gather books with covers
+    // Gather books with covers that are marked for inclusion
     const booksWithCovers = myBooklist.filter(book =>
       !book.isBlank &&
+      book.includeInCollage &&
       (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co')))
     );
     
     if (booksWithCovers.length < CONFIG.MIN_COVERS_FOR_COLLAGE) {
-      showNotification(`Please add at least ${CONFIG.MIN_COVERS_FOR_COLLAGE} books with covers to generate a collage.`);
+      const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+      const totalWithCovers = myBooklist.filter(b => !b.isBlank && (b.cover_ids.length > 0 || (b.customCoverData && !b.customCoverData.includes('placehold.co')))).length;
+      
+      if (starredCount < CONFIG.MIN_COVERS_FOR_COLLAGE) {
+        showNotification(`Need ${CONFIG.MIN_COVERS_FOR_COLLAGE} starred books. Currently ${starredCount} starred.`);
+      } else {
+        showNotification(`Need ${CONFIG.MIN_COVERS_FOR_COLLAGE} starred books with covers. ${totalWithCovers} have covers.`);
+      }
       setLoading(button, false);
       return;
     }
@@ -1402,84 +1487,27 @@ const BooklistApp = (function() {
     document.fonts.ready.then(() => {
       return Promise.all(coversToDraw.map(src => loadImage(src)));
     }).then(images => {
-      const canvasWidth = canvas.width;
-      const canvasHeight = canvas.height;
-      const { wrapTextMultiline } = createTextWrapper(ctx);
-      const availableTextWidth = Math.max(0, canvasWidth - 2 * styles.bgSideMarginPx - 2 * styles.padXPx);
-      
-      // Calculate title bar height based on mode
-      let titleBarHeight = 0;
-      const defaultGapPx = 8 * (CONFIG.PDF_DPI / 72);
-      const lineGapPx = styles.lineSpacingPx !== undefined ? styles.lineSpacingPx : defaultGapPx;
-      
-      if (!styles.isAdvancedMode) {
-        // Simple mode
-        if (styles.text && styles.text.length > 0) {
-          ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
-          const wrappedLines = wrapTextMultiline(styles.text, availableTextWidth);
-          let textBlockHeight = 0;
-          
-          wrappedLines.forEach((wrappedText, i) => {
-            const m = ctx.measureText(wrappedText);
-            const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
-            const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
-            textBlockHeight += ascent + descent;
-            if (i < wrappedLines.length - 1) {
-              textBlockHeight += defaultGapPx;
-            }
-          });
-          
-          titleBarHeight = textBlockHeight + 2 * styles.padYPx;
-        }
-      } else {
-        // Advanced mode
-        if (styles.lines && styles.lines.length > 0) {
-          let textBlockHeight = 0;
-          
-          styles.lines.forEach((lineData, i) => {
-            ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
-            const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
-            
-            wrappedLines.forEach(wrappedText => {
-              const m = ctx.measureText(wrappedText);
-              const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
-              const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
-              textBlockHeight += ascent + descent;
-            });
-            
-            if (i < styles.lines.length - 1) {
-              textBlockHeight += lineGapPx;
-            }
-          });
-          
-          titleBarHeight = textBlockHeight + 2 * styles.padYPx;
-        }
-      }
-      
-      // Calculate layout
-      const layout = calculateCollageLayout(canvasWidth, canvasHeight, titleBarHeight, styles.outerMarginPx);
-      layout.topRowY = 0;
-      
-      // Draw top row of covers
-      let imageIndex = 0;
-      for (let col = 0; col < CONFIG.COLLAGE_GRID_COLS; col++) {
-        const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
-        drawCoverImage(ctx, images[imageIndex], slotX, layout.topRowY, layout.slotWidth, layout.slotHeight, shouldStretchCovers);
-        imageIndex++;
-      }
-      
-      // Draw title bar
-      const { bgY, bgH } = drawTitleBar(ctx, styles, layout, canvasWidth);
-      
-      // Draw bottom grid of covers
-      const gridTopY = bgY + bgH + styles.outerMarginPx;
-      for (let row = 0; row < CONFIG.COLLAGE_BOTTOM_ROWS; row++) {
-        const currentRowY = gridTopY + row * (layout.slotHeight + layout.vGutter);
-        for (let col = 0; col < CONFIG.COLLAGE_GRID_COLS; col++) {
-          const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
-          drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, layout.slotWidth, layout.slotHeight, shouldStretchCovers);
-          imageIndex++;
-        }
+      // Draw based on selected layout
+      switch (selectedLayout) {
+        case 'bookshelf':
+          drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretchCovers);
+          break;
+        case 'titleTop':
+          drawLayoutTitleTop(ctx, canvas, images, styles, shouldStretchCovers);
+          break;
+        case 'titleBottom':
+          drawLayoutTitleBottom(ctx, canvas, images, styles, shouldStretchCovers);
+          break;
+        case 'scattered':
+          drawLayoutScattered(ctx, canvas, images, styles, shouldStretchCovers);
+          break;
+        case 'banner':
+          drawLayoutBanner(ctx, canvas, images, styles, shouldStretchCovers);
+          break;
+        case 'classic':
+        default:
+          drawLayoutClassic(ctx, canvas, images, styles, shouldStretchCovers);
+          break;
       }
       
       // Apply to front cover
@@ -1495,6 +1523,440 @@ const BooklistApp = (function() {
     }).finally(() => {
       setLoading(button, false);
     });
+  }
+  
+  /**
+   * Calculate title bar height for layouts that need it
+   */
+  function calculateTitleBarHeight(ctx, styles) {
+    const canvasWidth = 5 * CONFIG.PDF_DPI;
+    const { wrapTextMultiline } = createTextWrapper(ctx);
+    const availableTextWidth = Math.max(0, canvasWidth - 2 * styles.bgSideMarginPx - 2 * styles.padXPx);
+    
+    let titleBarHeight = 0;
+    const defaultGapPx = 8 * (CONFIG.PDF_DPI / 72);
+    const lineGapPx = styles.lineSpacingPx !== undefined ? styles.lineSpacingPx : defaultGapPx;
+    
+    if (!styles.isAdvancedMode) {
+      if (styles.text && styles.text.length > 0) {
+        ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
+        const wrappedLines = wrapTextMultiline(styles.text, availableTextWidth);
+        let textBlockHeight = 0;
+        
+        wrappedLines.forEach((wrappedText, i) => {
+          const m = ctx.measureText(wrappedText);
+          const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
+          const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
+          textBlockHeight += ascent + descent;
+          if (i < wrappedLines.length - 1) {
+            textBlockHeight += lineGapPx; // Use consistent gap
+          }
+        });
+        
+        titleBarHeight = textBlockHeight + 2 * styles.padYPx;
+      }
+    } else {
+      if (styles.lines && styles.lines.length > 0) {
+        let textBlockHeight = 0;
+        let totalWrappedLines = 0;
+        
+        styles.lines.forEach((lineData, i) => {
+          ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
+          const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
+          
+          wrappedLines.forEach((wrappedText, j) => {
+            const m = ctx.measureText(wrappedText);
+            const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
+            const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
+            textBlockHeight += ascent + descent;
+            totalWrappedLines++;
+          });
+          
+          if (i < styles.lines.length - 1) {
+            textBlockHeight += lineGapPx;
+          }
+        });
+        
+        titleBarHeight = textBlockHeight + 2 * styles.padYPx;
+      }
+    }
+    
+    // Add safety buffer (5% extra) to prevent text cutoff
+    return Math.ceil(titleBarHeight * 1.05);
+  }
+  
+  /**
+   * Draw title bar at a specific Y position
+   */
+  function drawTitleBarAt(ctx, styles, canvasWidth, yPosition) {
+    const { wrapTextMultiline } = createTextWrapper(ctx);
+    const availableTextWidth = Math.max(0, canvasWidth - 2 * styles.bgSideMarginPx - 2 * styles.padXPx);
+    
+    const processedLines = [];
+    const defaultGapPx = 8 * (CONFIG.PDF_DPI / 72);
+    const lineGapPx = styles.lineSpacingPx !== undefined ? styles.lineSpacingPx : defaultGapPx;
+    
+    if (!styles.isAdvancedMode) {
+      if (!styles.text || styles.text.length === 0) {
+        return { bgY: yPosition, bgH: 0 };
+      }
+      
+      ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
+      const wrappedLines = wrapTextMultiline(styles.text, availableTextWidth);
+      
+      wrappedLines.forEach(wrappedText => {
+        const m = ctx.measureText(wrappedText);
+        const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
+        const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
+        processedLines.push({
+          text: wrappedText,
+          font: styles.font,
+          fontStyle: styles.fontStyle,
+          sizePx: styles.fontSizePx,
+          color: styles.color,
+          ascent,
+          descent,
+          height: ascent + descent,
+        });
+      });
+    } else {
+      if (!styles.lines || styles.lines.length === 0) {
+        return { bgY: yPosition, bgH: 0 };
+      }
+      
+      styles.lines.forEach(lineData => {
+        ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
+        const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
+        
+        wrappedLines.forEach(wrappedText => {
+          const m = ctx.measureText(wrappedText);
+          const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
+          const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
+          processedLines.push({
+            text: wrappedText,
+            font: lineData.font,
+            fontStyle: lineData.fontStyle,
+            sizePx: lineData.sizePx,
+            color: lineData.color,
+            ascent,
+            descent,
+            height: ascent + descent,
+          });
+        });
+      });
+    }
+    
+    if (processedLines.length === 0) {
+      return { bgY: yPosition, bgH: 0 };
+    }
+    
+    let textBlockHeight = 0;
+    processedLines.forEach((line, i) => {
+      textBlockHeight += line.height;
+      if (i < processedLines.length - 1) {
+        textBlockHeight += lineGapPx;
+      }
+    });
+    
+    const bgH = textBlockHeight + 2 * styles.padYPx;
+    const bgX = styles.bgSideMarginPx;
+    const bgY = yPosition;
+    const bgW = canvasWidth - 2 * styles.bgSideMarginPx;
+    
+    ctx.fillStyle = styles.bgColor;
+    ctx.fillRect(bgX, bgY, bgW, bgH);
+    
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    
+    const centerX = bgX + bgW / 2;
+    let y = bgY + styles.padYPx;
+    
+    processedLines.forEach((line, i) => {
+      ctx.font = `${line.fontStyle} ${line.sizePx}px ${line.font}, sans-serif`;
+      ctx.fillStyle = line.color;
+      const baselineY = y + line.ascent;
+      ctx.fillText(line.text.trim(), centerX, baselineY);
+      y += line.height;
+      if (i < processedLines.length - 1) {
+        y += lineGapPx;
+      }
+    });
+    
+    return { bgY, bgH };
+  }
+  
+  /**
+   * Layout: Classic Grid (original layout)
+   * 3 covers on top, title bar, 3x3 grid below
+   */
+  function drawLayoutClassic(ctx, canvas, images, styles, shouldStretch) {
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    
+    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
+    const layout = calculateCollageLayout(canvasWidth, canvasHeight, titleBarHeight, styles.outerMarginPx);
+    layout.topRowY = 0;
+    
+    // Draw top row of covers
+    let imageIndex = 0;
+    for (let col = 0; col < 3; col++) {
+      const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
+      drawCoverImage(ctx, images[imageIndex], slotX, layout.topRowY, layout.slotWidth, layout.slotHeight, shouldStretch);
+      imageIndex++;
+    }
+    
+    // Draw title bar
+    const titleY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+    
+    // Draw bottom grid of covers
+    const gridTopY = titleY + bgH + styles.outerMarginPx;
+    for (let row = 0; row < 3; row++) {
+      const currentRowY = gridTopY + row * (layout.slotHeight + layout.vGutter);
+      for (let col = 0; col < 3; col++) {
+        const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
+        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, layout.slotWidth, layout.slotHeight, shouldStretch);
+        imageIndex++;
+      }
+    }
+  }
+  
+  /**
+   * Layout: Bookshelf
+   * Same as classic but with shelf lines under each row
+   */
+  function drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretch) {
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    
+    const shelfLineWidth = 6 * (CONFIG.PDF_DPI / 72); // 6pt line
+    const shelfColor = '#5D4037'; // Brown wood color
+    const shelfOverhang = 20 * (CONFIG.PDF_DPI / 72);
+    const shelfExtraSpace = shelfLineWidth * 4; // Extra space for shelves
+    
+    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
+    
+    // Recalculate layout accounting for shelf space
+    const totalShelfSpace = shelfExtraSpace; // Only account for shelves in grid area
+    const adjustedHeight = canvasHeight - totalShelfSpace;
+    const layout = calculateCollageLayout(canvasWidth, adjustedHeight, titleBarHeight, styles.outerMarginPx);
+    layout.topRowY = 0;
+    
+    // Draw top row of covers
+    let imageIndex = 0;
+    for (let col = 0; col < 3; col++) {
+      const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
+      drawCoverImage(ctx, images[imageIndex], slotX, layout.topRowY, layout.slotWidth, layout.slotHeight, shouldStretch);
+      imageIndex++;
+    }
+    
+    // Draw shelf under top row
+    const topShelfY = layout.topRowY + layout.slotHeight;
+    ctx.fillStyle = shelfColor;
+    ctx.fillRect(layout.hGutter - shelfOverhang, topShelfY, canvasWidth - 2 * layout.hGutter + 2 * shelfOverhang, shelfLineWidth);
+    
+    // Draw title bar
+    const titleY = topShelfY + shelfLineWidth + styles.outerMarginPx;
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+    
+    // Draw bottom grid of covers with shelves
+    const gridTopY = titleY + bgH + styles.outerMarginPx;
+    const rowHeight = layout.slotHeight + layout.vGutter + shelfLineWidth;
+    
+    for (let row = 0; row < 3; row++) {
+      const currentRowY = gridTopY + row * rowHeight;
+      for (let col = 0; col < 3; col++) {
+        const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
+        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, layout.slotWidth, layout.slotHeight, shouldStretch);
+        imageIndex++;
+      }
+      
+      // Draw shelf under this row (ensure it stays within canvas)
+      const shelfY = currentRowY + layout.slotHeight;
+      if (shelfY + shelfLineWidth <= canvasHeight) {
+        ctx.fillStyle = shelfColor;
+        ctx.fillRect(layout.hGutter - shelfOverhang, shelfY, canvasWidth - 2 * layout.hGutter + 2 * shelfOverhang, shelfLineWidth);
+      }
+    }
+  }
+  
+  /**
+   * Layout: Title Top
+   * Title bar at the very top, then 4 rows of 3 covers
+   */
+  function drawLayoutTitleTop(ctx, canvas, images, styles, shouldStretch) {
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    
+    // Draw title bar at top
+    const titleY = styles.outerMarginPx;
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+    
+    // Calculate cover grid (4 rows x 3 cols below title)
+    const gridTopY = titleY + bgH + styles.outerMarginPx;
+    const availableHeight = canvasHeight - gridTopY - styles.outerMarginPx;
+    const rows = 4;
+    const cols = 3;
+    
+    const vGutterRatio = 0.08;
+    const bookAspect = 0.667;
+    const totalVGutters = (rows - 1) * vGutterRatio;
+    const slotHeight = availableHeight / (rows + totalVGutters);
+    const vGutter = slotHeight * vGutterRatio;
+    const slotWidth = slotHeight * bookAspect;
+    const hGutter = (canvasWidth - cols * slotWidth) / (cols + 1);
+    
+    let imageIndex = 0;
+    for (let row = 0; row < rows; row++) {
+      const currentRowY = gridTopY + row * (slotHeight + vGutter);
+      for (let col = 0; col < cols; col++) {
+        const slotX = hGutter + col * (slotWidth + hGutter);
+        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, slotWidth, slotHeight, shouldStretch);
+        imageIndex++;
+      }
+    }
+  }
+  
+  /**
+   * Layout: Title Bottom
+   * 4 rows of 3 covers, then title bar at the bottom
+   */
+  function drawLayoutTitleBottom(ctx, canvas, images, styles, shouldStretch) {
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    
+    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
+    
+    // Calculate cover grid (4 rows x 3 cols)
+    const gridTopY = styles.outerMarginPx;
+    const availableHeight = canvasHeight - gridTopY - titleBarHeight - 2 * styles.outerMarginPx;
+    const rows = 4;
+    const cols = 3;
+    
+    const vGutterRatio = 0.08;
+    const bookAspect = 0.667;
+    const totalVGutters = (rows - 1) * vGutterRatio;
+    const slotHeight = availableHeight / (rows + totalVGutters);
+    const vGutter = slotHeight * vGutterRatio;
+    const slotWidth = slotHeight * bookAspect;
+    const hGutter = (canvasWidth - cols * slotWidth) / (cols + 1);
+    
+    let imageIndex = 0;
+    for (let row = 0; row < rows; row++) {
+      const currentRowY = gridTopY + row * (slotHeight + vGutter);
+      for (let col = 0; col < cols; col++) {
+        const slotX = hGutter + col * (slotWidth + hGutter);
+        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, slotWidth, slotHeight, shouldStretch);
+        imageIndex++;
+      }
+    }
+    
+    // Draw title bar at bottom
+    const titleY = gridTopY + rows * slotHeight + (rows - 1) * vGutter + styles.outerMarginPx;
+    drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+  }
+  
+  /**
+   * Layout: Scattered
+   * Same grid as classic but covers are randomly tilted ±3°
+   */
+  function drawLayoutScattered(ctx, canvas, images, styles, shouldStretch) {
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    
+    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
+    const layout = calculateCollageLayout(canvasWidth, canvasHeight, titleBarHeight, styles.outerMarginPx);
+    layout.topRowY = 0;
+    
+    // Seeded random for consistent results
+    const tilts = [-3, 2, -2, 3, -1, 2, -3, 1, 3, -2, 2, -1];
+    
+    // Helper to draw a tilted cover
+    const drawTiltedCover = (img, x, y, w, h, tiltDeg) => {
+      ctx.save();
+      const centerX = x + w / 2;
+      const centerY = y + h / 2;
+      ctx.translate(centerX, centerY);
+      ctx.rotate(tiltDeg * Math.PI / 180);
+      ctx.translate(-centerX, -centerY);
+      drawCoverImage(ctx, img, x, y, w, h, shouldStretch);
+      ctx.restore();
+    };
+    
+    // Draw top row of covers (tilted)
+    let imageIndex = 0;
+    for (let col = 0; col < 3; col++) {
+      const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
+      drawTiltedCover(images[imageIndex], slotX, layout.topRowY, layout.slotWidth, layout.slotHeight, tilts[imageIndex]);
+      imageIndex++;
+    }
+    
+    // Draw title bar (not tilted)
+    const titleY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+    
+    // Draw bottom grid of covers (tilted)
+    const gridTopY = titleY + bgH + styles.outerMarginPx;
+    for (let row = 0; row < 3; row++) {
+      const currentRowY = gridTopY + row * (layout.slotHeight + layout.vGutter);
+      for (let col = 0; col < 3; col++) {
+        const slotX = layout.hGutter + col * (layout.slotWidth + layout.hGutter);
+        drawTiltedCover(images[imageIndex], slotX, currentRowY, layout.slotWidth, layout.slotHeight, tilts[imageIndex]);
+        imageIndex++;
+      }
+    }
+  }
+  
+  /**
+   * Layout: Banner
+   * 2 rows of 3 covers, wide title banner, 2 rows of 3 covers
+   */
+  function drawLayoutBanner(ctx, canvas, images, styles, shouldStretch) {
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    
+    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
+    const margin = styles.outerMarginPx;
+    
+    // Calculate layout: 4 total rows of covers split 2-2 with title in middle
+    const rows = 4;
+    const cols = 3;
+    const vGutterRatio = 0.12;
+    const bookAspect = 0.667;
+    
+    const availableHeight = canvasHeight - titleBarHeight - 4 * margin;
+    const totalVGutters = (rows - 1) * vGutterRatio;
+    const slotHeight = availableHeight / (rows + totalVGutters);
+    const vGutter = slotHeight * vGutterRatio;
+    const slotWidth = slotHeight * bookAspect;
+    const hGutter = (canvasWidth - cols * slotWidth) / (cols + 1);
+    
+    // Draw top 2 rows
+    let imageIndex = 0;
+    for (let row = 0; row < 2; row++) {
+      const currentRowY = margin + row * (slotHeight + vGutter);
+      for (let col = 0; col < cols; col++) {
+        const slotX = hGutter + col * (slotWidth + hGutter);
+        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, slotWidth, slotHeight, shouldStretch);
+        imageIndex++;
+      }
+    }
+    
+    // Draw title bar in middle
+    const titleY = margin + 2 * slotHeight + vGutter + margin;
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+    
+    // Draw bottom 2 rows
+    const bottomStartY = titleY + bgH + margin;
+    for (let row = 0; row < 2; row++) {
+      const currentRowY = bottomStartY + row * (slotHeight + vGutter);
+      for (let col = 0; col < cols; col++) {
+        const slotX = hGutter + col * (slotWidth + hGutter);
+        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, slotWidth, slotHeight, shouldStretch);
+        imageIndex++;
+      }
+    }
   }
   
   function autoRegenerateCoverIfAble() {
@@ -1726,11 +2188,16 @@ const BooklistApp = (function() {
       title: b.title,
       author: b.author,
       callNumber: b.callNumber,
+      authorDisplay: b.authorDisplay || null,
       description: b.description,
       cover_ids: Array.isArray(b.cover_ids) ? b.cover_ids : [],
       currentCoverIndex: typeof b.currentCoverIndex === 'number' ? b.currentCoverIndex : 0,
       customCoverData: b.customCoverData || null,
+      includeInCollage: b.includeInCollage !== false, // default true
     }));
+    
+    // Get selected collage layout
+    const selectedLayout = elements.collageLayoutSelector?.querySelector('.layout-option.selected')?.dataset.layout || 'classic';
     
     // Get list name (used for filename)
     const listName = (elements.listNameInput?.value || '').trim();
@@ -1755,6 +2222,7 @@ const BooklistApp = (function() {
         coverAdvancedMode: isAdvancedMode,
         coverTitle, // Simple mode text (backwards compatible)
         coverLineTexts, // Advanced mode texts
+        collageLayout: selectedLayout,
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: (elements.qrCodeTextArea?.innerText !== CONFIG.PLACEHOLDERS.qrText)
           ? (elements.qrCodeTextArea?.innerText || '')
@@ -1919,6 +2387,14 @@ const BooklistApp = (function() {
       }
     });
     
+    // Restore collage layout selection
+    const savedLayout = loaded.ui?.collageLayout || 'classic';
+    if (elements.collageLayoutSelector) {
+      elements.collageLayoutSelector.querySelectorAll('.layout-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.layout === savedLayout);
+      });
+    }
+    
     // QR Code URL
     if (elements.qrUrlInput) elements.qrUrlInput.value = loaded.ui?.qrCodeUrl || '';
     
@@ -1970,10 +2446,12 @@ const BooklistApp = (function() {
       title: b.title ?? CONFIG.PLACEHOLDERS.title,
       author: b.author ?? CONFIG.PLACEHOLDERS.author,
       callNumber: b.callNumber ?? CONFIG.PLACEHOLDERS.callNumber,
+      authorDisplay: b.authorDisplay || null,
       description: b.description ?? CONFIG.PLACEHOLDERS.description,
       cover_ids: Array.isArray(b.cover_ids) ? b.cover_ids : [],
       currentCoverIndex: typeof b.currentCoverIndex === 'number' ? b.currentCoverIndex : 0,
       customCoverData: b.customCoverData || null,
+      includeInCollage: b.includeInCollage !== false, // default true for backwards compatibility
     }));
     
     while (myBooklist.length < CONFIG.TOTAL_SLOTS) {
@@ -2123,6 +2601,19 @@ const BooklistApp = (function() {
     elements.generateCoverButton.addEventListener('click', generateCoverCollage);
     elements.stretchCoversToggle.addEventListener('change', autoRegenerateCoverIfAble);
     elements.stretchBlockCoversToggle.addEventListener('change', applyBlockCoverStyle);
+    
+    // Layout selector
+    if (elements.collageLayoutSelector) {
+      elements.collageLayoutSelector.querySelectorAll('.layout-option').forEach(option => {
+        option.addEventListener('click', () => {
+          elements.collageLayoutSelector.querySelectorAll('.layout-option').forEach(opt => {
+            opt.classList.remove('selected');
+          });
+          option.classList.add('selected');
+          debouncedSave();
+        });
+      });
+    }
     
     // Cover mode toggle
     if (elements.coverAdvancedToggle) {
