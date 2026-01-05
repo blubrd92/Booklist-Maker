@@ -647,6 +647,7 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   background: white;
   transition: border-color 0.2s, box-shadow 0.2s;
   padding: 4px;
+  overflow: hidden;
 }
 
 .layout-option:hover {
