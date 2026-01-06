@@ -1942,8 +1942,8 @@ const BooklistApp = (function() {
   
   /**
    * Layout: Tilted
-   * Rotated diagonal covers in stripes, title bar in middle
-   * All 12 covers shown complete, partial covers only at edges
+   * Dense diagonal columns of rotated covers, title bar in middle
+   * Covers overlap horizontally, small vertical gutters, fills entire space
    */
   function drawLayoutTilted(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
@@ -1951,24 +1951,28 @@ const BooklistApp = (function() {
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
     const bookAspect = 0.667;
-    const rotationDeg = -25;
+    const rotationDeg = -20;
     const rotationRad = rotationDeg * (Math.PI / 180);
-    const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
-    const gutter = 10 * (CONFIG.PDF_DPI / 72);
+    const titleGutter = 6 * (CONFIG.PDF_DPI / 72);
+    const vGutter = 8 * (CONFIG.PDF_DPI / 72); // Small vertical gap between covers in same column
     
-    // Calculate cover size - aim for ~3 covers visible per column in each half
-    const halfHeight = (canvasHeight - titleBarHeight - 2 * titleGutter) / 2;
-    const slotHeight = halfHeight / 2.2;
+    // Title bar in middle
+    const titleY = (canvasHeight - titleBarHeight) / 2;
+    const topSectionHeight = titleY - titleGutter;
+    const bottomSectionHeight = canvasHeight - titleY - titleBarHeight - titleGutter;
+    
+    // Calculate cover size - larger covers, roughly 2 visible per column in each section
+    const slotHeight = topSectionHeight / 1.6;
     const slotWidth = slotHeight * bookAspect;
     
-    // Horizontal step between columns (with gutter)
-    const hStep = slotWidth + gutter;
-    // Vertical step between covers in same column
-    const vStep = slotHeight + gutter;
-    // Diagonal drop per column (creates the diagonal stripe effect)
-    const diagDrop = slotHeight * 0.6;
+    // Horizontal step - covers overlap significantly (about 70% of width visible)
+    const hStep = slotWidth * 0.72;
+    // Diagonal drop per column - creates the diagonal stripe effect
+    const diagDrop = slotHeight * 0.55;
+    // Vertical step within column
+    const vStep = slotHeight + vGutter;
     
-    // Helper to draw a single rotated cover (full, not clipped)
+    // Helper to draw a single rotated cover
     const drawRotatedCover = (img, centerX, centerY, w, h) => {
       ctx.save();
       ctx.translate(centerX, centerY);
@@ -2001,53 +2005,53 @@ const BooklistApp = (function() {
       ctx.restore();
     };
     
-    // Title bar in middle
-    const titleY = (canvasHeight - titleBarHeight) / 2;
-    const topSectionBottom = titleY - titleGutter;
-    const bottomSectionTop = titleY + titleBarHeight + titleGutter;
-    
-    // Number of columns needed to fill width
-    const numCols = Math.ceil(canvasWidth / hStep) + 3;
+    // Number of columns needed (extra for edge bleed)
+    const numCols = Math.ceil(canvasWidth / hStep) + 4;
+    const startCol = -2;
     
     let imgIndex = 0;
     
-    // Draw top section - columns with diagonal offset
-    for (let col = -1; col < numCols; col++) {
-      const colX = col * hStep + slotWidth / 2;
-      const colBaseY = topSectionBottom - (col * diagDrop);
+    // Draw top section - diagonal columns going down-right
+    for (let col = startCol; col < numCols; col++) {
+      const colX = col * hStep;
+      // Each column starts lower than the previous (diagonal effect)
+      const colStartY = -slotHeight * 0.3 + col * diagDrop;
       
-      // Draw covers upward from base
-      for (let row = 0; row < 3; row++) {
-        const y = colBaseY - row * vStep - slotHeight / 2;
-        
-        // Only draw if at least partially visible
-        if (y < topSectionBottom + slotHeight && y > -slotHeight) {
-          drawRotatedCover(images[imgIndex % 12], colX, y, slotWidth, slotHeight);
-          imgIndex++;
-        }
+      // Draw covers in this column until we pass the top section
+      let y = colStartY;
+      let coversInCol = 0;
+      while (y < topSectionHeight + slotHeight && coversInCol < 5) {
+        drawRotatedCover(images[imgIndex % 12], colX, y, slotWidth, slotHeight);
+        imgIndex++;
+        y += vStep;
+        coversInCol++;
       }
     }
     
     // Draw title bar
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // Reset image index for bottom section
+    // Reset for bottom section
     imgIndex = 6;
+    const bottomTop = titleY + titleBarHeight + titleGutter;
     
-    // Draw bottom section - columns with diagonal offset
-    for (let col = -1; col < numCols; col++) {
-      const colX = col * hStep + slotWidth / 2;
-      const colBaseY = bottomSectionTop + (col * diagDrop);
+    // Draw bottom section - continue diagonal pattern
+    for (let col = startCol; col < numCols; col++) {
+      const colX = col * hStep;
+      // Continue diagonal from where top section's pattern would be
+      const colStartY = bottomTop + slotHeight * 0.2 + col * diagDrop;
       
-      // Draw covers downward from base
-      for (let row = 0; row < 3; row++) {
-        const y = colBaseY + row * vStep + slotHeight / 2;
-        
-        // Only draw if at least partially visible
-        if (y > bottomSectionTop - slotHeight && y < canvasHeight + slotHeight) {
+      // Draw covers in this column until we pass the canvas
+      let y = colStartY;
+      let coversInCol = 0;
+      while (y < canvasHeight + slotHeight && coversInCol < 5) {
+        // Adjust y to start within visible area
+        if (y > bottomTop - slotHeight) {
           drawRotatedCover(images[imgIndex % 12], colX, y, slotWidth, slotHeight);
-          imgIndex++;
         }
+        imgIndex++;
+        y += vStep;
+        coversInCol++;
       }
     }
   }
