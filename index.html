@@ -188,13 +188,32 @@
 
         <hr class="separator">
 
-        <div class="form-group" id="cover-title-style-group">
-          <label>Cover Header Style</label>
+        <div class="form-group" id="cover-header-text-group">
+          <label>Cover Header Text</label>
           
           <div class="control-row checkbox-row">
             <input id="cover-advanced-toggle" type="checkbox"/>
             <label for="cover-advanced-toggle">Multi-line mode (customize each line)</label>
           </div>
+          
+          <!-- Simple mode: single textarea -->
+          <div id="cover-simple-mode">
+            <label for="cover-title-input" class="sr-only">Cover title text</label>
+            <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
+          </div>
+          
+          <!-- Advanced mode: 3 line inputs -->
+          <div id="cover-advanced-mode">
+            <input type="text" class="cover-line-input" id="cover-line-1" placeholder="Line 1" aria-label="Cover line 1 text"/>
+            <input type="text" class="cover-line-input" id="cover-line-2" placeholder="Line 2" aria-label="Cover line 2 text"/>
+            <input type="text" class="cover-line-input" id="cover-line-3" placeholder="Line 3" aria-label="Cover line 3 text"/>
+          </div>
+          
+          <button id="generate-cover-button" class="btn btn-primary" style="margin-top: 10px; width: 100%;">Auto-Generate Cover</button>
+        </div>
+
+        <div class="form-group" id="cover-title-style-group">
+          <label>Cover Header Style</label>
           
           <!-- Simple mode styling (shared for all text) -->
           <div id="cover-simple-style">
@@ -345,9 +364,9 @@
             <label for="stretch-covers-toggle">Stretch Header Covers</label>
           </div>
           
-          <details class="advanced-settings" id="collage-layout-details" style="margin-top: 10px;">
-            <summary>Collage Layout</summary>
-            <p style="font-size: 0.75rem; color: #666; margin: 6px 0;">Star up to 12 books to include in the collage.</p>
+          <div class="layout-settings" id="collage-layout-details" style="margin-top: 10px;">
+            <label style="font-weight: 600; font-size: 0.85rem;">Collage Layout Options</label>
+            <p style="font-size: 0.75rem; color: #666; margin: 6px 0;">Star 12 books to include in the collage</p>
             <div id="collage-layout-selector" aria-label="Select collage layout">
               <div class="layout-option selected" data-layout="classic" title="Classic: 3 top, title, 3x3 grid">
                 <svg viewBox="0 0 40 50">
@@ -407,30 +426,83 @@
                 </svg>
                 <span class="layout-option-label">Title Top</span>
               </div>
-              <div class="layout-option" data-layout="staggered" title="Staggered: brick pattern with gutters, fills edge-to-edge">
+              <div class="layout-option" data-layout="staggered" title="Staggered: brick pattern, fills edge-to-edge">
                 <svg viewBox="0 0 40 50">
-                  <rect x="-4" y="0" width="10" height="10" rx="1"/>
-                  <rect x="8" y="0" width="10" height="10" rx="1"/>
-                  <rect x="20" y="0" width="10" height="10" rx="1"/>
-                  <rect x="32" y="0" width="10" height="10" rx="1"/>
-                  <rect x="2" y="12" width="10" height="10" rx="1"/>
-                  <rect x="14" y="12" width="10" height="10" rx="1"/>
-                  <rect x="26" y="12" width="10" height="10" rx="1"/>
-                  <rect x="38" y="12" width="10" height="10" rx="1"/>
+                  <!-- Row 1 (no offset) -->
+                  <rect x="-3" y="0" width="8" height="11" rx="1"/>
+                  <rect x="7" y="0" width="8" height="11" rx="1"/>
+                  <rect x="17" y="0" width="8" height="11" rx="1"/>
+                  <rect x="27" y="0" width="8" height="11" rx="1"/>
+                  <rect x="37" y="0" width="8" height="11" rx="1"/>
+                  <!-- Row 2 (offset right) -->
+                  <rect x="2" y="12" width="8" height="11" rx="1"/>
+                  <rect x="12" y="12" width="8" height="11" rx="1"/>
+                  <rect x="22" y="12" width="8" height="11" rx="1"/>
+                  <rect x="32" y="12" width="8" height="11" rx="1"/>
+                  <!-- Title bar -->
                   <rect x="2" y="24" width="36" height="4" rx="1"/>
-                  <rect x="-4" y="30" width="10" height="10" rx="1"/>
-                  <rect x="8" y="30" width="10" height="10" rx="1"/>
-                  <rect x="20" y="30" width="10" height="10" rx="1"/>
-                  <rect x="32" y="30" width="10" height="10" rx="1"/>
-                  <rect x="2" y="42" width="10" height="8" rx="1"/>
-                  <rect x="14" y="42" width="10" height="8" rx="1"/>
-                  <rect x="26" y="42" width="10" height="8" rx="1"/>
-                  <rect x="38" y="42" width="10" height="8" rx="1"/>
+                  <!-- Row 3 (no offset) -->
+                  <rect x="-3" y="29" width="8" height="11" rx="1"/>
+                  <rect x="7" y="29" width="8" height="11" rx="1"/>
+                  <rect x="17" y="29" width="8" height="11" rx="1"/>
+                  <rect x="27" y="29" width="8" height="11" rx="1"/>
+                  <rect x="37" y="29" width="8" height="11" rx="1"/>
+                  <!-- Row 4 (offset right) -->
+                  <rect x="2" y="41" width="8" height="9" rx="1"/>
+                  <rect x="12" y="41" width="8" height="9" rx="1"/>
+                  <rect x="22" y="41" width="8" height="9" rx="1"/>
+                  <rect x="32" y="41" width="8" height="9" rx="1"/>
                 </svg>
                 <span class="layout-option-label">Staggered</span>
               </div>
+              <div class="layout-option" data-layout="tilted" title="Tilted: rotated diagonal covers">
+                <svg viewBox="0 0 40 50" style="overflow: hidden;">
+                  <!-- Rotated grid with vertical column stagger, extends beyond edges -->
+                  <g transform="rotate(-25 20 25)">
+                    <!-- Row 0 (partial, above canvas) -->
+                    <rect x="-11" y="-8" width="8" height="12" rx="1"/>
+                    <rect x="0" y="-2" width="8" height="12" rx="1"/>
+                    <rect x="11" y="-8" width="8" height="12" rx="1"/>
+                    <rect x="22" y="-2" width="8" height="12" rx="1"/>
+                    <rect x="33" y="-8" width="8" height="12" rx="1"/>
+                    <rect x="44" y="-2" width="8" height="12" rx="1"/>
+                    <!-- Row 1 -->
+                    <rect x="-11" y="6" width="8" height="12" rx="1"/>
+                    <rect x="0" y="12" width="8" height="12" rx="1"/>
+                    <rect x="11" y="6" width="8" height="12" rx="1"/>
+                    <rect x="22" y="12" width="8" height="12" rx="1"/>
+                    <rect x="33" y="6" width="8" height="12" rx="1"/>
+                    <rect x="44" y="12" width="8" height="12" rx="1"/>
+                    <!-- Row 2 -->
+                    <rect x="-11" y="20" width="8" height="12" rx="1"/>
+                    <rect x="0" y="26" width="8" height="12" rx="1"/>
+                    <rect x="11" y="20" width="8" height="12" rx="1"/>
+                    <rect x="22" y="26" width="8" height="12" rx="1"/>
+                    <rect x="33" y="20" width="8" height="12" rx="1"/>
+                    <rect x="44" y="26" width="8" height="12" rx="1"/>
+                    <!-- Row 3 -->
+                    <rect x="-11" y="34" width="8" height="12" rx="1"/>
+                    <rect x="0" y="40" width="8" height="12" rx="1"/>
+                    <rect x="11" y="34" width="8" height="12" rx="1"/>
+                    <rect x="22" y="40" width="8" height="12" rx="1"/>
+                    <rect x="33" y="34" width="8" height="12" rx="1"/>
+                    <rect x="44" y="40" width="8" height="12" rx="1"/>
+                    <!-- Row 4 (partial, below canvas) -->
+                    <rect x="-11" y="48" width="8" height="12" rx="1"/>
+                    <rect x="0" y="54" width="8" height="12" rx="1"/>
+                    <rect x="11" y="48" width="8" height="12" rx="1"/>
+                    <rect x="22" y="54" width="8" height="12" rx="1"/>
+                    <rect x="33" y="48" width="8" height="12" rx="1"/>
+                    <rect x="44" y="54" width="8" height="12" rx="1"/>
+                  </g>
+                  <!-- Title bar (not rotated, on top with white margin) -->
+                  <rect x="0" y="21" width="40" height="8" fill="white"/>
+                  <rect x="2" y="23" width="36" height="4" rx="1"/>
+                </svg>
+                <span class="layout-option-label">Tilted</span>
+              </div>
             </div>
-          </details>
+          </div>
         </div>
 
         <div class="form-group">
@@ -492,7 +564,7 @@
           <input type="text" id="list-name-input" class="list-name-input" placeholder="My Booklist" aria-label="Name for this booklist"/>
         </div>
         <div class="toolbar-hint">
-            <i class="fa-solid fa-circle-info" aria-hidden="true"></i> Edit text directly. Star books to include in collage.
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i> Find titles using the Search tab or edit text fields directly.
         </div>
       </div>
 
@@ -515,23 +587,7 @@
             <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or generate front cover image">
               <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
-                Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool below<br/>(Star at least 12 books to include in collage)
-              </div>
-              <div id="cover-generate-controls">
-                <!-- Simple mode: single textarea -->
-                <div id="cover-simple-mode">
-                  <label for="cover-title-input" class="sr-only">Cover title text</label>
-                  <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
-                </div>
-                
-                <!-- Advanced mode: 3 line inputs -->
-                <div id="cover-advanced-mode">
-                  <input type="text" class="cover-line-input" id="cover-line-1" placeholder="Line 1" aria-label="Cover line 1 text"/>
-                  <input type="text" class="cover-line-input" id="cover-line-2" placeholder="Line 2" aria-label="Cover line 2 text"/>
-                  <input type="text" class="cover-line-input" id="cover-line-3" placeholder="Line 3" aria-label="Cover line 3 text"/>
-                </div>
-                
-                <button id="generate-cover-button" class="btn btn-primary">Auto-Generate Cover</button>
+                Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in the Settings tab<br/>(Star 12 books to include in the collage)
               </div>
               <input type="file" accept="image/*" aria-hidden="true"/>
             </div>
@@ -596,3 +652,8 @@
   
 </body>
 </html>
+
+
+
+
+
