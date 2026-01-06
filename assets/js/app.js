@@ -1942,8 +1942,9 @@ const BooklistApp = (function() {
   
   /**
    * Layout: Tilted
-   * A staggered/brick grid rotated ~25 degrees, with partial covers
+   * A vertically-staggered grid rotated ~25 degrees, with partial covers
    * bleeding off edges to fill the white space created by rotation.
+   * Columns are offset vertically (not rows offset horizontally).
    */
   function drawLayoutTilted(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
@@ -1978,8 +1979,8 @@ const BooklistApp = (function() {
     const hStep = slotWidth + hGutter;
     const vStep = slotHeight + vGutter;
     
-    // Stagger offset for alternating rows (half a cover width)
-    const staggerOffset = hStep / 2;
+    // Vertical stagger offset for alternating COLUMNS (half a cover height)
+    const staggerOffset = vStep / 2;
     
     // Center of canvas (rotation pivot point)
     const centerX = canvasWidth / 2;
@@ -2070,7 +2071,6 @@ const BooklistApp = (function() {
         rowImagesUsed[row] = new Set();
       }
       
-      // Try to find an unused image for this row
       let attempts = 0;
       let imgIdx = globalImgIdx % 12;
       
@@ -2087,16 +2087,18 @@ const BooklistApp = (function() {
     
     // === DRAW TOP SECTION ===
     for (let row = 0; row < numRows; row++) {
-      const isOddRow = row % 2 === 1;
-      const rowStagger = isOddRow ? staggerOffset : 0;
-      
       for (let col = 0; col < numCols; col++) {
-        const gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
-        const gridY = gridOriginY + row * vStep + slotHeight / 2;
+        // Vertical stagger: odd COLUMNS shift down
+        const isOddCol = col % 2 === 1;
+        const colStagger = isOddCol ? staggerOffset : 0;
+        
+        const gridX = gridOriginX + col * hStep + slotWidth / 2;
+        const gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
         
         const rotated = rotatePoint(gridX, gridY);
         
-        if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, topSectionHeight + slotHeight * 0.3)) {
+        // Check against top section with margin for title bar
+        if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, topSectionHeight)) {
           const imgIdx = getNextImageForRow(row);
           drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
         }
@@ -2104,21 +2106,22 @@ const BooklistApp = (function() {
     }
     
     // === DRAW BOTTOM SECTION ===
-    // Reset for bottom section with offset
     rowImagesUsed = {};
     globalImgIdx = 6;
     
     for (let row = 0; row < numRows; row++) {
-      const isOddRow = row % 2 === 1;
-      const rowStagger = isOddRow ? staggerOffset : 0;
-      
       for (let col = 0; col < numCols; col++) {
-        const gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
-        const gridY = gridOriginY + row * vStep + slotHeight / 2;
+        // Vertical stagger: odd COLUMNS shift down
+        const isOddCol = col % 2 === 1;
+        const colStagger = isOddCol ? staggerOffset : 0;
+        
+        const gridX = gridOriginX + col * hStep + slotWidth / 2;
+        const gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
         
         const rotated = rotatePoint(gridX, gridY);
         
-        if (coverIntersectsBand(rotated.x, rotated.y, bottomSectionTop - slotHeight * 0.3, canvasHeight + slotHeight)) {
+        // Check against bottom section
+        if (coverIntersectsBand(rotated.x, rotated.y, bottomSectionTop, canvasHeight + slotHeight)) {
           const imgIdx = getNextImageForRow(row);
           drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
         }
