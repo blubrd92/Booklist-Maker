@@ -2703,11 +2703,7 @@ const BooklistApp = (function() {
       }
     });
     
-    const coverControls = document.getElementById('cover-generate-controls');
     elements.frontCoverUploader.addEventListener('click', (e) => {
-      if (coverControls.contains(e.target)) {
-        return;
-      }
       frontCoverFileInput.click();
     });
   }
