@@ -883,8 +883,8 @@ const BooklistApp = (function() {
     const magicButton = document.createElement('button');
     magicButton.className = 'magic-button';
     magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
-    magicButton.title = 'Fetch AI description';
-    magicButton.setAttribute('aria-label', 'Fetch AI description for this book');
+    magicButton.title = 'Fetch description';
+    magicButton.setAttribute('aria-label', 'Fetch description for this book');
     magicButton.onclick = () => handleMagicButtonClick(bookItem);
     
     // Item number
