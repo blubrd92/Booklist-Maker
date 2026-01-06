@@ -2054,34 +2054,16 @@ const BooklistApp = (function() {
     const gridExtent = canvasDiag * 0.8;
     
     const numCols = Math.ceil(gridExtent * 2 / hStep) + 2;
-    const numRows = Math.ceil(gridExtent * 2 / vStep) + 2;
+    const numRows = 12; // Exactly 12 rows to show all covers per column
     
     // Grid origin (top-left of virtual unrotated grid, centered on canvas)
     const gridOriginX = centerX - (numCols * hStep) / 2;
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
-    // Track which images are used per row to avoid duplicates in same row
-    let rowImagesUsed = {};
-    let globalImgIdx = 0;
-    
-    // Helper: get next image index that hasn't been used in this row
-    const getNextImageForRow = (row) => {
-      if (!rowImagesUsed[row]) {
-        rowImagesUsed[row] = new Set();
-      }
-      
-      let attempts = 0;
-      let imgIdx = globalImgIdx % 12;
-      
-      while (rowImagesUsed[row].has(imgIdx) && attempts < 12) {
-        globalImgIdx++;
-        imgIdx = globalImgIdx % 12;
-        attempts++;
-      }
-      
-      rowImagesUsed[row].add(imgIdx);
-      globalImgIdx++;
-      return imgIdx;
+    // Deterministic image selection:
+    // Each column has images 0-11, offset by (col * 4) to prevent horizontal striping
+    const getImageForCell = (row, col) => {
+      return (row + col * 4) % 12;
     };
     
     // === DRAW FULL GRID (ignoring title bar zone) ===
@@ -2099,7 +2081,7 @@ const BooklistApp = (function() {
         
         // Draw if cover intersects the canvas at all
         if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
-          const imgIdx = getNextImageForRow(row);
+          const imgIdx = getImageForCell(row, col);
           drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
         }
       }
