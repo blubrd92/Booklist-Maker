@@ -1945,6 +1945,7 @@ const BooklistApp = (function() {
    * A vertically-staggered grid rotated ~25 degrees, with partial covers
    * bleeding off edges to fill the white space created by rotation.
    * Columns are offset vertically (not rows offset horizontally).
+   * Title bar draws ON TOP with white margin background.
    */
   function drawLayoutTilted(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
@@ -1966,13 +1967,11 @@ const BooklistApp = (function() {
     
     // Title bar position (centered vertically)
     const titleY = (canvasHeight - titleBarHeight) / 2;
-    const topSectionHeight = titleY - titleGutter;
-    const bottomSectionTop = titleY + titleBarHeight + titleGutter;
-    const bottomSectionHeight = canvasHeight - bottomSectionTop;
     
     // Calculate cover size - smaller to fit more covers (2.5 rows per section)
+    const sectionHeight = (canvasHeight - titleBarHeight - 2 * titleGutter) / 2;
     const rowsPerSection = 2.5;
-    const slotHeight = (topSectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection;
+    const slotHeight = (sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection;
     const slotWidth = slotHeight * bookAspect;
     
     // Spacing between cover centers
@@ -2085,7 +2084,8 @@ const BooklistApp = (function() {
       return imgIdx;
     };
     
-    // === DRAW TOP SECTION ===
+    // === DRAW FULL GRID (ignoring title bar zone) ===
+    // Draw everything, title bar will cover the middle
     for (let row = 0; row < numRows; row++) {
       for (let col = 0; col < numCols; col++) {
         // Vertical stagger: odd COLUMNS shift down
@@ -2097,38 +2097,20 @@ const BooklistApp = (function() {
         
         const rotated = rotatePoint(gridX, gridY);
         
-        // Check against top section with margin for title bar
-        if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, topSectionHeight)) {
+        // Draw if cover intersects the canvas at all
+        if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
           const imgIdx = getNextImageForRow(row);
           drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
         }
       }
     }
     
-    // === DRAW BOTTOM SECTION ===
-    rowImagesUsed = {};
-    globalImgIdx = 6;
+    // === DRAW WHITE MARGIN + TITLE BAR ON TOP ===
+    // White rectangle behind title bar (covers the book covers)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, titleY - titleGutter, canvasWidth, titleBarHeight + 2 * titleGutter);
     
-    for (let row = 0; row < numRows; row++) {
-      for (let col = 0; col < numCols; col++) {
-        // Vertical stagger: odd COLUMNS shift down
-        const isOddCol = col % 2 === 1;
-        const colStagger = isOddCol ? staggerOffset : 0;
-        
-        const gridX = gridOriginX + col * hStep + slotWidth / 2;
-        const gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
-        
-        const rotated = rotatePoint(gridX, gridY);
-        
-        // Check against bottom section
-        if (coverIntersectsBand(rotated.x, rotated.y, bottomSectionTop, canvasHeight + slotHeight)) {
-          const imgIdx = getNextImageForRow(row);
-          drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
-        }
-      }
-    }
-    
-    // === DRAW TITLE BAR LAST (on top of covers) ===
+    // Draw title bar on top
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
   }
 
