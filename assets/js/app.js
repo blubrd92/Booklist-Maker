@@ -883,8 +883,8 @@ const BooklistApp = (function() {
     const magicButton = document.createElement('button');
     magicButton.className = 'magic-button';
     magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
-    magicButton.title = 'Fetch description';
-    magicButton.setAttribute('aria-label', 'Fetch description for this book');
+    magicButton.title = 'Fetch AI description';
+    magicButton.setAttribute('aria-label', 'Fetch AI description for this book');
     magicButton.onclick = () => handleMagicButtonClick(bookItem);
     
     // Item number
@@ -1969,8 +1969,8 @@ const BooklistApp = (function() {
     const bottomSectionTop = titleY + titleBarHeight + titleGutter;
     const bottomSectionHeight = canvasHeight - bottomSectionTop;
     
-    // Calculate cover size to fit 2 rows in each section
-    const rowsPerSection = 2;
+    // Calculate cover size - smaller to fit more covers (2.5 rows per section)
+    const rowsPerSection = 2.5;
     const slotHeight = (topSectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection;
     const slotWidth = slotHeight * bookAspect;
     
@@ -1997,7 +1997,6 @@ const BooklistApp = (function() {
     
     // Helper: check if a rotated rectangle intersects a horizontal band
     const coverIntersectsBand = (cx, cy, bandTop, bandBottom) => {
-      // Get the 4 corners of the rotated cover
       const hw = slotWidth / 2;
       const hh = slotHeight / 2;
       const corners = [
@@ -2010,13 +2009,11 @@ const BooklistApp = (function() {
         y: cy + c.x * sinA + c.y * cosA
       }));
       
-      // Check if any corner is in the band, or if the band crosses the cover
       const minY = Math.min(...corners.map(c => c.y));
       const maxY = Math.max(...corners.map(c => c.y));
       const minX = Math.min(...corners.map(c => c.x));
       const maxX = Math.max(...corners.map(c => c.x));
       
-      // Check intersection with canvas bounds AND the specific band
       return maxX > 0 && minX < canvasWidth && maxY > bandTop && minY < bandBottom;
     };
     
@@ -2053,7 +2050,6 @@ const BooklistApp = (function() {
     };
     
     // Calculate grid size needed to cover canvas after rotation
-    // The diagonal of the canvas determines how far we need to extend
     const canvasDiag = Math.sqrt(canvasWidth * canvasWidth + canvasHeight * canvasHeight);
     const gridExtent = canvasDiag * 0.8;
     
@@ -2064,7 +2060,30 @@ const BooklistApp = (function() {
     const gridOriginX = centerX - (numCols * hStep) / 2;
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
-    let imgIdx = 0;
+    // Track which images are used per row to avoid duplicates in same row
+    let rowImagesUsed = {};
+    let globalImgIdx = 0;
+    
+    // Helper: get next image index that hasn't been used in this row
+    const getNextImageForRow = (row) => {
+      if (!rowImagesUsed[row]) {
+        rowImagesUsed[row] = new Set();
+      }
+      
+      // Try to find an unused image for this row
+      let attempts = 0;
+      let imgIdx = globalImgIdx % 12;
+      
+      while (rowImagesUsed[row].has(imgIdx) && attempts < 12) {
+        globalImgIdx++;
+        imgIdx = globalImgIdx % 12;
+        attempts++;
+      }
+      
+      rowImagesUsed[row].add(imgIdx);
+      globalImgIdx++;
+      return imgIdx;
+    };
     
     // === DRAW TOP SECTION ===
     for (let row = 0; row < numRows; row++) {
@@ -2072,46 +2091,42 @@ const BooklistApp = (function() {
       const rowStagger = isOddRow ? staggerOffset : 0;
       
       for (let col = 0; col < numCols; col++) {
-        // Position in unrotated grid
         const gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
         const gridY = gridOriginY + row * vStep + slotHeight / 2;
         
-        // Rotate to get actual position
         const rotated = rotatePoint(gridX, gridY);
         
-        // Only draw if cover intersects the top section
         if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, topSectionHeight + slotHeight * 0.3)) {
-          drawRotatedCover(images[imgIdx % 12], rotated.x, rotated.y);
-          imgIdx++;
+          const imgIdx = getNextImageForRow(row);
+          drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
         }
       }
     }
     
-    // === DRAW TITLE BAR ===
-    drawTitleBarAt(ctx, styles, canvasWidth, titleY);
-    
     // === DRAW BOTTOM SECTION ===
-    imgIdx = 6; // offset for variety
+    // Reset for bottom section with offset
+    rowImagesUsed = {};
+    globalImgIdx = 6;
     
     for (let row = 0; row < numRows; row++) {
       const isOddRow = row % 2 === 1;
       const rowStagger = isOddRow ? staggerOffset : 0;
       
       for (let col = 0; col < numCols; col++) {
-        // Position in unrotated grid
         const gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
         const gridY = gridOriginY + row * vStep + slotHeight / 2;
         
-        // Rotate to get actual position
         const rotated = rotatePoint(gridX, gridY);
         
-        // Only draw if cover intersects the bottom section
         if (coverIntersectsBand(rotated.x, rotated.y, bottomSectionTop - slotHeight * 0.3, canvasHeight + slotHeight)) {
-          drawRotatedCover(images[imgIdx % 12], rotated.x, rotated.y);
-          imgIdx++;
+          const imgIdx = getNextImageForRow(row);
+          drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
         }
       }
     }
+    
+    // === DRAW TITLE BAR LAST (on top of covers) ===
+    drawTitleBarAt(ctx, styles, canvasWidth, titleY);
   }
 
   function autoRegenerateCoverIfAble() {
