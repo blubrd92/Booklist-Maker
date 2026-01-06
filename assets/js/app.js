@@ -223,13 +223,9 @@ const BooklistApp = (function() {
   function handlePastePlainText(e) {
     e.preventDefault();
     const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-    
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return;
-    
-    selection.deleteFromDocument();
-    selection.getRangeAt(0).insertNode(document.createTextNode(text));
-    selection.collapseToEnd();
+    // execCommand is "deprecated" but still the only way to insert text
+    // into contenteditable while preserving proper undo/redo behavior
+    document.execCommand('insertText', false, text);
   }
   
   // ---------------------------------------------------------------------------
