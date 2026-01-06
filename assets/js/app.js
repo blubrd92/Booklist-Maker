@@ -2061,9 +2061,9 @@ const BooklistApp = (function() {
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
     // Deterministic image selection:
-    // Each column has images 0-11, offset by (col * 4) to prevent horizontal striping
+    // Each column has images 0-11, offset by (col * 3) to prevent horizontal striping
     const getImageForCell = (row, col) => {
-      return (row + col * 4) % 12;
+      return (row + col * 3) % 12;
     };
     
     // === DRAW FULL GRID (ignoring title bar zone) ===
