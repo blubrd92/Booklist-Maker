@@ -2106,11 +2106,18 @@ const BooklistApp = (function() {
     }
     
     // === DRAW WHITE MARGIN + TITLE BAR ON TOP ===
-    // White rectangle behind title bar (covers the book covers)
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, titleY - titleGutter, canvasWidth, titleBarHeight + 2 * titleGutter);
+    // First draw title bar to get actual height
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // Draw title bar on top
+    // Now draw white rectangle behind it (need to redraw title bar after)
+    // Use actual bgH for symmetric margins
+    const actualTitleTop = titleY;
+    const actualTitleBottom = titleY + bgH;
+    
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, actualTitleTop - titleGutter, canvasWidth, bgH + 2 * titleGutter);
+    
+    // Redraw title bar on top of white margin
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
   }
 
