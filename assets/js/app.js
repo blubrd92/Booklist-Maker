@@ -2167,31 +2167,9 @@ const BooklistApp = (function() {
     const listName = (elements.listNameInput?.value || '').trim();
     const baseName = listName.length > 0 ? listName : 'booklist';
     
-    const safeBase = baseName.replace(/[^\w.-]+/g, '_');
+    // Sanitize filename: only remove characters forbidden by file systems
+    const safeBase = baseName.replace(/[<>:"/\\|?*]+/g, '').trim() || 'booklist';
     const suggestedName = `${safeBase}.pdf`;
-    
-    // Check File System Access API support
-    const supportsFSAccess = 'showSaveFilePicker' in window &&
-      (() => { try { return window.self === window.top; } catch { return false; } })();
-    
-    let saveHandle = null;
-    let isModernSave = false;
-    
-    if (supportsFSAccess) {
-      try {
-        saveHandle = await window.showSaveFilePicker({
-          suggestedName,
-          types: [{ description: 'PDF Document', accept: { 'application/pdf': ['.pdf'] } }],
-        });
-        isModernSave = true;
-      } catch (err) {
-        if (err.name === 'AbortError') {
-          setLoading(elements.exportPdfButton, false);
-          return;
-        }
-        isModernSave = false;
-      }
-    }
     
     showNotification('Generating PDF, please wait...', 'info', false);
     
@@ -2250,16 +2228,8 @@ const BooklistApp = (function() {
       const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
       pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
       
-      if (isModernSave && saveHandle) {
-        const blob = pdf.output('blob');
-        const writable = await saveHandle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-        showNotification('PDF saved successfully.', 'success');
-      } else {
-        pdf.save(suggestedName);
-        showNotification('PDF download started.', 'success');
-      }
+      pdf.save(suggestedName);
+      showNotification('PDF download started.', 'success');
       
     } catch (err) {
       console.error("PDF Generation failed:", err);
@@ -2380,34 +2350,13 @@ const BooklistApp = (function() {
     };
   }
   
-  async function downloadBooklist(state) {
+  function downloadBooklist(state) {
     const data = JSON.stringify(state, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
-    const safeBase = (state.meta?.listName || 'booklist').replace(/[^\w.-]+/g, '_');
+    // Sanitize filename: only remove characters forbidden by file systems
+    const safeBase = (state.meta?.listName || 'booklist').replace(/[<>:"/\\|?*]+/g, '').trim() || 'booklist';
     const suggestedName = `${safeBase}.booklist`;
     
-    const supportsFSAccess = 'showSaveFilePicker' in window &&
-      (() => { try { return window.self === window.top; } catch { return false; } })();
-    
-    if (supportsFSAccess) {
-      try {
-        const handle = await window.showSaveFilePicker({
-          suggestedName,
-          types: [{
-            description: 'Booklist JSON',
-            accept: { 'application/json': ['.booklist', '.json'] },
-          }],
-        });
-        const writable = await handle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-        return true;
-      } catch (err) {
-        if (err && (err.name === 'AbortError' || err.code === 20)) return false;
-      }
-    }
-    
-    // Fallback
     const a = document.createElement('a');
     const url = URL.createObjectURL(blob);
     a.href = url;
@@ -2919,9 +2868,9 @@ const BooklistApp = (function() {
     // Header actions
     elements.exportPdfButton.addEventListener('click', exportPdf);
     
-    elements.saveListButton.addEventListener('click', async () => {
+    elements.saveListButton.addEventListener('click', () => {
       const state = serializeState();
-      const didSave = await downloadBooklist(state);
+      const didSave = downloadBooklist(state);
       if (didSave) {
         showNotification('Booklist saved to file.', 'success');
       }
@@ -2964,6 +2913,9 @@ const BooklistApp = (function() {
     setupPlaceholderField(elements.qrCodeTextArea, CONFIG.PLACEHOLDERS.qrText, {
       originalColor: getComputedStyle(elements.qrCodeTextArea).color
     });
+    
+    // Strip formatting on paste (same as other editable fields)
+    elements.qrCodeTextArea.addEventListener('paste', handlePastePlainText);
   }
   
   // ---------------------------------------------------------------------------
