@@ -883,8 +883,8 @@ const BooklistApp = (function() {
     const magicButton = document.createElement('button');
     magicButton.className = 'magic-button';
     magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
-    magicButton.title = 'Fetch AI description';
-    magicButton.setAttribute('aria-label', 'Fetch AI description for this book');
+    magicButton.title = 'Fetch description';
+    magicButton.setAttribute('aria-label', 'Fetch description for this book');
     magicButton.onclick = () => handleMagicButtonClick(bookItem);
     
     // Item number
@@ -1942,140 +1942,146 @@ const BooklistApp = (function() {
   
   /**
    * Layout: Tilted
-   * Diagonal ribbons of rotated covers flowing from upper-left to lower-right
-   * Dense coverage with overlapping diagonal stripes, covers bleed off all edges
-   * All 12 covers appear complete at least once; partial covers only at edges
-   */
-  /**
-   * Layout: Tilted
-   * Creates a grid of rotated covers with diagonal offset between columns.
-   * Covers do NOT overlap - they have gutters between them.
-   * Auto-sizes to fill the available space flush with edges.
+   * A staggered/brick grid rotated ~25 degrees, with partial covers
+   * bleeding off edges to fill the white space created by rotation.
    */
   function drawLayoutTilted(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
-    const bookAspect = 0.667; // width / height
+    const bookAspect = 0.667;
     
-    // Rotation angle (counter-clockwise)
-    const rotationDeg = -18;
+    // Rotation angle (negative = counter-clockwise)
+    const rotationDeg = -25;
     const rotationRad = rotationDeg * (Math.PI / 180);
-    const cosA = Math.cos(Math.abs(rotationRad));
-    const sinA = Math.sin(Math.abs(rotationRad));
+    const cosA = Math.cos(rotationRad);
+    const sinA = Math.sin(rotationRad);
     
-    // Gutter between covers and around title bar
-    const gutter = 8 * (CONFIG.PDF_DPI / 72);
-    const titleGutter = 6 * (CONFIG.PDF_DPI / 72);
+    // Gutters
+    const hGutter = 6 * (CONFIG.PDF_DPI / 72);
+    const vGutter = 6 * (CONFIG.PDF_DPI / 72);
+    const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
     
-    // Title bar centered vertically
+    // Title bar position (centered vertically)
     const titleY = (canvasHeight - titleBarHeight) / 2;
     const topSectionHeight = titleY - titleGutter;
     const bottomSectionTop = titleY + titleBarHeight + titleGutter;
     const bottomSectionHeight = canvasHeight - bottomSectionTop;
     
-    // Target number of covers per row and column in each section
-    const targetRows = 2; // covers vertically per section
-    const targetCols = 5; // covers horizontally
+    // Calculate cover size to fit 2 rows in each section
+    const rowsPerSection = 2;
+    const slotHeight = (topSectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection;
+    const slotWidth = slotHeight * bookAspect;
     
-    // Calculate cover size based on bounding box after rotation
-    // Bounding box of rotated rectangle: 
-    //   boundingW = w*cos + h*sin
-    //   boundingH = w*sin + h*cos
-    // We need to solve for cover dimensions that fit our grid
+    // Spacing between cover centers
+    const hStep = slotWidth + hGutter;
+    const vStep = slotHeight + vGutter;
     
-    // For a cover with height h and width w = h * bookAspect:
-    //   boundingW = h*bookAspect*cos + h*sin = h*(bookAspect*cos + sin)
-    //   boundingH = h*bookAspect*sin + h*cos = h*(bookAspect*sin + cos)
+    // Stagger offset for alternating rows (half a cover width)
+    const staggerOffset = hStep / 2;
     
-    const boundingWFactor = bookAspect * cosA + sinA;
-    const boundingHFactor = bookAspect * sinA + cosA;
+    // Center of canvas (rotation pivot point)
+    const centerX = canvasWidth / 2;
+    const centerY = canvasHeight / 2;
     
-    // Calculate cover height to fit targetRows in section height (accounting for gutters)
-    // totalHeight = rows * boundingH + (rows - 1) * gutter
-    // sectionHeight = totalHeight => h = (sectionHeight - (rows-1)*gutter) / (rows * boundingHFactor)
-    const coverHeightFromRows = (topSectionHeight - (targetRows - 1) * gutter) / (targetRows * boundingHFactor);
+    // Helper: rotate a point around canvas center
+    const rotatePoint = (x, y) => {
+      const dx = x - centerX;
+      const dy = y - centerY;
+      return {
+        x: centerX + dx * cosA - dy * sinA,
+        y: centerY + dx * sinA + dy * cosA
+      };
+    };
     
-    // Calculate cover height to fit targetCols across width
-    const coverHeightFromCols = (canvasWidth - (targetCols - 1) * gutter) / (targetCols * boundingWFactor);
+    // Helper: check if a rotated rectangle intersects a horizontal band
+    const coverIntersectsBand = (cx, cy, bandTop, bandBottom) => {
+      // Get the 4 corners of the rotated cover
+      const hw = slotWidth / 2;
+      const hh = slotHeight / 2;
+      const corners = [
+        { x: -hw, y: -hh },
+        { x: hw, y: -hh },
+        { x: hw, y: hh },
+        { x: -hw, y: hh }
+      ].map(c => ({
+        x: cx + c.x * cosA - c.y * sinA,
+        y: cy + c.x * sinA + c.y * cosA
+      }));
+      
+      // Check if any corner is in the band, or if the band crosses the cover
+      const minY = Math.min(...corners.map(c => c.y));
+      const maxY = Math.max(...corners.map(c => c.y));
+      const minX = Math.min(...corners.map(c => c.x));
+      const maxX = Math.max(...corners.map(c => c.x));
+      
+      // Check intersection with canvas bounds AND the specific band
+      return maxX > 0 && minX < canvasWidth && maxY > bandTop && minY < bandBottom;
+    };
     
-    // Use the smaller to ensure we fit both dimensions
-    const coverHeight = Math.min(coverHeightFromRows, coverHeightFromCols);
-    const coverWidth = coverHeight * bookAspect;
-    
-    // Actual bounding box dimensions
-    const boundingW = coverHeight * boundingWFactor;
-    const boundingH = coverHeight * boundingHFactor;
-    
-    // Step sizes (bounding box + gutter)
-    const hStep = boundingW + gutter;
-    const vStep = boundingH + gutter;
-    
-    // Diagonal offset: each column shifts down by this amount
-    // This creates the diagonal flow pattern
-    const diagOffset = vStep * 0.4;
-    
-    // Calculate actual number of columns and rows needed (with bleed)
-    const numCols = Math.ceil(canvasWidth / hStep) + 3;
-    const numRowsTop = Math.ceil((topSectionHeight + diagOffset * numCols) / vStep) + 2;
-    const numRowsBottom = Math.ceil((bottomSectionHeight + diagOffset * numCols) / vStep) + 2;
-    
-    // Starting positions to ensure flush edges with bleed
-    const startCol = -2;
-    
-    // Helper to draw a rotated cover centered at (centerX, centerY)
-    const drawRotatedCover = (img, centerX, centerY, w, h) => {
+    // Helper: draw a cover at rotated position
+    const drawRotatedCover = (img, cx, cy) => {
       ctx.save();
-      ctx.translate(centerX, centerY);
+      ctx.translate(cx, cy);
       ctx.rotate(rotationRad);
       
       if (img && img.complete && img.naturalWidth > 0) {
         if (shouldStretch) {
-          ctx.drawImage(img, -w / 2, -h / 2, w, h);
+          ctx.drawImage(img, -slotWidth / 2, -slotHeight / 2, slotWidth, slotHeight);
         } else {
           const imgAspect = img.naturalWidth / img.naturalHeight;
-          const slotAspect = w / h;
+          const slotAspect = slotWidth / slotHeight;
           let drawW, drawH;
           
           if (imgAspect > slotAspect) {
-            drawW = w;
-            drawH = w / imgAspect;
+            drawW = slotWidth;
+            drawH = slotWidth / imgAspect;
           } else {
-            drawH = h;
-            drawW = h * imgAspect;
+            drawH = slotHeight;
+            drawW = slotHeight * imgAspect;
           }
           
           ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
         }
       } else {
         ctx.fillStyle = '#ddd';
-        ctx.fillRect(-w / 2, -h / 2, w, h);
+        ctx.fillRect(-slotWidth / 2, -slotHeight / 2, slotWidth, slotHeight);
       }
       
       ctx.restore();
     };
     
+    // Calculate grid size needed to cover canvas after rotation
+    // The diagonal of the canvas determines how far we need to extend
+    const canvasDiag = Math.sqrt(canvasWidth * canvasWidth + canvasHeight * canvasHeight);
+    const gridExtent = canvasDiag * 0.8;
+    
+    const numCols = Math.ceil(gridExtent * 2 / hStep) + 2;
+    const numRows = Math.ceil(gridExtent * 2 / vStep) + 2;
+    
+    // Grid origin (top-left of virtual unrotated grid, centered on canvas)
+    const gridOriginX = centerX - (numCols * hStep) / 2;
+    const gridOriginY = centerY - (numRows * vStep) / 2;
+    
     let imgIdx = 0;
     
     // === DRAW TOP SECTION ===
-    // Start Y so that the top row's bounding box top edge is at y=0 (flush with top)
-    const topStartY = boundingH / 2;
-    
-    for (let col = startCol; col < numCols; col++) {
-      const colX = boundingW / 2 + col * hStep;
-      const colYOffset = col * diagOffset; // diagonal shift for this column
+    for (let row = 0; row < numRows; row++) {
+      const isOddRow = row % 2 === 1;
+      const rowStagger = isOddRow ? staggerOffset : 0;
       
-      for (let row = -2; row < numRowsTop; row++) {
-        const centerY = topStartY + row * vStep + colYOffset;
+      for (let col = 0; col < numCols; col++) {
+        // Position in unrotated grid
+        const gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
+        const gridY = gridOriginY + row * vStep + slotHeight / 2;
         
-        // Check if this cover's bounding box intersects the top section
-        const boundingTop = centerY - boundingH / 2;
-        const boundingBottom = centerY + boundingH / 2;
+        // Rotate to get actual position
+        const rotated = rotatePoint(gridX, gridY);
         
-        // Draw if any part is visible in top section (with bleed allowance)
-        if (boundingBottom > -boundingH * 0.5 && boundingTop < topSectionHeight + boundingH * 0.3) {
-          drawRotatedCover(images[imgIdx % 12], colX, centerY, coverWidth, coverHeight);
+        // Only draw if cover intersects the top section
+        if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, topSectionHeight + slotHeight * 0.3)) {
+          drawRotatedCover(images[imgIdx % 12], rotated.x, rotated.y);
           imgIdx++;
         }
       }
@@ -2087,22 +2093,21 @@ const BooklistApp = (function() {
     // === DRAW BOTTOM SECTION ===
     imgIdx = 6; // offset for variety
     
-    // Start Y so that the top row of bottom section starts at bottomSectionTop
-    const bottomStartY = bottomSectionTop + boundingH / 2;
-    
-    for (let col = startCol; col < numCols; col++) {
-      const colX = boundingW / 2 + col * hStep;
-      const colYOffset = col * diagOffset;
+    for (let row = 0; row < numRows; row++) {
+      const isOddRow = row % 2 === 1;
+      const rowStagger = isOddRow ? staggerOffset : 0;
       
-      for (let row = -2; row < numRowsBottom; row++) {
-        const centerY = bottomStartY + row * vStep + colYOffset;
+      for (let col = 0; col < numCols; col++) {
+        // Position in unrotated grid
+        const gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
+        const gridY = gridOriginY + row * vStep + slotHeight / 2;
         
-        const boundingTop = centerY - boundingH / 2;
-        const boundingBottom = centerY + boundingH / 2;
+        // Rotate to get actual position
+        const rotated = rotatePoint(gridX, gridY);
         
-        // Draw if any part is visible in bottom section
-        if (boundingBottom > bottomSectionTop - boundingH * 0.3 && boundingTop < canvasHeight + boundingH * 0.5) {
-          drawRotatedCover(images[imgIdx % 12], colX, centerY, coverWidth, coverHeight);
+        // Only draw if cover intersects the bottom section
+        if (coverIntersectsBand(rotated.x, rotated.y, bottomSectionTop - slotHeight * 0.3, canvasHeight + slotHeight)) {
+          drawRotatedCover(images[imgIdx % 12], rotated.x, rotated.y);
           imgIdx++;
         }
       }
