@@ -1942,8 +1942,15 @@ const BooklistApp = (function() {
   
   /**
    * Layout: Tilted
-   * Diagonal lanes of rotated covers flowing top-left to bottom-right
-   * Lanes overlap horizontally, small gaps within lanes, dense fill
+   * Diagonal ribbons of rotated covers flowing from upper-left to lower-right
+   * Dense coverage with overlapping diagonal stripes, covers bleed off all edges
+   * All 12 covers appear complete at least once; partial covers only at edges
+   */
+  /**
+   * Layout: Tilted
+   * Creates diagonal stripes of rotated covers flowing from upper-left to lower-right.
+   * Each stripe is a vertical column of covers, offset diagonally from the previous stripe.
+   * Covers bleed off all edges for dense, dynamic coverage.
    */
   function drawLayoutTilted(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
@@ -1951,108 +1958,128 @@ const BooklistApp = (function() {
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
     const bookAspect = 0.667;
-    const rotationDeg = -20;
-    const rotationRad = rotationDeg * (Math.PI / 180);
-    const titleGutter = 4 * (CONFIG.PDF_DPI / 72);
     
-    // Title bar in middle
+    // Rotation: counter-clockwise tilt (negative degrees)
+    // 18-20 degrees gives a good diagonal feel without being too extreme
+    const rotationDeg = -18;
+    const rotationRad = rotationDeg * (Math.PI / 180);
+    
+    // Small gap between sections and title bar
+    const titleGutter = 6 * (CONFIG.PDF_DPI / 72);
+    
+    // Title bar centered vertically
     const titleY = (canvasHeight - titleBarHeight) / 2;
     const topSectionHeight = titleY - titleGutter;
     const bottomSectionTop = titleY + titleBarHeight + titleGutter;
     const bottomSectionHeight = canvasHeight - bottomSectionTop;
     
-    // Cover size - make them large enough to create dense coverage
-    // Aim for about 2 covers visible vertically per section
-    const slotHeight = topSectionHeight / 1.5;
+    // Cover sizing: aim for ~2.2 covers visible vertically per section
+    // This provides good density while showing complete covers
+    const slotHeight = topSectionHeight / 2.2;
     const slotWidth = slotHeight * bookAspect;
     
-    // Lane spacing - horizontal distance between lane centers (significant overlap)
-    const laneSpacing = slotWidth * 0.55;
+    // Horizontal spacing between stripe centers
+    // 0.68 creates significant overlap (32% overlap between adjacent stripes)
+    const stripeSpacing = slotWidth * 0.68;
     
-    // Vertical spacing within a lane (small gap between covers)
-    const vGap = 6 * (CONFIG.PDF_DPI / 72);
-    const coverStep = slotHeight + vGap;
+    // Vertical gap between covers within a stripe (tight stacking)
+    const coverGap = 8 * (CONFIG.PDF_DPI / 72);
+    const coverStep = slotHeight + coverGap;
     
-    // Diagonal offset - how much each lane shifts down compared to previous
-    // This should roughly match the rotation angle for visual flow
-    const diagShift = laneSpacing * Math.tan(Math.abs(rotationRad)) + slotHeight * 0.3;
+    // Diagonal offset: each stripe shifts down by this amount
+    // This creates the diagonal flow from top-left to bottom-right
+    // Calculated based on rotation angle for natural visual flow
+    const diagDrop = stripeSpacing * Math.tan(Math.abs(rotationRad)) * 1.8;
     
-    // Helper to draw a rotated cover
+    // Helper to draw a rotated cover centered at (centerX, centerY)
     const drawRotatedCover = (img, centerX, centerY, w, h) => {
       ctx.save();
       ctx.translate(centerX, centerY);
       ctx.rotate(rotationRad);
       
       if (img && img.complete && img.naturalWidth > 0) {
-        const imgAspect = img.naturalWidth / img.naturalHeight;
-        const slotAspect = w / h;
-        let drawW, drawH, offsetX = 0, offsetY = 0;
-        
         if (shouldStretch) {
-          drawW = w;
-          drawH = h;
-        } else if (imgAspect > slotAspect) {
-          drawH = h;
-          drawW = h * imgAspect;
-          offsetX = (w - drawW) / 2;
+          ctx.drawImage(img, -w / 2, -h / 2, w, h);
         } else {
-          drawW = w;
-          drawH = w / imgAspect;
-          offsetY = (h - drawH) / 2;
+          // Contain mode: maintain aspect ratio, center within slot
+          const imgAspect = img.naturalWidth / img.naturalHeight;
+          const slotAspect = w / h;
+          let drawW, drawH;
+          
+          if (imgAspect > slotAspect) {
+            drawW = w;
+            drawH = w / imgAspect;
+          } else {
+            drawH = h;
+            drawW = h * imgAspect;
+          }
+          
+          ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
         }
-        
-        ctx.drawImage(img, -w/2 + offsetX, -h/2 + offsetY, drawW, drawH);
       } else {
         ctx.fillStyle = '#ddd';
-        ctx.fillRect(-w/2, -h/2, w, h);
+        ctx.fillRect(-w / 2, -h / 2, w, h);
       }
       
       ctx.restore();
     };
     
-    // Calculate number of lanes needed
-    const numLanes = Math.ceil(canvasWidth / laneSpacing) + 6;
-    const startLane = -3;
+    // Calculate stripe range to cover canvas width plus generous bleed
+    const numStripes = Math.ceil(canvasWidth / stripeSpacing) + 10;
+    const startStripe = -5;
     
-    let imgIndex = 0;
+    // Starting Y offset to ensure covers start above the canvas
+    // This ensures the top edge has partial covers bleeding off
+    const topStartOffset = -slotHeight * 0.8;
     
-    // Draw top section
-    for (let lane = startLane; lane < numLanes; lane++) {
-      const laneX = lane * laneSpacing;
-      const laneBaseY = lane * diagShift;
+    // Image index cycling
+    let imgIdx = 0;
+    
+    // === DRAW TOP SECTION ===
+    for (let stripe = startStripe; stripe < numStripes; stripe++) {
+      const stripeX = stripe * stripeSpacing;
+      const stripeBaseY = topStartOffset + stripe * diagDrop;
       
-      // Draw covers in this lane, going upward and downward from base
-      for (let i = -3; i <= 3; i++) {
-        const y = laneBaseY + i * coverStep;
+      // Draw vertical column of covers for this stripe
+      for (let i = 0; i < 6; i++) {
+        const coverY = stripeBaseY + i * coverStep;
         
-        // Only draw if cover center is reasonably within top section
-        if (y > -slotHeight && y < topSectionHeight + slotHeight * 0.3) {
-          drawRotatedCover(images[imgIndex % 12], laneX, y, slotWidth, slotHeight);
-          imgIndex++;
+        // Only draw if cover is at least partially visible in top section
+        const coverTop = coverY - slotHeight / 2;
+        const coverBottom = coverY + slotHeight / 2;
+        
+        // Allow bleed: draw if any part intersects the section
+        if (coverBottom > -slotHeight && coverTop < topSectionHeight + slotHeight * 0.5) {
+          drawRotatedCover(images[imgIdx % 12], stripeX, coverY, slotWidth, slotHeight);
+          imgIdx++;
         }
       }
     }
     
-    // Draw title bar
+    // === DRAW TITLE BAR ===
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // Reset image index for variety in bottom section
-    imgIndex = 4;
+    // === DRAW BOTTOM SECTION ===
+    // Start with offset image index for visual variety
+    imgIdx = 6;
     
-    // Draw bottom section
-    for (let lane = startLane; lane < numLanes; lane++) {
-      const laneX = lane * laneSpacing;
-      // Continue diagonal pattern from bottom section top
-      const laneBaseY = bottomSectionTop + lane * diagShift + slotHeight * 0.5;
+    // Starting Y for bottom section, continuing diagonal pattern
+    const bottomStartOffset = bottomSectionTop - slotHeight * 0.4;
+    
+    for (let stripe = startStripe; stripe < numStripes; stripe++) {
+      const stripeX = stripe * stripeSpacing;
+      const stripeBaseY = bottomStartOffset + stripe * diagDrop;
       
-      // Draw covers in this lane
-      for (let i = -2; i <= 4; i++) {
-        const y = laneBaseY + i * coverStep;
+      // Draw vertical column of covers for this stripe
+      for (let i = 0; i < 6; i++) {
+        const coverY = stripeBaseY + i * coverStep;
         
-        // Only draw if cover center is within bottom section bounds
-        if (y > bottomSectionTop - slotHeight * 0.5 && y < canvasHeight + slotHeight) {
-          drawRotatedCover(images[imgIndex % 12], laneX, y, slotWidth, slotHeight);
-          imgIndex++;
+        const coverTop = coverY - slotHeight / 2;
+        const coverBottom = coverY + slotHeight / 2;
+        
+        if (coverBottom > bottomSectionTop - slotHeight * 0.3 && coverTop < canvasHeight + slotHeight * 0.5) {
+          drawRotatedCover(images[imgIdx % 12], stripeX, coverY, slotWidth, slotHeight);
+          imgIdx++;
         }
       }
     }
