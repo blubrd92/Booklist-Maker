@@ -188,13 +188,32 @@
 
         <hr class="separator">
 
-        <div class="form-group" id="cover-title-style-group">
-          <label>Cover Header Style</label>
+        <div class="form-group" id="cover-header-text-group">
+          <label>Cover Header Text</label>
           
           <div class="control-row checkbox-row">
             <input id="cover-advanced-toggle" type="checkbox"/>
             <label for="cover-advanced-toggle">Multi-line mode (customize each line)</label>
           </div>
+          
+          <!-- Simple mode: single textarea -->
+          <div id="cover-simple-mode">
+            <label for="cover-title-input" class="sr-only">Cover title text</label>
+            <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
+          </div>
+          
+          <!-- Advanced mode: 3 line inputs -->
+          <div id="cover-advanced-mode">
+            <input type="text" class="cover-line-input" id="cover-line-1" placeholder="Line 1" aria-label="Cover line 1 text"/>
+            <input type="text" class="cover-line-input" id="cover-line-2" placeholder="Line 2" aria-label="Cover line 2 text"/>
+            <input type="text" class="cover-line-input" id="cover-line-3" placeholder="Line 3" aria-label="Cover line 3 text"/>
+          </div>
+          
+          <button id="generate-cover-button" class="btn btn-primary" style="margin-top: 10px; width: 100%;">Auto-Generate Cover</button>
+        </div>
+
+        <div class="form-group" id="cover-title-style-group">
+          <label>Cover Header Style</label>
           
           <!-- Simple mode styling (shared for all text) -->
           <div id="cover-simple-style">
@@ -533,23 +552,7 @@
             <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or generate front cover image">
               <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
-                Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool below<br/>(Star at least 12 books to include in collage)
-              </div>
-              <div id="cover-generate-controls">
-                <!-- Simple mode: single textarea -->
-                <div id="cover-simple-mode">
-                  <label for="cover-title-input" class="sr-only">Cover title text</label>
-                  <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
-                </div>
-                
-                <!-- Advanced mode: 3 line inputs -->
-                <div id="cover-advanced-mode">
-                  <input type="text" class="cover-line-input" id="cover-line-1" placeholder="Line 1" aria-label="Cover line 1 text"/>
-                  <input type="text" class="cover-line-input" id="cover-line-2" placeholder="Line 2" aria-label="Cover line 2 text"/>
-                  <input type="text" class="cover-line-input" id="cover-line-3" placeholder="Line 3" aria-label="Cover line 3 text"/>
-                </div>
-                
-                <button id="generate-cover-button" class="btn btn-primary">Auto-Generate Cover</button>
+                Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool in the Settings tab<br/>(Star at least 12 books to include in collage)
               </div>
               <input type="file" accept="image/*" aria-hidden="true"/>
             </div>
