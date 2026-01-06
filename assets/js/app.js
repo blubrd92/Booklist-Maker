@@ -1948,23 +1948,25 @@ const BooklistApp = (function() {
    */
   /**
    * Layout: Tilted
-   * Creates diagonal stripes of rotated covers flowing from upper-left to lower-right.
-   * Each stripe is a vertical column of covers, offset diagonally from the previous stripe.
-   * Covers bleed off all edges for dense, dynamic coverage.
+   * Creates a grid of rotated covers with diagonal offset between columns.
+   * Covers do NOT overlap - they have gutters between them.
+   * Auto-sizes to fill the available space flush with edges.
    */
   function drawLayoutTilted(ctx, canvas, images, styles, shouldStretch) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
-    const bookAspect = 0.667;
+    const bookAspect = 0.667; // width / height
     
-    // Rotation: counter-clockwise tilt (negative degrees)
-    // 18-20 degrees gives a good diagonal feel without being too extreme
+    // Rotation angle (counter-clockwise)
     const rotationDeg = -18;
     const rotationRad = rotationDeg * (Math.PI / 180);
+    const cosA = Math.cos(Math.abs(rotationRad));
+    const sinA = Math.sin(Math.abs(rotationRad));
     
-    // Small gap between sections and title bar
+    // Gutter between covers and around title bar
+    const gutter = 8 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 6 * (CONFIG.PDF_DPI / 72);
     
     // Title bar centered vertically
@@ -1973,23 +1975,54 @@ const BooklistApp = (function() {
     const bottomSectionTop = titleY + titleBarHeight + titleGutter;
     const bottomSectionHeight = canvasHeight - bottomSectionTop;
     
-    // Cover sizing: aim for ~2.2 covers visible vertically per section
-    // This provides good density while showing complete covers
-    const slotHeight = topSectionHeight / 2.2;
-    const slotWidth = slotHeight * bookAspect;
+    // Target number of covers per row and column in each section
+    const targetRows = 2; // covers vertically per section
+    const targetCols = 5; // covers horizontally
     
-    // Horizontal spacing between stripe centers
-    // 0.68 creates significant overlap (32% overlap between adjacent stripes)
-    const stripeSpacing = slotWidth * 0.68;
+    // Calculate cover size based on bounding box after rotation
+    // Bounding box of rotated rectangle: 
+    //   boundingW = w*cos + h*sin
+    //   boundingH = w*sin + h*cos
+    // We need to solve for cover dimensions that fit our grid
     
-    // Vertical gap between covers within a stripe (tight stacking)
-    const coverGap = 8 * (CONFIG.PDF_DPI / 72);
-    const coverStep = slotHeight + coverGap;
+    // For a cover with height h and width w = h * bookAspect:
+    //   boundingW = h*bookAspect*cos + h*sin = h*(bookAspect*cos + sin)
+    //   boundingH = h*bookAspect*sin + h*cos = h*(bookAspect*sin + cos)
     
-    // Diagonal offset: each stripe shifts down by this amount
-    // This creates the diagonal flow from top-left to bottom-right
-    // Calculated based on rotation angle for natural visual flow
-    const diagDrop = stripeSpacing * Math.tan(Math.abs(rotationRad)) * 1.8;
+    const boundingWFactor = bookAspect * cosA + sinA;
+    const boundingHFactor = bookAspect * sinA + cosA;
+    
+    // Calculate cover height to fit targetRows in section height (accounting for gutters)
+    // totalHeight = rows * boundingH + (rows - 1) * gutter
+    // sectionHeight = totalHeight => h = (sectionHeight - (rows-1)*gutter) / (rows * boundingHFactor)
+    const coverHeightFromRows = (topSectionHeight - (targetRows - 1) * gutter) / (targetRows * boundingHFactor);
+    
+    // Calculate cover height to fit targetCols across width
+    const coverHeightFromCols = (canvasWidth - (targetCols - 1) * gutter) / (targetCols * boundingWFactor);
+    
+    // Use the smaller to ensure we fit both dimensions
+    const coverHeight = Math.min(coverHeightFromRows, coverHeightFromCols);
+    const coverWidth = coverHeight * bookAspect;
+    
+    // Actual bounding box dimensions
+    const boundingW = coverHeight * boundingWFactor;
+    const boundingH = coverHeight * boundingHFactor;
+    
+    // Step sizes (bounding box + gutter)
+    const hStep = boundingW + gutter;
+    const vStep = boundingH + gutter;
+    
+    // Diagonal offset: each column shifts down by this amount
+    // This creates the diagonal flow pattern
+    const diagOffset = vStep * 0.4;
+    
+    // Calculate actual number of columns and rows needed (with bleed)
+    const numCols = Math.ceil(canvasWidth / hStep) + 3;
+    const numRowsTop = Math.ceil((topSectionHeight + diagOffset * numCols) / vStep) + 2;
+    const numRowsBottom = Math.ceil((bottomSectionHeight + diagOffset * numCols) / vStep) + 2;
+    
+    // Starting positions to ensure flush edges with bleed
+    const startCol = -2;
     
     // Helper to draw a rotated cover centered at (centerX, centerY)
     const drawRotatedCover = (img, centerX, centerY, w, h) => {
@@ -2001,7 +2034,6 @@ const BooklistApp = (function() {
         if (shouldStretch) {
           ctx.drawImage(img, -w / 2, -h / 2, w, h);
         } else {
-          // Contain mode: maintain aspect ratio, center within slot
           const imgAspect = img.naturalWidth / img.naturalHeight;
           const slotAspect = w / h;
           let drawW, drawH;
@@ -2024,33 +2056,26 @@ const BooklistApp = (function() {
       ctx.restore();
     };
     
-    // Calculate stripe range to cover canvas width plus generous bleed
-    const numStripes = Math.ceil(canvasWidth / stripeSpacing) + 10;
-    const startStripe = -5;
-    
-    // Starting Y offset to ensure covers start above the canvas
-    // This ensures the top edge has partial covers bleeding off
-    const topStartOffset = -slotHeight * 0.8;
-    
-    // Image index cycling
     let imgIdx = 0;
     
     // === DRAW TOP SECTION ===
-    for (let stripe = startStripe; stripe < numStripes; stripe++) {
-      const stripeX = stripe * stripeSpacing;
-      const stripeBaseY = topStartOffset + stripe * diagDrop;
+    // Start Y so that the top row's bounding box top edge is at y=0 (flush with top)
+    const topStartY = boundingH / 2;
+    
+    for (let col = startCol; col < numCols; col++) {
+      const colX = boundingW / 2 + col * hStep;
+      const colYOffset = col * diagOffset; // diagonal shift for this column
       
-      // Draw vertical column of covers for this stripe
-      for (let i = 0; i < 6; i++) {
-        const coverY = stripeBaseY + i * coverStep;
+      for (let row = -2; row < numRowsTop; row++) {
+        const centerY = topStartY + row * vStep + colYOffset;
         
-        // Only draw if cover is at least partially visible in top section
-        const coverTop = coverY - slotHeight / 2;
-        const coverBottom = coverY + slotHeight / 2;
+        // Check if this cover's bounding box intersects the top section
+        const boundingTop = centerY - boundingH / 2;
+        const boundingBottom = centerY + boundingH / 2;
         
-        // Allow bleed: draw if any part intersects the section
-        if (coverBottom > -slotHeight && coverTop < topSectionHeight + slotHeight * 0.5) {
-          drawRotatedCover(images[imgIdx % 12], stripeX, coverY, slotWidth, slotHeight);
+        // Draw if any part is visible in top section (with bleed allowance)
+        if (boundingBottom > -boundingH * 0.5 && boundingTop < topSectionHeight + boundingH * 0.3) {
+          drawRotatedCover(images[imgIdx % 12], colX, centerY, coverWidth, coverHeight);
           imgIdx++;
         }
       }
@@ -2060,25 +2085,24 @@ const BooklistApp = (function() {
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
     // === DRAW BOTTOM SECTION ===
-    // Start with offset image index for visual variety
-    imgIdx = 6;
+    imgIdx = 6; // offset for variety
     
-    // Starting Y for bottom section, continuing diagonal pattern
-    const bottomStartOffset = bottomSectionTop - slotHeight * 0.4;
+    // Start Y so that the top row of bottom section starts at bottomSectionTop
+    const bottomStartY = bottomSectionTop + boundingH / 2;
     
-    for (let stripe = startStripe; stripe < numStripes; stripe++) {
-      const stripeX = stripe * stripeSpacing;
-      const stripeBaseY = bottomStartOffset + stripe * diagDrop;
+    for (let col = startCol; col < numCols; col++) {
+      const colX = boundingW / 2 + col * hStep;
+      const colYOffset = col * diagOffset;
       
-      // Draw vertical column of covers for this stripe
-      for (let i = 0; i < 6; i++) {
-        const coverY = stripeBaseY + i * coverStep;
+      for (let row = -2; row < numRowsBottom; row++) {
+        const centerY = bottomStartY + row * vStep + colYOffset;
         
-        const coverTop = coverY - slotHeight / 2;
-        const coverBottom = coverY + slotHeight / 2;
+        const boundingTop = centerY - boundingH / 2;
+        const boundingBottom = centerY + boundingH / 2;
         
-        if (coverBottom > bottomSectionTop - slotHeight * 0.3 && coverTop < canvasHeight + slotHeight * 0.5) {
-          drawRotatedCover(images[imgIdx % 12], stripeX, coverY, slotWidth, slotHeight);
+        // Draw if any part is visible in bottom section
+        if (boundingBottom > bottomSectionTop - boundingH * 0.3 && boundingTop < canvasHeight + boundingH * 0.5) {
+          drawRotatedCover(images[imgIdx % 12], colX, centerY, coverWidth, coverHeight);
           imgIdx++;
         }
       }
