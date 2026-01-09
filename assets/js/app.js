@@ -152,6 +152,10 @@ const BooklistApp = (function() {
       
       // Collage layout selector (in Settings)
       collageLayoutSelector: document.getElementById('collage-layout-selector'),
+      titleBarPosition: document.getElementById('title-bar-position'),
+      tiltedSettings: document.getElementById('tilted-settings'),
+      tiltDegree: document.getElementById('tilt-degree'),
+      tiltOffsetDirection: document.getElementById('tilt-offset-direction'),
       
       // Simple mode elements
       coverTitleInput: document.getElementById('cover-title-input'),
@@ -714,6 +718,17 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   // Layout Management
   // ---------------------------------------------------------------------------
+  
+  /**
+   * Shows or hides the tilted-specific settings based on currently selected layout
+   */
+  function updateTiltedSettingsVisibility() {
+    const selectedLayout = elements.collageLayoutSelector?.querySelector('.layout-option.selected')?.dataset.layout || 'classic';
+    if (elements.tiltedSettings) {
+      elements.tiltedSettings.style.display = selectedLayout === 'tilted' ? 'block' : 'none';
+    }
+  }
+  
   function handleLayoutChange() {
     const showQr = elements.toggleQrCode.checked;
     const showBranding = elements.toggleBranding.checked;
@@ -1445,6 +1460,11 @@ const BooklistApp = (function() {
     
     const shouldStretchCovers = elements.stretchCoversToggle.checked;
     const selectedLayout = elements.collageLayoutSelector?.querySelector('.layout-option.selected')?.dataset.layout || 'classic';
+    const titleBarPosition = elements.titleBarPosition?.value || 'classic';
+    
+    // Tilted layout specific settings
+    const tiltDegree = parseFloat(elements.tiltDegree?.value ?? '-25');
+    const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
     
     // Gather books with covers that are marked for inclusion
     const booksWithCovers = myBooklist.filter(book =>
@@ -1482,6 +1502,13 @@ const BooklistApp = (function() {
     const { canvas, ctx } = createCollageCanvas();
     const styles = getCoverTitleStyles();
     
+    // Layout options object for all layouts
+    const layoutOptions = {
+      titleBarPosition,
+      tiltDegree,
+      tiltOffsetDirection
+    };
+    
     // Wait for fonts, then load images and draw
     document.fonts.ready.then(() => {
       return Promise.all(coversToDraw.map(src => loadImage(src)));
@@ -1489,20 +1516,17 @@ const BooklistApp = (function() {
       // Draw based on selected layout
       switch (selectedLayout) {
         case 'bookshelf':
-          drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretchCovers);
-          break;
-        case 'titleTop':
-          drawLayoutTitleTop(ctx, canvas, images, styles, shouldStretchCovers);
+          drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
           break;
         case 'staggered':
-          drawLayoutStaggered(ctx, canvas, images, styles, shouldStretchCovers);
+          drawLayoutStaggered(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
           break;
         case 'tilted':
-          drawLayoutTilted(ctx, canvas, images, styles, shouldStretchCovers);
+          drawLayoutTilted(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
           break;
         case 'classic':
         default:
-          drawLayoutClassic(ctx, canvas, images, styles, shouldStretchCovers);
+          drawLayoutClassic(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
           break;
       }
       
@@ -1683,67 +1707,128 @@ const BooklistApp = (function() {
   }
   
   /**
-   * Layout: Classic Grid (original layout)
-   * 3 covers on top (flush), title bar, 3x3 grid below (flush to bottom)
-   * Auto-sizes covers to fill container exactly
+   * Layout: Classic Grid
+   * Grid of covers with title bar at configurable position
+   * Positions: top, classic, center, lower, bottom
    */
-  function drawLayoutClassic(ctx, canvas, images, styles, shouldStretch) {
+  function drawLayoutClassic(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
+    const position = options.titleBarPosition || 'classic';
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
     const margin = styles.outerMarginPx;
     const bookAspect = 0.75;
-    
-    // We have 4 rows total, need them flush top to bottom
-    // Available height = canvas - titleBar - 2*margin (margins around title only)
     const numRows = 4;
-    const availableHeight = canvasHeight - titleBarHeight - 2 * margin;
+    const numCols = 3;
     
-    // Calculate slot height to fill exactly, with proportional gutters
+    // Calculate slot dimensions based on available space
+    // For top/bottom: one margin (on the side away from edge)
+    // For classic/center/lower: two margins (around title bar)
+    const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
+    const availableHeight = canvasHeight - titleBarHeight - marginCount * margin;
+    
     const vGutterRatio = 0.08;
     const totalVGutters = (numRows - 1) * vGutterRatio;
     const slotHeight = availableHeight / (numRows + totalVGutters);
     const vGutter = slotHeight * vGutterRatio;
     const slotWidth = slotHeight * bookAspect;
-    const hGutter = (canvasWidth - 3 * slotWidth) / 4;
+    const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
     
-    // Draw top row flush at y=0
+    // Determine row distribution based on position
+    let rowsAbove, rowsBelow;
+    switch (position) {
+      case 'top':
+        rowsAbove = 0;
+        rowsBelow = 4;
+        break;
+      case 'classic':
+        rowsAbove = 1;
+        rowsBelow = 3;
+        break;
+      case 'center':
+        rowsAbove = 2;
+        rowsBelow = 2;
+        break;
+      case 'lower':
+        rowsAbove = 3;
+        rowsBelow = 1;
+        break;
+      case 'bottom':
+        rowsAbove = 4;
+        rowsBelow = 0;
+        break;
+      default:
+        rowsAbove = 1;
+        rowsBelow = 3;
+    }
+    
     let imageIndex = 0;
-    for (let col = 0; col < 3; col++) {
-      const slotX = hGutter + col * (slotWidth + hGutter);
-      drawCoverImage(ctx, images[imageIndex], slotX, 0, slotWidth, slotHeight, shouldStretch);
-      imageIndex++;
+    
+    // Calculate title bar Y position
+    let titleY;
+    if (position === 'top') {
+      // Flush at top
+      titleY = 0;
+    } else if (position === 'bottom') {
+      // Flush at bottom
+      titleY = canvasHeight - titleBarHeight;
+    } else {
+      // After rowsAbove rows of covers + margin
+      const rowsAboveHeight = rowsAbove * slotHeight + (rowsAbove > 0 ? (rowsAbove - 1) * vGutter : 0);
+      titleY = rowsAboveHeight + margin;
+    }
+    
+    // Draw rows above title bar (flush at top for all except 'bottom')
+    if (rowsAbove > 0) {
+      for (let row = 0; row < rowsAbove; row++) {
+        const rowY = row * (slotHeight + vGutter);
+        for (let col = 0; col < numCols; col++) {
+          const slotX = hGutter + col * (slotWidth + hGutter);
+          drawCoverImage(ctx, images[imageIndex], slotX, rowY, slotWidth, slotHeight, shouldStretch);
+          imageIndex++;
+        }
+      }
     }
     
     // Draw title bar
-    const titleY = slotHeight + margin;
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // Draw bottom 3x3 grid - calculate to be flush with bottom
-    const gridTopY = titleY + bgH + margin;
-    const gridAvailableHeight = canvasHeight - gridTopY;
-    const gridSlotHeight = (gridAvailableHeight - 2 * vGutter) / 3;
-    
-    for (let row = 0; row < 3; row++) {
-      const currentRowY = gridTopY + row * (gridSlotHeight + vGutter);
-      for (let col = 0; col < 3; col++) {
-        const slotX = hGutter + col * (slotWidth + hGutter);
-        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, slotWidth, gridSlotHeight, shouldStretch);
-        imageIndex++;
+    // Draw rows below title bar (flush at bottom for all except 'top')
+    if (rowsBelow > 0) {
+      // Calculate where below-rows start
+      let belowStartY;
+      if (position === 'top') {
+        belowStartY = bgH + margin;
+      } else {
+        belowStartY = titleY + bgH + margin;
+      }
+      
+      // For positions other than 'top', rows should be flush to bottom
+      // Recalculate slot height for below section if needed
+      const belowAvailableHeight = canvasHeight - belowStartY;
+      const belowSlotHeight = (belowAvailableHeight - (rowsBelow - 1) * vGutter) / rowsBelow;
+      
+      for (let row = 0; row < rowsBelow; row++) {
+        const rowY = belowStartY + row * (belowSlotHeight + vGutter);
+        for (let col = 0; col < numCols; col++) {
+          const slotX = hGutter + col * (slotWidth + hGutter);
+          drawCoverImage(ctx, images[imageIndex], slotX, rowY, slotWidth, belowSlotHeight, shouldStretch);
+          imageIndex++;
+        }
       }
     }
   }
   
   /**
    * Layout: Bookshelf
-   * Same as classic but with shelf lines under each row
-   * Books sit ON shelves (bottom of book touches top of shelf)
-   * Bottom shelf flush at container bottom
+   * Grid of covers with shelf lines under each row
+   * Title bar at configurable position
    */
-  function drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretch) {
+  function drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
+    const position = options.titleBarPosition || 'classic';
     
     const shelfLineWidth = 6 * (CONFIG.PDF_DPI / 72);
     const shelfColor = '#5D4037';
@@ -1752,119 +1837,92 @@ const BooklistApp = (function() {
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
     const bookAspect = 0.75;
+    const numRows = 4;
+    const numCols = 3;
     
-    // 4 shelves total (1 after top row, 3 in bottom grid)
+    // All 4 rows have shelves underneath
     const numShelves = 4;
     const totalShelfHeight = numShelves * shelfLineWidth;
     
-    // Calculate slot dimensions
-    const numRows = 4;
-    const availableHeight = canvasHeight - titleBarHeight - 2 * margin - totalShelfHeight;
+    // Calculate margin count based on position
+    const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
+    const availableHeight = canvasHeight - titleBarHeight - marginCount * margin - totalShelfHeight;
+    
     const vGutterRatio = 0.05;
     const totalVGutters = (numRows - 1) * vGutterRatio;
     const slotHeight = availableHeight / (numRows + totalVGutters);
     const vGutter = slotHeight * vGutterRatio;
     const slotWidth = slotHeight * bookAspect;
-    const hGutter = (canvasWidth - 3 * slotWidth) / 4;
+    const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
+    
+    // Determine row distribution
+    let rowsAbove, rowsBelow;
+    switch (position) {
+      case 'top': rowsAbove = 0; rowsBelow = 4; break;
+      case 'classic': rowsAbove = 1; rowsBelow = 3; break;
+      case 'center': rowsAbove = 2; rowsBelow = 2; break;
+      case 'lower': rowsAbove = 3; rowsBelow = 1; break;
+      case 'bottom': rowsAbove = 4; rowsBelow = 0; break;
+      default: rowsAbove = 1; rowsBelow = 3;
+    }
+    
+    // Helper to draw a row with shelf
+    const drawRowWithShelf = (rowY, height, startIndex) => {
+      for (let col = 0; col < numCols; col++) {
+        const slotX = hGutter + col * (slotWidth + hGutter);
+        drawCoverImage(ctx, images[startIndex + col], slotX, rowY, slotWidth, height, shouldStretch);
+      }
+      // Shelf under the row
+      const shelfY = rowY + height;
+      ctx.fillStyle = shelfColor;
+      ctx.fillRect(hGutter - shelfOverhang, shelfY, canvasWidth - 2 * hGutter + 2 * shelfOverhang, shelfLineWidth);
+    };
     
     let imageIndex = 0;
     
-    // === TOP ROW (flush at y=0) ===
-    for (let col = 0; col < 3; col++) {
-      const slotX = hGutter + col * (slotWidth + hGutter);
-      drawCoverImage(ctx, images[imageIndex], slotX, 0, slotWidth, slotHeight, shouldStretch);
-      imageIndex++;
+    // Draw rows above title bar
+    if (rowsAbove > 0) {
+      let currentY = 0;
+      for (let row = 0; row < rowsAbove; row++) {
+        drawRowWithShelf(currentY, slotHeight, imageIndex);
+        imageIndex += numCols;
+        currentY += slotHeight + shelfLineWidth + vGutter;
+      }
     }
     
-    // Shelf under top row (books sit ON this)
-    const topShelfY = slotHeight;
-    ctx.fillStyle = shelfColor;
-    ctx.fillRect(hGutter - shelfOverhang, topShelfY, canvasWidth - 2 * hGutter + 2 * shelfOverhang, shelfLineWidth);
+    // Calculate title bar Y position
+    let titleY;
+    if (position === 'top') {
+      titleY = 0;
+    } else if (position === 'bottom') {
+      titleY = canvasHeight - titleBarHeight;
+    } else {
+      // After rowsAbove rows (each with book + shelf + gutter, minus last gutter, plus margin)
+      const aboveHeight = rowsAbove * (slotHeight + shelfLineWidth) + (rowsAbove > 0 ? (rowsAbove - 1) * vGutter : 0);
+      titleY = aboveHeight + margin;
+    }
     
-    // === TITLE BAR ===
-    const titleY = topShelfY + shelfLineWidth + margin;
+    // Draw title bar
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // === BOTTOM 3 ROWS - work backwards from bottom ===
-    const gridTopY = titleY + bgH + margin;
-    const gridAvailableHeight = canvasHeight - gridTopY;
-    
-    // Calculate grid slot height: 3 books + 3 shelves + 2 gaps = gridAvailableHeight
-    const gridSlotHeight = (gridAvailableHeight - 3 * shelfLineWidth - 2 * vGutter) / 3;
-    
-    // Work backwards: bottom shelf flush at canvas bottom
-    // Row 2 (bottom): books end at canvasHeight - shelfLineWidth, shelf at canvasHeight - shelfLineWidth
-    // Row 1: books end at row2_start - vGutter, shelf under that
-    // Row 0: books end at row1_start - vGutter, shelf under that
-    
-    const bottomShelfY = canvasHeight - shelfLineWidth;
-    const row2BooksY = bottomShelfY - gridSlotHeight;
-    const shelf1Y = row2BooksY - vGutter - shelfLineWidth;
-    const row1BooksY = shelf1Y - gridSlotHeight;
-    const shelf0Y = row1BooksY - vGutter - shelfLineWidth;
-    const row0BooksY = shelf0Y - gridSlotHeight;
-    
-    // Draw row 0
-    for (let col = 0; col < 3; col++) {
-      const slotX = hGutter + col * (slotWidth + hGutter);
-      drawCoverImage(ctx, images[imageIndex], slotX, row0BooksY, slotWidth, gridSlotHeight, shouldStretch);
-      imageIndex++;
-    }
-    ctx.fillStyle = shelfColor;
-    ctx.fillRect(hGutter - shelfOverhang, shelf0Y, canvasWidth - 2 * hGutter + 2 * shelfOverhang, shelfLineWidth);
-    
-    // Draw row 1
-    for (let col = 0; col < 3; col++) {
-      const slotX = hGutter + col * (slotWidth + hGutter);
-      drawCoverImage(ctx, images[imageIndex], slotX, row1BooksY, slotWidth, gridSlotHeight, shouldStretch);
-      imageIndex++;
-    }
-    ctx.fillStyle = shelfColor;
-    ctx.fillRect(hGutter - shelfOverhang, shelf1Y, canvasWidth - 2 * hGutter + 2 * shelfOverhang, shelfLineWidth);
-    
-    // Draw row 2 (bottom row - books ON bottom shelf)
-    for (let col = 0; col < 3; col++) {
-      const slotX = hGutter + col * (slotWidth + hGutter);
-      drawCoverImage(ctx, images[imageIndex], slotX, row2BooksY, slotWidth, gridSlotHeight, shouldStretch);
-      imageIndex++;
-    }
-    ctx.fillStyle = shelfColor;
-    ctx.fillRect(hGutter - shelfOverhang, bottomShelfY, canvasWidth - 2 * hGutter + 2 * shelfOverhang, shelfLineWidth);
-  }
-  
-  /**
-   * Layout: Title Top
-   * Title bar flush at top, margin below title, 4 rows of 3 covers flush to bottom
-   */
-  function drawLayoutTitleTop(ctx, canvas, images, styles, shouldStretch) {
-    const canvasWidth = canvas.width;
-    const canvasHeight = canvas.height;
-    const margin = styles.outerMarginPx;
-    
-    // Draw title bar flush at top
-    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
-    
-    // Calculate cover grid (4 rows x 3 cols) with margin after title, flush to bottom
-    const gridTopY = bgH + margin;
-    const availableHeight = canvasHeight - gridTopY; // No margin at bottom - flush
-    const rows = 4;
-    const cols = 3;
-    
-    const vGutterRatio = 0.06;
-    const bookAspect = 0.667;
-    const totalVGutters = (rows - 1) * vGutterRatio;
-    const slotHeight = availableHeight / (rows + totalVGutters);
-    const vGutter = slotHeight * vGutterRatio;
-    const slotWidth = slotHeight * bookAspect;
-    const hGutter = (canvasWidth - cols * slotWidth) / (cols + 1);
-    
-    let imageIndex = 0;
-    for (let row = 0; row < rows; row++) {
-      const currentRowY = gridTopY + row * (slotHeight + vGutter);
-      for (let col = 0; col < cols; col++) {
-        const slotX = hGutter + col * (slotWidth + hGutter);
-        drawCoverImage(ctx, images[imageIndex], slotX, currentRowY, slotWidth, slotHeight, shouldStretch);
-        imageIndex++;
+    // Draw rows below title bar
+    if (rowsBelow > 0) {
+      let belowStartY;
+      if (position === 'top') {
+        belowStartY = bgH + margin;
+      } else {
+        belowStartY = titleY + bgH + margin;
+      }
+      
+      // Recalculate slot height for below section to fill remaining space
+      const belowAvailableHeight = canvasHeight - belowStartY;
+      const belowSlotHeight = (belowAvailableHeight - rowsBelow * shelfLineWidth - (rowsBelow - 1) * vGutter) / rowsBelow;
+      
+      let currentY = belowStartY;
+      for (let row = 0; row < rowsBelow; row++) {
+        drawRowWithShelf(currentY, belowSlotHeight, imageIndex);
+        imageIndex += numCols;
+        currentY += belowSlotHeight + shelfLineWidth + vGutter;
       }
     }
   }
@@ -1872,11 +1930,12 @@ const BooklistApp = (function() {
   /**
    * Layout: Staggered
    * Brick pattern with gutters, every row fills edge-to-edge (covers bleed off edges)
-   * Top flush, bottom flush, auto-sized
+   * Title bar at configurable position
    */
-  function drawLayoutStaggered(ctx, canvas, images, styles, shouldStretch) {
+  function drawLayoutStaggered(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
+    const position = options.titleBarPosition || 'center';
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
     const bookAspect = 0.667;
@@ -1884,12 +1943,26 @@ const BooklistApp = (function() {
     const vGutter = 6 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
     
-    // 4 rows: 2 above title, 2 below
-    // Calculate heights to fill canvas exactly
-    const topSectionHeight = (canvasHeight - titleBarHeight - 2 * titleGutter) / 2;
-    const slotHeight = (topSectionHeight - vGutter) / 2;
+    // Determine row distribution
+    let rowsAbove, rowsBelow;
+    switch (position) {
+      case 'top': rowsAbove = 0; rowsBelow = 4; break;
+      case 'classic': rowsAbove = 1; rowsBelow = 3; break;
+      case 'center': rowsAbove = 2; rowsBelow = 2; break;
+      case 'lower': rowsAbove = 3; rowsBelow = 1; break;
+      case 'bottom': rowsAbove = 4; rowsBelow = 0; break;
+      default: rowsAbove = 2; rowsBelow = 2;
+    }
+    
+    // Calculate margin count: 0 for top (only margin below), 0 for bottom (only margin above), 2 for middle positions
+    const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
+    
+    // Calculate slot heights
+    const availableHeight = canvasHeight - titleBarHeight - marginCount * titleGutter;
+    const totalRows = 4;
+    const totalVGutters = (totalRows - 1) * vGutter;
+    const slotHeight = (availableHeight - totalVGutters) / totalRows;
     const slotWidth = slotHeight * bookAspect;
-    const coverSpacing = slotWidth + hGutter;
     
     // Helper to draw a row filling edge-to-edge with partial covers bleeding off both edges
     const drawBrickRow = (y, h, useOffset, imgOffset) => {
@@ -1916,55 +1989,112 @@ const BooklistApp = (function() {
       }
     };
     
-    // Top 2 rows (flush at top)
     let currentY = 0;
-    drawBrickRow(currentY, slotHeight, false, 0);
-    currentY += slotHeight + vGutter;
-    drawBrickRow(currentY, slotHeight, true, 3);
-    currentY += slotHeight + titleGutter;
+    let imageOffset = 0;
     
-    // Title bar
-    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, currentY);
-    currentY += bgH + titleGutter;
+    // Draw rows above title bar
+    for (let row = 0; row < rowsAbove; row++) {
+      drawBrickRow(currentY, slotHeight, row % 2 === 1, imageOffset);
+      imageOffset += 3;
+      currentY += slotHeight + vGutter;
+    }
     
-    // Bottom 2 rows - recalculate to fill remaining space exactly
-    const bottomAvailable = canvasHeight - currentY;
-    const bottomSlotHeight = (bottomAvailable - vGutter) / 2;
+    // Adjust for title bar position
+    if (rowsAbove > 0) {
+      currentY = currentY - vGutter + titleGutter; // Replace last vGutter with titleGutter
+    }
     
-    drawBrickRow(currentY, bottomSlotHeight, false, 6);
-    currentY += bottomSlotHeight + vGutter;
-    drawBrickRow(currentY, bottomSlotHeight, true, 9);
+    // Calculate title bar Y position
+    let titleY;
+    if (position === 'top') {
+      titleY = 0;
+    } else if (position === 'bottom') {
+      titleY = canvasHeight - titleBarHeight;
+    } else {
+      titleY = currentY;
+    }
+    
+    // Draw title bar
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+    
+    // Draw rows below title bar
+    if (rowsBelow > 0) {
+      let belowStartY;
+      if (position === 'top') {
+        belowStartY = bgH + titleGutter;
+      } else {
+        belowStartY = titleY + bgH + titleGutter;
+      }
+      
+      // Recalculate slot height for below section
+      const belowAvailableHeight = canvasHeight - belowStartY;
+      const belowSlotHeight = (belowAvailableHeight - (rowsBelow - 1) * vGutter) / rowsBelow;
+      
+      currentY = belowStartY;
+      for (let row = 0; row < rowsBelow; row++) {
+        // Continue the offset pattern from above rows
+        const totalRowIndex = rowsAbove + row;
+        drawBrickRow(currentY, belowSlotHeight, totalRowIndex % 2 === 1, imageOffset);
+        imageOffset += 3;
+        currentY += belowSlotHeight + vGutter;
+      }
+    }
   }
   
   /**
    * Layout: Tilted
-   * A vertically-staggered grid rotated ~25 degrees, with partial covers
+   * A staggered grid rotated at configurable angle, with partial covers
    * bleeding off edges to fill the white space created by rotation.
-   * Columns are offset vertically (not rows offset horizontally).
+   * Stagger direction can be vertical (columns offset) or horizontal (rows offset).
    * Title bar draws ON TOP with white margin background.
    */
-  function drawLayoutTilted(ctx, canvas, images, styles, shouldStretch) {
+  function drawLayoutTilted(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
+    const position = options.titleBarPosition || 'center';
     
     const titleBarHeight = calculateTitleBarHeight(ctx, styles);
     const bookAspect = 0.667;
     
-    // Rotation angle (negative = counter-clockwise)
-    const rotationDeg = -25;
+    // Rotation angle from options (negative = counter-clockwise)
+    const rotationDeg = options.tiltDegree ?? -25;
     const rotationRad = rotationDeg * (Math.PI / 180);
     const cosA = Math.cos(rotationRad);
     const sinA = Math.sin(rotationRad);
+    
+    // Offset direction from options
+    const offsetDirection = options.tiltOffsetDirection || 'vertical';
     
     // Gutters
     const hGutter = 6 * (CONFIG.PDF_DPI / 72);
     const vGutter = 6 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
     
-    // Title bar position (centered vertically)
-    const titleY = (canvasHeight - titleBarHeight) / 2;
+    // Calculate title bar Y position based on position setting
+    let titleY;
+    switch (position) {
+      case 'top':
+        titleY = 0;
+        break;
+      case 'classic':
+        // About 1/5 down from top
+        titleY = (canvasHeight - titleBarHeight) * 0.2;
+        break;
+      case 'center':
+        titleY = (canvasHeight - titleBarHeight) / 2;
+        break;
+      case 'lower':
+        // About 4/5 down from top
+        titleY = (canvasHeight - titleBarHeight) * 0.8;
+        break;
+      case 'bottom':
+        titleY = canvasHeight - titleBarHeight;
+        break;
+      default:
+        titleY = (canvasHeight - titleBarHeight) / 2;
+    }
     
-    // Calculate cover size - smaller to fit more covers (2.5 rows per section)
+    // Calculate cover size
     const sectionHeight = (canvasHeight - titleBarHeight - 2 * titleGutter) / 2;
     const rowsPerSection = 2.5;
     const slotHeight = (sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection;
@@ -1974,8 +2104,8 @@ const BooklistApp = (function() {
     const hStep = slotWidth + hGutter;
     const vStep = slotHeight + vGutter;
     
-    // Vertical stagger offset for alternating COLUMNS (half a cover height)
-    const staggerOffset = vStep / 2;
+    // Stagger offset (half a cover dimension)
+    const staggerOffset = (offsetDirection === 'vertical') ? vStep / 2 : hStep / 2;
     
     // Center of canvas (rotation pivot point)
     const centerX = canvasWidth / 2;
@@ -1991,7 +2121,7 @@ const BooklistApp = (function() {
       };
     };
     
-    // Helper: check if a rotated rectangle intersects a horizontal band
+    // Helper: check if a rotated rectangle intersects the canvas
     const coverIntersectsBand = (cx, cy, bandTop, bandBottom) => {
       const hw = slotWidth / 2;
       const hh = slotHeight / 2;
@@ -2050,7 +2180,7 @@ const BooklistApp = (function() {
     const gridExtent = canvasDiag * 0.8;
     
     const numCols = Math.ceil(gridExtent * 2 / hStep) + 2;
-    const numRows = 12; // Exactly 12 rows to show all covers per column
+    const numRows = 12; // Enough rows to show all covers per column
     
     // Grid origin (top-left of virtual unrotated grid, centered on canvas)
     const gridOriginX = centerX - (numCols * hStep) / 2;
@@ -2062,16 +2192,25 @@ const BooklistApp = (function() {
       return (row + col * 3) % 12;
     };
     
-    // === DRAW FULL GRID (ignoring title bar zone) ===
-    // Draw everything, title bar will cover the middle
+    // === DRAW FULL GRID ===
+    // Draw everything, title bar will cover the appropriate region
     for (let row = 0; row < numRows; row++) {
       for (let col = 0; col < numCols; col++) {
-        // Vertical stagger: odd COLUMNS shift down
-        const isOddCol = col % 2 === 1;
-        const colStagger = isOddCol ? staggerOffset : 0;
+        let gridX, gridY;
         
-        const gridX = gridOriginX + col * hStep + slotWidth / 2;
-        const gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
+        if (offsetDirection === 'vertical') {
+          // Vertical stagger: odd COLUMNS shift down
+          const isOddCol = col % 2 === 1;
+          const colStagger = isOddCol ? staggerOffset : 0;
+          gridX = gridOriginX + col * hStep + slotWidth / 2;
+          gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
+        } else {
+          // Horizontal stagger: odd ROWS shift right
+          const isOddRow = row % 2 === 1;
+          const rowStagger = isOddRow ? staggerOffset : 0;
+          gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
+          gridY = gridOriginY + row * vStep + slotHeight / 2;
+        }
         
         const rotated = rotatePoint(gridX, gridY);
         
@@ -2087,13 +2226,18 @@ const BooklistApp = (function() {
     // First draw title bar to get actual height
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // Now draw white rectangle behind it (need to redraw title bar after)
-    // Use actual bgH for symmetric margins
-    const actualTitleTop = titleY;
-    const actualTitleBottom = titleY + bgH;
+    // Calculate margin sizes based on position
+    let marginAbove = titleGutter;
+    let marginBelow = titleGutter;
+    if (position === 'top') {
+      marginAbove = 0;
+    } else if (position === 'bottom') {
+      marginBelow = 0;
+    }
     
+    // Draw white rectangle behind title bar
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, actualTitleTop - titleGutter, canvasWidth, bgH + 2 * titleGutter);
+    ctx.fillRect(0, titleY - marginAbove, canvasWidth, bgH + marginAbove + marginBelow);
     
     // Redraw title bar on top of white margin
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
@@ -2309,6 +2453,13 @@ const BooklistApp = (function() {
     // Get selected collage layout
     const selectedLayout = elements.collageLayoutSelector?.querySelector('.layout-option.selected')?.dataset.layout || 'classic';
     
+    // Get title bar position
+    const titleBarPosition = elements.titleBarPosition?.value || 'classic';
+    
+    // Get tilted layout settings
+    const tiltDegree = parseFloat(elements.tiltDegree?.value ?? '-25');
+    const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
+    
     // Get list name (used for filename)
     const listName = (elements.listNameInput?.value || '').trim();
     
@@ -2333,6 +2484,9 @@ const BooklistApp = (function() {
         coverTitle, // Simple mode text (backwards compatible)
         coverLineTexts, // Advanced mode texts
         collageLayout: selectedLayout,
+        titleBarPosition,
+        tiltDegree,
+        tiltOffsetDirection,
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: (elements.qrCodeTextArea?.innerText !== CONFIG.PLACEHOLDERS.qrText)
           ? (elements.qrCodeTextArea?.innerText || '')
@@ -2483,6 +2637,22 @@ const BooklistApp = (function() {
         opt.classList.toggle('selected', opt.dataset.layout === savedLayout);
       });
     }
+    
+    // Restore title bar position
+    if (elements.titleBarPosition) {
+      elements.titleBarPosition.value = loaded.ui?.titleBarPosition || 'classic';
+    }
+    
+    // Restore tilted layout settings
+    if (elements.tiltDegree) {
+      elements.tiltDegree.value = loaded.ui?.tiltDegree ?? -25;
+    }
+    if (elements.tiltOffsetDirection) {
+      elements.tiltOffsetDirection.value = loaded.ui?.tiltOffsetDirection || 'vertical';
+    }
+    
+    // Show/hide tilted settings based on layout
+    updateTiltedSettingsVisibility();
     
     // QR Code URL
     if (elements.qrUrlInput) elements.qrUrlInput.value = loaded.ui?.qrCodeUrl || '';
@@ -2702,9 +2872,37 @@ const BooklistApp = (function() {
             opt.classList.remove('selected');
           });
           option.classList.add('selected');
+          // Show/hide tilted settings based on selected layout
+          updateTiltedSettingsVisibility();
           debouncedSave();
           autoRegenerateCoverIfAble();
         });
+      });
+    }
+    
+    // Title bar position dropdown
+    if (elements.titleBarPosition) {
+      elements.titleBarPosition.addEventListener('change', () => {
+        debouncedSave();
+        autoRegenerateCoverIfAble();
+      });
+    }
+    
+    // Tilted layout settings
+    if (elements.tiltDegree) {
+      elements.tiltDegree.addEventListener('input', () => {
+        debouncedSave();
+        debouncedCoverRegen();
+      });
+      elements.tiltDegree.addEventListener('change', () => {
+        debouncedSave();
+        debouncedCoverRegen();
+      });
+    }
+    if (elements.tiltOffsetDirection) {
+      elements.tiltOffsetDirection.addEventListener('change', () => {
+        debouncedSave();
+        autoRegenerateCoverIfAble();
       });
     }
     
@@ -2927,6 +3125,9 @@ const BooklistApp = (function() {
     
     // Set default cover mode (simple)
     toggleCoverMode(false);
+    
+    // Set initial tilted settings visibility
+    updateTiltedSettingsVisibility();
     
     // Try restoring draft
     restoreDraftLocalIfPresent();
