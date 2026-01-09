@@ -1771,32 +1771,15 @@ const BooklistApp = (function() {
       // Flush at top
       titleY = 0;
     } else if (position === 'bottom') {
-      // For bottom: draw first to get actual height, then reposition flush
-      const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
-      titleY = canvasHeight - bgH;
-      // Clear the temp draw
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvasWidth, bgH + 1);
-      
-      // Draw all 4 rows above the title bar
-      for (let row = 0; row < numRows; row++) {
-        const rowY = row * (slotHeight + vGutter);
-        for (let col = 0; col < numCols; col++) {
-          const slotX = hGutter + col * (slotWidth + hGutter);
-          drawCoverImage(ctx, images[imageIndex], slotX, rowY, slotWidth, slotHeight, shouldStretch);
-          imageIndex++;
-        }
-      }
-      // Redraw title bar at correct position
-      drawTitleBarAt(ctx, styles, canvasWidth, titleY);
-      return;
+      // Flush at bottom - use pre-calculated titleBarHeight
+      titleY = canvasHeight - titleBarHeight;
     } else {
       // After rowsAbove rows of covers + margin
       const rowsAboveHeight = rowsAbove * slotHeight + (rowsAbove > 0 ? (rowsAbove - 1) * vGutter : 0);
       titleY = rowsAboveHeight + margin;
     }
     
-    // Draw rows above title bar (flush at top for all except 'bottom')
+    // Draw rows above title bar (flush at top)
     if (rowsAbove > 0) {
       for (let row = 0; row < rowsAbove; row++) {
         const rowY = row * (slotHeight + vGutter);
@@ -1821,8 +1804,7 @@ const BooklistApp = (function() {
         belowStartY = titleY + bgH + margin;
       }
       
-      // For positions other than 'top', rows should be flush to bottom
-      // Recalculate slot height for below section if needed
+      // Recalculate slot height for below section to fill remaining space
       const belowAvailableHeight = canvasHeight - belowStartY;
       const belowSlotHeight = (belowAvailableHeight - (rowsBelow - 1) * vGutter) / rowsBelow;
       
@@ -1897,25 +1879,17 @@ const BooklistApp = (function() {
     
     let imageIndex = 0;
     
-    // Handle bottom position specially to ensure flush positioning
-    if (position === 'bottom') {
-      // Draw all 4 rows above
-      let currentY = 0;
-      for (let row = 0; row < numRows; row++) {
-        drawRowWithShelf(currentY, slotHeight, imageIndex);
-        imageIndex += numCols;
-        currentY += slotHeight + shelfLineWidth + vGutter;
-      }
-      
-      // Draw title bar flush at bottom (get actual height first)
-      const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
-      const titleY = canvasHeight - bgH;
-      // Clear temp draw
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvasWidth, bgH + 1);
-      // Redraw at correct position
-      drawTitleBarAt(ctx, styles, canvasWidth, titleY);
-      return;
+    // Calculate title bar Y position
+    let titleY;
+    if (position === 'top') {
+      titleY = 0;
+    } else if (position === 'bottom') {
+      // Flush at bottom - use pre-calculated titleBarHeight
+      titleY = canvasHeight - titleBarHeight;
+    } else {
+      // After rowsAbove rows (each with book + shelf + gutter, minus last gutter, plus margin)
+      const aboveHeight = rowsAbove * (slotHeight + shelfLineWidth) + (rowsAbove > 0 ? (rowsAbove - 1) * vGutter : 0);
+      titleY = aboveHeight + margin;
     }
     
     // Draw rows above title bar
@@ -1926,16 +1900,6 @@ const BooklistApp = (function() {
         imageIndex += numCols;
         currentY += slotHeight + shelfLineWidth + vGutter;
       }
-    }
-    
-    // Calculate title bar Y position
-    let titleY;
-    if (position === 'top') {
-      titleY = 0;
-    } else {
-      // After rowsAbove rows (each with book + shelf + gutter, minus last gutter, plus margin)
-      const aboveHeight = rowsAbove * (slotHeight + shelfLineWidth) + (rowsAbove > 0 ? (rowsAbove - 1) * vGutter : 0);
-      titleY = aboveHeight + margin;
     }
     
     // Draw title bar
@@ -1990,15 +1954,21 @@ const BooklistApp = (function() {
       default: rowsAbove = 2; rowsBelow = 2;
     }
     
-    // Calculate margin count: 0 for top (only margin below), 0 for bottom (only margin above), 2 for middle positions
+    // Calculate margin count: 1 for top/bottom (only one side), 2 for middle positions
     const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
     
-    // Calculate slot heights
-    const availableHeight = canvasHeight - titleBarHeight - marginCount * titleGutter;
-    const totalRows = 4;
-    const totalVGutters = (totalRows - 1) * vGutter;
-    const slotHeight = (availableHeight - totalVGutters) / totalRows;
-    const slotWidth = slotHeight * bookAspect;
+    // Calculate slot heights for above section
+    const aboveAvailableHeight = (position === 'top') 
+      ? canvasHeight - titleBarHeight - titleGutter
+      : (position === 'bottom')
+        ? canvasHeight - titleBarHeight - titleGutter
+        : (rowsAbove > 0) 
+          ? (canvasHeight - titleBarHeight - 2 * titleGutter) * (rowsAbove / 4)
+          : 0;
+    
+    const aboveSlotHeight = (rowsAbove > 0) 
+      ? (aboveAvailableHeight - (rowsAbove - 1) * vGutter) / rowsAbove 
+      : 0;
     
     // Helper to draw a row filling edge-to-edge with partial covers bleeding off both edges
     const drawBrickRow = (y, h, useOffset, imgOffset) => {
@@ -2025,19 +1995,18 @@ const BooklistApp = (function() {
       }
     };
     
-    let currentY = 0;
+    // Track which row number we're on for consistent stagger pattern
+    let globalRowIndex = 0;
     let imageOffset = 0;
+    let currentY = 0;
     
     // Draw rows above title bar
     for (let row = 0; row < rowsAbove; row++) {
-      drawBrickRow(currentY, slotHeight, row % 2 === 1, imageOffset);
+      const shouldOffset = globalRowIndex % 2 === 1;
+      drawBrickRow(currentY, aboveSlotHeight, shouldOffset, imageOffset);
       imageOffset += 3;
-      currentY += slotHeight + vGutter;
-    }
-    
-    // Adjust for title bar position
-    if (rowsAbove > 0) {
-      currentY = currentY - vGutter + titleGutter; // Replace last vGutter with titleGutter
+      globalRowIndex++;
+      currentY += aboveSlotHeight + vGutter;
     }
     
     // Calculate title bar Y position
@@ -2045,16 +2014,12 @@ const BooklistApp = (function() {
     if (position === 'top') {
       titleY = 0;
     } else if (position === 'bottom') {
-      // For bottom: draw first to get actual height, then reposition flush
-      const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
-      titleY = canvasHeight - bgH;
-      // Clear the temp draw and redraw at correct position
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvasWidth, bgH + 1);
-      drawTitleBarAt(ctx, styles, canvasWidth, titleY);
-      // No rows below for bottom position, so we're done after drawing above rows
-      return;
+      titleY = canvasHeight - titleBarHeight;
     } else {
+      // Replace last vGutter with titleGutter
+      if (rowsAbove > 0) {
+        currentY = currentY - vGutter + titleGutter;
+      }
       titleY = currentY;
     }
     
@@ -2070,17 +2035,16 @@ const BooklistApp = (function() {
         belowStartY = titleY + bgH + titleGutter;
       }
       
-      // Recalculate slot height for below section
+      // Recalculate slot height for below section to fill remaining space
       const belowAvailableHeight = canvasHeight - belowStartY;
       const belowSlotHeight = (belowAvailableHeight - (rowsBelow - 1) * vGutter) / rowsBelow;
       
       currentY = belowStartY;
       for (let row = 0; row < rowsBelow; row++) {
-        // Continue the offset pattern from above rows
-        const totalRowIndex = rowsAbove + row;
-        const shouldOffset = totalRowIndex % 2 === 1;
+        const shouldOffset = globalRowIndex % 2 === 1;
         drawBrickRow(currentY, belowSlotHeight, shouldOffset, imageOffset);
         imageOffset += 3;
+        globalRowIndex++;
         currentY += belowSlotHeight + vGutter;
       }
     }
@@ -2268,49 +2232,15 @@ const BooklistApp = (function() {
     }
     
     // === DRAW WHITE MARGIN + TITLE BAR ON TOP ===
-    // For bottom position, we need to know actual bgH to position correctly
-    // Get bgH by calculating (same as calculateTitleBarHeight but we use the actual draw result)
+    // Use titleY calculated above (which uses titleBarHeight for bottom position)
+    // Draw title bar first to get actual bgH
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // First, get actual bgH by temp drawing off-canvas conceptually
-    // We'll draw at titleY first, then adjust if needed for bottom
+    // For bottom position, recalculate titleY with actual bgH to ensure true flush
     let actualTitleY = titleY;
-    
     if (position === 'bottom') {
-      // Draw once to get bgH, then calculate correct position
-      const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
       actualTitleY = canvasHeight - bgH;
-      // Clear the temp draw
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvasWidth, bgH + 1);
-      // Redraw tilted covers that were covered
-      for (let row = 0; row < numRows; row++) {
-        for (let col = 0; col < numCols; col++) {
-          let gridX, gridY;
-          
-          if (offsetDirection === 'vertical') {
-            const isOddCol = col % 2 === 1;
-            const colStagger = isOddCol ? staggerOffset : 0;
-            gridX = gridOriginX + col * hStep + slotWidth / 2;
-            gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
-          } else {
-            const isOddRow = row % 2 === 1;
-            const rowStagger = isOddRow ? staggerOffset : 0;
-            gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
-            gridY = gridOriginY + row * vStep + slotHeight / 2;
-          }
-          
-          const rotated = rotatePoint(gridX, gridY);
-          
-          if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, bgH + slotHeight)) {
-            const imgIdx = getImageForCell(row, col);
-            drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
-          }
-        }
-      }
     }
-    
-    // Draw title bar to get bgH (or redraw at correct position for bottom)
-    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, actualTitleY);
     
     // Calculate margin sizes based on position
     let marginAbove = titleGutter;
@@ -2325,7 +2255,7 @@ const BooklistApp = (function() {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, actualTitleY - marginAbove, canvasWidth, bgH + marginAbove + marginBelow);
     
-    // Redraw title bar on top of white margin
+    // Redraw title bar on top of white margin at correct position
     drawTitleBarAt(ctx, styles, canvasWidth, actualTitleY);
   }
 
