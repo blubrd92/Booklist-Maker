@@ -2216,41 +2216,74 @@ const BooklistApp = (function() {
       return (row + col * 3) % 12;
     };
     
-    // Helper: draw all covers in the tilted grid
-    const drawAllCovers = () => {
-      for (let row = 0; row < numRows; row++) {
-        for (let col = 0; col < numCols; col++) {
-          let gridX, gridY;
-          
-          if (offsetDirection === 'vertical') {
-            const isOddCol = col % 2 === 1;
-            const colStagger = isOddCol ? staggerOffset : 0;
-            gridX = gridOriginX + col * hStep + slotWidth / 2;
-            gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
-          } else {
-            const isOddRow = row % 2 === 1;
-            const rowStagger = isOddRow ? staggerOffset : 0;
-            gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
-            gridY = gridOriginY + row * vStep + slotHeight / 2;
-          }
-          
-          const rotated = rotatePoint(gridX, gridY);
-          
-          if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
-            const imgIdx = getImageForCell(row, col);
-            drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
-          }
-        }
-      }
-    };
-    
-    // === GET ACTUAL TITLE BAR HEIGHT ===
-    // Draw to offscreen position to measure, then we'll draw for real
+    // === RENDER FULL COLLAGE TO TEMP CANVAS ===
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvasWidth;
     tempCanvas.height = canvasHeight;
     const tempCtx = tempCanvas.getContext('2d');
-    const { bgH: actualTitleHeight } = drawTitleBarAt(tempCtx, styles, canvasWidth, 0);
+    
+    // Draw the full tilted grid to temp canvas
+    for (let row = 0; row < numRows; row++) {
+      for (let col = 0; col < numCols; col++) {
+        let gridX, gridY;
+        
+        if (offsetDirection === 'vertical') {
+          const isOddCol = col % 2 === 1;
+          const colStagger = isOddCol ? staggerOffset : 0;
+          gridX = gridOriginX + col * hStep + slotWidth / 2;
+          gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
+        } else {
+          const isOddRow = row % 2 === 1;
+          const rowStagger = isOddRow ? staggerOffset : 0;
+          gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
+          gridY = gridOriginY + row * vStep + slotHeight / 2;
+        }
+        
+        const rotated = rotatePoint(gridX, gridY);
+        
+        if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
+          const imgIdx = getImageForCell(row, col);
+          
+          // Draw to temp canvas instead of main canvas
+          tempCtx.save();
+          tempCtx.translate(rotated.x, rotated.y);
+          tempCtx.rotate(rotationRad);
+          
+          const img = images[imgIdx];
+          if (img && img.complete && img.naturalWidth > 0) {
+            if (shouldStretch) {
+              tempCtx.drawImage(img, -slotWidth / 2, -slotHeight / 2, slotWidth, slotHeight);
+            } else {
+              const imgAspect = img.naturalWidth / img.naturalHeight;
+              const slotAspect = slotWidth / slotHeight;
+              let drawW, drawH;
+              
+              if (imgAspect > slotAspect) {
+                drawW = slotWidth;
+                drawH = slotWidth / imgAspect;
+              } else {
+                drawH = slotHeight;
+                drawW = slotHeight * imgAspect;
+              }
+              
+              tempCtx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+            }
+          } else {
+            tempCtx.fillStyle = '#ddd';
+            tempCtx.fillRect(-slotWidth / 2, -slotHeight / 2, slotWidth, slotHeight);
+          }
+          
+          tempCtx.restore();
+        }
+      }
+    }
+    
+    // === GET ACTUAL TITLE BAR HEIGHT ===
+    const measureCanvas = document.createElement('canvas');
+    measureCanvas.width = canvasWidth;
+    measureCanvas.height = canvasHeight;
+    const measureCtx = measureCanvas.getContext('2d');
+    const { bgH: actualTitleHeight } = drawTitleBarAt(measureCtx, styles, canvasWidth, 0);
     
     // Recalculate titleY for bottom position using actual height
     let actualTitleY = titleY;
@@ -2267,32 +2300,32 @@ const BooklistApp = (function() {
     const titleSectionTop = actualTitleY - marginAbove;
     const titleSectionBottom = actualTitleY + actualTitleHeight + marginBelow;
     
-    // === DRAW ABOVE SECTION (clipped) ===
+    // === CUT AND PLACE COLLAGE ===
+    // Cut the collage at titleSectionTop
+    // Top portion stays at y=0
+    // Bottom portion shifts down to start at titleSectionBottom
+    
+    // Draw top portion of collage (from y=0 to y=titleSectionTop)
     if (titleSectionTop > 0) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, canvasWidth, titleSectionTop);
-      ctx.clip();
-      drawAllCovers();
-      ctx.restore();
+      ctx.drawImage(tempCanvas,
+        0, 0, canvasWidth, titleSectionTop,   // source rectangle
+        0, 0, canvasWidth, titleSectionTop    // destination rectangle
+      );
     }
     
-    // === DRAW BELOW SECTION (clipped) ===
+    // Draw bottom portion of collage (from y=titleSectionTop to end, placed below title section)
     if (titleSectionBottom < canvasHeight) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, titleSectionBottom, canvasWidth, canvasHeight - titleSectionBottom);
-      ctx.clip();
-      drawAllCovers();
-      ctx.restore();
+      const sourceY = titleSectionTop;
+      const sourceHeight = canvasHeight - titleSectionTop;
+      ctx.drawImage(tempCanvas,
+        0, sourceY, canvasWidth, sourceHeight,           // source rectangle
+        0, titleSectionBottom, canvasWidth, sourceHeight // destination rectangle (shifted down)
+      );
     }
     
     // === DRAW TITLE SECTION ===
-    // Fill the gap with white background
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, titleSectionTop, canvasWidth, titleSectionBottom - titleSectionTop);
-    
-    // Draw title bar at actual position
     drawTitleBarAt(ctx, styles, canvasWidth, actualTitleY);
   }
 
