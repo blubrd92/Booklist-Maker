@@ -2218,11 +2218,12 @@ const BooklistApp = (function() {
         const rowGroup = (row % 4) * 3;  // 0, 3, 6, or 9
         return rowGroup + (col % 3);
       } else {
-        // Vertical: all 12 books per column with staggered start offsets
-        // Offsets cycle: 0, 6, 3, 9 to prevent horizontal striping
-        const offsets = [0, 6, 3, 9];
-        const colOffset = offsets[col % 4];
-        return (row + colOffset) % 12;
+        // Vertical: each column cycles through 3 books
+        // 4 column groups: 0-2, 3-5, 6-8, 9-11
+        // Row offset varies by column to reduce adjacent repetition
+        const colGroup = (col % 4) * 3;  // 0, 3, 6, or 9
+        const rowOffset = col % 3;  // 0, 1, 2, 0, 1, 2...
+        return colGroup + ((row + rowOffset) % 3);
       }
     };
     
