@@ -2221,6 +2221,40 @@ const BooklistApp = (function() {
     tempCanvas.width = canvasWidth;
     tempCanvas.height = canvasHeight;
     const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.imageSmoothingEnabled = ctx.imageSmoothingEnabled;
+    tempCtx.imageSmoothingQuality = ctx.imageSmoothingQuality || 'high';
+    
+    // Helper to draw a cover at rotated position on a given context
+    const drawRotatedCoverOn = (targetCtx, img, cx, cy) => {
+      targetCtx.save();
+      targetCtx.translate(cx, cy);
+      targetCtx.rotate(rotationRad);
+      
+      if (img && img.complete && img.naturalWidth > 0) {
+        if (shouldStretch) {
+          targetCtx.drawImage(img, -slotWidth / 2, -slotHeight / 2, slotWidth, slotHeight);
+        } else {
+          const imgAspect = img.naturalWidth / img.naturalHeight;
+          const slotAspect = slotWidth / slotHeight;
+          let drawW, drawH;
+          
+          if (imgAspect > slotAspect) {
+            drawW = slotWidth;
+            drawH = slotWidth / imgAspect;
+          } else {
+            drawH = slotHeight;
+            drawW = slotHeight * imgAspect;
+          }
+          
+          targetCtx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+        }
+      } else {
+        targetCtx.fillStyle = '#ddd';
+        targetCtx.fillRect(-slotWidth / 2, -slotHeight / 2, slotWidth, slotHeight);
+      }
+      
+      targetCtx.restore();
+    };
     
     // Draw the full tilted grid to temp canvas
     for (let row = 0; row < numRows; row++) {
@@ -2243,37 +2277,7 @@ const BooklistApp = (function() {
         
         if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
           const imgIdx = getImageForCell(row, col);
-          
-          // Draw to temp canvas instead of main canvas
-          tempCtx.save();
-          tempCtx.translate(rotated.x, rotated.y);
-          tempCtx.rotate(rotationRad);
-          
-          const img = images[imgIdx];
-          if (img && img.complete && img.naturalWidth > 0) {
-            if (shouldStretch) {
-              tempCtx.drawImage(img, -slotWidth / 2, -slotHeight / 2, slotWidth, slotHeight);
-            } else {
-              const imgAspect = img.naturalWidth / img.naturalHeight;
-              const slotAspect = slotWidth / slotHeight;
-              let drawW, drawH;
-              
-              if (imgAspect > slotAspect) {
-                drawW = slotWidth;
-                drawH = slotWidth / imgAspect;
-              } else {
-                drawH = slotHeight;
-                drawW = slotHeight * imgAspect;
-              }
-              
-              tempCtx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
-            }
-          } else {
-            tempCtx.fillStyle = '#ddd';
-            tempCtx.fillRect(-slotWidth / 2, -slotHeight / 2, slotWidth, slotHeight);
-          }
-          
-          tempCtx.restore();
+          drawRotatedCoverOn(tempCtx, images[imgIdx], rotated.x, rotated.y);
         }
       }
     }
@@ -2297,8 +2301,9 @@ const BooklistApp = (function() {
     if (position === 'top') marginAbove = 0;
     if (position === 'bottom') marginBelow = 0;
     
-    const titleSectionTop = actualTitleY - marginAbove;
-    const titleSectionBottom = actualTitleY + actualTitleHeight + marginBelow;
+    // Round to integers for pixel-perfect alignment
+    const titleSectionTop = Math.round(actualTitleY - marginAbove);
+    const titleSectionBottom = Math.round(actualTitleY + actualTitleHeight + marginBelow);
     
     // === CUT AND PLACE COLLAGE ===
     // Cut the collage at titleSectionTop
@@ -2308,18 +2313,19 @@ const BooklistApp = (function() {
     // Draw top portion of collage (from y=0 to y=titleSectionTop)
     if (titleSectionTop > 0) {
       ctx.drawImage(tempCanvas,
-        0, 0, canvasWidth, titleSectionTop,   // source rectangle
-        0, 0, canvasWidth, titleSectionTop    // destination rectangle
+        0, 0, canvasWidth, titleSectionTop,
+        0, 0, canvasWidth, titleSectionTop
       );
     }
     
-    // Draw bottom portion of collage (from y=titleSectionTop to end, placed below title section)
-    if (titleSectionBottom < canvasHeight) {
-      const sourceY = titleSectionTop;
-      const sourceHeight = canvasHeight - titleSectionTop;
+    // Draw bottom portion of collage
+    // Source: from titleSectionTop, only take what fits in available space
+    // Dest: from titleSectionBottom to canvas bottom
+    const bottomAvailableHeight = canvasHeight - titleSectionBottom;
+    if (bottomAvailableHeight > 0) {
       ctx.drawImage(tempCanvas,
-        0, sourceY, canvasWidth, sourceHeight,           // source rectangle
-        0, titleSectionBottom, canvasWidth, sourceHeight // destination rectangle (shifted down)
+        0, titleSectionTop, canvasWidth, bottomAvailableHeight,
+        0, titleSectionBottom, canvasWidth, bottomAvailableHeight
       );
     }
     
