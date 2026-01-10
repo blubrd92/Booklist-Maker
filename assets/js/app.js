@@ -2043,7 +2043,6 @@ const BooklistApp = (function() {
     const canvasHeight = canvas.height;
     const position = options.titleBarPosition || 'center';
     
-    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
     const bookAspect = 0.667;
     
     // Rotation angle from options (negative = counter-clockwise)
@@ -2060,7 +2059,13 @@ const BooklistApp = (function() {
     const vGutter = 6 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
     
-    // Calculate title bar Y position based on position setting
+    // Get actual title bar height first
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
+    // Clear it - we'll redraw at correct position after covers
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvasWidth, bgH + 1);
+    
+    // Calculate title bar Y position based on position setting using actual bgH
     let titleY;
     switch (position) {
       case 'top':
@@ -2068,24 +2073,24 @@ const BooklistApp = (function() {
         break;
       case 'classic':
         // About 1/5 down from top
-        titleY = (canvasHeight - titleBarHeight) * 0.2;
+        titleY = (canvasHeight - bgH) * 0.2;
         break;
       case 'center':
-        titleY = (canvasHeight - titleBarHeight) / 2;
+        titleY = (canvasHeight - bgH) / 2;
         break;
       case 'lower':
         // About 4/5 down from top
-        titleY = (canvasHeight - titleBarHeight) * 0.8;
+        titleY = (canvasHeight - bgH) * 0.8;
         break;
       case 'bottom':
-        titleY = canvasHeight - titleBarHeight;
+        titleY = canvasHeight - bgH;
         break;
       default:
-        titleY = (canvasHeight - titleBarHeight) / 2;
+        titleY = (canvasHeight - bgH) / 2;
     }
     
     // Calculate cover size
-    const sectionHeight = (canvasHeight - titleBarHeight - 2 * titleGutter) / 2;
+    const sectionHeight = (canvasHeight - bgH - 2 * titleGutter) / 2;
     const rowsPerSection = 2.5;
     const slotHeight = (sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection;
     const slotWidth = slotHeight * bookAspect;
@@ -2224,15 +2229,7 @@ const BooklistApp = (function() {
     }
     
     // === DRAW WHITE MARGIN + TITLE BAR ON TOP ===
-    // Use titleY calculated above (which uses titleBarHeight for bottom position)
-    // Draw title bar first to get actual bgH
-    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
-    
-    // For bottom position, recalculate titleY with actual bgH to ensure true flush
-    let actualTitleY = titleY;
-    if (position === 'bottom') {
-      actualTitleY = canvasHeight - bgH;
-    }
+    // titleY was calculated using actual bgH, so it's already correct
     
     // Calculate margin sizes based on position
     let marginAbove = titleGutter;
@@ -2245,10 +2242,10 @@ const BooklistApp = (function() {
     
     // Draw white rectangle behind title bar
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, actualTitleY - marginAbove, canvasWidth, bgH + marginAbove + marginBelow);
+    ctx.fillRect(0, titleY - marginAbove, canvasWidth, bgH + marginAbove + marginBelow);
     
-    // Redraw title bar on top of white margin at correct position
-    drawTitleBarAt(ctx, styles, canvasWidth, actualTitleY);
+    // Draw title bar on top of white margin
+    drawTitleBarAt(ctx, styles, canvasWidth, titleY);
   }
 
   function autoRegenerateCoverIfAble() {
