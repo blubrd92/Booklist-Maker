@@ -2301,32 +2301,40 @@ const BooklistApp = (function() {
     if (position === 'top') marginAbove = 0;
     if (position === 'bottom') marginBelow = 0;
     
-    // Round to integers for pixel-perfect alignment
-    const titleSectionTop = Math.round(actualTitleY - marginAbove);
-    const titleSectionBottom = Math.round(actualTitleY + actualTitleHeight + marginBelow);
+    // Floor to integers for pixel-perfect alignment
+    const titleSectionTop = Math.floor(actualTitleY - marginAbove);
+    const titleSectionBottom = Math.floor(actualTitleY + actualTitleHeight + marginBelow);
     
     // === CUT AND PLACE COLLAGE ===
     // Cut the collage at titleSectionTop
     // Top portion stays at y=0
     // Bottom portion shifts down to start at titleSectionBottom
     
-    // Draw top portion of collage (from y=0 to y=titleSectionTop)
+    // Reset any transforms
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    
+    // Draw top portion: clip to top area, draw tempCanvas at origin
     if (titleSectionTop > 0) {
-      ctx.drawImage(tempCanvas,
-        0, 0, canvasWidth, titleSectionTop,
-        0, 0, canvasWidth, titleSectionTop
-      );
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, canvasWidth, titleSectionTop);
+      ctx.clip();
+      ctx.drawImage(tempCanvas, 0, 0);
+      ctx.restore();
     }
     
-    // Draw bottom portion of collage
-    // Source: from titleSectionTop, only take what fits in available space
-    // Dest: from titleSectionBottom to canvas bottom
+    // Draw bottom portion: clip to bottom area, draw tempCanvas shifted down
     const bottomAvailableHeight = canvasHeight - titleSectionBottom;
     if (bottomAvailableHeight > 0) {
-      ctx.drawImage(tempCanvas,
-        0, titleSectionTop, canvasWidth, bottomAvailableHeight,
-        0, titleSectionBottom, canvasWidth, bottomAvailableHeight
-      );
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, titleSectionBottom, canvasWidth, bottomAvailableHeight);
+      ctx.clip();
+      // Shift the tempCanvas down so that the part starting at titleSectionTop
+      // now appears at titleSectionBottom
+      const yOffset = Math.floor(titleSectionBottom - titleSectionTop);
+      ctx.drawImage(tempCanvas, 0, yOffset);
+      ctx.restore();
     }
     
     // === DRAW TITLE SECTION ===
