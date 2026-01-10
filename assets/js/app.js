@@ -2216,17 +2216,6 @@ const BooklistApp = (function() {
       return (row + col * 3) % 12;
     };
     
-    // === CALCULATE TITLE SECTION BOUNDARIES ===
-    // Margins around title bar based on position
-    let marginAbove = titleGutter;
-    let marginBelow = titleGutter;
-    if (position === 'top') marginAbove = 0;
-    if (position === 'bottom') marginBelow = 0;
-    
-    // Title section = title bar + margins (this is the "gap" area)
-    const titleSectionTop = titleY - marginAbove;
-    const titleSectionBottom = titleY + titleBarHeight + marginBelow;
-    
     // Helper: draw all covers in the tilted grid
     const drawAllCovers = () => {
       for (let row = 0; row < numRows; row++) {
@@ -2255,6 +2244,29 @@ const BooklistApp = (function() {
       }
     };
     
+    // === GET ACTUAL TITLE BAR HEIGHT ===
+    // Draw to offscreen position to measure, then we'll draw for real
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvasWidth;
+    tempCanvas.height = canvasHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    const { bgH: actualTitleHeight } = drawTitleBarAt(tempCtx, styles, canvasWidth, 0);
+    
+    // Recalculate titleY for bottom position using actual height
+    let actualTitleY = titleY;
+    if (position === 'bottom') {
+      actualTitleY = canvasHeight - actualTitleHeight;
+    }
+    
+    // === CALCULATE TITLE SECTION BOUNDARIES ===
+    let marginAbove = titleGutter;
+    let marginBelow = titleGutter;
+    if (position === 'top') marginAbove = 0;
+    if (position === 'bottom') marginBelow = 0;
+    
+    const titleSectionTop = actualTitleY - marginAbove;
+    const titleSectionBottom = actualTitleY + actualTitleHeight + marginBelow;
+    
     // === DRAW ABOVE SECTION (clipped) ===
     if (titleSectionTop > 0) {
       ctx.save();
@@ -2275,11 +2287,13 @@ const BooklistApp = (function() {
       ctx.restore();
     }
     
-    // === DRAW TITLE BAR ===
-    // Fill the gap with white, then draw title
+    // === DRAW TITLE SECTION ===
+    // Fill the gap with white background
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, titleSectionTop, canvasWidth, titleSectionBottom - titleSectionTop);
-    drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+    
+    // Draw title bar at actual position
+    drawTitleBarAt(ctx, styles, canvasWidth, actualTitleY);
   }
 
   function autoRegenerateCoverIfAble() {
