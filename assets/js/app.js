@@ -2317,21 +2317,18 @@ const BooklistApp = (function() {
     const topHeight = cutY;
     const bottomHeight = h - gapBottom;
     
+    // Use getImageData/putImageData for exact pixel copy (no interpolation)
+    
     // Draw top portion (from y=0 to y=cutY, placed at y=0)
     if (topHeight > 0) {
-      ctx.drawImage(tempCanvas,
-        0, 0, w, topHeight,
-        0, 0, w, topHeight
-      );
+      const topData = tempCtx.getImageData(0, 0, w, topHeight);
+      ctx.putImageData(topData, 0, 0);
     }
     
     // Draw bottom portion (from y=cutY, placed at y=gapBottom)
-    // Source and dest heights must match to avoid scaling
     if (bottomHeight > 0) {
-      ctx.drawImage(tempCanvas,
-        0, cutY, w, bottomHeight,
-        0, gapBottom, w, bottomHeight
-      );
+      const bottomData = tempCtx.getImageData(0, cutY, w, bottomHeight);
+      ctx.putImageData(bottomData, 0, gapBottom);
     }
     
     // === DRAW TITLE SECTION ===
