@@ -2317,6 +2317,14 @@ const BooklistApp = (function() {
     const topHeight = cutY;
     const bottomHeight = h - gapBottom;
     
+    // Calculate horizontal offset to maintain diagonal continuity
+    // When inserting a vertical gap G, the diagonal pattern shifts by G * tan(angle)
+    const gapHeight = gapBottom - cutY;
+    const xOffset = Math.round(gapHeight * Math.tan(Math.abs(rotationRad)));
+    // If rotation is negative (counter-clockwise), bottom needs to shift RIGHT
+    // If rotation is positive (clockwise), bottom needs to shift LEFT
+    const xShift = rotationDeg < 0 ? xOffset : -xOffset;
+    
     // Use getImageData/putImageData for exact pixel copy (no interpolation)
     
     // Draw top portion (from y=0 to y=cutY, placed at y=0)
@@ -2325,10 +2333,10 @@ const BooklistApp = (function() {
       ctx.putImageData(topData, 0, 0);
     }
     
-    // Draw bottom portion (from y=cutY, placed at y=gapBottom)
+    // Draw bottom portion (from y=cutY, placed at y=gapBottom, shifted horizontally)
     if (bottomHeight > 0) {
       const bottomData = tempCtx.getImageData(0, cutY, w, bottomHeight);
-      ctx.putImageData(bottomData, 0, gapBottom);
+      ctx.putImageData(bottomData, xShift, gapBottom);
     }
     
     // === DRAW TITLE SECTION ===
