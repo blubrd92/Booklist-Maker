@@ -2210,63 +2210,36 @@ const BooklistApp = (function() {
     const gridOriginX = centerX - (numCols * hStep) / 2;
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
-    // Deterministic image selection:
-    // Each column has images 0-11, offset by (col * 3) to prevent horizontal striping
+    // Deterministic image selection based on offset direction
     const getImageForCell = (row, col) => {
-      return (row + col * 3) % 12;
-    };
-    
-    // === RENDER FULL COLLAGE TO TEMP CANVAS ===
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvasWidth;
-    tempCanvas.height = canvasHeight;
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.imageSmoothingEnabled = ctx.imageSmoothingEnabled;
-    tempCtx.imageSmoothingQuality = ctx.imageSmoothingQuality || 'high';
-    
-    // Helper to draw a cover at rotated position on a given context
-    const drawRotatedCoverOn = (targetCtx, img, cx, cy) => {
-      targetCtx.save();
-      targetCtx.translate(cx, cy);
-      targetCtx.rotate(rotationRad);
-      
-      if (img && img.complete && img.naturalWidth > 0) {
-        if (shouldStretch) {
-          targetCtx.drawImage(img, -slotWidth / 2, -slotHeight / 2, slotWidth, slotHeight);
-        } else {
-          const imgAspect = img.naturalWidth / img.naturalHeight;
-          const slotAspect = slotWidth / slotHeight;
-          let drawW, drawH;
-          
-          if (imgAspect > slotAspect) {
-            drawW = slotWidth;
-            drawH = slotWidth / imgAspect;
-          } else {
-            drawH = slotHeight;
-            drawW = slotHeight * imgAspect;
-          }
-          
-          targetCtx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
-        }
+      if (offsetDirection === 'horizontal') {
+        // Each row cycles through 3 consecutive books
+        // Row 0: 0,1,2,0,1,2...  Row 1: 3,4,5,3,4,5...  etc.
+        const rowGroup = (row % 4) * 3;  // 0, 3, 6, or 9
+        return rowGroup + (col % 3);
       } else {
-        targetCtx.fillStyle = '#ddd';
-        targetCtx.fillRect(-slotWidth / 2, -slotHeight / 2, slotWidth, slotHeight);
+        // Vertical: all 12 books per column with staggered start offsets
+        // Offsets cycle: 0, 6, 3, 9 to prevent horizontal striping
+        const offsets = [0, 6, 3, 9];
+        const colOffset = offsets[col % 4];
+        return (row + colOffset) % 12;
       }
-      
-      targetCtx.restore();
     };
     
-    // Draw the full tilted grid to temp canvas
+    // === DRAW FULL GRID ===
+    // Draw everything, title bar will cover the appropriate region
     for (let row = 0; row < numRows; row++) {
       for (let col = 0; col < numCols; col++) {
         let gridX, gridY;
         
         if (offsetDirection === 'vertical') {
+          // Vertical stagger: odd COLUMNS shift down
           const isOddCol = col % 2 === 1;
           const colStagger = isOddCol ? staggerOffset : 0;
           gridX = gridOriginX + col * hStep + slotWidth / 2;
           gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
         } else {
+          // Horizontal stagger: odd ROWS shift right
           const isOddRow = row % 2 === 1;
           const rowStagger = isOddRow ? staggerOffset : 0;
           gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
@@ -2275,73 +2248,39 @@ const BooklistApp = (function() {
         
         const rotated = rotatePoint(gridX, gridY);
         
+        // Draw if cover intersects the canvas at all
         if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
           const imgIdx = getImageForCell(row, col);
-          drawRotatedCoverOn(tempCtx, images[imgIdx], rotated.x, rotated.y);
+          drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
         }
       }
     }
     
-    // === GET ACTUAL TITLE BAR HEIGHT ===
-    const measureCanvas = document.createElement('canvas');
-    measureCanvas.width = canvasWidth;
-    measureCanvas.height = canvasHeight;
-    const measureCtx = measureCanvas.getContext('2d');
-    const { bgH: actualTitleHeight } = drawTitleBarAt(measureCtx, styles, canvasWidth, 0);
+    // === DRAW WHITE MARGIN + TITLE BAR ON TOP ===
+    // Use titleY calculated above (which uses titleBarHeight for bottom position)
+    // Draw title bar first to get actual bgH
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
     
-    // Recalculate titleY for bottom position using actual height
-    let actualTitleY = Math.floor(titleY);
+    // For bottom position, recalculate titleY with actual bgH to ensure true flush
+    let actualTitleY = titleY;
     if (position === 'bottom') {
-      actualTitleY = Math.floor(canvasHeight - actualTitleHeight);
+      actualTitleY = canvasHeight - bgH;
     }
     
-    // === CALCULATE TITLE SECTION BOUNDARIES ===
-    let marginAbove = Math.floor(titleGutter);
-    let marginBelow = Math.floor(titleGutter);
-    if (position === 'top') marginAbove = 0;
-    if (position === 'bottom') marginBelow = 0;
-    
-    // Floor to integers for pixel-perfect alignment
-    const titleSectionTop = Math.floor(actualTitleY) - marginAbove;
-    const titleSectionBottom = Math.floor(actualTitleY) + Math.floor(actualTitleHeight) + marginBelow;
-    
-    // === CUT AND PLACE COLLAGE ===
-    // Reset any transforms
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    
-    // Force all coordinates to integers
-    const w = Math.floor(canvasWidth);
-    const h = Math.floor(canvasHeight);
-    const cutY = Math.floor(titleSectionTop);
-    const gapBottom = Math.floor(titleSectionBottom);
-    const topHeight = cutY;
-    const bottomHeight = h - gapBottom;
-    
-    // Calculate horizontal offset to maintain diagonal continuity
-    // When inserting a vertical gap G, the diagonal pattern shifts by G * tan(angle)
-    const gapHeight = gapBottom - cutY;
-    const xOffset = Math.round(gapHeight * Math.tan(Math.abs(rotationRad)));
-    // If rotation is negative (counter-clockwise), bottom needs to shift RIGHT
-    // If rotation is positive (clockwise), bottom needs to shift LEFT
-    const xShift = rotationDeg < 0 ? xOffset : -xOffset;
-    
-    // Use getImageData/putImageData for exact pixel copy (no interpolation)
-    
-    // Draw top portion (from y=0 to y=cutY, placed at y=0)
-    if (topHeight > 0) {
-      const topData = tempCtx.getImageData(0, 0, w, topHeight);
-      ctx.putImageData(topData, 0, 0);
+    // Calculate margin sizes based on position
+    let marginAbove = titleGutter;
+    let marginBelow = titleGutter;
+    if (position === 'top') {
+      marginAbove = 0;
+    } else if (position === 'bottom') {
+      marginBelow = 0;
     }
     
-    // Draw bottom portion (from y=cutY, placed at y=gapBottom, shifted horizontally)
-    if (bottomHeight > 0) {
-      const bottomData = tempCtx.getImageData(0, cutY, w, bottomHeight);
-      ctx.putImageData(bottomData, xShift, gapBottom);
-    }
-    
-    // === DRAW TITLE SECTION ===
+    // Draw white rectangle behind title bar
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, cutY, w, gapBottom - cutY);
+    ctx.fillRect(0, actualTitleY - marginAbove, canvasWidth, bgH + marginAbove + marginBelow);
+    
+    // Redraw title bar on top of white margin at correct position
     drawTitleBarAt(ctx, styles, canvasWidth, actualTitleY);
   }
 
