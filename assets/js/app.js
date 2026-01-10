@@ -2070,8 +2070,7 @@ const BooklistApp = (function() {
    * A staggered grid rotated at configurable angle, with partial covers
    * bleeding off edges to fill the white space created by rotation.
    * Stagger direction can be vertical (columns offset) or horizontal (rows offset).
-   * Covers are split into above/below sections using canvas clipping, with
-   * a clean gap for the title bar section.
+   * Title bar draws ON TOP with white margin background.
    */
   function drawLayoutTilted(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -2095,12 +2094,6 @@ const BooklistApp = (function() {
     const vGutter = 6 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
     
-    // Calculate margins around title bar based on position
-    let marginAbove = titleGutter;
-    let marginBelow = titleGutter;
-    if (position === 'top') marginAbove = 0;
-    if (position === 'bottom') marginBelow = 0;
-    
     // Calculate title bar Y position based on position setting
     let titleY;
     switch (position) {
@@ -2108,12 +2101,14 @@ const BooklistApp = (function() {
         titleY = 0;
         break;
       case 'classic':
+        // About 1/5 down from top
         titleY = (canvasHeight - titleBarHeight) * 0.2;
         break;
       case 'center':
         titleY = (canvasHeight - titleBarHeight) / 2;
         break;
       case 'lower':
+        // About 4/5 down from top
         titleY = (canvasHeight - titleBarHeight) * 0.8;
         break;
       case 'bottom':
@@ -2123,15 +2118,10 @@ const BooklistApp = (function() {
         titleY = (canvasHeight - titleBarHeight) / 2;
     }
     
-    // Title section boundaries (includes margins)
-    const titleSectionTop = titleY - marginAbove;
-    const titleSectionBottom = titleY + titleBarHeight + marginBelow;
-    
-    // Calculate cover size based on available height (excluding title section)
-    const availableHeight = canvasHeight - (titleSectionBottom - titleSectionTop);
+    // Calculate cover size
+    const sectionHeight = (canvasHeight - titleBarHeight - 2 * titleGutter) / 2;
     const rowsPerSection = 2.5;
-    const sectionHeight = availableHeight / 2;
-    const slotHeight = Math.max((sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection, 50);
+    const slotHeight = (sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection;
     const slotWidth = slotHeight * bookAspect;
     
     // Spacing between cover centers
@@ -2153,6 +2143,28 @@ const BooklistApp = (function() {
         x: centerX + dx * cosA - dy * sinA,
         y: centerY + dx * sinA + dy * cosA
       };
+    };
+    
+    // Helper: check if a rotated rectangle intersects the canvas
+    const coverIntersectsBand = (cx, cy, bandTop, bandBottom) => {
+      const hw = slotWidth / 2;
+      const hh = slotHeight / 2;
+      const corners = [
+        { x: -hw, y: -hh },
+        { x: hw, y: -hh },
+        { x: hw, y: hh },
+        { x: -hw, y: hh }
+      ].map(c => ({
+        x: cx + c.x * cosA - c.y * sinA,
+        y: cy + c.x * sinA + c.y * cosA
+      }));
+      
+      const minY = Math.min(...corners.map(c => c.y));
+      const maxY = Math.max(...corners.map(c => c.y));
+      const minX = Math.min(...corners.map(c => c.x));
+      const maxX = Math.max(...corners.map(c => c.x));
+      
+      return maxX > 0 && minX < canvasWidth && maxY > bandTop && minY < bandBottom;
     };
     
     // Helper: draw a cover at rotated position
@@ -2192,16 +2204,30 @@ const BooklistApp = (function() {
     const gridExtent = canvasDiag * 0.8;
     
     const numCols = Math.ceil(gridExtent * 2 / hStep) + 2;
-    const numRows = 12;
+    const numRows = 12; // Enough rows to show all covers per column
     
     // Grid origin (top-left of virtual unrotated grid, centered on canvas)
     const gridOriginX = centerX - (numCols * hStep) / 2;
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
-    // Deterministic image selection
-    const getImageForCell = (row, col) => (row + col * 3) % 12;
+    // Deterministic image selection:
+    // Each column has images 0-11, offset by (col * 3) to prevent horizontal striping
+    const getImageForCell = (row, col) => {
+      return (row + col * 3) % 12;
+    };
     
-    // Function to draw all covers in the tilted grid
+    // === CALCULATE TITLE SECTION BOUNDARIES ===
+    // Margins around title bar based on position
+    let marginAbove = titleGutter;
+    let marginBelow = titleGutter;
+    if (position === 'top') marginAbove = 0;
+    if (position === 'bottom') marginBelow = 0;
+    
+    // Title section = title bar + margins (this is the "gap" area)
+    const titleSectionTop = titleY - marginAbove;
+    const titleSectionBottom = titleY + titleBarHeight + marginBelow;
+    
+    // Helper: draw all covers in the tilted grid
     const drawAllCovers = () => {
       for (let row = 0; row < numRows; row++) {
         for (let col = 0; col < numCols; col++) {
@@ -2221,9 +2247,7 @@ const BooklistApp = (function() {
           
           const rotated = rotatePoint(gridX, gridY);
           
-          // Basic bounds check (is it anywhere near the canvas?)
-          if (rotated.x > -slotWidth && rotated.x < canvasWidth + slotWidth &&
-              rotated.y > -slotHeight && rotated.y < canvasHeight + slotHeight) {
+          if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
             const imgIdx = getImageForCell(row, col);
             drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
           }
@@ -2251,12 +2275,10 @@ const BooklistApp = (function() {
       ctx.restore();
     }
     
-    // === DRAW TITLE BAR SECTION ===
-    // Fill title section with white background
+    // === DRAW TITLE BAR ===
+    // Fill the gap with white, then draw title
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, titleSectionTop, canvasWidth, titleSectionBottom - titleSectionTop);
-    
-    // Draw title bar text
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
   }
 
