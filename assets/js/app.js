@@ -1949,13 +1949,13 @@ const BooklistApp = (function() {
    * Layout: Staggered
    * Brick pattern with gutters, every row fills edge-to-edge (covers bleed off edges)
    * Title bar at configurable position
+   * Rows are flush with top and bottom edges
    */
   function drawLayoutStaggered(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     const position = options.titleBarPosition || 'center';
     
-    const titleBarHeight = calculateTitleBarHeight(ctx, styles);
     const bookAspect = 0.667;
     const hGutter = 6 * (CONFIG.PDF_DPI / 72);
     const vGutter = 6 * (CONFIG.PDF_DPI / 72);
@@ -1972,30 +1972,19 @@ const BooklistApp = (function() {
       default: rowsAbove = 2; rowsBelow = 2;
     }
     
-    // Calculate uniform slot height for ALL rows (important for consistent stagger pattern)
-    const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
-    const totalRows = 4;
-    const availableHeight = canvasHeight - titleBarHeight - marginCount * titleGutter - (totalRows - 1) * vGutter;
-    const slotHeight = availableHeight / totalRows;
-    
     // Helper to draw a row filling edge-to-edge with partial covers bleeding off both edges
     const drawBrickRow = (y, h, useOffset, imgOffset) => {
       const w = h * bookAspect;
       const spacing = w + hGutter;
       
-      // Calculate how many covers fit, plus extras for edge bleed
       const coversNeeded = Math.ceil(canvasWidth / spacing) + 2;
       const totalWidth = coversNeeded * w + (coversNeeded - 1) * hGutter;
       
-      // Center the row so equal amounts bleed off both edges
       let startX = (canvasWidth - totalWidth) / 2;
-      
-      // Apply offset for alternating rows
       if (useOffset) {
         startX -= spacing / 2;
       }
       
-      // Draw covers
       for (let i = 0; i < coversNeeded; i++) {
         const imgIdx = (imgOffset + i) % 12;
         const x = startX + i * spacing;
@@ -2003,64 +1992,65 @@ const BooklistApp = (function() {
       }
     };
     
-    // Track which row number we're on for consistent stagger pattern
-    let globalRowIndex = 0;
-    let imageOffset = 0;
-    let currentY = 0;
+    // First, draw title bar to get actual height
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
+    // Clear it - we'll redraw at correct position
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvasWidth, bgH + 1);
     
-    // Draw rows above title bar
-    for (let row = 0; row < rowsAbove; row++) {
-      const shouldOffset = globalRowIndex % 2 === 1;
-      drawBrickRow(currentY, slotHeight, shouldOffset, imageOffset);
-      imageOffset += 3;
-      globalRowIndex++;
-      currentY += slotHeight + vGutter;
-    }
+    // Calculate actual number of vGutters used
+    // For top/bottom: 3 (all 4 rows on one side)
+    // For middle positions: (rowsAbove-1) + (rowsBelow-1) = 2
+    const numVGutters = (position === 'top' || position === 'bottom') ? 3 : 
+                        (rowsAbove > 0 ? rowsAbove - 1 : 0) + (rowsBelow > 0 ? rowsBelow - 1 : 0);
     
-    // Calculate title bar Y position
+    // Calculate uniform slot height based on actual bgH and vGutter count
+    const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
+    const totalRowSpace = canvasHeight - bgH - marginCount * titleGutter;
+    const uniformSlotHeight = (totalRowSpace - numVGutters * vGutter) / 4;
+    
+    // Calculate title bar position based on uniform slot height
     let titleY;
     if (position === 'top') {
       titleY = 0;
     } else if (position === 'bottom') {
-      // Will adjust after getting actual bgH
-      titleY = canvasHeight - titleBarHeight;
-    } else {
-      // Replace last vGutter with titleGutter
-      if (rowsAbove > 0) {
-        currentY = currentY - vGutter + titleGutter;
-      }
-      titleY = currentY;
-    }
-    
-    // Draw title bar and get actual height
-    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, titleY);
-    
-    // For bottom position, recalculate titleY with actual bgH to ensure true flush
-    if (position === 'bottom' && bgH !== titleBarHeight) {
       titleY = canvasHeight - bgH;
-      // Redraw at correct position
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, canvasHeight - titleBarHeight - 1, canvasWidth, titleBarHeight + 1);
-      drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+    } else {
+      // Middle positions: title bar comes after rowsAbove rows + titleGutter
+      const aboveHeight = rowsAbove * uniformSlotHeight + (rowsAbove > 0 ? (rowsAbove - 1) * vGutter : 0);
+      titleY = aboveHeight + titleGutter;
     }
     
-    // Draw rows below title bar
-    if (rowsBelow > 0) {
-      let belowStartY;
-      if (position === 'top') {
-        belowStartY = bgH + titleGutter;
-      } else {
-        belowStartY = titleY + bgH + titleGutter;
-      }
-      
-      currentY = belowStartY;
-      for (let row = 0; row < rowsBelow; row++) {
+    // Draw rows above title bar (flush at top)
+    let globalRowIndex = 0;
+    let imageOffset = 0;
+    
+    if (rowsAbove > 0) {
+      let currentY = 0; // Start flush at top
+      for (let row = 0; row < rowsAbove; row++) {
         const shouldOffset = globalRowIndex % 2 === 1;
-        // Use same slotHeight as above rows for consistency
-        drawBrickRow(currentY, slotHeight, shouldOffset, imageOffset);
+        drawBrickRow(currentY, uniformSlotHeight, shouldOffset, imageOffset);
         imageOffset += 3;
         globalRowIndex++;
-        currentY += slotHeight + vGutter;
+        currentY += uniformSlotHeight + vGutter;
+      }
+    }
+    
+    // Draw title bar at correct position
+    drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+    
+    // Draw rows below title bar (flush at bottom)
+    if (rowsBelow > 0) {
+      // Work backwards from bottom to ensure flush
+      const belowTotalHeight = rowsBelow * uniformSlotHeight + (rowsBelow > 0 ? (rowsBelow - 1) * vGutter : 0);
+      let currentY = canvasHeight - belowTotalHeight; // Start so last row ends at bottom
+      
+      for (let row = 0; row < rowsBelow; row++) {
+        const shouldOffset = globalRowIndex % 2 === 1;
+        drawBrickRow(currentY, uniformSlotHeight, shouldOffset, imageOffset);
+        imageOffset += 3;
+        globalRowIndex++;
+        currentY += uniformSlotHeight + vGutter;
       }
     }
   }
