@@ -2290,56 +2290,53 @@ const BooklistApp = (function() {
     const { bgH: actualTitleHeight } = drawTitleBarAt(measureCtx, styles, canvasWidth, 0);
     
     // Recalculate titleY for bottom position using actual height
-    let actualTitleY = titleY;
+    let actualTitleY = Math.floor(titleY);
     if (position === 'bottom') {
-      actualTitleY = canvasHeight - actualTitleHeight;
+      actualTitleY = Math.floor(canvasHeight - actualTitleHeight);
     }
     
     // === CALCULATE TITLE SECTION BOUNDARIES ===
-    let marginAbove = titleGutter;
-    let marginBelow = titleGutter;
+    let marginAbove = Math.floor(titleGutter);
+    let marginBelow = Math.floor(titleGutter);
     if (position === 'top') marginAbove = 0;
     if (position === 'bottom') marginBelow = 0;
     
     // Floor to integers for pixel-perfect alignment
-    const titleSectionTop = Math.floor(actualTitleY - marginAbove);
-    const titleSectionBottom = Math.floor(actualTitleY + actualTitleHeight + marginBelow);
+    const titleSectionTop = Math.floor(actualTitleY) - marginAbove;
+    const titleSectionBottom = Math.floor(actualTitleY) + Math.floor(actualTitleHeight) + marginBelow;
     
     // === CUT AND PLACE COLLAGE ===
-    // Cut the collage at titleSectionTop
-    // Top portion stays at y=0
-    // Bottom portion shifts down to start at titleSectionBottom
-    
     // Reset any transforms
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     
-    // Draw top portion: clip to top area, draw tempCanvas at origin
-    if (titleSectionTop > 0) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, canvasWidth, titleSectionTop);
-      ctx.clip();
-      ctx.drawImage(tempCanvas, 0, 0);
-      ctx.restore();
+    // Force all coordinates to integers
+    const w = Math.floor(canvasWidth);
+    const h = Math.floor(canvasHeight);
+    const cutY = Math.floor(titleSectionTop);
+    const gapBottom = Math.floor(titleSectionBottom);
+    const topHeight = cutY;
+    const bottomHeight = h - gapBottom;
+    
+    // Draw top portion (from y=0 to y=cutY, placed at y=0)
+    if (topHeight > 0) {
+      ctx.drawImage(tempCanvas,
+        0, 0, w, topHeight,
+        0, 0, w, topHeight
+      );
     }
     
-    // Draw bottom portion: clip to bottom area, draw tempCanvas shifted down
-    const bottomAvailableHeight = canvasHeight - titleSectionBottom;
-    if (bottomAvailableHeight > 0) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, titleSectionBottom, canvasWidth, bottomAvailableHeight);
-      ctx.clip();
-      // Shift the tempCanvas down so that the part starting at titleSectionTop
-      // now appears at titleSectionBottom
-      const yOffset = Math.floor(titleSectionBottom - titleSectionTop);
-      ctx.drawImage(tempCanvas, 0, yOffset);
-      ctx.restore();
+    // Draw bottom portion (from y=cutY, placed at y=gapBottom)
+    // Source and dest heights must match to avoid scaling
+    if (bottomHeight > 0) {
+      ctx.drawImage(tempCanvas,
+        0, cutY, w, bottomHeight,
+        0, gapBottom, w, bottomHeight
+      );
     }
     
     // === DRAW TITLE SECTION ===
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, titleSectionTop, canvasWidth, titleSectionBottom - titleSectionTop);
+    ctx.fillRect(0, cutY, w, gapBottom - cutY);
     drawTitleBarAt(ctx, styles, canvasWidth, actualTitleY);
   }
 
