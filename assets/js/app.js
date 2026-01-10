@@ -2210,10 +2210,21 @@ const BooklistApp = (function() {
     const gridOriginX = centerX - (numCols * hStep) / 2;
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
-    // Deterministic image selection:
-    // Each column has images 0-11, offset by (col * 3) to prevent horizontal striping
+    // Deterministic image selection based on offset direction
     const getImageForCell = (row, col) => {
-      return (row + col * 3) % 12;
+      if (offsetDirection === 'horizontal') {
+        // Each row cycles through 3 consecutive books
+        // Row 0: 0,1,2,0,1,2...  Row 1: 3,4,5,3,4,5...  etc.
+        const rowGroup = (row % 4) * 3;  // 0, 3, 6, or 9
+        return rowGroup + (col % 3);
+      } else {
+        // Vertical: each column cycles through 6 books
+        // Odd columns use books 6-11, even columns use books 0-5
+        // Offset shifts by 2 for each pair of columns to reduce repetition
+        const colGroup = (col % 2) * 6;  // 0 or 6
+        const colOffset = Math.floor(col / 2) * 2;  // 0, 2, 4, 0, 2, 4...
+        return colGroup + ((row + colOffset) % 6);
+      }
     };
     
     // === DRAW FULL GRID ===
