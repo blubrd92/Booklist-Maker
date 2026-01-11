@@ -2164,7 +2164,13 @@ const BooklistApp = (function() {
       const minX = Math.min(...corners.map(c => c.x));
       const maxX = Math.max(...corners.map(c => c.x));
       
-      return maxX > 0 && minX < canvasWidth && maxY > 0 && minY < canvasHeight;
+      // Vertical stagger: use original padded bounds
+      // Horizontal stagger: use exact canvas bounds
+      if (offsetDirection === 'vertical') {
+        return maxX > 0 && minX < canvasWidth && maxY > -slotHeight && minY < canvasHeight + slotHeight;
+      } else {
+        return maxX > 0 && minX < canvasWidth && maxY > 0 && minY < canvasHeight;
+      }
     };
     
     // Helper: draw a cover at rotated position
