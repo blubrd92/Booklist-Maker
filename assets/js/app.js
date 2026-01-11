@@ -2184,19 +2184,19 @@ const BooklistApp = (function() {
     // Deterministic image selection based on offset direction
     const getImageForCell = (row, col) => {
       if (offsetDirection === 'horizontal') {
-        // Each row cycles through 4 consecutive books
-        // Row 0: 0,1,2,3,0,1,2,3...  Row 1: 4,5,6,7,4,5,6,7...  etc.
+        // Each row cycles through 2 consecutive books
+        // Row 0: 0,1,0,1...  Row 1: 2,3,2,3...  etc.
         // Column offset varies by row to reduce adjacent repetition
-        const rowGroup = (row % 3) * 4;  // 0, 4, or 8
-        const colOffset = row % 4;       // 0, 1, 2, 3, 0, 1, 2, 3...
-        return rowGroup + ((col + colOffset) % 4);
+        const rowGroup = (row % 6) * 2;  // 0, 2, 4, 6, 8, or 10
+        const colOffset = row % 2;       // 0, 1, 0, 1...
+        return rowGroup + ((col + colOffset) % 2);
       } else {
-        // Vertical: each column cycles through 3 books
-        // 4 column groups: 0-2, 3-5, 6-8, 9-11
+        // Vertical: each column cycles through 2 books
+        // 6 column groups: 0-1, 2-3, 4-5, 6-7, 8-9, 10-11
         // Row offset varies by column to reduce adjacent repetition
-        const colGroup = (col % 4) * 3;  // 0, 3, 6, or 9
-        const rowOffset = col % 3;  // 0, 1, 2, 0, 1, 2...
-        return colGroup + ((row + rowOffset) % 3);
+        const colGroup = (col % 6) * 2;  // 0, 2, 4, 6, 8, or 10
+        const rowOffset = col % 2;       // 0, 1, 0, 1...
+        return colGroup + ((row + rowOffset) % 2);
       }
     };
     
