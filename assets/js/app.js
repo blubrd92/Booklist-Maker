@@ -1711,6 +1711,7 @@ const BooklistApp = (function() {
    * Grid of covers with title bar at configurable position
    * Positions: top, classic, center, lower, bottom
    * Rows are flush with top and bottom edges
+   * Title bar position is percentage-based for consistency across layouts
    */
   function drawLayoutClassic(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -1739,37 +1740,72 @@ const BooklistApp = (function() {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvasWidth, bgH + 1);
     
-    // Calculate actual number of vGutters used
-    // For top/bottom: 3 (all 4 rows on one side)
-    // For middle positions: (rowsAbove-1) + (rowsBelow-1) = 2
-    const numVGutters = (position === 'top' || position === 'bottom') ? 3 : 
-                        (rowsAbove > 0 ? rowsAbove - 1 : 0) + (rowsBelow > 0 ? rowsBelow - 1 : 0);
+    // Calculate title bar Y position using percentages (consistent across layouts)
+    let titleY;
+    switch (position) {
+      case 'top':
+        titleY = 0;
+        break;
+      case 'classic':
+        titleY = (canvasHeight - bgH) * 0.25;
+        break;
+      case 'center':
+        titleY = (canvasHeight - bgH) * 0.5;
+        break;
+      case 'lower':
+        titleY = (canvasHeight - bgH) * 0.75;
+        break;
+      case 'bottom':
+        titleY = canvasHeight - bgH;
+        break;
+      default:
+        titleY = (canvasHeight - bgH) * 0.25;
+    }
     
-    // Calculate uniform slot height based on actual bgH and vGutter count
-    const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
-    const totalRowSpace = canvasHeight - bgH - marginCount * margin;
+    // Calculate available space for rows above and below
+    const aboveSpace = (position === 'top') ? 0 : titleY - margin;
+    const belowSpace = (position === 'bottom') ? 0 : canvasHeight - (titleY + bgH + margin);
     
-    // Use ratio-based vGutter calculation
+    // vGutter ratio
     const vGutterRatio = 0.08;
-    const totalVGutterRatio = numVGutters * vGutterRatio;
-    const slotHeight = totalRowSpace / (numRows + totalVGutterRatio);
-    const vGutter = slotHeight * vGutterRatio;
+    
+    // Calculate slot heights for above section
+    let aboveSlotHeight = 0;
+    let aboveVGutter = 0;
+    if (rowsAbove > 0) {
+      const aboveVGutterCount = rowsAbove - 1;
+      const aboveTotalVGutterRatio = aboveVGutterCount * vGutterRatio;
+      aboveSlotHeight = aboveSpace / (rowsAbove + aboveTotalVGutterRatio);
+      aboveVGutter = aboveSlotHeight * vGutterRatio;
+    }
+    
+    // Calculate slot heights for below section
+    let belowSlotHeight = 0;
+    let belowVGutter = 0;
+    if (rowsBelow > 0) {
+      const belowVGutterCount = rowsBelow - 1;
+      const belowTotalVGutterRatio = belowVGutterCount * vGutterRatio;
+      belowSlotHeight = belowSpace / (rowsBelow + belowTotalVGutterRatio);
+      belowVGutter = belowSlotHeight * vGutterRatio;
+    }
+    
+    // Use the smaller slot height for uniform sizing, or whichever is available
+    let slotHeight, vGutter;
+    if (rowsAbove === 0) {
+      slotHeight = belowSlotHeight;
+      vGutter = belowVGutter;
+    } else if (rowsBelow === 0) {
+      slotHeight = aboveSlotHeight;
+      vGutter = aboveVGutter;
+    } else {
+      // Use smaller to ensure both sections fit
+      slotHeight = Math.min(aboveSlotHeight, belowSlotHeight);
+      vGutter = slotHeight * vGutterRatio;
+    }
     
     // Calculate horizontal dimensions
     const slotWidth = slotHeight * bookAspect;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
-    
-    // Calculate title bar position based on uniform slot height
-    let titleY;
-    if (position === 'top') {
-      titleY = 0;
-    } else if (position === 'bottom') {
-      titleY = canvasHeight - bgH;
-    } else {
-      // Middle positions: title bar comes after rowsAbove rows + margin
-      const aboveHeight = rowsAbove * slotHeight + (rowsAbove > 0 ? (rowsAbove - 1) * vGutter : 0);
-      titleY = aboveHeight + margin;
-    }
     
     // Draw rows above title bar (flush at top)
     let imageIndex = 0;
@@ -1792,7 +1828,7 @@ const BooklistApp = (function() {
     // Draw rows below title bar (flush at bottom)
     if (rowsBelow > 0) {
       // Work backwards from bottom to ensure flush
-      const belowTotalHeight = rowsBelow * slotHeight + (rowsBelow > 0 ? (rowsBelow - 1) * vGutter : 0);
+      const belowTotalHeight = rowsBelow * slotHeight + (rowsBelow - 1) * vGutter;
       let currentY = canvasHeight - belowTotalHeight; // Start so last row ends at bottom
       
       for (let row = 0; row < rowsBelow; row++) {
@@ -1811,6 +1847,7 @@ const BooklistApp = (function() {
    * Grid of covers with shelf lines under each row
    * Title bar at configurable position
    * Rows are flush with top and bottom edges
+   * Title bar position is percentage-based for consistency across layouts
    */
   function drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -1843,25 +1880,72 @@ const BooklistApp = (function() {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvasWidth, bgH + 1);
     
-    // All 4 rows have shelves underneath
-    const numShelves = 4;
-    const totalShelfHeight = numShelves * shelfLineWidth;
+    // Calculate title bar Y position using percentages (consistent across layouts)
+    let titleY;
+    switch (position) {
+      case 'top':
+        titleY = 0;
+        break;
+      case 'classic':
+        titleY = (canvasHeight - bgH) * 0.25;
+        break;
+      case 'center':
+        titleY = (canvasHeight - bgH) * 0.5;
+        break;
+      case 'lower':
+        titleY = (canvasHeight - bgH) * 0.75;
+        break;
+      case 'bottom':
+        titleY = canvasHeight - bgH;
+        break;
+      default:
+        titleY = (canvasHeight - bgH) * 0.25;
+    }
     
-    // Calculate actual number of vGutters used
-    // For top/bottom: 3 (all 4 rows on one side)
-    // For middle positions: (rowsAbove-1) + (rowsBelow-1) = 2
-    const numVGutters = (position === 'top' || position === 'bottom') ? 3 : 
-                        (rowsAbove > 0 ? rowsAbove - 1 : 0) + (rowsBelow > 0 ? rowsBelow - 1 : 0);
+    // Shelf heights for above and below sections
+    const aboveShelfTotal = rowsAbove * shelfLineWidth;
+    const belowShelfTotal = rowsBelow * shelfLineWidth;
     
-    // Calculate uniform slot height based on actual bgH and vGutter count
-    const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
-    const totalRowSpace = canvasHeight - bgH - marginCount * margin - totalShelfHeight;
+    // Calculate available space for rows above and below
+    const aboveSpace = (position === 'top') ? 0 : titleY - margin - aboveShelfTotal;
+    const belowSpace = (position === 'bottom') ? 0 : canvasHeight - (titleY + bgH + margin) - belowShelfTotal;
     
-    // Use ratio-based vGutter calculation
+    // vGutter ratio
     const vGutterRatio = 0.05;
-    const totalVGutterRatio = numVGutters * vGutterRatio;
-    const slotHeight = totalRowSpace / (numRows + totalVGutterRatio);
-    const vGutter = slotHeight * vGutterRatio;
+    
+    // Calculate slot heights for above section
+    let aboveSlotHeight = 0;
+    let aboveVGutter = 0;
+    if (rowsAbove > 0) {
+      const aboveVGutterCount = rowsAbove - 1;
+      const aboveTotalVGutterRatio = aboveVGutterCount * vGutterRatio;
+      aboveSlotHeight = aboveSpace / (rowsAbove + aboveTotalVGutterRatio);
+      aboveVGutter = aboveSlotHeight * vGutterRatio;
+    }
+    
+    // Calculate slot heights for below section
+    let belowSlotHeight = 0;
+    let belowVGutter = 0;
+    if (rowsBelow > 0) {
+      const belowVGutterCount = rowsBelow - 1;
+      const belowTotalVGutterRatio = belowVGutterCount * vGutterRatio;
+      belowSlotHeight = belowSpace / (rowsBelow + belowTotalVGutterRatio);
+      belowVGutter = belowSlotHeight * vGutterRatio;
+    }
+    
+    // Use the smaller slot height for uniform sizing, or whichever is available
+    let slotHeight, vGutter;
+    if (rowsAbove === 0) {
+      slotHeight = belowSlotHeight;
+      vGutter = belowVGutter;
+    } else if (rowsBelow === 0) {
+      slotHeight = aboveSlotHeight;
+      vGutter = aboveVGutter;
+    } else {
+      // Use smaller to ensure both sections fit
+      slotHeight = Math.min(aboveSlotHeight, belowSlotHeight);
+      vGutter = slotHeight * vGutterRatio;
+    }
     
     // Calculate horizontal dimensions
     const slotWidth = slotHeight * bookAspect;
@@ -1878,18 +1962,6 @@ const BooklistApp = (function() {
       ctx.fillStyle = shelfColor;
       ctx.fillRect(hGutter - shelfOverhang, shelfY, canvasWidth - 2 * hGutter + 2 * shelfOverhang, shelfLineWidth);
     };
-    
-    // Calculate title bar position based on uniform slot height
-    let titleY;
-    if (position === 'top') {
-      titleY = 0;
-    } else if (position === 'bottom') {
-      titleY = canvasHeight - bgH;
-    } else {
-      // Middle positions: title bar comes after rowsAbove rows (each with book + shelf) + vGutters + margin
-      const aboveHeight = rowsAbove * (slotHeight + shelfLineWidth) + (rowsAbove > 0 ? (rowsAbove - 1) * vGutter : 0);
-      titleY = aboveHeight + margin;
-    }
     
     // Draw rows above title bar (flush at top)
     let imageIndex = 0;
@@ -1910,7 +1982,7 @@ const BooklistApp = (function() {
     if (rowsBelow > 0) {
       // Work backwards from bottom to ensure flush
       // Each row takes: slotHeight + shelfLineWidth, plus vGutter between rows
-      const belowTotalHeight = rowsBelow * (slotHeight + shelfLineWidth) + (rowsBelow > 0 ? (rowsBelow - 1) * vGutter : 0);
+      const belowTotalHeight = rowsBelow * (slotHeight + shelfLineWidth) + (rowsBelow - 1) * vGutter;
       let currentY = canvasHeight - belowTotalHeight; // Start so last shelf ends at bottom
       
       for (let row = 0; row < rowsBelow; row++) {
@@ -1926,6 +1998,7 @@ const BooklistApp = (function() {
    * Brick pattern with gutters, every row fills edge-to-edge (covers bleed off edges)
    * Title bar at configurable position
    * Rows are flush with top and bottom edges
+   * Title bar position is percentage-based for consistency across layouts
    */
   function drawLayoutStaggered(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -1974,27 +2047,53 @@ const BooklistApp = (function() {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvasWidth, bgH + 1);
     
-    // Calculate actual number of vGutters used
-    // For top/bottom: 3 (all 4 rows on one side)
-    // For middle positions: (rowsAbove-1) + (rowsBelow-1) = 2
-    const numVGutters = (position === 'top' || position === 'bottom') ? 3 : 
-                        (rowsAbove > 0 ? rowsAbove - 1 : 0) + (rowsBelow > 0 ? rowsBelow - 1 : 0);
-    
-    // Calculate uniform slot height based on actual bgH and vGutter count
-    const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
-    const totalRowSpace = canvasHeight - bgH - marginCount * titleGutter;
-    const uniformSlotHeight = (totalRowSpace - numVGutters * vGutter) / 4;
-    
-    // Calculate title bar position based on uniform slot height
+    // Calculate title bar Y position using percentages (consistent across layouts)
     let titleY;
-    if (position === 'top') {
-      titleY = 0;
-    } else if (position === 'bottom') {
-      titleY = canvasHeight - bgH;
+    switch (position) {
+      case 'top':
+        titleY = 0;
+        break;
+      case 'classic':
+        titleY = (canvasHeight - bgH) * 0.25;
+        break;
+      case 'center':
+        titleY = (canvasHeight - bgH) * 0.5;
+        break;
+      case 'lower':
+        titleY = (canvasHeight - bgH) * 0.75;
+        break;
+      case 'bottom':
+        titleY = canvasHeight - bgH;
+        break;
+      default:
+        titleY = (canvasHeight - bgH) * 0.5;
+    }
+    
+    // Calculate available space for rows above and below
+    const aboveSpace = (position === 'top') ? 0 : titleY - titleGutter;
+    const belowSpace = (position === 'bottom') ? 0 : canvasHeight - (titleY + bgH + titleGutter);
+    
+    // Calculate slot heights for above section
+    let aboveSlotHeight = 0;
+    if (rowsAbove > 0) {
+      aboveSlotHeight = (aboveSpace - (rowsAbove - 1) * vGutter) / rowsAbove;
+    }
+    
+    // Calculate slot heights for below section
+    let belowSlotHeight = 0;
+    if (rowsBelow > 0) {
+      belowSlotHeight = (belowSpace - (rowsBelow - 1) * vGutter) / rowsBelow;
+    }
+    
+    // Use the smaller slot height for uniform sizing, or whichever is available
+    let uniformSlotHeight;
+    if (rowsAbove === 0) {
+      uniformSlotHeight = belowSlotHeight;
+    } else if (rowsBelow === 0) {
+      uniformSlotHeight = aboveSlotHeight;
     } else {
-      // Middle positions: title bar comes after rowsAbove rows + titleGutter
-      const aboveHeight = rowsAbove * uniformSlotHeight + (rowsAbove > 0 ? (rowsAbove - 1) * vGutter : 0);
-      titleY = aboveHeight + titleGutter;
+      // Use smaller to ensure both sections fit
+      uniformSlotHeight = Math.min(aboveSlotHeight, belowSlotHeight);
     }
     
     // Draw rows above title bar (flush at top)
@@ -2018,7 +2117,7 @@ const BooklistApp = (function() {
     // Draw rows below title bar (flush at bottom)
     if (rowsBelow > 0) {
       // Work backwards from bottom to ensure flush
-      const belowTotalHeight = rowsBelow * uniformSlotHeight + (rowsBelow > 0 ? (rowsBelow - 1) * vGutter : 0);
+      const belowTotalHeight = rowsBelow * uniformSlotHeight + (rowsBelow - 1) * vGutter;
       let currentY = canvasHeight - belowTotalHeight; // Start so last row ends at bottom
       
       for (let row = 0; row < rowsBelow; row++) {
