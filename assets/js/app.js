@@ -3171,4 +3171,7 @@ function openTab(evt, tabName) {
 
 // =============================================================================
 // INITIALIZATION
-// 
+// =============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  BooklistApp.init();
+});
