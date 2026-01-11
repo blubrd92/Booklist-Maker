@@ -2072,15 +2072,15 @@ const BooklistApp = (function() {
         titleY = 0;
         break;
       case 'classic':
-        // About 1/5 down from top
-        titleY = (canvasHeight - bgH) * 0.2;
+        // About 1/4 down from top
+        titleY = (canvasHeight - bgH) * 0.25;
         break;
       case 'center':
         titleY = (canvasHeight - bgH) / 2;
         break;
       case 'lower':
-        // About 4/5 down from top
-        titleY = (canvasHeight - bgH) * 0.8;
+        // About 3/4 down from top
+        titleY = (canvasHeight - bgH) * 0.75;
         break;
       case 'bottom':
         titleY = canvasHeight - bgH;
