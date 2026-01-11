@@ -2186,8 +2186,10 @@ const BooklistApp = (function() {
       if (offsetDirection === 'horizontal') {
         // Each row cycles through 4 consecutive books
         // Row 0: 0,1,2,3,0,1,2,3...  Row 1: 4,5,6,7,4,5,6,7...  etc.
+        // Column offset varies by row to reduce adjacent repetition
         const rowGroup = (row % 3) * 4;  // 0, 4, or 8
-        return rowGroup + (col % 4);
+        const colOffset = row % 4;       // 0, 1, 2, 3, 0, 1, 2, 3...
+        return rowGroup + ((col + colOffset) % 4);
       } else {
         // Vertical: each column cycles through 3 books
         // 4 column groups: 0-2, 3-5, 6-8, 9-11
