@@ -625,10 +625,10 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 
 #collage-layout-selector {
   display: flex;
-  gap: 4px;
+  gap: 12px;
   flex-wrap: nowrap;
   padding: 10px 0;
-  justify-content: space-between;
+  justify-content: center;
 }
 
 .layout-option {
