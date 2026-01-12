@@ -155,6 +155,8 @@ const BooklistApp = (function() {
       tiltedSettings: document.getElementById('tilted-settings'),
       tiltDegree: document.getElementById('tilt-degree'),
       tiltOffsetDirection: document.getElementById('tilt-offset-direction'),
+      classicSettings: document.getElementById('classic-settings'),
+      showShelvesToggle: document.getElementById('show-shelves-toggle'),
       
       // Simple mode elements
       coverTitleInput: document.getElementById('cover-title-input'),
@@ -728,6 +730,9 @@ const BooklistApp = (function() {
     const selectedLayout = elements.collageLayoutSelector?.querySelector('.layout-option.selected')?.dataset.layout || 'classic';
     if (elements.tiltedSettings) {
       elements.tiltedSettings.style.display = selectedLayout === 'tilted' ? 'block' : 'none';
+    }
+    if (elements.classicSettings) {
+      elements.classicSettings.style.display = selectedLayout === 'classic' ? 'block' : 'none';
     }
   }
   
@@ -1525,9 +1530,6 @@ const BooklistApp = (function() {
     }).then(images => {
       // Draw based on selected layout
       switch (selectedLayout) {
-        case 'bookshelf':
-          drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
-          break;
         case 'staggered':
           drawLayoutStaggered(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
           break;
@@ -1536,7 +1538,12 @@ const BooklistApp = (function() {
           break;
         case 'classic':
         default:
-          drawLayoutClassic(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
+          // Check if shelves toggle is enabled for classic layout
+          if (elements.showShelvesToggle?.checked) {
+            drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
+          } else {
+            drawLayoutClassic(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
+          }
           break;
       }
       
@@ -2503,6 +2510,7 @@ const BooklistApp = (function() {
         coverTitle, // Simple mode text (backwards compatible)
         coverLineTexts, // Advanced mode texts
         collageLayout: selectedLayout,
+        showShelves: !!elements.showShelvesToggle?.checked,
         titleBarPosition,
         tiltDegree,
         tiltOffsetDirection,
@@ -2654,6 +2662,11 @@ const BooklistApp = (function() {
       elements.collageLayoutSelector.querySelectorAll('.layout-option').forEach(opt => {
         opt.classList.toggle('selected', opt.dataset.layout === savedLayout);
       });
+    }
+    
+    // Restore show shelves toggle for classic layout
+    if (elements.showShelvesToggle) {
+      elements.showShelvesToggle.checked = !!loaded.ui?.showShelves;
     }
     
     // Restore title bar position
@@ -2895,6 +2908,14 @@ const BooklistApp = (function() {
           debouncedSave();
           autoRegenerateCoverIfAble();
         });
+      });
+    }
+    
+    // Show shelves toggle for classic layout
+    if (elements.showShelvesToggle) {
+      elements.showShelvesToggle.addEventListener('change', () => {
+        debouncedSave();
+        autoRegenerateCoverIfAble();
       });
     }
     
