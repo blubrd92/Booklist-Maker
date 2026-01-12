@@ -439,94 +439,105 @@
             <div id="collage-layout-selector" aria-label="Select collage layout">
               <div class="layout-option selected" data-layout="classic" title="Classic: grid layout">
                 <svg viewBox="0 0 40 50">
-                  <rect x="2" y="0" width="10" height="12" rx="1"/>
-                  <rect x="15" y="0" width="10" height="12" rx="1"/>
-                  <rect x="28" y="0" width="10" height="12" rx="1"/>
-                  <rect x="2" y="15" width="36" height="5" rx="1"/>
-                  <rect x="2" y="23" width="10" height="8" rx="1"/>
-                  <rect x="15" y="23" width="10" height="8" rx="1"/>
-                  <rect x="28" y="23" width="10" height="8" rx="1"/>
-                  <rect x="2" y="33" width="10" height="8" rx="1"/>
-                  <rect x="15" y="33" width="10" height="8" rx="1"/>
-                  <rect x="28" y="33" width="10" height="8" rx="1"/>
-                  <rect x="2" y="43" width="10" height="7" rx="1"/>
-                  <rect x="15" y="43" width="10" height="7" rx="1"/>
-                  <rect x="28" y="43" width="10" height="7" rx="1"/>
+                  <!-- Classic: 3 cols × 4 rows, title bar after row 1, flush edges, 0.75 aspect -->
+                  <!-- Row 1 (flush top) -->
+                  <rect x="4" y="0" width="8" height="10.5" rx="0.5"/>
+                  <rect x="16" y="0" width="8" height="10.5" rx="0.5"/>
+                  <rect x="28" y="0" width="8" height="10.5" rx="0.5"/>
+                  <!-- Title bar -->
+                  <rect x="4" y="12" width="32" height="4" rx="0.5"/>
+                  <!-- Row 2 -->
+                  <rect x="4" y="17.5" width="8" height="10.5" rx="0.5"/>
+                  <rect x="16" y="17.5" width="8" height="10.5" rx="0.5"/>
+                  <rect x="28" y="17.5" width="8" height="10.5" rx="0.5"/>
+                  <!-- Row 3 -->
+                  <rect x="4" y="29" width="8" height="10.5" rx="0.5"/>
+                  <rect x="16" y="29" width="8" height="10.5" rx="0.5"/>
+                  <rect x="28" y="29" width="8" height="10.5" rx="0.5"/>
+                  <!-- Row 4 (flush bottom) -->
+                  <rect x="4" y="40.5" width="8" height="9.5" rx="0.5"/>
+                  <rect x="16" y="40.5" width="8" height="9.5" rx="0.5"/>
+                  <rect x="28" y="40.5" width="8" height="9.5" rx="0.5"/>
                 </svg>
                 <span class="layout-option-label">Classic</span>
               </div>
               <div class="layout-option" data-layout="staggered" title="Staggered: brick pattern, fills edge-to-edge">
                 <svg viewBox="0 0 40 50">
-                  <!-- Row 1 (no offset) -->
-                  <rect x="-3" y="0" width="8" height="11" rx="1"/>
-                  <rect x="7" y="0" width="8" height="11" rx="1"/>
-                  <rect x="17" y="0" width="8" height="11" rx="1"/>
-                  <rect x="27" y="0" width="8" height="11" rx="1"/>
-                  <rect x="37" y="0" width="8" height="11" rx="1"/>
-                  <!-- Row 2 (offset right) -->
-                  <rect x="2" y="12" width="8" height="11" rx="1"/>
-                  <rect x="12" y="12" width="8" height="11" rx="1"/>
-                  <rect x="22" y="12" width="8" height="11" rx="1"/>
-                  <rect x="32" y="12" width="8" height="11" rx="1"/>
-                  <!-- Title bar -->
-                  <rect x="2" y="24" width="36" height="4" rx="1"/>
+                  <!-- Staggered: brick pattern, covers bleed off edges, 0.667 aspect, center title -->
+                  <!-- Row 1 (flush top, no offset) -->
+                  <rect x="-2" y="0" width="7" height="10.5" rx="0.5"/>
+                  <rect x="6.5" y="0" width="7" height="10.5" rx="0.5"/>
+                  <rect x="15" y="0" width="7" height="10.5" rx="0.5"/>
+                  <rect x="23.5" y="0" width="7" height="10.5" rx="0.5"/>
+                  <rect x="32" y="0" width="7" height="10.5" rx="0.5"/>
+                  <!-- Row 2 (offset) -->
+                  <rect x="2" y="11.5" width="7" height="10.5" rx="0.5"/>
+                  <rect x="10.5" y="11.5" width="7" height="10.5" rx="0.5"/>
+                  <rect x="19" y="11.5" width="7" height="10.5" rx="0.5"/>
+                  <rect x="27.5" y="11.5" width="7" height="10.5" rx="0.5"/>
+                  <rect x="36" y="11.5" width="7" height="10.5" rx="0.5"/>
+                  <!-- Title bar (center) -->
+                  <rect x="2" y="23" width="36" height="4" rx="0.5"/>
                   <!-- Row 3 (no offset) -->
-                  <rect x="-3" y="29" width="8" height="11" rx="1"/>
-                  <rect x="7" y="29" width="8" height="11" rx="1"/>
-                  <rect x="17" y="29" width="8" height="11" rx="1"/>
-                  <rect x="27" y="29" width="8" height="11" rx="1"/>
-                  <rect x="37" y="29" width="8" height="11" rx="1"/>
-                  <!-- Row 4 (offset right) -->
-                  <rect x="2" y="41" width="8" height="9" rx="1"/>
-                  <rect x="12" y="41" width="8" height="9" rx="1"/>
-                  <rect x="22" y="41" width="8" height="9" rx="1"/>
-                  <rect x="32" y="41" width="8" height="9" rx="1"/>
+                  <rect x="-2" y="28" width="7" height="10.5" rx="0.5"/>
+                  <rect x="6.5" y="28" width="7" height="10.5" rx="0.5"/>
+                  <rect x="15" y="28" width="7" height="10.5" rx="0.5"/>
+                  <rect x="23.5" y="28" width="7" height="10.5" rx="0.5"/>
+                  <rect x="32" y="28" width="7" height="10.5" rx="0.5"/>
+                  <!-- Row 4 (offset, flush bottom) -->
+                  <rect x="2" y="39.5" width="7" height="10.5" rx="0.5"/>
+                  <rect x="10.5" y="39.5" width="7" height="10.5" rx="0.5"/>
+                  <rect x="19" y="39.5" width="7" height="10.5" rx="0.5"/>
+                  <rect x="27.5" y="39.5" width="7" height="10.5" rx="0.5"/>
+                  <rect x="36" y="39.5" width="7" height="10.5" rx="0.5"/>
                 </svg>
                 <span class="layout-option-label">Staggered</span>
               </div>
               <div class="layout-option" data-layout="tilted" title="Tilted: rotated diagonal covers">
                 <svg viewBox="0 0 40 50" style="overflow: hidden;">
-                  <!-- Rotated grid with vertical column stagger, extends beyond edges -->
-                  <g transform="rotate(-25 20 25)">
-                    <!-- Row 0 (partial, above canvas) -->
-                    <rect x="-11" y="-8" width="8" height="12" rx="1"/>
-                    <rect x="0" y="-2" width="8" height="12" rx="1"/>
-                    <rect x="11" y="-8" width="8" height="12" rx="1"/>
-                    <rect x="22" y="-2" width="8" height="12" rx="1"/>
-                    <rect x="33" y="-8" width="8" height="12" rx="1"/>
-                    <rect x="44" y="-2" width="8" height="12" rx="1"/>
-                    <!-- Row 1 -->
-                    <rect x="-11" y="6" width="8" height="12" rx="1"/>
-                    <rect x="0" y="12" width="8" height="12" rx="1"/>
-                    <rect x="11" y="6" width="8" height="12" rx="1"/>
-                    <rect x="22" y="12" width="8" height="12" rx="1"/>
-                    <rect x="33" y="6" width="8" height="12" rx="1"/>
-                    <rect x="44" y="12" width="8" height="12" rx="1"/>
-                    <!-- Row 2 -->
-                    <rect x="-11" y="20" width="8" height="12" rx="1"/>
-                    <rect x="0" y="26" width="8" height="12" rx="1"/>
-                    <rect x="11" y="20" width="8" height="12" rx="1"/>
-                    <rect x="22" y="26" width="8" height="12" rx="1"/>
-                    <rect x="33" y="20" width="8" height="12" rx="1"/>
-                    <rect x="44" y="26" width="8" height="12" rx="1"/>
-                    <!-- Row 3 -->
-                    <rect x="-11" y="34" width="8" height="12" rx="1"/>
-                    <rect x="0" y="40" width="8" height="12" rx="1"/>
-                    <rect x="11" y="34" width="8" height="12" rx="1"/>
-                    <rect x="22" y="40" width="8" height="12" rx="1"/>
-                    <rect x="33" y="34" width="8" height="12" rx="1"/>
-                    <rect x="44" y="40" width="8" height="12" rx="1"/>
-                    <!-- Row 4 (partial, below canvas) -->
-                    <rect x="-11" y="48" width="8" height="12" rx="1"/>
-                    <rect x="0" y="54" width="8" height="12" rx="1"/>
-                    <rect x="11" y="48" width="8" height="12" rx="1"/>
-                    <rect x="22" y="54" width="8" height="12" rx="1"/>
-                    <rect x="33" y="48" width="8" height="12" rx="1"/>
-                    <rect x="44" y="54" width="8" height="12" rx="1"/>
+                  <!-- Tilted: rotated grid with vertical column stagger, covers bleed all edges -->
+                  <g transform="rotate(-20 20 25)">
+                    <!-- Column pattern with vertical stagger (odd cols offset down) -->
+                    <!-- Col 1 -->
+                    <rect x="-6" y="-6" width="7" height="10.5" rx="0.5"/>
+                    <rect x="-6" y="6" width="7" height="10.5" rx="0.5"/>
+                    <rect x="-6" y="18" width="7" height="10.5" rx="0.5"/>
+                    <rect x="-6" y="30" width="7" height="10.5" rx="0.5"/>
+                    <rect x="-6" y="42" width="7" height="10.5" rx="0.5"/>
+                    <!-- Col 2 (offset) -->
+                    <rect x="3" y="0" width="7" height="10.5" rx="0.5"/>
+                    <rect x="3" y="12" width="7" height="10.5" rx="0.5"/>
+                    <rect x="3" y="24" width="7" height="10.5" rx="0.5"/>
+                    <rect x="3" y="36" width="7" height="10.5" rx="0.5"/>
+                    <rect x="3" y="48" width="7" height="10.5" rx="0.5"/>
+                    <!-- Col 3 -->
+                    <rect x="12" y="-6" width="7" height="10.5" rx="0.5"/>
+                    <rect x="12" y="6" width="7" height="10.5" rx="0.5"/>
+                    <rect x="12" y="18" width="7" height="10.5" rx="0.5"/>
+                    <rect x="12" y="30" width="7" height="10.5" rx="0.5"/>
+                    <rect x="12" y="42" width="7" height="10.5" rx="0.5"/>
+                    <!-- Col 4 (offset) -->
+                    <rect x="21" y="0" width="7" height="10.5" rx="0.5"/>
+                    <rect x="21" y="12" width="7" height="10.5" rx="0.5"/>
+                    <rect x="21" y="24" width="7" height="10.5" rx="0.5"/>
+                    <rect x="21" y="36" width="7" height="10.5" rx="0.5"/>
+                    <rect x="21" y="48" width="7" height="10.5" rx="0.5"/>
+                    <!-- Col 5 -->
+                    <rect x="30" y="-6" width="7" height="10.5" rx="0.5"/>
+                    <rect x="30" y="6" width="7" height="10.5" rx="0.5"/>
+                    <rect x="30" y="18" width="7" height="10.5" rx="0.5"/>
+                    <rect x="30" y="30" width="7" height="10.5" rx="0.5"/>
+                    <rect x="30" y="42" width="7" height="10.5" rx="0.5"/>
+                    <!-- Col 6 (offset) -->
+                    <rect x="39" y="0" width="7" height="10.5" rx="0.5"/>
+                    <rect x="39" y="12" width="7" height="10.5" rx="0.5"/>
+                    <rect x="39" y="24" width="7" height="10.5" rx="0.5"/>
+                    <rect x="39" y="36" width="7" height="10.5" rx="0.5"/>
+                    <rect x="39" y="48" width="7" height="10.5" rx="0.5"/>
                   </g>
-                  <!-- Title bar (not rotated, on top with white margin) -->
+                  <!-- Title bar overlaid (not rotated) with white background -->
                   <rect x="0" y="21" width="40" height="8" fill="white"/>
-                  <rect x="2" y="23" width="36" height="4" rx="1"/>
+                  <rect x="2" y="23" width="36" height="4" rx="0.5"/>
                 </svg>
                 <span class="layout-option-label">Tilted</span>
               </div>
