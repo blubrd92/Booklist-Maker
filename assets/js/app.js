@@ -148,7 +148,6 @@ const BooklistApp = (function() {
       coverAdvancedMode: document.getElementById('cover-advanced-mode'),
       coverSimpleStyle: document.getElementById('cover-simple-style'),
       coverAdvancedStyle: document.getElementById('cover-advanced-style'),
-      coverLineSpacing: document.getElementById('cover-line-spacing'),
       
       // Collage layout selector (in Settings)
       collageLayoutSelector: document.getElementById('collage-layout-selector'),
@@ -165,7 +164,7 @@ const BooklistApp = (function() {
       coverItalicToggle: document.getElementById('cover-italic-toggle'),
       coverTextColor: document.getElementById('cover-text-color'),
       
-      // Advanced mode: 3 lines with full styling
+      // Advanced mode: 3 lines with full styling (spacing only for lines 2 and 3)
       coverLines: [
         {
           input: document.getElementById('cover-line-1'),
@@ -174,6 +173,7 @@ const BooklistApp = (function() {
           bold: document.getElementById('line-1-bold'),
           italic: document.getElementById('line-1-italic'),
           color: document.getElementById('line-1-color'),
+          spacing: null, // Line 1 has no spacing above it
         },
         {
           input: document.getElementById('cover-line-2'),
@@ -182,6 +182,7 @@ const BooklistApp = (function() {
           bold: document.getElementById('line-2-bold'),
           italic: document.getElementById('line-2-italic'),
           color: document.getElementById('line-2-color'),
+          spacing: document.getElementById('line-2-spacing'),
         },
         {
           input: document.getElementById('cover-line-3'),
@@ -190,6 +191,7 @@ const BooklistApp = (function() {
           bold: document.getElementById('line-3-bold'),
           italic: document.getElementById('line-3-italic'),
           color: document.getElementById('line-3-color'),
+          spacing: document.getElementById('line-3-spacing'),
         },
       ],
       
@@ -1187,9 +1189,8 @@ const BooklistApp = (function() {
         text,
       };
     } else {
-      // Advanced mode: per-line styling
-      const lineSpacingPt = parseFloat(elements.coverLineSpacing?.value || '10');
-      const lines = elements.coverLines.map(line => {
+      // Advanced mode: per-line styling with individual spacing
+      const lines = elements.coverLines.map((line, index) => {
         const text = (line.input?.value || '').trim();
         if (!text) return null; // Skip empty lines
         
@@ -1198,6 +1199,11 @@ const BooklistApp = (function() {
         const isBold = line.bold?.classList.contains('active') || false;
         const isItalic = line.italic?.classList.contains('active') || false;
         const color = line.color?.value || '#FFFFFF';
+        
+        // Get per-line spacing (only for lines 2 and 3, index 1 and 2)
+        const spacingPt = (index > 0 && line.spacing) 
+          ? parseFloat(line.spacing.value || '10') 
+          : 0;
         
         let fontStyle = '';
         if (isItalic) fontStyle += 'italic ';
@@ -1210,6 +1216,7 @@ const BooklistApp = (function() {
           sizePx: sizePt * pxPerPt,
           sizePt,
           color,
+          spacingPx: spacingPt * pxPerPt,
         };
       }).filter(line => line !== null);
       
@@ -1217,7 +1224,6 @@ const BooklistApp = (function() {
         ...layoutSettings,
         isAdvancedMode: true,
         lines,
-        lineSpacingPx: lineSpacingPt * pxPerPt,
       };
     }
   }
@@ -1345,6 +1351,9 @@ const BooklistApp = (function() {
       ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
       const wrappedLines = wrapTextMultiline(styles.text, availableTextWidth);
       
+      // Default gap for simple mode
+      const defaultGapPx = 8 * (CONFIG.PDF_DPI / 72);
+      
       wrappedLines.forEach(wrappedText => {
         const m = ctx.measureText(wrappedText);
         const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
@@ -1358,20 +1367,21 @@ const BooklistApp = (function() {
           ascent,
           descent,
           height: ascent + descent,
+          spacingPx: defaultGapPx, // Uniform spacing for simple mode
         });
       });
     } else {
-      // Advanced mode: multiple lines with individual styling
+      // Advanced mode: multiple lines with individual styling and spacing
       if (!styles.lines || styles.lines.length === 0) {
         const bgY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
         return { bgY, bgH: 0 };
       }
       
-      styles.lines.forEach(lineData => {
+      styles.lines.forEach((lineData, lineIndex) => {
         ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
         const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
         
-        wrappedLines.forEach(wrappedText => {
+        wrappedLines.forEach((wrappedText, wrapIndex) => {
           const m = ctx.measureText(wrappedText);
           const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
           const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
@@ -1384,6 +1394,8 @@ const BooklistApp = (function() {
             ascent,
             descent,
             height: ascent + descent,
+            // Only apply spacing before the first wrapped segment of each line
+            spacingPx: wrapIndex === 0 ? lineData.spacingPx : 0,
           });
         });
       });
@@ -1394,17 +1406,14 @@ const BooklistApp = (function() {
       return { bgY, bgH: 0 };
     }
     
-    // Calculate total height with gaps between lines
-    // Use custom spacing for advanced mode, default 8pt for simple mode
-    const defaultGapPx = 8 * (CONFIG.PDF_DPI / 72);
-    const lineGapPx = styles.lineSpacingPx !== undefined ? styles.lineSpacingPx : defaultGapPx;
-    
+    // Calculate total height with per-line spacing
     let textBlockHeight = 0;
     processedLines.forEach((line, i) => {
-      textBlockHeight += line.height;
-      if (i < processedLines.length - 1) {
-        textBlockHeight += lineGapPx;
+      // Add spacing before this line (except for the first line)
+      if (i > 0) {
+        textBlockHeight += line.spacingPx;
       }
+      textBlockHeight += line.height;
     });
     
     const bgH = textBlockHeight + 2 * styles.padYPx;
@@ -1425,14 +1434,15 @@ const BooklistApp = (function() {
     let y = bgY + styles.padYPx;
     
     processedLines.forEach((line, i) => {
+      // Add spacing before this line (except for the first line)
+      if (i > 0) {
+        y += line.spacingPx;
+      }
       ctx.font = `${line.fontStyle} ${line.sizePx}px ${line.font}, sans-serif`;
       ctx.fillStyle = line.color;
       const baselineY = y + line.ascent;
       ctx.fillText(line.text.trim(), centerX, baselineY);
       y += line.height;
-      if (i < processedLines.length - 1) {
-        y += lineGapPx;
-      }
     });
     
     return { bgY, bgH };
@@ -1555,7 +1565,6 @@ const BooklistApp = (function() {
     
     let titleBarHeight = 0;
     const defaultGapPx = 8 * (CONFIG.PDF_DPI / 72);
-    const lineGapPx = styles.lineSpacingPx !== undefined ? styles.lineSpacingPx : defaultGapPx;
     
     if (!styles.isAdvancedMode) {
       if (styles.text && styles.text.length > 0) {
@@ -1569,7 +1578,7 @@ const BooklistApp = (function() {
           const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
           textBlockHeight += ascent + descent;
           if (i < wrappedLines.length - 1) {
-            textBlockHeight += lineGapPx; // Use consistent gap
+            textBlockHeight += defaultGapPx; // Use consistent gap for simple mode
           }
         });
         
@@ -1578,23 +1587,25 @@ const BooklistApp = (function() {
     } else {
       if (styles.lines && styles.lines.length > 0) {
         let textBlockHeight = 0;
-        let totalWrappedLines = 0;
+        let isFirstProcessedLine = true;
         
-        styles.lines.forEach((lineData, i) => {
+        styles.lines.forEach((lineData, lineIndex) => {
           ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
           const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
           
-          wrappedLines.forEach((wrappedText, j) => {
+          wrappedLines.forEach((wrappedText, wrapIndex) => {
             const m = ctx.measureText(wrappedText);
             const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
             const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
+            
+            // Add spacing before this line (except for the very first line)
+            if (!isFirstProcessedLine && wrapIndex === 0) {
+              textBlockHeight += lineData.spacingPx;
+            }
+            
             textBlockHeight += ascent + descent;
-            totalWrappedLines++;
+            isFirstProcessedLine = false;
           });
-          
-          if (i < styles.lines.length - 1) {
-            textBlockHeight += lineGapPx;
-          }
         });
         
         titleBarHeight = textBlockHeight + 2 * styles.padYPx;
@@ -1614,7 +1625,6 @@ const BooklistApp = (function() {
     
     const processedLines = [];
     const defaultGapPx = 8 * (CONFIG.PDF_DPI / 72);
-    const lineGapPx = styles.lineSpacingPx !== undefined ? styles.lineSpacingPx : defaultGapPx;
     
     if (!styles.isAdvancedMode) {
       if (!styles.text || styles.text.length === 0) {
@@ -1637,6 +1647,7 @@ const BooklistApp = (function() {
           ascent,
           descent,
           height: ascent + descent,
+          spacingPx: defaultGapPx,
         });
       });
     } else {
@@ -1644,11 +1655,11 @@ const BooklistApp = (function() {
         return { bgY: yPosition, bgH: 0 };
       }
       
-      styles.lines.forEach(lineData => {
+      styles.lines.forEach((lineData, lineIndex) => {
         ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
         const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
         
-        wrappedLines.forEach(wrappedText => {
+        wrappedLines.forEach((wrappedText, wrapIndex) => {
           const m = ctx.measureText(wrappedText);
           const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
           const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
@@ -1661,6 +1672,8 @@ const BooklistApp = (function() {
             ascent,
             descent,
             height: ascent + descent,
+            // Only apply spacing before the first wrapped segment of each line
+            spacingPx: wrapIndex === 0 ? lineData.spacingPx : 0,
           });
         });
       });
@@ -1670,12 +1683,13 @@ const BooklistApp = (function() {
       return { bgY: yPosition, bgH: 0 };
     }
     
+    // Calculate total height with per-line spacing
     let textBlockHeight = 0;
     processedLines.forEach((line, i) => {
-      textBlockHeight += line.height;
-      if (i < processedLines.length - 1) {
-        textBlockHeight += lineGapPx;
+      if (i > 0) {
+        textBlockHeight += line.spacingPx;
       }
+      textBlockHeight += line.height;
     });
     
     const bgH = textBlockHeight + 2 * styles.padYPx;
@@ -1693,14 +1707,14 @@ const BooklistApp = (function() {
     let y = bgY + styles.padYPx;
     
     processedLines.forEach((line, i) => {
+      if (i > 0) {
+        y += line.spacingPx;
+      }
       ctx.font = `${line.fontStyle} ${line.sizePx}px ${line.font}, sans-serif`;
       ctx.fillStyle = line.color;
       const baselineY = y + line.ascent;
       ctx.fillText(line.text.trim(), centerX, baselineY);
       y += line.height;
-      if (i < processedLines.length - 1) {
-        y += lineGapPx;
-      }
     });
     
     return { bgY, bgH };
@@ -2426,15 +2440,15 @@ const BooklistApp = (function() {
         bold: !!elements.coverBoldToggle?.classList.contains('active'),
         italic: !!elements.coverItalicToggle?.classList.contains('active'),
       },
-      // Advanced mode per-line styling
-      lines: elements.coverLines.map(line => ({
+      // Advanced mode per-line styling with individual spacing
+      lines: elements.coverLines.map((line, index) => ({
         font: line.font?.value ?? "'Oswald', sans-serif",
         sizePt: parseFloat(line.size?.value ?? '24'),
         color: line.color?.value ?? '#FFFFFF',
         bold: !!line.bold?.classList.contains('active'),
         italic: !!line.italic?.classList.contains('active'),
+        spacingPt: (index > 0 && line.spacing) ? parseFloat(line.spacing.value ?? '10') : 0,
       })),
-      lineSpacingPt: parseFloat(elements.coverLineSpacing?.value ?? '10'),
     };
     
     return styles;
@@ -2564,7 +2578,7 @@ const BooklistApp = (function() {
     if (elements.coverBoldToggle) elements.coverBoldToggle.classList.toggle('active', simple.bold !== false);
     if (elements.coverItalicToggle) elements.coverItalicToggle.classList.toggle('active', !!simple.italic);
     
-    // Advanced mode per-line styling
+    // Advanced mode per-line styling with individual spacing
     const savedLines = ct.lines || [];
     const defaultSizes = [48, 28, 20];
     elements.coverLines.forEach((line, i) => {
@@ -2574,12 +2588,11 @@ const BooklistApp = (function() {
       if (line.color) line.color.value = saved.color ?? '#FFFFFF';
       if (line.bold) line.bold.classList.toggle('active', i === 0 ? saved.bold !== false : !!saved.bold);
       if (line.italic) line.italic.classList.toggle('active', !!saved.italic);
+      // Restore per-line spacing (only for lines 2 and 3)
+      if (i > 0 && line.spacing) {
+        line.spacing.value = saved.spacingPt ?? 10;
+      }
     });
-    
-    // Line spacing
-    if (elements.coverLineSpacing) {
-      elements.coverLineSpacing.value = ct.lineSpacingPt ?? 10;
-    }
   }
   
   function applyUploaderImage(uploaderEl, dataUrl) {
@@ -2993,6 +3006,17 @@ const BooklistApp = (function() {
           debouncedCoverRegen();
         });
       }
+      // Spacing input (debounced for rapid changes)
+      if (line.spacing) {
+        line.spacing.addEventListener('input', () => {
+          debouncedSave();
+          debouncedCoverRegen();
+        });
+        line.spacing.addEventListener('change', () => {
+          debouncedSave();
+          debouncedCoverRegen();
+        });
+      }
       // Bold toggle (instant - discrete change)
       if (line.bold) {
         line.bold.addEventListener('click', () => {
@@ -3019,7 +3043,7 @@ const BooklistApp = (function() {
     elements.generateQrButton.addEventListener('click', generateQrCode);
     
     // Spacing inputs and background color for cover auto-regen
-    const coverLayoutInputIds = ['cover-title-outer-margin', 'cover-title-pad-x', 'cover-title-pad-y', 'cover-title-side-margin', 'cover-title-bg-color', 'cover-line-spacing'];
+    const coverLayoutInputIds = ['cover-title-outer-margin', 'cover-title-pad-x', 'cover-title-pad-y', 'cover-title-side-margin', 'cover-title-bg-color'];
     coverLayoutInputIds.forEach(id => {
       const el = document.getElementById(id);
       if (el) {
