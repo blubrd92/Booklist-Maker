@@ -532,14 +532,6 @@
               </div>
             </div>
             
-            <!-- Classic-specific settings -->
-            <div id="classic-settings" style="margin-top: 10px;">
-              <div class="control-row checkbox-row">
-                <input id="show-shelves-toggle" type="checkbox"/>
-                <label for="show-shelves-toggle">Show Shelves</label>
-              </div>
-            </div>
-            
             <div class="control-row" style="margin-top: 10px;">
               <label for="title-bar-position" class="mini-label" style="white-space: nowrap;">Title Bar Position:</label>
               <select id="title-bar-position" class="font-select" aria-label="Title bar position">
@@ -549,6 +541,15 @@
                 <option value="lower">Lower</option>
                 <option value="bottom">Bottom</option>
               </select>
+            </div>
+            
+            <!-- Classic-specific settings -->
+            <div id="classic-settings" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+              <div class="line-style-label" style="margin-bottom: 8px;">Classic Layout Settings</div>
+              <div class="control-row checkbox-row">
+                <input id="show-shelves-toggle" type="checkbox"/>
+                <label for="show-shelves-toggle">Show Shelves</label>
+              </div>
             </div>
             
             <!-- Tilted-specific settings -->
