@@ -496,49 +496,47 @@
               </div>
               <div class="layout-option" data-layout="tilted" title="Tilted: rotated diagonal covers">
                 <svg viewBox="0 0 40 50" style="overflow: hidden;">
-                  <!-- Tilted: rotated grid with vertical column stagger, covers bleed all edges -->
-                  <g transform="rotate(-20 20 25)">
-                    <!-- Column pattern with vertical stagger (odd cols offset down) -->
-                    <!-- Col 1 -->
-                    <rect x="-6" y="-6" width="7" height="10.5" rx="0.5"/>
-                    <rect x="-6" y="6" width="7" height="10.5" rx="0.5"/>
-                    <rect x="-6" y="18" width="7" height="10.5" rx="0.5"/>
-                    <rect x="-6" y="30" width="7" height="10.5" rx="0.5"/>
-                    <rect x="-6" y="42" width="7" height="10.5" rx="0.5"/>
-                    <!-- Col 2 (offset) -->
-                    <rect x="3" y="0" width="7" height="10.5" rx="0.5"/>
-                    <rect x="3" y="12" width="7" height="10.5" rx="0.5"/>
-                    <rect x="3" y="24" width="7" height="10.5" rx="0.5"/>
-                    <rect x="3" y="36" width="7" height="10.5" rx="0.5"/>
-                    <rect x="3" y="48" width="7" height="10.5" rx="0.5"/>
-                    <!-- Col 3 -->
-                    <rect x="12" y="-6" width="7" height="10.5" rx="0.5"/>
-                    <rect x="12" y="6" width="7" height="10.5" rx="0.5"/>
-                    <rect x="12" y="18" width="7" height="10.5" rx="0.5"/>
-                    <rect x="12" y="30" width="7" height="10.5" rx="0.5"/>
-                    <rect x="12" y="42" width="7" height="10.5" rx="0.5"/>
-                    <!-- Col 4 (offset) -->
-                    <rect x="21" y="0" width="7" height="10.5" rx="0.5"/>
-                    <rect x="21" y="12" width="7" height="10.5" rx="0.5"/>
-                    <rect x="21" y="24" width="7" height="10.5" rx="0.5"/>
-                    <rect x="21" y="36" width="7" height="10.5" rx="0.5"/>
-                    <rect x="21" y="48" width="7" height="10.5" rx="0.5"/>
-                    <!-- Col 5 -->
-                    <rect x="30" y="-6" width="7" height="10.5" rx="0.5"/>
-                    <rect x="30" y="6" width="7" height="10.5" rx="0.5"/>
-                    <rect x="30" y="18" width="7" height="10.5" rx="0.5"/>
-                    <rect x="30" y="30" width="7" height="10.5" rx="0.5"/>
-                    <rect x="30" y="42" width="7" height="10.5" rx="0.5"/>
-                    <!-- Col 6 (offset) -->
-                    <rect x="39" y="0" width="7" height="10.5" rx="0.5"/>
-                    <rect x="39" y="12" width="7" height="10.5" rx="0.5"/>
-                    <rect x="39" y="24" width="7" height="10.5" rx="0.5"/>
-                    <rect x="39" y="36" width="7" height="10.5" rx="0.5"/>
-                    <rect x="39" y="48" width="7" height="10.5" rx="0.5"/>
+                  <!-- Rotated grid with vertical column stagger, extends beyond edges -->
+                  <g transform="rotate(-25 20 25)">
+                    <!-- Row 0 (partial, above canvas) -->
+                    <rect x="-11" y="-8" width="8" height="12" rx="1"/>
+                    <rect x="0" y="-2" width="8" height="12" rx="1"/>
+                    <rect x="11" y="-8" width="8" height="12" rx="1"/>
+                    <rect x="22" y="-2" width="8" height="12" rx="1"/>
+                    <rect x="33" y="-8" width="8" height="12" rx="1"/>
+                    <rect x="44" y="-2" width="8" height="12" rx="1"/>
+                    <!-- Row 1 -->
+                    <rect x="-11" y="6" width="8" height="12" rx="1"/>
+                    <rect x="0" y="12" width="8" height="12" rx="1"/>
+                    <rect x="11" y="6" width="8" height="12" rx="1"/>
+                    <rect x="22" y="12" width="8" height="12" rx="1"/>
+                    <rect x="33" y="6" width="8" height="12" rx="1"/>
+                    <rect x="44" y="12" width="8" height="12" rx="1"/>
+                    <!-- Row 2 -->
+                    <rect x="-11" y="20" width="8" height="12" rx="1"/>
+                    <rect x="0" y="26" width="8" height="12" rx="1"/>
+                    <rect x="11" y="20" width="8" height="12" rx="1"/>
+                    <rect x="22" y="26" width="8" height="12" rx="1"/>
+                    <rect x="33" y="20" width="8" height="12" rx="1"/>
+                    <rect x="44" y="26" width="8" height="12" rx="1"/>
+                    <!-- Row 3 -->
+                    <rect x="-11" y="34" width="8" height="12" rx="1"/>
+                    <rect x="0" y="40" width="8" height="12" rx="1"/>
+                    <rect x="11" y="34" width="8" height="12" rx="1"/>
+                    <rect x="22" y="40" width="8" height="12" rx="1"/>
+                    <rect x="33" y="34" width="8" height="12" rx="1"/>
+                    <rect x="44" y="40" width="8" height="12" rx="1"/>
+                    <!-- Row 4 (partial, below canvas) -->
+                    <rect x="-11" y="48" width="8" height="12" rx="1"/>
+                    <rect x="0" y="54" width="8" height="12" rx="1"/>
+                    <rect x="11" y="48" width="8" height="12" rx="1"/>
+                    <rect x="22" y="54" width="8" height="12" rx="1"/>
+                    <rect x="33" y="48" width="8" height="12" rx="1"/>
+                    <rect x="44" y="54" width="8" height="12" rx="1"/>
                   </g>
-                  <!-- Title bar overlaid (not rotated) with white background -->
+                  <!-- Title bar (not rotated, on top with white margin) -->
                   <rect x="0" y="21" width="40" height="8" fill="white"/>
-                  <rect x="2" y="23" width="36" height="4" rx="0.5"/>
+                  <rect x="2" y="23" width="36" height="4" rx="1"/>
                 </svg>
                 <span class="layout-option-label">Tilted</span>
               </div>
