@@ -361,6 +361,8 @@
                 <button class="bold-toggle btn-icon line-bold" id="line-2-bold" aria-label="Line 2 bold">B</button>
                 <button class="italic-toggle btn-icon line-italic" id="line-2-italic" aria-label="Line 2 italic">I</button>
                 <input class="color-picker line-color" id="line-2-color" type="color" value="#FFFFFF" aria-label="Line 2 color"/>
+                <span class="mini-label">Line Spacing:</span>
+                <input class="font-size-input line-spacing" id="line-2-spacing" type="number" min="0" max="50" value="5" title="Space above this line (pt)" aria-label="Line 2 spacing"/>
               </div>
             </div>
             
@@ -400,12 +402,9 @@
                 <button class="bold-toggle btn-icon line-bold" id="line-3-bold" aria-label="Line 3 bold">B</button>
                 <button class="italic-toggle btn-icon line-italic" id="line-3-italic" aria-label="Line 3 italic">I</button>
                 <input class="color-picker line-color" id="line-3-color" type="color" value="#FFFFFF" aria-label="Line 3 color"/>
+                <span class="mini-label">Line Spacing:</span>
+                <input class="font-size-input line-spacing" id="line-3-spacing" type="number" min="0" max="50" value="5" title="Space above this line (pt)" aria-label="Line 3 spacing"/>
               </div>
-            </div>
-            
-            <div class="control-row" style="margin-top: 8px;">
-              <label for="cover-line-spacing" class="mini-label" style="white-space: nowrap;">Line Spacing (pt):</label>
-              <input id="cover-line-spacing" class="font-size-input" type="number" min="0" max="50" value="10" aria-label="Line spacing in points"/>
             </div>
           </div>
           
@@ -440,70 +439,58 @@
             <div id="collage-layout-selector" aria-label="Select collage layout">
               <div class="layout-option selected" data-layout="classic" title="Classic: grid layout">
                 <svg viewBox="0 0 40 50">
-                  <rect x="2" y="0" width="10" height="12" rx="1"/>
-                  <rect x="15" y="0" width="10" height="12" rx="1"/>
-                  <rect x="28" y="0" width="10" height="12" rx="1"/>
-                  <rect x="2" y="15" width="36" height="5" rx="1"/>
-                  <rect x="2" y="23" width="10" height="8" rx="1"/>
-                  <rect x="15" y="23" width="10" height="8" rx="1"/>
-                  <rect x="28" y="23" width="10" height="8" rx="1"/>
-                  <rect x="2" y="33" width="10" height="8" rx="1"/>
-                  <rect x="15" y="33" width="10" height="8" rx="1"/>
-                  <rect x="28" y="33" width="10" height="8" rx="1"/>
-                  <rect x="2" y="43" width="10" height="7" rx="1"/>
-                  <rect x="15" y="43" width="10" height="7" rx="1"/>
-                  <rect x="28" y="43" width="10" height="7" rx="1"/>
+                  <!-- Classic: 3 cols × 4 rows, title bar after row 1, flush edges, 0.75 aspect -->
+                  <!-- Row 1 (flush top) -->
+                  <rect x="4" y="0" width="8" height="10.5" rx="0.5"/>
+                  <rect x="16" y="0" width="8" height="10.5" rx="0.5"/>
+                  <rect x="28" y="0" width="8" height="10.5" rx="0.5"/>
+                  <!-- Title bar -->
+                  <rect x="4" y="12" width="32" height="4" rx="0.5"/>
+                  <!-- Row 2 -->
+                  <rect x="4" y="17.5" width="8" height="10.5" rx="0.5"/>
+                  <rect x="16" y="17.5" width="8" height="10.5" rx="0.5"/>
+                  <rect x="28" y="17.5" width="8" height="10.5" rx="0.5"/>
+                  <!-- Row 3 -->
+                  <rect x="4" y="29" width="8" height="10.5" rx="0.5"/>
+                  <rect x="16" y="29" width="8" height="10.5" rx="0.5"/>
+                  <rect x="28" y="29" width="8" height="10.5" rx="0.5"/>
+                  <!-- Row 4 (flush bottom) -->
+                  <rect x="4" y="40.5" width="8" height="9.5" rx="0.5"/>
+                  <rect x="16" y="40.5" width="8" height="9.5" rx="0.5"/>
+                  <rect x="28" y="40.5" width="8" height="9.5" rx="0.5"/>
                 </svg>
                 <span class="layout-option-label">Classic</span>
               </div>
-              <div class="layout-option" data-layout="bookshelf" title="Bookshelf: with shelf lines">
-                <svg viewBox="0 0 40 50">
-                  <rect x="2" y="0" width="10" height="10" rx="1"/>
-                  <rect x="15" y="0" width="10" height="10" rx="1"/>
-                  <rect x="28" y="0" width="10" height="10" rx="1"/>
-                  <rect x="0" y="10" width="40" height="2"/>
-                  <rect x="2" y="15" width="36" height="4" rx="1"/>
-                  <rect x="2" y="22" width="10" height="8" rx="1"/>
-                  <rect x="15" y="22" width="10" height="8" rx="1"/>
-                  <rect x="28" y="22" width="10" height="8" rx="1"/>
-                  <rect x="0" y="30" width="40" height="2"/>
-                  <rect x="2" y="34" width="10" height="6" rx="1"/>
-                  <rect x="15" y="34" width="10" height="6" rx="1"/>
-                  <rect x="28" y="34" width="10" height="6" rx="1"/>
-                  <rect x="0" y="40" width="40" height="2"/>
-                  <rect x="2" y="44" width="10" height="4" rx="1"/>
-                  <rect x="15" y="44" width="10" height="4" rx="1"/>
-                  <rect x="28" y="44" width="10" height="4" rx="1"/>
-                  <rect x="0" y="48" width="40" height="2"/>
-                </svg>
-                <span class="layout-option-label">Bookshelf</span>
-              </div>
               <div class="layout-option" data-layout="staggered" title="Staggered: brick pattern, fills edge-to-edge">
                 <svg viewBox="0 0 40 50">
-                  <!-- Row 1 (no offset) -->
-                  <rect x="-3" y="0" width="8" height="11" rx="1"/>
-                  <rect x="7" y="0" width="8" height="11" rx="1"/>
-                  <rect x="17" y="0" width="8" height="11" rx="1"/>
-                  <rect x="27" y="0" width="8" height="11" rx="1"/>
-                  <rect x="37" y="0" width="8" height="11" rx="1"/>
-                  <!-- Row 2 (offset right) -->
-                  <rect x="2" y="12" width="8" height="11" rx="1"/>
-                  <rect x="12" y="12" width="8" height="11" rx="1"/>
-                  <rect x="22" y="12" width="8" height="11" rx="1"/>
-                  <rect x="32" y="12" width="8" height="11" rx="1"/>
-                  <!-- Title bar -->
-                  <rect x="2" y="24" width="36" height="4" rx="1"/>
+                  <!-- Staggered: brick pattern, covers bleed off edges, 0.667 aspect, center title -->
+                  <!-- Row 1 (flush top, no offset) -->
+                  <rect x="-2" y="0" width="7" height="10" rx="0.5"/>
+                  <rect x="6.5" y="0" width="7" height="10" rx="0.5"/>
+                  <rect x="15" y="0" width="7" height="10" rx="0.5"/>
+                  <rect x="23.5" y="0" width="7" height="10" rx="0.5"/>
+                  <rect x="32" y="0" width="7" height="10" rx="0.5"/>
+                  <!-- Row 2 (offset) -->
+                  <rect x="2" y="11" width="7" height="10" rx="0.5"/>
+                  <rect x="10.5" y="11" width="7" height="10" rx="0.5"/>
+                  <rect x="19" y="11" width="7" height="10" rx="0.5"/>
+                  <rect x="27.5" y="11" width="7" height="10" rx="0.5"/>
+                  <rect x="36" y="11" width="7" height="10" rx="0.5"/>
+                  <!-- Title bar (center) with margin -->
+                  <rect x="0" y="21" width="40" height="8" fill="white"/>
+                  <rect x="2" y="23" width="36" height="4" rx="0.5"/>
                   <!-- Row 3 (no offset) -->
-                  <rect x="-3" y="29" width="8" height="11" rx="1"/>
-                  <rect x="7" y="29" width="8" height="11" rx="1"/>
-                  <rect x="17" y="29" width="8" height="11" rx="1"/>
-                  <rect x="27" y="29" width="8" height="11" rx="1"/>
-                  <rect x="37" y="29" width="8" height="11" rx="1"/>
-                  <!-- Row 4 (offset right) -->
-                  <rect x="2" y="41" width="8" height="9" rx="1"/>
-                  <rect x="12" y="41" width="8" height="9" rx="1"/>
-                  <rect x="22" y="41" width="8" height="9" rx="1"/>
-                  <rect x="32" y="41" width="8" height="9" rx="1"/>
+                  <rect x="-2" y="29" width="7" height="10" rx="0.5"/>
+                  <rect x="6.5" y="29" width="7" height="10" rx="0.5"/>
+                  <rect x="15" y="29" width="7" height="10" rx="0.5"/>
+                  <rect x="23.5" y="29" width="7" height="10" rx="0.5"/>
+                  <rect x="32" y="29" width="7" height="10" rx="0.5"/>
+                  <!-- Row 4 (offset, flush bottom) -->
+                  <rect x="2" y="40" width="7" height="10" rx="0.5"/>
+                  <rect x="10.5" y="40" width="7" height="10" rx="0.5"/>
+                  <rect x="19" y="40" width="7" height="10" rx="0.5"/>
+                  <rect x="27.5" y="40" width="7" height="10" rx="0.5"/>
+                  <rect x="36" y="40" width="7" height="10" rx="0.5"/>
                 </svg>
                 <span class="layout-option-label">Staggered</span>
               </div>
@@ -566,12 +553,21 @@
               </select>
             </div>
             
+            <!-- Classic-specific settings -->
+            <div id="classic-settings" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+              <div class="line-style-label" style="margin-bottom: 8px;">Classic Layout Settings</div>
+              <div class="control-row checkbox-row">
+                <input id="show-shelves-toggle" type="checkbox"/>
+                <label for="show-shelves-toggle">Show Shelves</label>
+              </div>
+            </div>
+            
             <!-- Tilted-specific settings -->
             <div id="tilted-settings" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
               <div class="line-style-label" style="margin-bottom: 8px;">Tilted Layout Settings</div>
               <div class="control-row">
                 <label for="tilt-degree" class="mini-label" style="white-space: nowrap;">Tilt Angle:</label>
-                <input id="tilt-degree" class="font-size-input" type="number" min="-45" max="45" value="-20" aria-label="Tilt angle in degrees"/>
+                <input id="tilt-degree" class="font-size-input" type="number" min="-45" max="45" value="-25" aria-label="Tilt angle in degrees"/>
                 <span class="mini-label">°</span>
               </div>
               <div class="control-row" style="margin-top: 6px;">
@@ -785,6 +781,4 @@
   
 </body>
 </html>
-
-
 
