@@ -1765,7 +1765,7 @@ const BooklistApp = (function() {
    * Grid of covers with title bar at configurable position
    * Positions: top, classic, center, lower, bottom
    * Rows are flush with top and bottom edges
-   * Dynamically adjusts columns based on cover count: 12→3col, 13-16→4col, 17-20→5col
+   * 12 covers = 3×4, 20 covers = 5×4
    */
   function drawLayoutClassic(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -1773,19 +1773,12 @@ const BooklistApp = (function() {
     const position = options.titleBarPosition || 'classic';
     
     const margin = styles.outerMarginPx;
-    const bookAspect = 0.75;
+    const bookAspect = 0.75; // width / height
     const numRows = 4;
     
-    // Dynamic columns based on cover count
+    // Binary: 12 or 20 covers
     const coverCount = images.length;
-    let numCols;
-    if (coverCount <= 12) {
-      numCols = 3;
-    } else if (coverCount <= 16) {
-      numCols = 4;
-    } else {
-      numCols = 5;
-    }
+    const numCols = coverCount <= 12 ? 3 : 5;
     
     // Determine row distribution based on position
     let rowsAbove, rowsBelow;
@@ -1805,23 +1798,44 @@ const BooklistApp = (function() {
     ctx.fillRect(0, 0, canvasWidth, bgH + 1);
     
     // Calculate actual number of vGutters used
-    // For top/bottom: 3 (all 4 rows on one side)
-    // For middle positions: (rowsAbove-1) + (rowsBelow-1) = 2
     const numVGutters = (position === 'top' || position === 'bottom') ? 3 : 
                         (rowsAbove > 0 ? rowsAbove - 1 : 0) + (rowsBelow > 0 ? rowsBelow - 1 : 0);
     
-    // Calculate uniform slot height based on actual bgH and vGutter count
+    // Calculate available space
     const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
-    const totalRowSpace = canvasHeight - bgH - marginCount * margin;
+    const totalVerticalSpace = canvasHeight - bgH - marginCount * margin;
     
-    // Use ratio-based vGutter calculation
+    // Gutter ratios
     const vGutterRatio = 0.08;
-    const totalVGutterRatio = numVGutters * vGutterRatio;
-    const slotHeight = totalRowSpace / (numRows + totalVGutterRatio);
-    const vGutter = slotHeight * vGutterRatio;
+    const hGutterRatio = 0.12;
     
-    // Calculate horizontal dimensions
-    const slotWidth = slotHeight * bookAspect;
+    // Calculate slot dimensions that fit BOTH horizontally and vertically
+    // Vertical constraint: totalVerticalSpace = numRows * slotHeight + numVGutters * vGutter
+    // where vGutter = slotHeight * vGutterRatio
+    // totalVerticalSpace = numRows * slotHeight + numVGutters * slotHeight * vGutterRatio
+    // totalVerticalSpace = slotHeight * (numRows + numVGutters * vGutterRatio)
+    const slotHeightFromVertical = totalVerticalSpace / (numRows + numVGutters * vGutterRatio);
+    const slotWidthFromVertical = slotHeightFromVertical * bookAspect;
+    
+    // Horizontal constraint: canvasWidth = numCols * slotWidth + (numCols + 1) * hGutter
+    // where hGutter = slotWidth * hGutterRatio
+    // canvasWidth = numCols * slotWidth + (numCols + 1) * slotWidth * hGutterRatio
+    // canvasWidth = slotWidth * (numCols + (numCols + 1) * hGutterRatio)
+    const slotWidthFromHorizontal = canvasWidth / (numCols + (numCols + 1) * hGutterRatio);
+    const slotHeightFromHorizontal = slotWidthFromHorizontal / bookAspect;
+    
+    // Use the smaller of the two to ensure fit
+    let slotWidth, slotHeight;
+    if (slotWidthFromVertical <= slotWidthFromHorizontal) {
+      slotWidth = slotWidthFromVertical;
+      slotHeight = slotHeightFromVertical;
+    } else {
+      slotWidth = slotWidthFromHorizontal;
+      slotHeight = slotHeightFromHorizontal;
+    }
+    
+    // Calculate actual gutters
+    const vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
     
     // Calculate title bar position based on uniform slot height
@@ -1876,7 +1890,7 @@ const BooklistApp = (function() {
    * Grid of covers with shelf lines under each row
    * Title bar at configurable position
    * Rows are flush with top and bottom edges
-   * Dynamically adjusts columns based on cover count: 12→3col, 13-16→4col, 17-20→5col
+   * 12 covers = 3×4, 20 covers = 5×4
    */
   function drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -1891,16 +1905,9 @@ const BooklistApp = (function() {
     const bookAspect = 0.75;
     const numRows = 4;
     
-    // Dynamic columns based on cover count
+    // Binary: 12 or 20 covers
     const coverCount = images.length;
-    let numCols;
-    if (coverCount <= 12) {
-      numCols = 3;
-    } else if (coverCount <= 16) {
-      numCols = 4;
-    } else {
-      numCols = 5;
-    }
+    const numCols = coverCount <= 12 ? 3 : 5;
     
     // Determine row distribution
     let rowsAbove, rowsBelow;
@@ -1924,23 +1931,35 @@ const BooklistApp = (function() {
     const totalShelfHeight = numShelves * shelfLineWidth;
     
     // Calculate actual number of vGutters used
-    // For top/bottom: 3 (all 4 rows on one side)
-    // For middle positions: (rowsAbove-1) + (rowsBelow-1) = 2
     const numVGutters = (position === 'top' || position === 'bottom') ? 3 : 
                         (rowsAbove > 0 ? rowsAbove - 1 : 0) + (rowsBelow > 0 ? rowsBelow - 1 : 0);
     
-    // Calculate uniform slot height based on actual bgH and vGutter count
+    // Calculate available space
     const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
-    const totalRowSpace = canvasHeight - bgH - marginCount * margin - totalShelfHeight;
+    const totalVerticalSpace = canvasHeight - bgH - marginCount * margin - totalShelfHeight;
     
-    // Use ratio-based vGutter calculation
+    // Gutter ratios
     const vGutterRatio = 0.05;
-    const totalVGutterRatio = numVGutters * vGutterRatio;
-    const slotHeight = totalRowSpace / (numRows + totalVGutterRatio);
-    const vGutter = slotHeight * vGutterRatio;
+    const hGutterRatio = 0.12;
     
-    // Calculate horizontal dimensions
-    const slotWidth = slotHeight * bookAspect;
+    // Calculate slot dimensions that fit BOTH horizontally and vertically
+    const slotHeightFromVertical = totalVerticalSpace / (numRows + numVGutters * vGutterRatio);
+    const slotWidthFromVertical = slotHeightFromVertical * bookAspect;
+    
+    const slotWidthFromHorizontal = canvasWidth / (numCols + (numCols + 1) * hGutterRatio);
+    const slotHeightFromHorizontal = slotWidthFromHorizontal / bookAspect;
+    
+    // Use the smaller to ensure fit
+    let slotWidth, slotHeight;
+    if (slotWidthFromVertical <= slotWidthFromHorizontal) {
+      slotWidth = slotWidthFromVertical;
+      slotHeight = slotHeightFromVertical;
+    } else {
+      slotWidth = slotWidthFromHorizontal;
+      slotHeight = slotHeightFromHorizontal;
+    }
+    
+    const vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
     
     // Helper to draw a row with shelf (handles partial rows)
@@ -1985,9 +2004,8 @@ const BooklistApp = (function() {
     // Draw rows below title bar (flush at bottom)
     if (rowsBelow > 0) {
       // Work backwards from bottom to ensure flush
-      // Each row takes: slotHeight + shelfLineWidth, plus vGutter between rows
       const belowTotalHeight = rowsBelow * (slotHeight + shelfLineWidth) + (rowsBelow > 0 ? (rowsBelow - 1) * vGutter : 0);
-      let currentY = canvasHeight - belowTotalHeight; // Start so last shelf ends at bottom
+      let currentY = canvasHeight - belowTotalHeight;
       
       for (let row = 0; row < rowsBelow && globalImageIndex < images.length; row++) {
         drawRowWithShelf(currentY, slotHeight);
@@ -2001,6 +2019,7 @@ const BooklistApp = (function() {
    * Brick pattern with gutters, every row fills edge-to-edge (covers bleed off edges)
    * Title bar at configurable position
    * Rows are flush with top and bottom edges
+   * Ensures all covers appear at least once
    */
   function drawLayoutStaggered(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -2022,6 +2041,10 @@ const BooklistApp = (function() {
       case 'bottom': rowsAbove = 4; rowsBelow = 0; break;
       default: rowsAbove = 2; rowsBelow = 2;
     }
+    
+    // Calculate offset per row to ensure all covers appear
+    // With 4 rows and needing to show all images, offset ~= images.length / 4
+    const imageOffsetPerRow = Math.ceil(images.length / 4);
     
     // Helper to draw a row filling edge-to-edge with partial covers bleeding off both edges
     const drawBrickRow = (y, h, useOffset, imgOffset) => {
@@ -2050,8 +2073,6 @@ const BooklistApp = (function() {
     ctx.fillRect(0, 0, canvasWidth, bgH + 1);
     
     // Calculate actual number of vGutters used
-    // For top/bottom: 3 (all 4 rows on one side)
-    // For middle positions: (rowsAbove-1) + (rowsBelow-1) = 2
     const numVGutters = (position === 'top' || position === 'bottom') ? 3 : 
                         (rowsAbove > 0 ? rowsAbove - 1 : 0) + (rowsBelow > 0 ? rowsBelow - 1 : 0);
     
@@ -2081,7 +2102,7 @@ const BooklistApp = (function() {
       for (let row = 0; row < rowsAbove; row++) {
         const shouldOffset = globalRowIndex % 2 === 1;
         drawBrickRow(currentY, uniformSlotHeight, shouldOffset, imageOffset);
-        imageOffset += 3;
+        imageOffset += imageOffsetPerRow;
         globalRowIndex++;
         currentY += uniformSlotHeight + vGutter;
       }
@@ -2099,7 +2120,7 @@ const BooklistApp = (function() {
       for (let row = 0; row < rowsBelow; row++) {
         const shouldOffset = globalRowIndex % 2 === 1;
         drawBrickRow(currentY, uniformSlotHeight, shouldOffset, imageOffset);
-        imageOffset += 3;
+        imageOffset += imageOffsetPerRow;
         globalRowIndex++;
         currentY += uniformSlotHeight + vGutter;
       }
@@ -2257,19 +2278,32 @@ const BooklistApp = (function() {
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
     // Deterministic image selection based on offset direction
+    // Supports both 12 and 20 image counts
+    const totalImages = images.length;
     const getImageForCell = (row, col) => {
-      if (offsetDirection === 'horizontal') {
-        // Each row cycles through 4 consecutive books
-        // Row 0: 0,1,2,3,0,1,2,3...  Row 1: 4,5,6,7,4,5,6,7...  etc.
-        const rowGroup = (row % 3) * 4;  // 0, 4, or 8
-        return rowGroup + (col % 4);
+      if (totalImages <= 12) {
+        // Original 12-image logic
+        if (offsetDirection === 'horizontal') {
+          const rowGroup = (row % 3) * 4;
+          return rowGroup + (col % 4);
+        } else {
+          const colGroup = (col % 4) * 3;
+          const rowOffset = col % 3;
+          return colGroup + ((row + rowOffset) % 3);
+        }
       } else {
-        // Vertical: each column cycles through 3 books
-        // 4 column groups: 0-2, 3-5, 6-8, 9-11
-        // Row offset varies by column to reduce adjacent repetition
-        const colGroup = (col % 4) * 3;  // 0, 3, 6, or 9
-        const rowOffset = col % 3;  // 0, 1, 2, 0, 1, 2...
-        return colGroup + ((row + rowOffset) % 3);
+        // 20-image logic: 5 images per row, 4 rows
+        if (offsetDirection === 'horizontal') {
+          // Each row cycles through 5 consecutive books
+          const rowGroup = (row % 4) * 5;  // 0, 5, 10, or 15
+          return rowGroup + (col % 5);
+        } else {
+          // Vertical: each column cycles through 4 books
+          // 5 column groups: 0-3, 4-7, 8-11, 12-15, 16-19
+          const colGroup = (col % 5) * 4;  // 0, 4, 8, 12, or 16
+          const rowOffset = col % 4;
+          return colGroup + ((row + rowOffset) % 4);
+        }
       }
     };
     
@@ -2297,7 +2331,7 @@ const BooklistApp = (function() {
         
         // Draw if cover intersects the canvas at all
         if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
-          const imgIdx = getImageForCell(row, col);
+          const imgIdx = getImageForCell(row, col) % images.length;
           drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
         }
       }
@@ -2364,7 +2398,7 @@ const BooklistApp = (function() {
     }
     if (elements.collageCoverHint) {
       elements.collageCoverHint.textContent = enabled 
-        ? 'Star books and add extra covers (12-20 total)'
+        ? 'Star 12 books, then add 8 more covers below for 20 total'
         : 'Star 12 books to include in the collage';
     }
     if (enabled) {
@@ -2376,11 +2410,16 @@ const BooklistApp = (function() {
   }
   
   /**
-   * Updates the extra covers count display
+   * Updates the extra covers count display in both section and modal
    */
   function updateExtraCoversCount() {
+    const count = extraCollageCovers.length;
     if (elements.extraCoversCount) {
-      elements.extraCoversCount.textContent = extraCollageCovers.length;
+      elements.extraCoversCount.textContent = count;
+    }
+    const modalCount = document.getElementById('modal-cover-count');
+    if (modalCount) {
+      modalCount.textContent = `${count} of 8 extra slots filled`;
     }
   }
   
@@ -2532,6 +2571,9 @@ const BooklistApp = (function() {
     if (resultsContainer) {
       resultsContainer.innerHTML = '<p class="modal-search-placeholder">Enter a search term to find book covers</p>';
     }
+    
+    // Update count display
+    updateExtraCoversCount();
   }
   
   /**
@@ -2556,7 +2598,7 @@ const BooklistApp = (function() {
     resultsContainer.innerHTML = '<p class="modal-search-placeholder">Searching...</p>';
     
     try {
-      const response = await fetch(`${CONFIG.OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(query)}&limit=12`);
+      const response = await fetch(`${CONFIG.OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(query)}&limit=15`);
       if (!response.ok) throw new Error('Search failed');
       
       const data = await response.json();
@@ -2579,32 +2621,64 @@ const BooklistApp = (function() {
       const grid = document.createElement('div');
       grid.className = 'modal-results-grid';
       
-      booksWithCovers.slice(0, 9).forEach(book => {
+      booksWithCovers.slice(0, 12).forEach(book => {
         const coverUrl = `${CONFIG.OPEN_LIBRARY_COVERS_URL}${book.cover_i}-M.jpg`;
         const largeCoverUrl = `${CONFIG.OPEN_LIBRARY_COVERS_URL}${book.cover_i}-L.jpg`;
         
         const item = document.createElement('div');
         item.className = 'modal-cover-result';
-        item.title = book.title || 'Unknown Title';
         
         const img = document.createElement('img');
         img.src = coverUrl;
         img.alt = book.title || 'Book cover';
         img.loading = 'lazy';
         
+        const info = document.createElement('div');
+        info.className = 'modal-cover-info';
+        
+        const title = document.createElement('div');
+        title.className = 'modal-cover-title';
+        title.textContent = book.title || 'Unknown Title';
+        
+        const author = document.createElement('div');
+        author.className = 'modal-cover-author';
+        author.textContent = book.author_name ? book.author_name[0] : 'Unknown Author';
+        
+        info.appendChild(title);
+        info.appendChild(author);
+        
         item.appendChild(img);
+        item.appendChild(info);
+        
         item.onclick = () => {
+          // Check if at limit
+          const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+          if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+            showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
+            return;
+          }
+          
+          // Mark as loading
+          item.classList.add('is-loading');
+          
           // Load large version and add to extra covers
           loadImageAsDataUrl(largeCoverUrl).then(dataUrl => {
             if (addExtraCover(dataUrl)) {
-              closeExtraCoverSearchModal();
+              item.classList.remove('is-loading');
+              item.classList.add('added');
+              showNotification(`Added "${book.title}" to collage covers`, 'success');
             }
           }).catch(() => {
             // Fallback to medium size
             loadImageAsDataUrl(coverUrl).then(dataUrl => {
               if (addExtraCover(dataUrl)) {
-                closeExtraCoverSearchModal();
+                item.classList.remove('is-loading');
+                item.classList.add('added');
+                showNotification(`Added "${book.title}" to collage covers`, 'success');
               }
+            }).catch(() => {
+              item.classList.remove('is-loading');
+              showNotification('Failed to load cover image', 'error');
             });
           });
         };
@@ -2665,6 +2739,12 @@ const BooklistApp = (function() {
     const modalClose = elements.extraCoverSearchModal?.querySelector('.modal-close');
     if (modalClose) {
       modalClose.addEventListener('click', closeExtraCoverSearchModal);
+    }
+    
+    // Modal Done button
+    const modalDone = elements.extraCoverSearchModal?.querySelector('.modal-done-btn');
+    if (modalDone) {
+      modalDone.addEventListener('click', closeExtraCoverSearchModal);
     }
     
     // Modal overlay click to close
