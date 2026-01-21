@@ -2299,22 +2299,23 @@ const BooklistApp = (function() {
           const rowGroup = (row % 3) * 4;
           return rowGroup + (col % 4);
         } else {
+          // Vertical: 4 column groups, each cycles through 3 books
           const colGroup = (col % 4) * 3;
           const rowOffset = col % 3;
           return colGroup + ((row + rowOffset) % 3);
         }
       } else {
-        // 20-image logic: 5 images per row, 4 rows
+        // 20-image logic
         if (offsetDirection === 'horizontal') {
           // Each row cycles through 5 consecutive books
           const rowGroup = (row % 4) * 5;  // 0, 5, 10, or 15
           return rowGroup + (col % 5);
         } else {
-          // Vertical: each column cycles through 4 books
-          // 5 column groups: 0-3, 4-7, 8-11, 12-15, 16-19
-          const colGroup = (col % 5) * 4;  // 0, 4, 8, 12, or 16
-          const rowOffset = col % 4;
-          return colGroup + ((row + rowOffset) % 4);
+          // Vertical: each column cycles through 3 books (not 4)
+          // 7 column groups to show all 20: 0-2, 3-5, 6-8, 9-11, 12-14, 15-17, 18-19+wrap
+          const colGroup = (col % 7) * 3;  // 0, 3, 6, 9, 12, 15, 18
+          const rowOffset = col % 3;
+          return colGroup + ((row + rowOffset) % 3);
         }
       }
     };
@@ -2410,15 +2411,61 @@ const BooklistApp = (function() {
     }
     if (elements.collageCoverHint) {
       elements.collageCoverHint.textContent = enabled 
-        ? 'Star 12 books, then add 8 more covers below for 20 total'
+        ? 'Star books and add extra covers (12-20 total)'
         : 'Star 12 books to include in the collage';
     }
+    
     if (enabled) {
+      // Clear existing front cover and show placeholder (need 20 covers message)
+      clearFrontCoverForExtendedMode();
+      
+      // Auto-star all books with covers (not just first 12) up to position 15
+      // This ensures books 13-15 get starred if they exist and have covers
+      let starredCount = 0;
+      for (let i = 0; i < myBooklist.length; i++) {
+        const book = myBooklist[i];
+        if (book.isBlank) continue;
+        
+        const hasCover = book.cover_ids.length > 0 || 
+          (book.customCoverData && !book.customCoverData.includes('placehold.co'));
+        
+        if (hasCover && starredCount < 15) {
+          book.includeInCollage = true;
+          starredCount++;
+        }
+      }
+      
+      // Re-render booklist first to update star states, then grid
+      renderBooklist();
       renderExtraCoversGrid();
+    } else {
+      // When disabling extended mode, unstar books beyond 12
+      let starredCount = 0;
+      for (let i = 0; i < myBooklist.length; i++) {
+        const book = myBooklist[i];
+        if (!book.isBlank && book.includeInCollage) {
+          starredCount++;
+          if (starredCount > 12) {
+            book.includeInCollage = false;
+          }
+        }
+      }
+      renderBooklist();
     }
-    // Re-render booklist to update star button states
-    renderBooklist();
+    
     debouncedSave();
+  }
+  
+  /**
+   * Clears the front cover when switching to extended mode
+   */
+  function clearFrontCoverForExtendedMode() {
+    const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+    if (frontCoverImg) {
+      frontCoverImg.src = CONFIG.PLACEHOLDER_FRONT_COVER_URL;
+      frontCoverImg.dataset.isPlaceholder = "true";
+      elements.frontCoverUploader?.classList.remove('has-image');
+    }
   }
   
   /**
@@ -4116,10 +4163,16 @@ const BooklistApp = (function() {
       }
     });
     
-    // Book Block fonts (title, author, desc)
+    // Book Block fonts (title, author, desc) - inside .export-controls
     document.querySelectorAll('.export-controls .form-group[data-style-group] .font-select').forEach(select => {
       createCustomFontDropdown(select, { type: 'book-block' });
     });
+    
+    // QR Text font
+    const qrFontSelect = document.getElementById('qr-font-select');
+    if (qrFontSelect) {
+      createCustomFontDropdown(qrFontSelect, { type: 'book-block' });
+    }
   }
   
   // ---------------------------------------------------------------------------
