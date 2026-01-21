@@ -1322,7 +1322,6 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .modal-search-form .search-row {
   display: flex;
   gap: 8px;
-  margin-bottom: 8px;
 }
 
 .modal-search-form .search-row input[type="text"] {
@@ -1336,10 +1335,11 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 .modal-search-form .search-row .btn {
   padding: 8px 16px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .modal-search-form .advanced-search-toggle {
-  margin-bottom: 0;
+  margin-top: 8px;
 }
 
 .modal-search-form .advanced-search-toggle summary {
