@@ -2310,8 +2310,23 @@ const BooklistApp = (function() {
       } else {
         // 20-image logic
         if (offsetDirection === 'horizontal') {
-          // Each row cycles through 5 consecutive books
-          const rowGroup = (row % 4) * 5;  // 0, 5, 10, or 15
+          // Pattern for maximum visibility:
+          // Row 0,2: books 0-4 (1-5)
+          // Row 1: books 5-9 (6-10)
+          // Row 3,5: books 10-14 (11-15)
+          // Row 4: books 15-19 (16-20)
+          // Repeats every 6 rows
+          const rowMod = row % 6;
+          let rowGroup;
+          if (rowMod === 0 || rowMod === 2) {
+            rowGroup = 0;  // books 0-4
+          } else if (rowMod === 1) {
+            rowGroup = 5;  // books 5-9
+          } else if (rowMod === 3 || rowMod === 5) {
+            rowGroup = 10; // books 10-14
+          } else {
+            rowGroup = 15; // books 15-19
+          }
           return rowGroup + (col % 5);
         } else {
           // Vertical: each column cycles through 3 books (not 4)
@@ -2408,7 +2423,7 @@ const BooklistApp = (function() {
   /**
    * Toggles extended collage mode visibility
    */
-  function toggleExtendedCollageMode(enabled) {
+  function toggleExtendedCollageMode(enabled, isRestoring = false) {
     if (elements.extraCoversSection) {
       elements.extraCoversSection.style.display = enabled ? 'block' : 'none';
     }
@@ -2419,26 +2434,28 @@ const BooklistApp = (function() {
     }
     
     if (enabled) {
-      // Clear existing front cover and show placeholder (need 20 covers message)
-      clearFrontCoverForExtendedMode();
-      
-      // Auto-star all books with covers (not just first 12) up to position 15
-      // This ensures books 13-15 get starred if they exist and have covers
-      let starredCount = 0;
-      for (let i = 0; i < myBooklist.length; i++) {
-        const book = myBooklist[i];
-        if (book.isBlank) continue;
+      // Only do these things when NOT restoring from saved state
+      if (!isRestoring) {
+        // Clear existing front cover and show placeholder (need 20 covers message)
+        clearFrontCoverForExtendedMode();
         
-        const hasCover = book.cover_ids.length > 0 || 
-          (book.customCoverData && !book.customCoverData.includes('placehold.co'));
-        
-        if (hasCover && starredCount < 15) {
-          book.includeInCollage = true;
-          starredCount++;
+        // Auto-star all books with covers (not just first 12) up to position 15
+        let starredCount = 0;
+        for (let i = 0; i < myBooklist.length; i++) {
+          const book = myBooklist[i];
+          if (book.isBlank) continue;
+          
+          const hasCover = book.cover_ids.length > 0 || 
+            (book.customCoverData && !book.customCoverData.includes('placehold.co'));
+          
+          if (hasCover && starredCount < 15) {
+            book.includeInCollage = true;
+            starredCount++;
+          }
         }
       }
       
-      // Re-render booklist first to update star states, then grid
+      // Always render booklist and extra covers grid
       renderBooklist();
       renderExtraCoversGrid();
     } else {
@@ -2458,7 +2475,9 @@ const BooklistApp = (function() {
       renderBooklist();
     }
     
-    debouncedSave();
+    if (!isRestoring) {
+      debouncedSave();
+    }
   }
   
   /**
@@ -2565,15 +2584,23 @@ const BooklistApp = (function() {
       slotIndex++;
     }
     
-    // Second: show extra covers added via search/upload (removable)
+    // Second: show extra covers added via search/upload (removable and draggable)
     for (let i = 0; i < extraCollageCovers.length && slotIndex < MAX_EXTRA_COVERS; i++) {
       const existingCover = extraCollageCovers[i];
       
       if (existingCover && existingCover.coverData) {
         const slot = document.createElement('div');
-        slot.className = 'extra-cover-slot has-cover';
+        slot.className = 'extra-cover-slot has-cover draggable-extra';
         slot.dataset.slotIndex = slotIndex;
         slot.dataset.extraIndex = i;
+        slot.dataset.extraId = existingCover.id;
+        
+        // Drag handle
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'extra-drag-handle';
+        dragHandle.innerHTML = '⋮⋮';
+        dragHandle.title = 'Drag to reorder';
+        slot.appendChild(dragHandle);
         
         const img = document.createElement('img');
         img.src = existingCover.coverData;
@@ -2654,7 +2681,7 @@ const BooklistApp = (function() {
     const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
     if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
       showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
-      return false;
+      return null;
     }
     
     const newCover = {
@@ -2679,13 +2706,28 @@ const BooklistApp = (function() {
         extraCollageCovers.push(newCover);
       } else {
         showNotification('All extra cover slots are full.');
-        return false;
+        return null;
       }
     }
     
     renderExtraCoversGrid();
     debouncedSave();
-    return true;
+    return newCover.id;
+  }
+  
+  /**
+   * Removes an extra cover by its id
+   */
+  function removeExtraCoverById(coverId) {
+    const index = extraCollageCovers.findIndex(c => c.id === coverId);
+    if (index !== -1) {
+      extraCollageCovers.splice(index, 1);
+      renderExtraCoversGrid();
+      renderBooklist();
+      debouncedSave();
+      return true;
+    }
+    return false;
   }
   
   /**
@@ -2851,6 +2893,9 @@ const BooklistApp = (function() {
       book.key
     );
     
+    // Track added cover id for removal
+    let addedCoverId = null;
+    
     // Add to Collage button
     const addButton = document.createElement('button');
     addButton.className = 'add-to-list-button add-to-collage-button';
@@ -2858,6 +2903,18 @@ const BooklistApp = (function() {
     addButton.textContent = 'Add to Collage';
     
     addButton.addEventListener('click', async () => {
+      // If already added, remove it
+      if (addButton.classList.contains('added') && addedCoverId) {
+        if (removeExtraCoverById(addedCoverId)) {
+          addButton.textContent = 'Add to Collage';
+          addButton.classList.remove('added');
+          addButton.setAttribute('aria-label', `Add "${book.title}" to collage`);
+          addedCoverId = null;
+          showNotification(`Removed "${book.title}" from collage`);
+        }
+        return;
+      }
+      
       // Check if at limit
       const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
       const totalCovers = starredCount + extraCollageCovers.length;
@@ -2867,12 +2924,8 @@ const BooklistApp = (function() {
         return;
       }
       
-      // Already added check
-      if (addButton.classList.contains('added')) {
-        return;
-      }
-      
       addButton.disabled = true;
+      const originalText = addButton.textContent;
       addButton.textContent = 'Adding...';
       
       // Get current cover from carousel state
@@ -2893,14 +2946,19 @@ const BooklistApp = (function() {
           dataUrl = await loadImageAsDataUrl(mediumCoverUrl);
         }
         
-        if (addExtraCover(dataUrl)) {
-          addButton.innerHTML = '&#10003;';
+        addedCoverId = addExtraCover(dataUrl);
+        if (addedCoverId) {
+          addButton.textContent = '✓ Added';
           addButton.classList.add('added');
-          addButton.setAttribute('aria-label', `"${book.title}" added to collage`);
+          addButton.setAttribute('aria-label', `Remove "${book.title}" from collage`);
+          addButton.disabled = false;
           showNotification(`Added "${book.title}" to collage`, 'success');
+        } else {
+          addButton.textContent = originalText;
+          addButton.disabled = false;
         }
       } catch (err) {
-        addButton.textContent = 'Add to Collage';
+        addButton.textContent = originalText;
         addButton.disabled = false;
         showNotification('Failed to load cover image', 'error');
       }
@@ -3513,8 +3571,8 @@ const BooklistApp = (function() {
         })).filter(ec => ec.coverData)
       : [];
     
-    // Toggle extended mode visibility and render grid
-    toggleExtendedCollageMode(isExtendedMode);
+    // Toggle extended mode visibility and render grid (isRestoring=true to not clear cover)
+    toggleExtendedCollageMode(isExtendedMode, true);
     
     // QR Code URL
     if (elements.qrUrlInput) elements.qrUrlInput.value = loaded.ui?.qrCodeUrl || '';
@@ -3704,6 +3762,29 @@ const BooklistApp = (function() {
     new Sortable(elements.insideLeftPanel, sortableOptions);
     new Sortable(elements.insideRightPanel, sortableOptions);
     new Sortable(elements.backCoverPanel, sortableOptions);
+    
+    // Extra covers sortable (only for draggable-extra items, not from-list)
+    if (elements.extraCoversGrid) {
+      new Sortable(elements.extraCoversGrid, {
+        handle: '.extra-drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        filter: '.from-list, .slot-placeholder',
+        draggable: '.draggable-extra',
+        onEnd: function() {
+          // Rebuild extraCollageCovers array based on new order
+          const draggableItems = elements.extraCoversGrid.querySelectorAll('.draggable-extra');
+          const newOrder = [];
+          draggableItems.forEach(item => {
+            const extraId = item.dataset.extraId;
+            const cover = extraCollageCovers.find(c => c.id === extraId);
+            if (cover) newOrder.push(cover);
+          });
+          extraCollageCovers = newOrder;
+          debouncedSave();
+        }
+      });
+    }
   }
   
   // ---------------------------------------------------------------------------
