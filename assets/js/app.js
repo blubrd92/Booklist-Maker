@@ -25,6 +25,7 @@ const CONFIG = {
   
   // Collage generation
   MIN_COVERS_FOR_COLLAGE: 12,
+  MAX_COVERS_FOR_COLLAGE: 20,
   COLLAGE_GRID_COLS: 3,
   COLLAGE_TOP_ROW_COUNT: 3,
   COLLAGE_BOTTOM_ROWS: 3,
@@ -83,6 +84,7 @@ const BooklistApp = (function() {
   // Private State
   // ---------------------------------------------------------------------------
   let myBooklist = [];
+  let extraCollageCovers = []; // Additional covers for collage (beyond book blocks)
   let MAX_BOOKS = CONFIG.MAX_BOOKS_FULL;
   
   // ---------------------------------------------------------------------------
@@ -157,6 +159,14 @@ const BooklistApp = (function() {
       tiltOffsetDirection: document.getElementById('tilt-offset-direction'),
       classicSettings: document.getElementById('classic-settings'),
       showShelvesToggle: document.getElementById('show-shelves-toggle'),
+      
+      // Extended collage mode
+      extendedCollageToggle: document.getElementById('extended-collage-toggle'),
+      extraCoversSection: document.getElementById('extra-covers-section'),
+      extraCoversGrid: document.getElementById('extra-covers-grid'),
+      extraCoversCount: document.getElementById('extra-covers-count'),
+      extraCoverSearchModal: document.getElementById('extra-cover-search-modal'),
+      collageCoverHint: document.getElementById('collage-cover-hint'),
       
       // Simple mode elements
       coverTitleInput: document.getElementById('cover-title-input'),
@@ -873,10 +883,13 @@ const BooklistApp = (function() {
     const starButton = document.createElement('button');
     starButton.className = 'star-button';
     
-    // Count currently starred books
+    // Count currently starred books + extra collage covers
     const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+    const extendedMode = elements.extendedCollageToggle?.checked || false;
+    const maxCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+    const totalCollageCovers = starredCount + (extendedMode ? extraCollageCovers.length : 0);
     const isStarred = bookItem.includeInCollage;
-    const atLimit = starredCount >= CONFIG.MIN_COVERS_FOR_COLLAGE;
+    const atLimit = totalCollageCovers >= maxCovers;
     
     if (isStarred) {
       starButton.classList.add('active');
@@ -886,7 +899,7 @@ const BooklistApp = (function() {
     }
     
     starButton.innerHTML = '<i class="fa-solid fa-star"></i>';
-    starButton.title = isStarred ? 'Remove from collage' : (atLimit ? '12 covers already selected' : 'Include in collage');
+    starButton.title = isStarred ? 'Remove from collage' : (atLimit ? `${maxCovers} covers already selected` : 'Include in collage');
     starButton.setAttribute('aria-label', 'Toggle inclusion in cover collage');
     starButton.setAttribute('aria-pressed', isStarred ? 'true' : 'false');
     starButton.onclick = () => {
@@ -895,6 +908,7 @@ const BooklistApp = (function() {
       bookItem.includeInCollage = !bookItem.includeInCollage;
       debouncedSave();
       renderBooklist(); // Re-render to update all star states
+      updateExtraCoversCount(); // Update the extra covers section count
     };
     
     // Magic button (fetch description)
@@ -1481,6 +1495,10 @@ const BooklistApp = (function() {
     const tiltDegree = parseFloat(elements.tiltDegree?.value ?? '-25');
     const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
     
+    // Check if extended mode is enabled
+    const extendedMode = elements.extendedCollageToggle?.checked || false;
+    const maxCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+    
     // Gather books with covers that are marked for inclusion
     const booksWithCovers = myBooklist.filter(book =>
       !book.isBlank &&
@@ -1488,21 +1506,8 @@ const BooklistApp = (function() {
       (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co')))
     );
     
-    if (booksWithCovers.length < CONFIG.MIN_COVERS_FOR_COLLAGE) {
-      const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
-      const totalWithCovers = myBooklist.filter(b => !b.isBlank && (b.cover_ids.length > 0 || (b.customCoverData && !b.customCoverData.includes('placehold.co')))).length;
-      
-      if (starredCount < CONFIG.MIN_COVERS_FOR_COLLAGE) {
-        showNotification(`Need ${CONFIG.MIN_COVERS_FOR_COLLAGE} starred books. Currently ${starredCount} starred.`);
-      } else {
-        showNotification(`Need ${CONFIG.MIN_COVERS_FOR_COLLAGE} starred books with covers. ${totalWithCovers} have covers.`);
-      }
-      setLoading(button, false);
-      return;
-    }
-    
-    // Get cover URLs
-    const coversToDraw = booksWithCovers.slice(0, CONFIG.MIN_COVERS_FOR_COLLAGE).map(book => {
+    // Get URLs from starred book blocks
+    const bookBlockCoverUrls = booksWithCovers.map(book => {
       if (book.customCoverData && !book.customCoverData.includes('placehold.co')) {
         return book.customCoverData;
       } else if (book.cover_ids.length > 0) {
@@ -1514,6 +1519,33 @@ const BooklistApp = (function() {
       return CONFIG.PLACEHOLDER_COLLAGE_COVER_URL;
     });
     
+    // Get URLs from extra collage covers (only if extended mode)
+    const extraCoverUrls = extendedMode 
+      ? extraCollageCovers
+          .filter(ec => ec.coverData && !ec.coverData.includes('placehold.co'))
+          .map(ec => ec.coverData)
+      : [];
+    
+    // Combine all cover URLs (up to max for current mode)
+    const allCoverUrls = [...bookBlockCoverUrls, ...extraCoverUrls].slice(0, maxCovers);
+    
+    if (allCoverUrls.length < CONFIG.MIN_COVERS_FOR_COLLAGE) {
+      const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+      const totalWithCovers = booksWithCovers.length + extraCoverUrls.length;
+      const totalSelected = starredCount + (extendedMode ? extraCollageCovers.length : 0);
+      
+      if (totalSelected < CONFIG.MIN_COVERS_FOR_COLLAGE) {
+        showNotification(`Need ${CONFIG.MIN_COVERS_FOR_COLLAGE} covers. Currently ${totalSelected} selected.`);
+      } else {
+        showNotification(`Need ${CONFIG.MIN_COVERS_FOR_COLLAGE} covers with images. ${totalWithCovers} have covers.`);
+      }
+      setLoading(button, false);
+      return;
+    }
+    
+    // Use all gathered covers
+    const coversToDraw = allCoverUrls;
+    
     const { canvas, ctx } = createCollageCanvas();
     const styles = getCoverTitleStyles();
     
@@ -1521,7 +1553,8 @@ const BooklistApp = (function() {
     const layoutOptions = {
       titleBarPosition,
       tiltDegree,
-      tiltOffsetDirection
+      tiltOffsetDirection,
+      coverCount: coversToDraw.length
     };
     
     // Wait for fonts, then load images and draw
@@ -1732,6 +1765,7 @@ const BooklistApp = (function() {
    * Grid of covers with title bar at configurable position
    * Positions: top, classic, center, lower, bottom
    * Rows are flush with top and bottom edges
+   * Dynamically adjusts columns based on cover count: 12→3col, 13-16→4col, 17-20→5col
    */
   function drawLayoutClassic(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -1741,7 +1775,17 @@ const BooklistApp = (function() {
     const margin = styles.outerMarginPx;
     const bookAspect = 0.75;
     const numRows = 4;
-    const numCols = 3;
+    
+    // Dynamic columns based on cover count
+    const coverCount = images.length;
+    let numCols;
+    if (coverCount <= 12) {
+      numCols = 3;
+    } else if (coverCount <= 16) {
+      numCols = 4;
+    } else {
+      numCols = 5;
+    }
     
     // Determine row distribution based on position
     let rowsAbove, rowsBelow;
@@ -1797,8 +1841,8 @@ const BooklistApp = (function() {
     
     if (rowsAbove > 0) {
       let currentY = 0; // Start flush at top
-      for (let row = 0; row < rowsAbove; row++) {
-        for (let col = 0; col < numCols; col++) {
+      for (let row = 0; row < rowsAbove && imageIndex < images.length; row++) {
+        for (let col = 0; col < numCols && imageIndex < images.length; col++) {
           const slotX = hGutter + col * (slotWidth + hGutter);
           drawCoverImage(ctx, images[imageIndex], slotX, currentY, slotWidth, slotHeight, shouldStretch);
           imageIndex++;
@@ -1816,8 +1860,8 @@ const BooklistApp = (function() {
       const belowTotalHeight = rowsBelow * slotHeight + (rowsBelow > 0 ? (rowsBelow - 1) * vGutter : 0);
       let currentY = canvasHeight - belowTotalHeight; // Start so last row ends at bottom
       
-      for (let row = 0; row < rowsBelow; row++) {
-        for (let col = 0; col < numCols; col++) {
+      for (let row = 0; row < rowsBelow && imageIndex < images.length; row++) {
+        for (let col = 0; col < numCols && imageIndex < images.length; col++) {
           const slotX = hGutter + col * (slotWidth + hGutter);
           drawCoverImage(ctx, images[imageIndex], slotX, currentY, slotWidth, slotHeight, shouldStretch);
           imageIndex++;
@@ -1832,6 +1876,7 @@ const BooklistApp = (function() {
    * Grid of covers with shelf lines under each row
    * Title bar at configurable position
    * Rows are flush with top and bottom edges
+   * Dynamically adjusts columns based on cover count: 12→3col, 13-16→4col, 17-20→5col
    */
   function drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -1845,7 +1890,17 @@ const BooklistApp = (function() {
     
     const bookAspect = 0.75;
     const numRows = 4;
-    const numCols = 3;
+    
+    // Dynamic columns based on cover count
+    const coverCount = images.length;
+    let numCols;
+    if (coverCount <= 12) {
+      numCols = 3;
+    } else if (coverCount <= 16) {
+      numCols = 4;
+    } else {
+      numCols = 5;
+    }
     
     // Determine row distribution
     let rowsAbove, rowsBelow;
@@ -1888,11 +1943,14 @@ const BooklistApp = (function() {
     const slotWidth = slotHeight * bookAspect;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
     
-    // Helper to draw a row with shelf
-    const drawRowWithShelf = (rowY, height, startIndex) => {
-      for (let col = 0; col < numCols; col++) {
+    // Helper to draw a row with shelf (handles partial rows)
+    let globalImageIndex = 0;
+    const drawRowWithShelf = (rowY, height) => {
+      const coversInRow = Math.min(numCols, images.length - globalImageIndex);
+      for (let col = 0; col < coversInRow; col++) {
         const slotX = hGutter + col * (slotWidth + hGutter);
-        drawCoverImage(ctx, images[startIndex + col], slotX, rowY, slotWidth, height, shouldStretch);
+        drawCoverImage(ctx, images[globalImageIndex], slotX, rowY, slotWidth, height, shouldStretch);
+        globalImageIndex++;
       }
       // Shelf under the row
       const shelfY = rowY + height;
@@ -1913,13 +1971,10 @@ const BooklistApp = (function() {
     }
     
     // Draw rows above title bar (flush at top)
-    let imageIndex = 0;
-    
     if (rowsAbove > 0) {
       let currentY = 0; // Start flush at top
-      for (let row = 0; row < rowsAbove; row++) {
-        drawRowWithShelf(currentY, slotHeight, imageIndex);
-        imageIndex += numCols;
+      for (let row = 0; row < rowsAbove && globalImageIndex < images.length; row++) {
+        drawRowWithShelf(currentY, slotHeight);
         currentY += slotHeight + shelfLineWidth + vGutter;
       }
     }
@@ -1934,9 +1989,8 @@ const BooklistApp = (function() {
       const belowTotalHeight = rowsBelow * (slotHeight + shelfLineWidth) + (rowsBelow > 0 ? (rowsBelow - 1) * vGutter : 0);
       let currentY = canvasHeight - belowTotalHeight; // Start so last shelf ends at bottom
       
-      for (let row = 0; row < rowsBelow; row++) {
-        drawRowWithShelf(currentY, slotHeight, imageIndex);
-        imageIndex += numCols;
+      for (let row = 0; row < rowsBelow && globalImageIndex < images.length; row++) {
+        drawRowWithShelf(currentY, slotHeight);
         currentY += slotHeight + shelfLineWidth + vGutter;
       }
     }
@@ -1983,7 +2037,7 @@ const BooklistApp = (function() {
       }
       
       for (let i = 0; i < coversNeeded; i++) {
-        const imgIdx = (imgOffset + i) % 12;
+        const imgIdx = (imgOffset + i) % images.length;
         const x = startX + i * spacing;
         drawCoverImage(ctx, images[imgIdx], x, y, w, h, shouldStretch);
       }
@@ -2297,6 +2351,350 @@ const BooklistApp = (function() {
   }
   
   // ---------------------------------------------------------------------------
+  // Extra Collage Covers (Extended Mode)
+  // ---------------------------------------------------------------------------
+  const MAX_EXTRA_COVERS = 8;
+  
+  /**
+   * Toggles extended collage mode visibility
+   */
+  function toggleExtendedCollageMode(enabled) {
+    if (elements.extraCoversSection) {
+      elements.extraCoversSection.style.display = enabled ? 'block' : 'none';
+    }
+    if (elements.collageCoverHint) {
+      elements.collageCoverHint.textContent = enabled 
+        ? 'Star books and add extra covers (12-20 total)'
+        : 'Star 12 books to include in the collage';
+    }
+    if (enabled) {
+      renderExtraCoversGrid();
+    }
+    // Re-render booklist to update star button states
+    renderBooklist();
+    debouncedSave();
+  }
+  
+  /**
+   * Updates the extra covers count display
+   */
+  function updateExtraCoversCount() {
+    if (elements.extraCoversCount) {
+      elements.extraCoversCount.textContent = extraCollageCovers.length;
+    }
+  }
+  
+  /**
+   * Renders the extra covers grid with 8 slots
+   */
+  function renderExtraCoversGrid() {
+    if (!elements.extraCoversGrid) return;
+    
+    elements.extraCoversGrid.innerHTML = '';
+    
+    for (let i = 0; i < MAX_EXTRA_COVERS; i++) {
+      const slot = document.createElement('div');
+      slot.className = 'extra-cover-slot';
+      slot.dataset.slotIndex = i;
+      
+      const existingCover = extraCollageCovers[i];
+      
+      if (existingCover && existingCover.coverData) {
+        slot.classList.add('has-cover');
+        
+        const img = document.createElement('img');
+        img.src = existingCover.coverData;
+        img.alt = 'Extra cover';
+        slot.appendChild(img);
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'remove-btn';
+        removeBtn.innerHTML = '&times;';
+        removeBtn.title = 'Remove cover';
+        removeBtn.onclick = (e) => {
+          e.stopPropagation();
+          removeExtraCover(i);
+        };
+        slot.appendChild(removeBtn);
+      } else {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'slot-placeholder';
+        placeholder.innerHTML = '<i class="fa-solid fa-plus"></i>';
+        slot.appendChild(placeholder);
+        
+        // File input for upload
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.onchange = (e) => handleExtraCoverUpload(e, i);
+        slot.appendChild(fileInput);
+        
+        slot.onclick = () => fileInput.click();
+      }
+      
+      elements.extraCoversGrid.appendChild(slot);
+    }
+    
+    updateExtraCoversCount();
+  }
+  
+  /**
+   * Handles file upload for an extra cover slot
+   */
+  function handleExtraCoverUpload(event, slotIndex) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Check if at max covers total
+    const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+    if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+      showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const coverData = e.target.result;
+      addExtraCover(coverData, slotIndex);
+    };
+    reader.readAsDataURL(file);
+  }
+  
+  /**
+   * Adds an extra cover at the specified slot (or next available)
+   */
+  function addExtraCover(coverData, preferredSlot = null) {
+    // Check if at max
+    const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+    if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+      showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
+      return false;
+    }
+    
+    const newCover = {
+      id: `extra-${crypto.randomUUID()}`,
+      coverData: coverData
+    };
+    
+    if (preferredSlot !== null && preferredSlot < MAX_EXTRA_COVERS) {
+      // Insert at specific slot
+      if (extraCollageCovers.length <= preferredSlot) {
+        extraCollageCovers.push(newCover);
+      } else {
+        extraCollageCovers.splice(preferredSlot, 0, newCover);
+        // Trim if over max slots
+        if (extraCollageCovers.length > MAX_EXTRA_COVERS) {
+          extraCollageCovers = extraCollageCovers.slice(0, MAX_EXTRA_COVERS);
+        }
+      }
+    } else {
+      // Add to end if room
+      if (extraCollageCovers.length < MAX_EXTRA_COVERS) {
+        extraCollageCovers.push(newCover);
+      } else {
+        showNotification('All extra cover slots are full.');
+        return false;
+      }
+    }
+    
+    renderExtraCoversGrid();
+    debouncedSave();
+    return true;
+  }
+  
+  /**
+   * Removes an extra cover at the specified index
+   */
+  function removeExtraCover(index) {
+    if (index >= 0 && index < extraCollageCovers.length) {
+      extraCollageCovers.splice(index, 1);
+      renderExtraCoversGrid();
+      renderBooklist(); // Update star states
+      debouncedSave();
+    }
+  }
+  
+  /**
+   * Opens the extra cover search modal
+   */
+  function openExtraCoverSearchModal() {
+    if (!elements.extraCoverSearchModal) return;
+    elements.extraCoverSearchModal.style.display = 'flex';
+    
+    const searchInput = document.getElementById('extra-cover-search-input');
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.focus();
+    }
+    
+    const resultsContainer = document.getElementById('extra-cover-search-results');
+    if (resultsContainer) {
+      resultsContainer.innerHTML = '<p class="modal-search-placeholder">Enter a search term to find book covers</p>';
+    }
+  }
+  
+  /**
+   * Closes the extra cover search modal
+   */
+  function closeExtraCoverSearchModal() {
+    if (elements.extraCoverSearchModal) {
+      elements.extraCoverSearchModal.style.display = 'none';
+    }
+  }
+  
+  /**
+   * Performs search for extra cover modal
+   */
+  async function searchExtraCovers() {
+    const searchInput = document.getElementById('extra-cover-search-input');
+    const resultsContainer = document.getElementById('extra-cover-search-results');
+    const query = searchInput?.value?.trim();
+    
+    if (!query || !resultsContainer) return;
+    
+    resultsContainer.innerHTML = '<p class="modal-search-placeholder">Searching...</p>';
+    
+    try {
+      const response = await fetch(`${CONFIG.OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(query)}&limit=12`);
+      if (!response.ok) throw new Error('Search failed');
+      
+      const data = await response.json();
+      const books = data.docs || [];
+      
+      if (books.length === 0) {
+        resultsContainer.innerHTML = '<p class="modal-search-placeholder">No results found</p>';
+        return;
+      }
+      
+      // Filter to only books with covers
+      const booksWithCovers = books.filter(b => b.cover_i);
+      
+      if (booksWithCovers.length === 0) {
+        resultsContainer.innerHTML = '<p class="modal-search-placeholder">No books with covers found</p>';
+        return;
+      }
+      
+      resultsContainer.innerHTML = '';
+      const grid = document.createElement('div');
+      grid.className = 'modal-results-grid';
+      
+      booksWithCovers.slice(0, 9).forEach(book => {
+        const coverUrl = `${CONFIG.OPEN_LIBRARY_COVERS_URL}${book.cover_i}-M.jpg`;
+        const largeCoverUrl = `${CONFIG.OPEN_LIBRARY_COVERS_URL}${book.cover_i}-L.jpg`;
+        
+        const item = document.createElement('div');
+        item.className = 'modal-cover-result';
+        item.title = book.title || 'Unknown Title';
+        
+        const img = document.createElement('img');
+        img.src = coverUrl;
+        img.alt = book.title || 'Book cover';
+        img.loading = 'lazy';
+        
+        item.appendChild(img);
+        item.onclick = () => {
+          // Load large version and add to extra covers
+          loadImageAsDataUrl(largeCoverUrl).then(dataUrl => {
+            if (addExtraCover(dataUrl)) {
+              closeExtraCoverSearchModal();
+            }
+          }).catch(() => {
+            // Fallback to medium size
+            loadImageAsDataUrl(coverUrl).then(dataUrl => {
+              if (addExtraCover(dataUrl)) {
+                closeExtraCoverSearchModal();
+              }
+            });
+          });
+        };
+        
+        grid.appendChild(item);
+      });
+      
+      resultsContainer.appendChild(grid);
+      
+    } catch (err) {
+      console.error('Extra cover search error:', err);
+      resultsContainer.innerHTML = '<p class="modal-search-placeholder">Search failed. Please try again.</p>';
+    }
+  }
+  
+  /**
+   * Loads an image URL and converts to data URL
+   */
+  function loadImageAsDataUrl(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        try {
+          resolve(canvas.toDataURL('image/jpeg', 0.9));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+  
+  /**
+   * Binds events for extra covers feature
+   */
+  function bindExtraCoversEvents() {
+    // Extended mode toggle
+    if (elements.extendedCollageToggle) {
+      elements.extendedCollageToggle.addEventListener('change', () => {
+        toggleExtendedCollageMode(elements.extendedCollageToggle.checked);
+      });
+    }
+    
+    // Search button
+    const searchBtn = document.getElementById('extra-cover-search-btn');
+    if (searchBtn) {
+      searchBtn.addEventListener('click', openExtraCoverSearchModal);
+    }
+    
+    // Modal close button
+    const modalClose = elements.extraCoverSearchModal?.querySelector('.modal-close');
+    if (modalClose) {
+      modalClose.addEventListener('click', closeExtraCoverSearchModal);
+    }
+    
+    // Modal overlay click to close
+    if (elements.extraCoverSearchModal) {
+      elements.extraCoverSearchModal.addEventListener('click', (e) => {
+        if (e.target === elements.extraCoverSearchModal) {
+          closeExtraCoverSearchModal();
+        }
+      });
+    }
+    
+    // Modal search submit
+    const searchSubmit = document.getElementById('extra-cover-search-submit');
+    if (searchSubmit) {
+      searchSubmit.addEventListener('click', searchExtraCovers);
+    }
+    
+    // Modal search input enter key
+    const searchInput = document.getElementById('extra-cover-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          searchExtraCovers();
+        }
+      });
+    }
+  }
+  
+  // ---------------------------------------------------------------------------
   // QR Code Generation
   // ---------------------------------------------------------------------------
   function generateQrCode() {
@@ -2501,6 +2899,10 @@ const BooklistApp = (function() {
         listName: listName || 'booklist'
       },
       books,
+      extraCollageCovers: extraCollageCovers.map(ec => ({
+        id: ec.id,
+        coverData: ec.coverData
+      })),
       ui: {
         stretchCovers: !!elements.stretchCoversToggle?.checked,
         stretchBlockCovers: !!elements.stretchBlockCoversToggle?.checked,
@@ -2514,6 +2916,7 @@ const BooklistApp = (function() {
         titleBarPosition,
         tiltDegree,
         tiltOffsetDirection,
+        extendedCollageMode: !!elements.extendedCollageToggle?.checked,
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: (elements.qrCodeTextArea?.innerText !== CONFIG.PLACEHOLDERS.qrText)
           ? (elements.qrCodeTextArea?.innerText || '')
@@ -2601,6 +3004,20 @@ const BooklistApp = (function() {
         line.spacing.value = saved.spacingPt ?? 10;
       }
     });
+    
+    // Refresh custom font dropdowns to reflect loaded values
+    refreshAllCustomFontDropdowns();
+  }
+  
+  /**
+   * Refreshes all custom font dropdowns to sync with their hidden select values
+   */
+  function refreshAllCustomFontDropdowns() {
+    document.querySelectorAll('.font-select.has-custom-dropdown').forEach(select => {
+      if (select._customDropdown) {
+        select._customDropdown.updateValue(select.value);
+      }
+    });
   }
   
   function applyUploaderImage(uploaderEl, dataUrl) {
@@ -2684,6 +3101,23 @@ const BooklistApp = (function() {
     
     // Show/hide tilted settings based on layout
     updateTiltedSettingsVisibility();
+    
+    // Restore extended collage mode and extra covers
+    const isExtendedMode = !!loaded.ui?.extendedCollageMode;
+    if (elements.extendedCollageToggle) {
+      elements.extendedCollageToggle.checked = isExtendedMode;
+    }
+    
+    // Load extra collage covers
+    extraCollageCovers = Array.isArray(loaded.extraCollageCovers) 
+      ? loaded.extraCollageCovers.map(ec => ({
+          id: ec.id || `extra-${crypto.randomUUID()}`,
+          coverData: ec.coverData || null
+        })).filter(ec => ec.coverData)
+      : [];
+    
+    // Toggle extended mode visibility and render grid
+    toggleExtendedCollageMode(isExtendedMode);
     
     // QR Code URL
     if (elements.qrUrlInput) elements.qrUrlInput.value = loaded.ui?.qrCodeUrl || '';
@@ -3163,15 +3597,388 @@ const BooklistApp = (function() {
   }
   
   // ---------------------------------------------------------------------------
+  // Custom Font Dropdown System (Hover Preview)
+  // ---------------------------------------------------------------------------
+  
+  /**
+   * Extracts the font family name from a CSS font value
+   * e.g., "'Oswald', sans-serif" -> "Oswald"
+   */
+  function extractFontName(fontValue) {
+    const match = fontValue.match(/^'([^']+)'/);
+    return match ? match[1] : fontValue.split(',')[0].trim().replace(/'/g, '');
+  }
+  
+  /**
+   * Creates a custom dropdown for a font select element
+   * @param {HTMLSelectElement} select - The original select element
+   * @param {Object} options - Configuration options
+   * @param {string} options.type - 'cover-simple' | 'cover-advanced' | 'book-block'
+   * @param {number} [options.lineIndex] - Line index for cover-advanced (0, 1, 2)
+   */
+  function createCustomFontDropdown(select, options = {}) {
+    const { type, lineIndex } = options;
+    
+    // Mark original select as having custom dropdown
+    select.classList.add('has-custom-dropdown');
+    
+    // Create wrapper
+    const wrapper = document.createElement('div');
+    wrapper.className = 'custom-font-dropdown';
+    
+    // Create trigger button
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'custom-font-dropdown-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    
+    // Create dropdown list
+    const list = document.createElement('ul');
+    list.className = 'custom-font-dropdown-list';
+    list.setAttribute('role', 'listbox');
+    list.tabIndex = -1;
+    
+    // Track state
+    let isOpen = false;
+    let committedValue = select.value;
+    let highlightedIndex = -1;
+    
+    // Populate options
+    function populateList() {
+      list.innerHTML = '';
+      Array.from(select.options).forEach((opt, idx) => {
+        const li = document.createElement('li');
+        li.className = 'custom-font-dropdown-option';
+        li.setAttribute('role', 'option');
+        li.dataset.value = opt.value;
+        li.dataset.index = idx;
+        li.textContent = opt.textContent;
+        
+        // Style each option in its respective font
+        li.style.fontFamily = opt.value;
+        
+        if (opt.value === select.value) {
+          li.classList.add('selected');
+          li.setAttribute('aria-selected', 'true');
+        }
+        
+        list.appendChild(li);
+      });
+    }
+    
+    // Update trigger display
+    function updateTrigger() {
+      const selectedOption = select.options[select.selectedIndex];
+      if (selectedOption) {
+        trigger.textContent = selectedOption.textContent;
+        trigger.style.fontFamily = selectedOption.value;
+      }
+    }
+    
+    // Preview function based on type
+    function triggerPreview(fontValue) {
+      const originalValue = select.value;
+      select.value = fontValue;
+      
+      if (type === 'cover-simple' || type === 'cover-advanced') {
+        // Regenerate cover immediately for preview
+        if (elements.frontCoverUploader?.classList.contains('has-image')) {
+          generateCoverCollage();
+        }
+      } else if (type === 'book-block') {
+        // Apply styles to book list
+        applyStyles();
+      }
+      
+      return originalValue;
+    }
+    
+    // Revert preview
+    function revertPreview() {
+      select.value = committedValue;
+      
+      if (type === 'cover-simple' || type === 'cover-advanced') {
+        if (elements.frontCoverUploader?.classList.contains('has-image')) {
+          generateCoverCollage();
+        }
+      } else if (type === 'book-block') {
+        applyStyles();
+      }
+    }
+    
+    // Commit selection
+    function commitSelection(value) {
+      committedValue = value;
+      select.value = value;
+      
+      // Update selected state in list
+      list.querySelectorAll('.custom-font-dropdown-option').forEach(li => {
+        const isSelected = li.dataset.value === value;
+        li.classList.toggle('selected', isSelected);
+        li.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+      });
+      
+      updateTrigger();
+      
+      // Trigger change event on original select for any listeners
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      
+      // Save state
+      debouncedSave();
+    }
+    
+    // Open dropdown
+    function openDropdown() {
+      if (isOpen) return;
+      isOpen = true;
+      wrapper.classList.add('open');
+      trigger.setAttribute('aria-expanded', 'true');
+      
+      // Update highlighted index to current selection
+      const currentIdx = Array.from(select.options).findIndex(o => o.value === committedValue);
+      highlightedIndex = currentIdx >= 0 ? currentIdx : 0;
+      updateHighlight();
+      
+      // Scroll selected item into view
+      const selectedLi = list.querySelector('.selected');
+      if (selectedLi) {
+        selectedLi.scrollIntoView({ block: 'nearest' });
+      }
+    }
+    
+    // Close dropdown
+    function closeDropdown(revert = true) {
+      if (!isOpen) return;
+      isOpen = false;
+      wrapper.classList.remove('open');
+      trigger.setAttribute('aria-expanded', 'false');
+      highlightedIndex = -1;
+      
+      // Remove highlight from all options
+      list.querySelectorAll('.custom-font-dropdown-option').forEach(li => {
+        li.classList.remove('highlighted');
+      });
+      
+      if (revert && select.value !== committedValue) {
+        revertPreview();
+      }
+    }
+    
+    // Update visual highlight
+    function updateHighlight() {
+      const items = list.querySelectorAll('.custom-font-dropdown-option');
+      items.forEach((li, idx) => {
+        li.classList.toggle('highlighted', idx === highlightedIndex);
+      });
+      
+      // Scroll highlighted into view
+      if (highlightedIndex >= 0 && items[highlightedIndex]) {
+        items[highlightedIndex].scrollIntoView({ block: 'nearest' });
+      }
+    }
+    
+    // Event handlers
+    trigger.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isOpen) {
+        closeDropdown(true);
+      } else {
+        openDropdown();
+      }
+    });
+    
+    trigger.addEventListener('keydown', (e) => {
+      const items = list.querySelectorAll('.custom-font-dropdown-option');
+      
+      switch (e.key) {
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          if (isOpen) {
+            if (highlightedIndex >= 0 && items[highlightedIndex]) {
+              const value = items[highlightedIndex].dataset.value;
+              commitSelection(value);
+              closeDropdown(false);
+            }
+          } else {
+            openDropdown();
+          }
+          break;
+          
+        case 'Escape':
+          if (isOpen) {
+            e.preventDefault();
+            closeDropdown(true);
+            trigger.focus();
+          }
+          break;
+          
+        case 'ArrowDown':
+          e.preventDefault();
+          if (!isOpen) {
+            openDropdown();
+          } else {
+            highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+            updateHighlight();
+            // Preview on keyboard nav
+            if (items[highlightedIndex]) {
+              triggerPreview(items[highlightedIndex].dataset.value);
+            }
+          }
+          break;
+          
+        case 'ArrowUp':
+          e.preventDefault();
+          if (!isOpen) {
+            openDropdown();
+          } else {
+            highlightedIndex = Math.max(highlightedIndex - 1, 0);
+            updateHighlight();
+            // Preview on keyboard nav
+            if (items[highlightedIndex]) {
+              triggerPreview(items[highlightedIndex].dataset.value);
+            }
+          }
+          break;
+          
+        case 'Home':
+          if (isOpen) {
+            e.preventDefault();
+            highlightedIndex = 0;
+            updateHighlight();
+            if (items[highlightedIndex]) {
+              triggerPreview(items[highlightedIndex].dataset.value);
+            }
+          }
+          break;
+          
+        case 'End':
+          if (isOpen) {
+            e.preventDefault();
+            highlightedIndex = items.length - 1;
+            updateHighlight();
+            if (items[highlightedIndex]) {
+              triggerPreview(items[highlightedIndex].dataset.value);
+            }
+          }
+          break;
+      }
+    });
+    
+    // Mouse events on list items
+    list.addEventListener('mouseenter', (e) => {
+      const li = e.target.closest('.custom-font-dropdown-option');
+      if (li) {
+        highlightedIndex = parseInt(li.dataset.index, 10);
+        updateHighlight();
+        triggerPreview(li.dataset.value);
+      }
+    }, true);
+    
+    list.addEventListener('mouseleave', () => {
+      // Revert to committed value when leaving the list
+      if (isOpen) {
+        revertPreview();
+      }
+    });
+    
+    list.addEventListener('click', (e) => {
+      const li = e.target.closest('.custom-font-dropdown-option');
+      if (li) {
+        e.preventDefault();
+        e.stopPropagation();
+        commitSelection(li.dataset.value);
+        closeDropdown(false);
+        trigger.focus();
+      }
+    });
+    
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (isOpen && !wrapper.contains(e.target)) {
+        closeDropdown(true);
+      }
+    });
+    
+    // Close on scroll (prevents visual detachment)
+    let scrollParent = wrapper.parentElement;
+    while (scrollParent && scrollParent !== document.body) {
+      if (scrollParent.scrollHeight > scrollParent.clientHeight) {
+        scrollParent.addEventListener('scroll', () => {
+          if (isOpen) closeDropdown(true);
+        }, { passive: true });
+      }
+      scrollParent = scrollParent.parentElement;
+    }
+    
+    // Initialize
+    populateList();
+    updateTrigger();
+    
+    // Insert into DOM
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(list);
+    select.parentNode.insertBefore(wrapper, select);
+    
+    // Store reference for external updates
+    select._customDropdown = {
+      wrapper,
+      trigger,
+      list,
+      updateValue: (newValue) => {
+        committedValue = newValue;
+        select.value = newValue;
+        populateList();
+        updateTrigger();
+      },
+      refresh: () => {
+        populateList();
+        updateTrigger();
+      }
+    };
+    
+    return wrapper;
+  }
+  
+  /**
+   * Initializes custom font dropdowns for all font selects
+   */
+  function initializeCustomFontDropdowns() {
+    // Cover Header - Simple mode
+    const coverFontSelect = document.getElementById('cover-font-select');
+    if (coverFontSelect) {
+      createCustomFontDropdown(coverFontSelect, { type: 'cover-simple' });
+    }
+    
+    // Cover Header - Advanced mode (Line 1, 2, 3)
+    ['line-1-font', 'line-2-font', 'line-3-font'].forEach((id, index) => {
+      const el = document.getElementById(id);
+      if (el) {
+        createCustomFontDropdown(el, { type: 'cover-advanced', lineIndex: index });
+      }
+    });
+    
+    // Book Block fonts (title, author, desc)
+    document.querySelectorAll('.export-controls .form-group[data-style-group] .font-select').forEach(select => {
+      createCustomFontDropdown(select, { type: 'book-block' });
+    });
+  }
+  
+  // ---------------------------------------------------------------------------
   // Public API / Initialization
   // ---------------------------------------------------------------------------
   function init() {
     cacheElements();
     bindEvents();
+    bindExtraCoversEvents();
     setupQrPlaceholder();
     initializeBooklist();
     applyStyles();
     initializeSortable();
+    initializeCustomFontDropdowns();
+    renderExtraCoversGrid();
     
     // Set default cover mode (simple)
     toggleCoverMode(false);
