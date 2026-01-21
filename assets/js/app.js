@@ -2707,11 +2707,18 @@ const BooklistApp = (function() {
     if (!elements.extraCoverSearchModal) return;
     elements.extraCoverSearchModal.style.display = 'flex';
     
+    // Clear main search field
     const searchInput = document.getElementById('extra-cover-search-input');
     if (searchInput) {
       searchInput.value = '';
       searchInput.focus();
     }
+    
+    // Clear advanced fields
+    ['extra-title-input', 'extra-author-input', 'extra-subject-input', 'extra-isbn-input'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) input.value = '';
+    });
     
     const resultsContainer = document.getElementById('extra-cover-search-results');
     if (resultsContainer) {
@@ -2732,14 +2739,33 @@ const BooklistApp = (function() {
   }
   
   /**
-   * Performs search for extra cover modal
+   * Performs search for extra cover modal with advanced fields
    */
   async function searchExtraCovers() {
-    const searchInput = document.getElementById('extra-cover-search-input');
     const resultsContainer = document.getElementById('extra-cover-search-results');
-    const query = searchInput?.value?.trim();
+    if (!resultsContainer) return;
     
-    if (!query || !resultsContainer) return;
+    // Build query from all fields
+    const keyword = document.getElementById('extra-cover-search-input')?.value?.trim() || '';
+    const title = document.getElementById('extra-title-input')?.value?.trim() || '';
+    const author = document.getElementById('extra-author-input')?.value?.trim() || '';
+    const subject = document.getElementById('extra-subject-input')?.value?.trim() || '';
+    const isbn = document.getElementById('extra-isbn-input')?.value?.trim() || '';
+    
+    // Build query string
+    let queryParts = [];
+    if (keyword) queryParts.push(keyword);
+    if (title) queryParts.push(`title:${title}`);
+    if (author) queryParts.push(`author:${author}`);
+    if (subject) queryParts.push(`subject:${subject}`);
+    if (isbn) queryParts.push(`isbn:${isbn}`);
+    
+    const query = queryParts.join(' ');
+    
+    if (!query) {
+      resultsContainer.innerHTML = '<p class="modal-search-placeholder">Enter a search term to find book covers</p>';
+      return;
+    }
     
     resultsContainer.innerHTML = '<p class="modal-search-placeholder">Searching...</p>';
     
@@ -2768,68 +2794,8 @@ const BooklistApp = (function() {
       grid.className = 'modal-results-grid';
       
       booksWithCovers.slice(0, 12).forEach(book => {
-        const coverUrl = `${CONFIG.OPEN_LIBRARY_COVERS_URL}${book.cover_i}-M.jpg`;
-        const largeCoverUrl = `${CONFIG.OPEN_LIBRARY_COVERS_URL}${book.cover_i}-L.jpg`;
-        
-        const item = document.createElement('div');
-        item.className = 'modal-cover-result';
-        
-        const img = document.createElement('img');
-        img.src = coverUrl;
-        img.alt = book.title || 'Book cover';
-        img.loading = 'lazy';
-        
-        const info = document.createElement('div');
-        info.className = 'modal-cover-info';
-        
-        const title = document.createElement('div');
-        title.className = 'modal-cover-title';
-        title.textContent = book.title || 'Unknown Title';
-        
-        const author = document.createElement('div');
-        author.className = 'modal-cover-author';
-        author.textContent = book.author_name ? book.author_name[0] : 'Unknown Author';
-        
-        info.appendChild(title);
-        info.appendChild(author);
-        
-        item.appendChild(img);
-        item.appendChild(info);
-        
-        item.onclick = () => {
-          // Check if at limit
-          const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
-          if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
-            showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
-            return;
-          }
-          
-          // Mark as loading
-          item.classList.add('is-loading');
-          
-          // Load large version and add to extra covers
-          loadImageAsDataUrl(largeCoverUrl).then(dataUrl => {
-            if (addExtraCover(dataUrl)) {
-              item.classList.remove('is-loading');
-              item.classList.add('added');
-              showNotification(`Added "${book.title}" to collage covers`, 'success');
-            }
-          }).catch(() => {
-            // Fallback to medium size
-            loadImageAsDataUrl(coverUrl).then(dataUrl => {
-              if (addExtraCover(dataUrl)) {
-                item.classList.remove('is-loading');
-                item.classList.add('added');
-                showNotification(`Added "${book.title}" to collage covers`, 'success');
-              }
-            }).catch(() => {
-              item.classList.remove('is-loading');
-              showNotification('Failed to load cover image', 'error');
-            });
-          });
-        };
-        
-        grid.appendChild(item);
+        const card = createExtraCoverSearchCard(book);
+        grid.appendChild(card);
       });
       
       resultsContainer.appendChild(grid);
@@ -2838,6 +2804,211 @@ const BooklistApp = (function() {
       console.error('Extra cover search error:', err);
       resultsContainer.innerHTML = '<p class="modal-search-placeholder">Search failed. Please try again.</p>';
     }
+  }
+  
+  /**
+   * Creates a search result card for the extra covers modal (matches main search style)
+   */
+  function createExtraCoverSearchCard(book) {
+    const initialCoverId = book.cover_i || 'placehold';
+    
+    const card = document.createElement('div');
+    card.className = 'modal-cover-result book-card';
+    card.dataset.key = book.key;
+    
+    // Cover carousel
+    const coverCarousel = document.createElement('div');
+    coverCarousel.className = 'cover-carousel';
+    
+    const coverImg = document.createElement('img');
+    coverImg.src = initialCoverId === 'placehold'
+      ? CONFIG.PLACEHOLDER_NO_COVER_URL
+      : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${initialCoverId}-M.jpg`;
+    coverImg.alt = `Cover for ${book.title}`;
+    coverImg.loading = 'lazy';
+    coverCarousel.appendChild(coverImg);
+    
+    // Title
+    const titleEl = document.createElement('p');
+    titleEl.className = 'book-title modal-cover-title';
+    titleEl.textContent = book.title || 'Unknown Title';
+    
+    // Author
+    const authorEl = document.createElement('p');
+    authorEl.className = 'book-author modal-cover-author';
+    const authorName = book.author_name ? book.author_name[0] : 'Unknown Author';
+    authorEl.textContent = authorName;
+    authorEl.title = authorName;
+    
+    // Actions group
+    const actionsGroup = document.createElement('div');
+    actionsGroup.className = 'card-actions-group';
+    
+    // Carousel controls
+    const { carouselControls, state: carouselState } = createExtraCoverCarouselControls(
+      coverImg, 
+      initialCoverId, 
+      book.key
+    );
+    
+    // Add to Collage button
+    const addButton = document.createElement('button');
+    addButton.className = 'add-to-list-button add-to-collage-button';
+    addButton.setAttribute('aria-label', `Add "${book.title}" to collage`);
+    addButton.textContent = 'Add to Collage';
+    
+    addButton.addEventListener('click', async () => {
+      // Check if at limit
+      const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+      const totalCovers = starredCount + extraCollageCovers.length;
+      
+      if (totalCovers >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+        showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
+        return;
+      }
+      
+      // Already added check
+      if (addButton.classList.contains('added')) {
+        return;
+      }
+      
+      addButton.disabled = true;
+      addButton.textContent = 'Adding...';
+      
+      // Get current cover from carousel state
+      const currentCoverId = carouselState.allCoverIds[carouselState.currentCoverIndex];
+      const largeCoverUrl = currentCoverId === 'placehold'
+        ? CONFIG.PLACEHOLDER_NO_COVER_URL
+        : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${currentCoverId}-L.jpg`;
+      const mediumCoverUrl = currentCoverId === 'placehold'
+        ? CONFIG.PLACEHOLDER_NO_COVER_URL
+        : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${currentCoverId}-M.jpg`;
+      
+      try {
+        // Try large first, fallback to medium
+        let dataUrl;
+        try {
+          dataUrl = await loadImageAsDataUrl(largeCoverUrl);
+        } catch {
+          dataUrl = await loadImageAsDataUrl(mediumCoverUrl);
+        }
+        
+        if (addExtraCover(dataUrl)) {
+          addButton.innerHTML = '&#10003;';
+          addButton.classList.add('added');
+          addButton.setAttribute('aria-label', `"${book.title}" added to collage`);
+          showNotification(`Added "${book.title}" to collage`, 'success');
+        }
+      } catch (err) {
+        addButton.textContent = 'Add to Collage';
+        addButton.disabled = false;
+        showNotification('Failed to load cover image', 'error');
+      }
+    });
+    
+    // Assemble card
+    card.appendChild(coverCarousel);
+    card.appendChild(titleEl);
+    card.appendChild(authorEl);
+    actionsGroup.appendChild(carouselControls);
+    actionsGroup.appendChild(addButton);
+    card.appendChild(actionsGroup);
+    
+    return card;
+  }
+  
+  /**
+   * Creates carousel controls for extra cover search cards
+   */
+  function createExtraCoverCarouselControls(coverElement, initialCoverId, bookKey) {
+    const carouselControls = document.createElement('div');
+    carouselControls.className = 'carousel-controls';
+    
+    const coverCounter = document.createElement('span');
+    coverCounter.className = 'cover-counter';
+    coverCounter.textContent = '1 of 1';
+    
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.className = 'carousel-buttons-container';
+    
+    const prevButton = document.createElement('button');
+    prevButton.className = 'carousel-button';
+    prevButton.textContent = '◀';
+    prevButton.setAttribute('aria-label', 'Previous cover');
+    prevButton.disabled = true;
+    
+    const nextButton = document.createElement('button');
+    nextButton.className = 'carousel-button';
+    nextButton.textContent = '▶';
+    nextButton.setAttribute('aria-label', 'Next cover');
+    nextButton.disabled = true;
+    
+    buttonsContainer.appendChild(prevButton);
+    buttonsContainer.appendChild(nextButton);
+    carouselControls.appendChild(coverCounter);
+    carouselControls.appendChild(buttonsContainer);
+    
+    // Carousel state
+    const state = {
+      allCoverIds: [initialCoverId],
+      currentCoverIndex: 0,
+      coversLoaded: false
+    };
+    
+    const updateCarousel = () => {
+      const currentId = state.allCoverIds[state.currentCoverIndex];
+      coverElement.src = currentId === 'placehold'
+        ? CONFIG.PLACEHOLDER_NO_COVER_URL
+        : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${currentId}-M.jpg`;
+      coverCounter.textContent = `${state.currentCoverIndex + 1} of ${state.allCoverIds.length}`;
+      prevButton.disabled = state.currentCoverIndex === 0;
+      nextButton.disabled = state.currentCoverIndex === state.allCoverIds.length - 1;
+    };
+    
+    const loadAllCovers = async () => {
+      if (state.coversLoaded || !bookKey) return;
+      
+      const fetchedCovers = await fetchAllCoverIdsForWork(bookKey);
+      
+      let finalCovers = [];
+      if (initialCoverId !== 'placehold') {
+        finalCovers.push(initialCoverId);
+      }
+      fetchedCovers.forEach(id => finalCovers.push(id));
+      
+      state.allCoverIds = [...new Set(finalCovers)];
+      if (state.allCoverIds.length === 0) {
+        state.allCoverIds.push('placehold');
+      }
+      
+      state.coversLoaded = true;
+      updateCarousel();
+    };
+    
+    prevButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!state.coversLoaded) await loadAllCovers();
+      if (state.currentCoverIndex > 0) {
+        state.currentCoverIndex--;
+        updateCarousel();
+      }
+    });
+    
+    nextButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!state.coversLoaded) await loadAllCovers();
+      if (state.currentCoverIndex < state.allCoverIds.length - 1) {
+        state.currentCoverIndex++;
+        updateCarousel();
+      }
+    });
+    
+    // Pre-load covers
+    if (bookKey) {
+      loadAllCovers();
+    }
+    
+    return { carouselControls, state };
   }
   
   /**
