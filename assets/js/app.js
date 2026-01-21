@@ -2414,7 +2414,7 @@ const BooklistApp = (function() {
     }
     if (elements.collageCoverHint) {
       elements.collageCoverHint.textContent = enabled 
-        ? 'Star 20 books total to generate collage'
+        ? 'Add covers 13-20 below to generate collage'
         : 'Star 12 books to include in the collage';
     }
     
@@ -2475,7 +2475,7 @@ const BooklistApp = (function() {
     }
     
     if (placeholderText) {
-      placeholderText.innerHTML = 'Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in the Settings tab<br/>(Star 20 books to include in the collage)';
+      placeholderText.innerHTML = 'Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in the Settings tab<br/>(Add covers 13-20 using the Additional Covers section)';
     }
     
     elements.frontCoverUploader?.classList.remove('has-image');
