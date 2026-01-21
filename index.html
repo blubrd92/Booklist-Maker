@@ -610,8 +610,19 @@
             </div>
             <div class="modal-body">
               <div class="modal-search-form">
-                <input type="text" id="extra-cover-search-input" placeholder="Search by title, author, or ISBN..." />
-                <button type="button" id="extra-cover-search-submit" class="btn btn-primary">Search</button>
+                <div class="form-group">
+                  <input type="text" id="extra-cover-search-input" placeholder="Keyword..." />
+                </div>
+                <details class="advanced-search-toggle">
+                  <summary>Advanced Fields</summary>
+                  <div class="advanced-fields-grid">
+                    <input id="extra-title-input" type="text" placeholder="Title"/>
+                    <input id="extra-author-input" type="text" placeholder="Author"/>
+                    <input id="extra-subject-input" type="text" placeholder="Subject"/>
+                    <input id="extra-isbn-input" type="text" placeholder="ISBN"/>
+                  </div>
+                </details>
+                <button type="button" id="extra-cover-search-submit" class="btn btn-primary btn-block">Search</button>
               </div>
               <div id="extra-cover-search-results" class="modal-search-results">
                 <p class="modal-search-placeholder">Enter a search term to find book covers</p>
