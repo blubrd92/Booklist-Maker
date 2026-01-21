@@ -1529,15 +1529,18 @@ const BooklistApp = (function() {
     // Combine all cover URLs (up to max for current mode)
     const allCoverUrls = [...bookBlockCoverUrls, ...extraCoverUrls].slice(0, maxCovers);
     
-    if (allCoverUrls.length < CONFIG.MIN_COVERS_FOR_COLLAGE) {
+    // In extended mode, require exactly 20 covers; otherwise require 12
+    const requiredCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+    
+    if (allCoverUrls.length < requiredCovers) {
       const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
       const totalWithCovers = booksWithCovers.length + extraCoverUrls.length;
       const totalSelected = starredCount + (extendedMode ? extraCollageCovers.length : 0);
       
-      if (totalSelected < CONFIG.MIN_COVERS_FOR_COLLAGE) {
-        showNotification(`Need ${CONFIG.MIN_COVERS_FOR_COLLAGE} covers. Currently ${totalSelected} selected.`);
+      if (totalSelected < requiredCovers) {
+        showNotification(`Need ${requiredCovers} covers. Currently ${totalSelected} selected.`);
       } else {
-        showNotification(`Need ${CONFIG.MIN_COVERS_FOR_COLLAGE} covers with images. ${totalWithCovers} have covers.`);
+        showNotification(`Need ${requiredCovers} covers with images. ${totalWithCovers} have covers.`);
       }
       setLoading(button, false);
       return;
@@ -2411,7 +2414,7 @@ const BooklistApp = (function() {
     }
     if (elements.collageCoverHint) {
       elements.collageCoverHint.textContent = enabled 
-        ? 'Star books and add extra covers (12-20 total)'
+        ? 'Star 20 books total to generate collage'
         : 'Star 12 books to include in the collage';
     }
     
@@ -2450,6 +2453,8 @@ const BooklistApp = (function() {
           }
         }
       }
+      // Restore default placeholder text
+      restoreFrontCoverPlaceholderText();
       renderBooklist();
     }
     
@@ -2461,10 +2466,28 @@ const BooklistApp = (function() {
    */
   function clearFrontCoverForExtendedMode() {
     const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+    const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
+    
     if (frontCoverImg) {
-      frontCoverImg.src = CONFIG.PLACEHOLDER_FRONT_COVER_URL;
+      // Use transparent gif instead of placehold.co URL
+      frontCoverImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
       frontCoverImg.dataset.isPlaceholder = "true";
-      elements.frontCoverUploader?.classList.remove('has-image');
+    }
+    
+    if (placeholderText) {
+      placeholderText.innerHTML = 'Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in the Settings tab<br/>(Star 20 books to include in the collage)';
+    }
+    
+    elements.frontCoverUploader?.classList.remove('has-image');
+  }
+  
+  /**
+   * Restores the default placeholder text for 12-cover mode
+   */
+  function restoreFrontCoverPlaceholderText() {
+    const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
+    if (placeholderText) {
+      placeholderText.innerHTML = 'Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in the Settings tab<br/>(Star 12 books to include in the collage)';
     }
   }
   
@@ -4163,8 +4186,8 @@ const BooklistApp = (function() {
       }
     });
     
-    // Book Block fonts (title, author, desc) - inside .export-controls
-    document.querySelectorAll('.export-controls .form-group[data-style-group] .font-select').forEach(select => {
+    // Book Block fonts (title, author, desc) - inside .export-controls, excluding QR
+    document.querySelectorAll('.export-controls .form-group[data-style-group]:not([data-style-group="qr"]) .font-select').forEach(select => {
       createCustomFontDropdown(select, { type: 'book-block' });
     });
     
