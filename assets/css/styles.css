@@ -1061,6 +1061,28 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
   display: flex;
 }
 
+.extra-cover-slot.from-list {
+  border-color: var(--primary-color);
+  cursor: default;
+}
+
+.extra-cover-slot.from-list:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.from-list-label {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  background: var(--primary-color);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
 .extra-cover-slot input[type="file"] {
   display: none;
 }
