@@ -3590,17 +3590,14 @@ const BooklistApp = (function() {
       elements.extendedCollageToggle.checked = isExtendedMode;
     }
     
-    // Load extra collage covers
-    extraCollageCovers = Array.isArray(loaded.extraCollageCovers) 
+    // Load extra collage covers (will be rendered after books are loaded)
+    extraCollageCovers = Array.isArray(loaded.extraCollageCovers)
       ? loaded.extraCollageCovers.map(ec => ({
           id: ec.id || `extra-${crypto.randomUUID()}`,
           coverData: ec.coverData || null
         })).filter(ec => ec.coverData)
       : [];
-    
-    // Toggle extended mode visibility and render grid (isRestoring=true to not clear cover)
-    toggleExtendedCollageMode(isExtendedMode, true);
-    
+
     // QR Code URL
     if (elements.qrUrlInput) elements.qrUrlInput.value = loaded.ui?.qrCodeUrl || '';
     
@@ -3676,6 +3673,10 @@ const BooklistApp = (function() {
     applyStyles();
     applyBlockCoverStyle();
     updateBackCoverVisibility();
+
+    // Toggle extended mode AFTER books are loaded so renderExtraCoversGrid sees the correct data
+    toggleExtendedCollageMode(isExtendedMode, true);
+
     showNotification('Booklist loaded.', 'success');
   }
   
