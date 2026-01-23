@@ -794,6 +794,22 @@
           toggleBtn.classList.toggle('active');
         });
       }
+
+      // Fix scroll calculation when settings sections toggle rapidly
+      const settingsTab = document.getElementById('tab-settings');
+      if (settingsTab) {
+        settingsTab.addEventListener('toggle', function(e) {
+          if (e.target.classList.contains('settings-section')) {
+            // Force reflow to fix scroll height calculation
+            requestAnimationFrame(function() {
+              settingsTab.style.overflow = 'hidden';
+              requestAnimationFrame(function() {
+                settingsTab.style.overflow = '';
+              });
+            });
+          }
+        }, true);
+      }
     });
   </script>
 
