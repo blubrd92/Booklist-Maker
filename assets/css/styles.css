@@ -525,8 +525,8 @@ input[type="color"]:hover {
   font-weight: 600;
   font-size: 0.85rem;
   margin: 8px 0 4px 0;
-  line-height: 1.4;
-  max-height: 2.8em;
+  line-height: 1.35;
+  min-height: 2.7em;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -537,8 +537,8 @@ input[type="color"]:hover {
   font-size: 0.8rem;
   color: var(--text-light);
   margin: 0 0 8px 0;
-  line-height: 1.4;
-  max-height: 2.8em;
+  line-height: 1.35;
+  min-height: 2.7em;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -546,16 +546,18 @@ input[type="color"]:hover {
 }
 .add-to-list-button {
   width: 100%;
-  padding: 8px;
+  height: 32px;
+  padding: 0 8px;
   background: var(--border-light);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   cursor: pointer;
   margin-top: auto;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-color);
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  box-sizing: border-box;
 }
 .add-to-list-button:hover {
   background: var(--primary-light);
@@ -1753,8 +1755,8 @@ input[type="color"]:hover {
   font-weight: bold;
   font-size: 0.85rem;
   margin: 6px 0 3px 0;
-  line-height: 1.4;
-  max-height: 2.8em;
+  line-height: 1.35;
+  min-height: 2.7em;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1765,8 +1767,8 @@ input[type="color"]:hover {
   font-size: 0.8rem;
   color: var(--text-light);
   margin: 0 0 6px 0;
-  line-height: 1.4;
-  max-height: 2.8em;
+  line-height: 1.35;
+  min-height: 2.7em;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
