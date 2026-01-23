@@ -961,7 +961,7 @@ input[type="color"]:hover {
 .description-field {
   font-family: var(--desc-font); color: var(--desc-color); font-size: var(--desc-font-size); font-weight: var(--desc-font-weight); font-style: var(--desc-font-style);
   margin-top: 2px; flex: 1;
-  line-height: 1.4;
+  line-height: 1.1;
   /* RESTORED: Original wrapping rules */
   overflow-wrap: break-word;
   word-break: break-word;
@@ -1915,4 +1915,5 @@ input[type="color"]:hover {
 .modal-footer .btn {
   min-width: 80px;
 }
+
 
