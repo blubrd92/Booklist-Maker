@@ -4114,14 +4114,14 @@ const BooklistApp = (function() {
     setupFileChangeHandler(elements.brandingUploader);
     setupFrontCoverHandler();
 
-    // Branding delete button - resets to default
+    // Branding delete button - clears the branding image
     const brandingDeleteBtn = elements.brandingUploader.querySelector('.branding-delete-btn');
     if (brandingDeleteBtn) {
       brandingDeleteBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
         const imgElement = elements.brandingUploader.querySelector('img');
-        imgElement.src = 'assets/img/branding-default.png';
+        imgElement.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
         imgElement.dataset.isPlaceholder = 'true';
         elements.brandingUploader.classList.remove('has-image');
         debouncedSave();

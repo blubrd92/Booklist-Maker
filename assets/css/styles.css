@@ -275,7 +275,7 @@ button.is-loading::after {
   gap: 0;
 }
 .tab-btn {
-  background-color: #7e57c2;
+  background-color: transparent;
   border: none;
   outline: none;
   cursor: pointer;
@@ -284,7 +284,7 @@ button.is-loading::after {
   font-size: 0.9rem;
   font-weight: 600;
   flex: 1;
-  color: white;
+  color: var(--text-light);
   border-bottom: 3px solid transparent;
   display: flex;
   align-items: center;
@@ -296,13 +296,13 @@ button.is-loading::after {
   font-size: 1.05rem;
 }
 .tab-btn:hover {
-  color: white;
-  background-color: #9575cd;
+  color: var(--text-color);
+  background-color: rgba(0,0,0,0.03);
 }
 .tab-btn.active {
-  color: white;
-  border-bottom: 3px solid #5e35b1;
-  background-color: #673ab7;
+  color: var(--primary-color);
+  border-bottom: 3px solid var(--primary-color);
+  background-color: white;
 }
 
 /* Tab Content - Fixed scrolling */
@@ -662,10 +662,10 @@ input[type="color"]:hover {
 }
 .settings-section summary {
   padding: 12px 14px;
-  background: linear-gradient(to bottom, #fafbfc, #f5f6f8);
+  background: linear-gradient(to bottom, #8e6bbf, #7e57c2);
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--secondary-color);
+  color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -684,7 +684,7 @@ input[type="color"]:hover {
   font-family: 'Font Awesome 6 Free';
   font-weight: 900;
   font-size: 0.65rem;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.8);
   transition: transform var(--transition-fast);
   width: 16px;
   text-align: center;
@@ -693,7 +693,7 @@ input[type="color"]:hover {
   transform: rotate(180deg);
 }
 .settings-section summary:hover {
-  background: linear-gradient(to bottom, #f0f2f5, #e8eaed);
+  background: linear-gradient(to bottom, #9575cd, #8e6bbf);
 }
 .settings-section[open] summary {
   border-bottom: 1px solid var(--border-color);
@@ -1222,6 +1222,7 @@ input[type="color"]:hover {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: bold;
 }
 #notification-area.show { transform: translateY(0); visibility: visible; }
 #notification-area.success { background: var(--success-color); }
