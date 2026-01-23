@@ -2737,9 +2737,16 @@ const BooklistApp = (function() {
     
     renderExtraCoversGrid();
     debouncedSave();
+
+    // Auto-generate cover when 20th cover is added
+    const starredAfterAdd = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+    if (starredAfterAdd + extraCollageCovers.length === CONFIG.MAX_COVERS_FOR_COLLAGE) {
+      generateCoverCollage();
+    }
+
     return newCover.id;
   }
-  
+
   /**
    * Removes an extra cover by its id
    */
@@ -4106,6 +4113,20 @@ const BooklistApp = (function() {
     // File uploaders
     setupFileChangeHandler(elements.brandingUploader);
     setupFrontCoverHandler();
+
+    // Branding delete button - resets to default
+    const brandingDeleteBtn = elements.brandingUploader.querySelector('.branding-delete-btn');
+    if (brandingDeleteBtn) {
+      brandingDeleteBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const imgElement = elements.brandingUploader.querySelector('img');
+        imgElement.src = 'assets/img/branding-default.png';
+        imgElement.dataset.isPlaceholder = 'true';
+        elements.brandingUploader.classList.remove('has-image');
+        debouncedSave();
+      });
+    }
   }
   
   // ---------------------------------------------------------------------------
