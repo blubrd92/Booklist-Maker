@@ -630,7 +630,7 @@ input[type="color"]:hover {
 .separator { border: 0; border-top: 1px solid var(--border-color); margin: 16px 0; }
 .font-select { flex-grow: 2; }
 .font-size-input { width: 58px; text-align: center; }
-.mini-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+.mini-label { font-size: 0.75rem; color: var(--text-light); font-weight: 500; }
 
 .advanced-settings summary {
   font-size: 0.8rem;
@@ -1545,7 +1545,7 @@ input[type="color"]:hover {
 
 .extra-covers-hint {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--text-light);
   margin: 0 0 10px 0;
 }
 
