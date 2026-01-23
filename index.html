@@ -24,10 +24,24 @@
   <div id="notification-area" role="alert" aria-live="polite"></div>
 
   <nav class="app-header" role="banner">
-    <div class="logo">
-      <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklist Maker
+    <div class="header-left">
+      <div class="logo">
+        <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklist Maker
+      </div>
+      <div class="header-panel-toggles">
+        <button id="toggle-sidebar-btn" class="panel-toggle-btn active" title="Toggle Search & Settings Panel" aria-label="Toggle sidebar panel">
+          <i class="fa-solid fa-bars" aria-hidden="true"></i>
+        </button>
+      </div>
     </div>
-    
+
+    <div class="header-center">
+      <div class="header-list-name">
+        <label for="list-name-input">List:</label>
+        <input type="text" id="list-name-input" class="list-name-input" placeholder="My Booklist" aria-label="Name for this booklist"/>
+      </div>
+    </div>
+
     <div class="header-actions">
       <button id="load-list-button" class="btn btn-header" title="Load Saved List" aria-label="Load saved booklist file">
         <i class="fa-solid fa-upload" aria-hidden="true"></i> Load
@@ -727,16 +741,6 @@
     </div>
 
     <main class="main-content" role="main">
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <label for="list-name-input" class="toolbar-label">List Name:</label>
-          <input type="text" id="list-name-input" class="list-name-input" placeholder="My Booklist" aria-label="Name for this booklist"/>
-        </div>
-        <div class="toolbar-hint">
-            <i class="fa-solid fa-circle-info" aria-hidden="true"></i> Find titles using the Search tab or edit text fields directly.
-        </div>
-      </div>
-
       <div id="preview-area" role="region" aria-label="Booklist preview">
         <div class="page" id="print-page-1">
           <div class="panel" id="back-cover-panel" role="list" aria-label="Back cover books">
@@ -774,6 +778,21 @@
   </div>
 
   <script src="assets/js/app.js"></script>
+
+  <!-- Sidebar Toggle Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const toggleBtn = document.getElementById('toggle-sidebar-btn');
+      const sidebar = document.querySelector('.sidebar');
+
+      if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', function() {
+          sidebar.classList.toggle('collapsed');
+          toggleBtn.classList.toggle('active');
+        });
+      }
+    });
+  </script>
 
   <!-- Font preloader: ensures Google Fonts are ready before canvas drawing -->
   <div class="font-preloader" aria-hidden="true">
