@@ -629,7 +629,7 @@ input[type="color"]:hover {
 }
 .separator { border: 0; border-top: 1px solid var(--border-color); margin: 16px 0; }
 .font-select { flex-grow: 2; }
-.font-size-input { width: 64px; text-align: center;}
+.font-size-input { width: 66px; text-align: center;}
 .mini-label { font-size: 0.75rem; color: var(--text-light); font-weight: 500; }
 
 .advanced-settings summary {
@@ -1945,6 +1945,7 @@ input[type="color"]:hover {
 .modal-footer .btn {
   min-width: 80px;
 }
+
 
 
 
