@@ -662,7 +662,7 @@ input[type="color"]:hover {
 }
 .settings-section summary {
   padding: 12px 14px;
-  background: linear-gradient(to bottom, #8e6bbf, #7e57c2);
+  background: var(--secondary-color);
   font-size: 0.9rem;
   font-weight: 600;
   color: white;
@@ -693,7 +693,7 @@ input[type="color"]:hover {
   transform: rotate(180deg);
 }
 .settings-section summary:hover {
-  background: linear-gradient(to bottom, #9575cd, #8e6bbf);
+  background: var(--secondary-light);
 }
 .settings-section[open] summary {
   border-bottom: 1px solid var(--border-color);
@@ -1183,6 +1183,21 @@ input[type="color"]:hover {
 .print-mode .branding-delete-btn {
   display: none !important;
 }
+
+#branding-uploader .placeholder-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-light);
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  pointer-events: none;
+}
+#branding-uploader.has-image .placeholder-text { display: none; }
+#branding-uploader:not(.has-image) img { display: none; }
+#branding-uploader:not(.has-image) .branding-delete-btn { display: none; }
 
 .qr-code-container {
   width: 480px; height: 144px; display: flex; gap: 14px; align-items: center;
