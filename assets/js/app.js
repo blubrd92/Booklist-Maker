@@ -2450,21 +2450,24 @@ const BooklistApp = (function() {
       if (!isRestoring) {
         // Clear existing front cover and show placeholder (need 20 covers message)
         clearFrontCoverForExtendedMode();
-        
+
         // Auto-star all books with covers (not just first 12) up to position 15
         let starredCount = 0;
         for (let i = 0; i < myBooklist.length; i++) {
           const book = myBooklist[i];
           if (book.isBlank) continue;
-          
-          const hasCover = book.cover_ids.length > 0 || 
+
+          const hasCover = book.cover_ids.length > 0 ||
             (book.customCoverData && !book.customCoverData.includes('placehold.co'));
-          
+
           if (hasCover && starredCount < 15) {
             book.includeInCollage = true;
             starredCount++;
           }
         }
+      } else {
+        // When restoring, just update the placeholder text (don't clear cover)
+        updateExtendedModePlaceholderText();
       }
       
       // Always render booklist and extra covers grid
@@ -2519,6 +2522,16 @@ const BooklistApp = (function() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
       placeholderText.innerHTML = 'Upload a Custom Cover<br/>For the best results,<br/>its dimensions should be 5x8 inches.<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)';
+    }
+  }
+
+  /**
+   * Updates placeholder text for 20-cover extended mode (without clearing cover)
+   */
+  function updateExtendedModePlaceholderText() {
+    const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
+    if (placeholderText) {
+      placeholderText.innerHTML = 'Upload a Custom Cover<br/>For the best results,<br/>its dimensions should be 5x8 inches.<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
     }
   }
   
