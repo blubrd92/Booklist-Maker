@@ -3535,8 +3535,10 @@ const BooklistApp = (function() {
       img.dataset.isPlaceholder = "false";
       uploaderEl.classList.add('has-image');
     } else {
+      // Reset to transparent gif so placeholder text shows via CSS
+      img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+      img.dataset.isPlaceholder = 'true';
       uploaderEl.classList.remove('has-image');
-      delete img.dataset.isPlaceholder;
     }
   }
   
@@ -4124,6 +4126,20 @@ const BooklistApp = (function() {
         imgElement.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
         imgElement.dataset.isPlaceholder = 'true';
         elements.brandingUploader.classList.remove('has-image');
+        debouncedSave();
+      });
+    }
+    
+    // Branding "Use Default" button - loads the default branding image
+    const brandingDefaultBtn = elements.brandingUploader.querySelector('.branding-default-btn');
+    if (brandingDefaultBtn) {
+      brandingDefaultBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const imgElement = elements.brandingUploader.querySelector('img');
+        imgElement.src = 'assets/img/branding-default.png';
+        imgElement.dataset.isPlaceholder = 'false';
+        elements.brandingUploader.classList.add('has-image');
         debouncedSave();
       });
     }
