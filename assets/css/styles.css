@@ -1176,13 +1176,8 @@ input[type="color"] { width: 35px; height: 35px; padding: 2px; border: none; bac
 }
 
 .modal-search-form {
-  display: flex;
-  gap: 8px;
+  display: block;
   margin-bottom: 15px;
-}
-
-.modal-search-form input {
-  flex: 1;
 }
 
 .modal-search-results {
