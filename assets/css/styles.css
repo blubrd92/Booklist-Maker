@@ -461,7 +461,8 @@ input[type="color"]:hover {
   gap: 10px;
 }
 
-.book-card {
+/* Main search result cards (scoped to avoid affecting modal) */
+#results-container .book-card {
   background: white;
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
@@ -474,12 +475,12 @@ input[type="color"]:hover {
   height: 365px;
 }
 
-.book-card:hover {
+#results-container .book-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
 }
 
-.book-card .cover-carousel {
+#results-container .book-card .cover-carousel {
   position: relative;
   width: 100%;
   max-width: 130px;
@@ -492,7 +493,7 @@ input[type="color"]:hover {
   background: #fff;
 }
 
-.book-card .cover-carousel img {
+#results-container .book-card .cover-carousel img {
   width: auto;
   height: auto;
   max-width: 100%;
@@ -501,7 +502,7 @@ input[type="color"]:hover {
   display: block;
 }
 
-.book-card .book-title {
+#results-container .book-card .book-title {
   font-weight: bold;
   font-size: 0.85rem;
   margin: 8px 0 3px 0;
@@ -513,7 +514,7 @@ input[type="color"]:hover {
   -webkit-box-orient: vertical;
 }
 
-.book-card .book-author {
+#results-container .book-card .book-author {
   font-size: 0.8rem;
   color: var(--text-light);
   margin: 0 0 8px 0;
@@ -525,7 +526,7 @@ input[type="color"]:hover {
   -webkit-box-orient: vertical;
 }
 
-.book-card .card-actions-group {
+#results-container .book-card .card-actions-group {
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -534,14 +535,14 @@ input[type="color"]:hover {
   margin-top: auto;
 }
 
-.book-card .carousel-controls {
+#results-container .book-card .carousel-controls {
   display: flex;
   align-items: center;
   gap: 4px;
   font-size: 0.7rem;
 }
 
-.book-card .carousel-button {
+#results-container .book-card .carousel-button {
   padding: 2px 6px;
   font-size: 0.65rem;
   background: #f8f9fa;
@@ -550,7 +551,7 @@ input[type="color"]:hover {
   cursor: pointer;
 }
 
-.book-card .carousel-button:disabled {
+#results-container .book-card .carousel-button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
