@@ -2299,10 +2299,11 @@ const BooklistApp = (function() {
     const useRegularSequential = totalImages > 12 && position !== 'center' && offsetDirection === 'horizontal';
 
     const getImageForCell = (row, col) => {
-      // For non-center positions with horizontal offset and 20 images, use regular sequential order
-      // 5 covers per row, cycling through all images
+      // For non-center positions with horizontal offset and 20 images, use 4 rows of 5 in a loop
+      // Each row shows only its 5 books, columns cycle within that set
       if (useRegularSequential) {
-        return (row * 5 + col) % totalImages;
+        const rowGroup = (row % 4) * 5;  // 0, 5, 10, 15, then repeats
+        return rowGroup + (col % 5);
       }
 
       if (totalImages <= 12) {
