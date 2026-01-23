@@ -176,6 +176,7 @@ button.is-loading::after {
   font-size: 0.85rem;
   color: rgba(255,255,255,0.8);
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .header-list-name input {
@@ -746,7 +747,7 @@ input[type="color"]:hover {
 }
 .list-name-input:focus {
   outline: none;
-  background: rgba(255,255,255,0.1);
+  background: transparent;
 }
 .list-name-input::placeholder {
   color: rgba(255,255,255,0.5);
@@ -1180,16 +1181,14 @@ input[type="color"]:hover {
 .cover-carousel {
   position: relative;
   width: 100%;
-  max-width: 110px;
-  height: 145px;
+  max-width: 150px;
+  height: 180px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: #fafafa;
-  overflow: hidden;
+  border: 1px solid #ccc;
+  background: #fff;
 }
 .cover-carousel img {
   width: auto;
