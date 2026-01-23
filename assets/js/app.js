@@ -2295,14 +2295,14 @@ const BooklistApp = (function() {
     // Deterministic image selection based on offset direction and bar position
     // Supports both 12 and 20 image counts
     const totalImages = images.length;
-    const useRegularSequential = position !== 'center' && offsetDirection === 'horizontal';
+    // Only use sequential order for 20-image covers with horizontal offset and non-center position
+    const useRegularSequential = totalImages > 12 && position !== 'center' && offsetDirection === 'horizontal';
 
     const getImageForCell = (row, col) => {
-      // For non-center positions with horizontal offset, use regular sequential order
+      // For non-center positions with horizontal offset and 20 images, use regular sequential order
       // 5 covers per row, cycling through all images
       if (useRegularSequential) {
-        const coversPerRow = totalImages <= 12 ? 4 : 5;
-        return (row * coversPerRow + col) % totalImages;
+        return (row * 5 + col) % totalImages;
       }
 
       if (totalImages <= 12) {
