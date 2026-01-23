@@ -2509,7 +2509,7 @@ const BooklistApp = (function() {
     }
     
     if (placeholderText) {
-      placeholderText.innerHTML = 'Upload a Custom Cover<br/>For the best results,<br/>its dimensions should be 5x8 inches.<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(5 x 8 inches recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
     }
     
     elements.frontCoverUploader?.classList.remove('has-image');
@@ -2521,7 +2521,7 @@ const BooklistApp = (function() {
   function restoreFrontCoverPlaceholderText() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Upload a Custom Cover<br/>For the best results,<br/>its dimensions should be 5x8 inches.<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(5 x 8 inches recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)';
     }
   }
 
@@ -2531,7 +2531,7 @@ const BooklistApp = (function() {
   function updateExtendedModePlaceholderText() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Upload a Custom Cover<br/>For the best results,<br/>its dimensions should be 5x8 inches.<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(5 x 8 inches recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
     }
   }
   
