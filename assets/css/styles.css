@@ -275,7 +275,7 @@ button.is-loading::after {
   gap: 0;
 }
 .tab-btn {
-  background-color: transparent;
+  background-color: #7e57c2;
   border: none;
   outline: none;
   cursor: pointer;
@@ -284,7 +284,7 @@ button.is-loading::after {
   font-size: 0.9rem;
   font-weight: 600;
   flex: 1;
-  color: var(--text-light);
+  color: white;
   border-bottom: 3px solid transparent;
   display: flex;
   align-items: center;
@@ -296,13 +296,13 @@ button.is-loading::after {
   font-size: 1.05rem;
 }
 .tab-btn:hover {
-  color: var(--text-color);
-  background-color: rgba(0,0,0,0.03);
+  color: white;
+  background-color: #9575cd;
 }
 .tab-btn.active {
-  color: var(--primary-color);
-  border-bottom: 3px solid var(--primary-color);
-  background-color: white;
+  color: white;
+  border-bottom: 3px solid #5e35b1;
+  background-color: #673ab7;
 }
 
 /* Tab Content - Fixed scrolling */
