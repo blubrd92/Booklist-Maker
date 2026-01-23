@@ -2360,9 +2360,9 @@ const BooklistApp = (function() {
           gridX = gridOriginX + col * hStep + slotWidth / 2;
           gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
         } else {
-          // Horizontal: stagger only for center position
+          // Horizontal stagger: odd ROWS shift right
           const isOddRow = row % 2 === 1;
-          const rowStagger = (isOddRow && position === 'center') ? staggerOffset : 0;
+          const rowStagger = isOddRow ? staggerOffset : 0;
           gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
           gridY = gridOriginY + row * vStep + slotHeight / 2;
         }
