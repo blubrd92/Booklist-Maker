@@ -3318,6 +3318,8 @@ const BooklistApp = (function() {
     const img = uploaderEl.querySelector('img');
     if (!img || !img.src) return null;
     if (img.src.includes('placehold.co')) return null;
+    // Filter out transparent placeholder GIF used when image is cleared
+    if (img.src.startsWith('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP')) return null;
     return img.src;
   }
   
@@ -3530,7 +3532,10 @@ const BooklistApp = (function() {
     const img = uploaderEl.querySelector('img');
     if (!img) return;
     
-    if (dataUrl) {
+    // Treat transparent placeholder GIF as null (handles legacy drafts)
+    const isTransparentGif = dataUrl && dataUrl.startsWith('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP');
+    
+    if (dataUrl && !isTransparentGif) {
       img.src = dataUrl;
       img.dataset.isPlaceholder = "false";
       uploaderEl.classList.add('has-image');
