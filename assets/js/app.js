@@ -3709,6 +3709,18 @@ const BooklistApp = (function() {
     // Toggle extended mode AFTER books are loaded so renderExtraCoversGrid sees the correct data
     toggleExtendedCollageMode(isExtendedMode, true);
 
+    // Auto-generate cover collage if all required covers are present but front cover is empty
+    // (This handles browser draft restore where the cover image isn't saved to localStorage)
+    const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+    const totalCovers = starredCount + extraCollageCovers.length;
+    const requiredCovers = isExtendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+    const hasFrontCover = elements.frontCoverUploader?.classList.contains('has-image');
+    
+    if (totalCovers >= requiredCovers && !hasFrontCover) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => generateCoverCollage(), 150);
+    }
+
     showNotification('Booklist loaded.', 'success');
   }
   
