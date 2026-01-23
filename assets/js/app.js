@@ -3644,9 +3644,11 @@ const BooklistApp = (function() {
     // Books
     const incoming = Array.isArray(loaded.books) ? loaded.books : [];
     let starCount = 0;
+    // Allow up to 15 starred books when extended mode is enabled, otherwise 12
+    const maxStars = isExtendedMode ? 15 : CONFIG.MIN_COVERS_FOR_COLLAGE;
     myBooklist = incoming.slice(0, CONFIG.TOTAL_SLOTS).map(b => {
       const wasStarred = b.includeInCollage !== false;
-      const shouldStar = wasStarred && !b.isBlank && starCount < CONFIG.MIN_COVERS_FOR_COLLAGE;
+      const shouldStar = wasStarred && !b.isBlank && starCount < maxStars;
       if (shouldStar) starCount++;
       
       return {
