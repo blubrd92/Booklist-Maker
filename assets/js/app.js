@@ -2341,8 +2341,10 @@ const BooklistApp = (function() {
         } else {
           // Vertical: each column cycles through 4 books
           // 5 column groups to show all 20: 0-3, 4-7, 8-11, 12-15, 16-19
+          // Add cycle offset to prevent same book appearing in repeated columns
+          const cycleNum = Math.floor(col / 5);
           const colGroup = (col % 5) * 4;  // 0, 4, 8, 12, 16
-          const rowOffset = col % 4;
+          const rowOffset = (col % 4 + cycleNum * 2) % 4;
           return colGroup + ((row + rowOffset) % 4);
         }
       }
