@@ -1169,7 +1169,7 @@ input[type="color"]:hover {
   color: white;
   border: none;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.75rem;
   line-height: 1;
   display: flex;
   align-items: center;
@@ -1185,9 +1185,39 @@ input[type="color"]:hover {
   display: none !important;
 }
 
+/* Use Default branding button */
+.branding-default-btn {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.9;
+  transition: opacity 0.2s, background-color 0.2s;
+}
+.branding-default-btn:hover {
+  opacity: 1;
+  background: var(--primary-hover);
+}
+.print-mode .branding-default-btn {
+  display: none !important;
+}
+/* Only show Use Default when there's no image */
+#branding-uploader.has-image .branding-default-btn { display: none; }
+
 #branding-uploader .placeholder-text {
   position: absolute;
-  top: 50%;
+  top: 45%;
   left: 50%;
   transform: translate(-50%, -50%);
   color: var(--text-light);
