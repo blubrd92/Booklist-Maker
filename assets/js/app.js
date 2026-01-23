@@ -2292,10 +2292,19 @@ const BooklistApp = (function() {
     const gridOriginX = centerX - (numCols * hStep) / 2;
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
-    // Deterministic image selection based on offset direction
+    // Deterministic image selection based on offset direction and bar position
     // Supports both 12 and 20 image counts
     const totalImages = images.length;
+    const useRegularSequential = position !== 'center' && offsetDirection === 'horizontal';
+
     const getImageForCell = (row, col) => {
+      // For non-center positions with horizontal offset, use regular sequential order
+      // 5 covers per row, cycling through all images
+      if (useRegularSequential) {
+        const coversPerRow = totalImages <= 12 ? 4 : 5;
+        return (row * coversPerRow + col) % totalImages;
+      }
+
       if (totalImages <= 12) {
         // Original 12-image logic
         if (offsetDirection === 'horizontal') {
@@ -2343,7 +2352,7 @@ const BooklistApp = (function() {
     for (let row = 0; row < numRows; row++) {
       for (let col = 0; col < numCols; col++) {
         let gridX, gridY;
-        
+
         if (offsetDirection === 'vertical') {
           // Vertical stagger: odd COLUMNS shift down
           const isOddCol = col % 2 === 1;
@@ -2351,15 +2360,15 @@ const BooklistApp = (function() {
           gridX = gridOriginX + col * hStep + slotWidth / 2;
           gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
         } else {
-          // Horizontal stagger: odd ROWS shift right
+          // Horizontal: stagger only for center position
           const isOddRow = row % 2 === 1;
-          const rowStagger = isOddRow ? staggerOffset : 0;
+          const rowStagger = (isOddRow && position === 'center') ? staggerOffset : 0;
           gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
           gridY = gridOriginY + row * vStep + slotHeight / 2;
         }
-        
+
         const rotated = rotatePoint(gridX, gridY);
-        
+
         // Draw if cover intersects the canvas at all
         if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
           const imgIdx = getImageForCell(row, col) % images.length;
@@ -3122,21 +3131,26 @@ const BooklistApp = (function() {
       modalDone.addEventListener('click', closeExtraCoverSearchModal);
     }
     
-    // Modal overlay click to close
+    // Modal overlay click to close - track mousedown to prevent closing during text selection
     if (elements.extraCoverSearchModal) {
+      let mouseDownOnOverlay = false;
+      elements.extraCoverSearchModal.addEventListener('mousedown', (e) => {
+        mouseDownOnOverlay = e.target === elements.extraCoverSearchModal;
+      });
       elements.extraCoverSearchModal.addEventListener('click', (e) => {
-        if (e.target === elements.extraCoverSearchModal) {
+        if (e.target === elements.extraCoverSearchModal && mouseDownOnOverlay) {
           closeExtraCoverSearchModal();
         }
+        mouseDownOnOverlay = false;
       });
     }
-    
+
     // Modal search submit
     const searchSubmit = document.getElementById('extra-cover-search-submit');
     if (searchSubmit) {
       searchSubmit.addEventListener('click', searchExtraCovers);
     }
-    
+
     // Modal search input enter key
     const searchInput = document.getElementById('extra-cover-search-input');
     if (searchInput) {
@@ -3147,6 +3161,19 @@ const BooklistApp = (function() {
         }
       });
     }
+
+    // Advanced fields enter key support
+    ['extra-title-input', 'extra-author-input', 'extra-subject-input', 'extra-isbn-input'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) {
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            searchExtraCovers();
+          }
+        });
+      }
+    });
   }
   
   // ---------------------------------------------------------------------------
