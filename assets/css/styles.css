@@ -515,7 +515,7 @@ input[type="color"]:hover {
   display: flex;
   flex-direction: column;
   transition: all var(--transition-fast);
-  min-height: 300px;
+  height: 320px;
 }
 .book-card:hover {
   transform: translateY(-3px);
@@ -1718,7 +1718,7 @@ input[type="color"]:hover {
   display: flex;
   flex-direction: column;
   transition: transform 0.2s, box-shadow 0.2s;
-  min-height: 280px;
+  height: 300px;
 }
 
 .modal-cover-result.book-card:hover {
