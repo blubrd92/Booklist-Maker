@@ -245,31 +245,11 @@ button.is-loading::after {
   box-shadow: 0 4px 8px rgba(67, 160, 71, 0.4);
 }
 
-/* --- HELPER BAR --- */
-.helper-bar {
-  background: var(--primary-light);
-  border-bottom: 1px solid #d1d5e8;
-  padding: 8px 20px;
-  font-size: 0.85rem;
-  color: var(--secondary-color);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-.helper-bar i {
-  color: var(--primary-color);
-  font-size: 0.95rem;
-}
-.helper-bar strong {
-  color: var(--primary-color);
-}
-
 /* --- MAIN LAYOUT --- */
 .app-container {
   display: flex;
   flex: 1;
-  height: calc(100vh - 52px - 37px); /* header + helper bar */
+  height: calc(100vh - 52px);
   overflow: hidden;
   background: var(--bg-color);
 }
@@ -727,14 +707,27 @@ input[type="color"]:hover {
   position: relative;
 }
 
-/* Hide old toolbar - moved to header */
+/* Toolbar above preview */
 .toolbar {
-  display: none;
+  width: 100%;
+  max-width: 11in;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 15px;
+  margin-left: auto;
+  margin-right: auto;
+  flex-shrink: 0;
 }
-.toolbar-left,
-.toolbar-label,
 .toolbar-hint {
-  display: none;
+  font-size: 0.9rem;
+  color: var(--text-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toolbar-hint i {
+  color: var(--primary-color);
 }
 
 /* Keep list-name-input styled for header use */
@@ -1405,10 +1398,9 @@ input[type="color"]:hover {
 [data-style-group="desc"],
 [data-style-group="qr"] {
   background: var(--border-light);
-  padding: 10px 12px;
+  padding: 10px 12px !important;
   border-radius: var(--radius);
   margin-bottom: 10px;
-  border-bottom: none;
   border: 1px solid var(--border-color);
 }
 

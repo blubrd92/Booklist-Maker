@@ -59,11 +59,6 @@
     </div>
   </nav>
 
-  <div class="helper-bar">
-    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-    <span>Find titles using the <strong>Search</strong> tab, or click directly on text fields and covers to edit them manually.</span>
-  </div>
-
   <div class="app-container">
     
     <aside class="sidebar" role="complementary" aria-label="Search and Settings">
@@ -746,6 +741,12 @@
     </div>
 
     <main class="main-content" role="main">
+      <div class="toolbar">
+        <div class="toolbar-hint">
+          <i class="fa-solid fa-circle-info" aria-hidden="true"></i> Find titles using the Search tab or edit text fields and covers directly.
+        </div>
+      </div>
+
       <div id="preview-area" role="region" aria-label="Booklist preview">
         <div class="page" id="print-page-1">
           <div class="panel" id="back-cover-panel" role="list" aria-label="Back cover books">
@@ -765,7 +766,7 @@
             <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or generate front cover image">
               <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
-                Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in the Settings tab<br/>(Star 12 books to include in the collage)
+                Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches.<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)
               </div>
               <input type="file" accept="image/*" aria-hidden="true"/>
             </div>
