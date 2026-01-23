@@ -1696,7 +1696,7 @@ input[type="color"]:hover {
   display: flex;
   flex-direction: column;
   transition: transform 0.2s, box-shadow 0.2s;
-  height: 300px;
+  height: 320px;
 }
 
 .modal-cover-result.book-card:hover {
@@ -1731,6 +1731,7 @@ input[type="color"]:hover {
   font-size: 0.85rem;
   margin: 6px 0 3px 0;
   line-height: 1.4;
+  min-height: 2.4em;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
