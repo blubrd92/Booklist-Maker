@@ -93,7 +93,12 @@
       </div>
 
       <div id="tab-settings" class="tab-content export-controls" role="tabpanel" aria-labelledby="settings-tab">
-        
+
+        <!-- Text Styling Section -->
+        <details class="settings-section" open>
+          <summary><i class="fa-solid fa-font" aria-hidden="true"></i> Text Styling</summary>
+          <div class="settings-section-content">
+
         <div class="form-group" data-style-group="title">
           <label>Book Title</label>
           <div class="control-row">
@@ -216,7 +221,13 @@
           <label for="stretch-block-covers-toggle">Stretch Book Covers</label>
         </div>
 
-        <hr class="separator">
+          </div>
+        </details>
+
+        <!-- Cover Header Section -->
+        <details class="settings-section">
+          <summary><i class="fa-solid fa-heading" aria-hidden="true"></i> Cover Header</summary>
+          <div class="settings-section-content">
 
         <div class="form-group" id="cover-header-text-group">
           <label>Cover Header Text</label>
@@ -432,8 +443,16 @@
             <input id="stretch-covers-toggle" type="checkbox" checked/>
             <label for="stretch-covers-toggle">Stretch Header Covers</label>
           </div>
-          
-          <div class="layout-settings" id="collage-layout-details" style="margin-top: 10px;">
+
+          </div>
+        </details>
+
+        <!-- Cover Layout Section -->
+        <details class="settings-section">
+          <summary><i class="fa-solid fa-grip" aria-hidden="true"></i> Cover Layout</summary>
+          <div class="settings-section-content">
+
+          <div class="layout-settings" id="collage-layout-details">
             <label style="font-weight: 600; font-size: 0.85rem;">Collage Layout Options</label>
             <p id="collage-cover-hint" style="font-size: 0.75rem; color: #666; margin: 6px 0;">Star 12 books to include in the collage</p>
             <div id="collage-layout-selector" aria-label="Select collage layout">
@@ -599,41 +618,14 @@
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Extra Cover Search Modal -->
-        <div id="extra-cover-search-modal" class="modal-overlay" style="display: none;">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h3>Search for Covers</h3>
-              <button type="button" class="modal-close" aria-label="Close modal">&times;</button>
-            </div>
-            <div class="modal-body">
-              <div class="modal-search-form">
-                <div class="search-row">
-                  <input type="text" id="extra-cover-search-input" placeholder="Keyword..." />
-                  <button type="button" id="extra-cover-search-submit" class="btn btn-primary">Search</button>
-                </div>
-                <details class="advanced-search-toggle">
-                  <summary>Advanced Fields</summary>
-                  <div class="advanced-fields-grid">
-                    <input id="extra-title-input" type="text" placeholder="Title"/>
-                    <input id="extra-author-input" type="text" placeholder="Author"/>
-                    <input id="extra-subject-input" type="text" placeholder="Subject"/>
-                    <input id="extra-isbn-input" type="text" placeholder="ISBN"/>
-                  </div>
-                </details>
-              </div>
-              <div id="extra-cover-search-results" class="modal-search-results">
-                <p class="modal-search-placeholder">Enter a search term to find book covers</p>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <span class="cover-count" id="modal-cover-count">0 of 8 extra slots filled</span>
-              <button type="button" class="btn btn-primary modal-done-btn">Done</button>
-            </div>
           </div>
-        </div>
+        </details>
+
+        <!-- Back Cover Section -->
+        <details class="settings-section">
+          <summary><i class="fa-solid fa-qrcode" aria-hidden="true"></i> Back Cover</summary>
+          <div class="settings-section-content">
 
         <div class="form-group">
           <label>Back Cover Elements</label>
@@ -694,8 +686,45 @@
           </div>
         </div>
 
+          </div>
+        </details>
+
       </div>
     </aside>
+
+    <!-- Extra Cover Search Modal -->
+    <div id="extra-cover-search-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Search for Covers</h3>
+          <button type="button" class="modal-close" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-search-form">
+            <div class="search-row">
+              <input type="text" id="extra-cover-search-input" placeholder="Keyword..." />
+              <button type="button" id="extra-cover-search-submit" class="btn btn-primary">Search</button>
+            </div>
+            <details class="advanced-search-toggle">
+              <summary>Advanced Fields</summary>
+              <div class="advanced-fields-grid">
+                <input id="extra-title-input" type="text" placeholder="Title"/>
+                <input id="extra-author-input" type="text" placeholder="Author"/>
+                <input id="extra-subject-input" type="text" placeholder="Subject"/>
+                <input id="extra-isbn-input" type="text" placeholder="ISBN"/>
+              </div>
+            </details>
+          </div>
+          <div id="extra-cover-search-results" class="modal-search-results">
+            <p class="modal-search-placeholder">Enter a search term to find book covers</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span class="cover-count" id="modal-cover-count">0 of 8 extra slots filled</span>
+          <button type="button" class="btn btn-primary modal-done-btn">Done</button>
+        </div>
+      </div>
+    </div>
 
     <main class="main-content" role="main">
       <div class="toolbar">
