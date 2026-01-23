@@ -2339,11 +2339,11 @@ const BooklistApp = (function() {
           }
           return rowGroup + (col % 5);
         } else {
-          // Vertical: each column cycles through 3 books (not 4)
-          // 7 column groups to show all 20: 0-2, 3-5, 6-8, 9-11, 12-14, 15-17, 18-19+wrap
-          const colGroup = (col % 7) * 3;  // 0, 3, 6, 9, 12, 15, 18
-          const rowOffset = col % 3;
-          return colGroup + ((row + rowOffset) % 3);
+          // Vertical: each column cycles through 4 books
+          // 5 column groups to show all 20: 0-3, 4-7, 8-11, 12-15, 16-19
+          const colGroup = (col % 5) * 4;  // 0, 4, 8, 12, 16
+          const rowOffset = col % 4;
+          return colGroup + ((row + rowOffset) % 4);
         }
       }
     };
