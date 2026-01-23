@@ -629,7 +629,7 @@ input[type="color"]:hover {
 }
 .separator { border: 0; border-top: 1px solid var(--border-color); margin: 16px 0; }
 .font-select { flex-grow: 2; }
-.font-size-input { width: 58px; text-align: left; padding-left: 8px; }
+.font-size-input { width: 58px; text-align: center; }
 .mini-label { font-size: 0.75rem; color: var(--text-light); font-weight: 500; }
 
 .advanced-settings summary {
@@ -1074,7 +1074,7 @@ input[type="color"]:hover {
   flex: 1;
 }
 .line-style-group .font-size-input {
-  width: 55px;
+  width: 60px;
 }
 
 /* --- LAYOUT SELECTOR (in Settings tab) --- */
@@ -1497,7 +1497,7 @@ input[type="color"]:hover {
 [data-style-group="author"] .font-size-input,
 [data-style-group="desc"] .font-size-input,
 [data-style-group="qr"] .font-size-input {
-  width: 55px;
+  width: 60px;
 }
 
 /* --- COVER SIMPLE STYLE (match Line Style Group appearance) --- */
@@ -1524,7 +1524,7 @@ input[type="color"]:hover {
 }
 
 #cover-simple-style .font-size-input {
-  width: 55px;
+  width: 60px;
 }
 
 /* --- EXTRA COLLAGE COVERS SECTION --- */
@@ -1945,6 +1945,7 @@ input[type="color"]:hover {
 .modal-footer .btn {
   min-width: 80px;
 }
+
 
 
 
