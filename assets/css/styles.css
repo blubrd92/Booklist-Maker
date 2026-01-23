@@ -949,7 +949,7 @@ input[type="color"]:hover {
   width: 100%;
   border: 1px solid #eee;
   background: transparent;
-  padding: 0; margin: 0; line-height: 1.15;
+  padding: 0; margin: 0; line-height: 1.1;
   box-sizing: border-box; transition: border-color 0.2s;
   overflow: visible;
 }
@@ -961,7 +961,6 @@ input[type="color"]:hover {
 .description-field {
   font-family: var(--desc-font); color: var(--desc-color); font-size: var(--desc-font-size); font-weight: var(--desc-font-weight); font-style: var(--desc-font-style);
   margin-top: 2px; flex: 1;
-  line-height: 1.1;
   /* RESTORED: Original wrapping rules */
   overflow-wrap: break-word;
   word-break: break-word;
@@ -1915,5 +1914,6 @@ input[type="color"]:hover {
 .modal-footer .btn {
   min-width: 80px;
 }
+
 
 
