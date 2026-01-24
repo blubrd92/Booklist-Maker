@@ -2778,11 +2778,20 @@ const BooklistApp = (function() {
           }
           cells.push(cell);
           
-          // Add micro-fill for shorter covers (block below cover, not squishing)
+          // Add micro-fill for shorter covers (block below cover)
           if (cell.type === 'cover' && cell.h < maxRowH) {
             const microH = maxRowH - cell.h;
             if (microH > minBlockSize * 0.3) {
-              cells.push({ type: 'block', x: cell.x, y: currentY + cell.h, w: actualFillWidth, h: microH });
+              cells.push({ type: 'block', x: cell.x, y: currentY + cell.h, w: cell.w, h: microH });
+            }
+          }
+          
+          // Add horizontal fill beside scaled-down covers
+          if (cell.type === 'cover' && cell.w < actualFillWidth) {
+            const horizGap = actualFillWidth - cell.w;
+            if (horizGap > minBlockSize * 0.3) {
+              // Block fills space to the right of the narrower cover
+              cells.push({ type: 'block', x: cell.x + cell.w, y: currentY, w: horizGap, h: maxRowH });
             }
           }
         }
@@ -2845,6 +2854,14 @@ const BooklistApp = (function() {
             const microH = maxBottomH - c.h;
             if (microH > minBlockSize * 0.3) {
               cells.push({ type: 'block', x: c.x, y: coverY - microH, w: c.w, h: microH });
+            }
+          }
+          
+          // Horizontal fill beside scaled-down covers
+          if (c.w < actualFillWidth) {
+            const horizGap = actualFillWidth - c.w;
+            if (horizGap > minBlockSize * 0.3) {
+              cells.push({ type: 'block', x: c.x + c.w, y: bottomRowY, w: horizGap, h: maxBottomH });
             }
           }
         }
