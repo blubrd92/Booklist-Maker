@@ -2735,33 +2735,50 @@ const BooklistApp = (function() {
           }
         }
         
-        // Calculate heights for this row
+        // Calculate heights for this row - NEVER warp covers
         let maxRowH = 0;
         for (const cell of rowCells) {
           if (cell.type === 'cover') {
             const img = images[cell.imgIdx];
             cell.h = getCoverHeight(img, actualFillWidth);
-            // Don't exceed remaining space
+            cell.naturalH = cell.h; // Store natural height
+            
+            // If cover doesn't fit at natural size
             if (currentY + cell.h > gapEnd) {
-              cell.h = gapEnd - currentY;
+              if (mustBeCover) {
+                // EDGE ROW: Must use cover - scale down proportionally
+                const availableH = gapEnd - currentY;
+                const scaleFactor = availableH / cell.h;
+                cell.h = availableH;
+                cell.w = actualFillWidth * scaleFactor; // Scale width too (no warp)
+                cell.scaled = true;
+                maxRowH = Math.max(maxRowH, cell.h);
+              } else {
+                // MIDDLE ROW: Convert to block instead
+                cell.type = 'block';
+                cell.h = gapEnd - currentY;
+                cell.imgIdx = -1;
+              }
+            } else {
+              cell.w = actualFillWidth;
+              maxRowH = Math.max(maxRowH, cell.h);
             }
-            maxRowH = Math.max(maxRowH, cell.h);
           }
         }
         
-        // If no covers in row, use average height for blocks
+        // If no covers fit in row, use remaining space for blocks
         if (maxRowH === 0) maxRowH = Math.min(avgFillH * 0.6, remaining);
         
         // Assign heights to blocks and record cells
         for (const cell of rowCells) {
           cell.y = currentY;
-          cell.w = actualFillWidth;
           if (cell.type === 'block') {
+            cell.w = actualFillWidth;
             cell.h = maxRowH;
           }
           cells.push(cell);
           
-          // Add micro-fill for shorter covers
+          // Add micro-fill for shorter covers (block below cover, not squishing)
           if (cell.type === 'cover' && cell.h < maxRowH) {
             const microH = maxRowH - cell.h;
             if (microH > minBlockSize * 0.3) {
@@ -2774,60 +2791,62 @@ const BooklistApp = (function() {
         rowIdx++;
       }
       
-      // Fill any final gap - cover at bottom, block in middle
+      // Fill any final gap - cover at bottom (REQUIRED for flush), block in middle
       const finalGap = gapEnd - currentY;
       if (finalGap > minBlockSize) {
-        if (finalGap >= avgFillH * 0.5) {
-          // Place a final row of covers flush with bottom edge
-          let lastIdx = -1;
-          const bottomRowCells = [];
-          let maxBottomH = 0;
+        // Place a final row of covers flush with bottom edge
+        let lastIdx = -1;
+        const bottomRowCells = [];
+        let maxBottomH = 0;
+        
+        for (let i = 0; i < coversPerRow; i++) {
+          const cellX = colX + i * (actualFillWidth + fillGutter);
           
-          for (let i = 0; i < coversPerRow; i++) {
-            const cellX = colX + i * (actualFillWidth + fillGutter);
-            
-            // Pick non-duplicate image
-            let imgIdx = Math.floor(Math.random() * images.length);
-            let att = 0;
-            while ((imgIdx === lastIdx || imgIdx === lastImgByPosition[i]) && att < 20) {
-              imgIdx = (imgIdx + 1) % images.length;
-              att++;
+          // Pick non-duplicate image
+          let imgIdx = Math.floor(Math.random() * images.length);
+          let att = 0;
+          while ((imgIdx === lastIdx || imgIdx === lastImgByPosition[i]) && att < 20) {
+            imgIdx = (imgIdx + 1) % images.length;
+            att++;
+          }
+          
+          const img = images[imgIdx];
+          let coverH = getCoverHeight(img, actualFillWidth);
+          let coverW = actualFillWidth;
+          
+          // If cover doesn't fit, scale down proportionally
+          if (coverH > finalGap) {
+            const scaleFactor = finalGap / coverH;
+            coverH = finalGap;
+            coverW = actualFillWidth * scaleFactor;
+          }
+          
+          maxBottomH = Math.max(maxBottomH, coverH);
+          bottomRowCells.push({ imgIdx, x: cellX, h: coverH, w: coverW });
+          lastIdx = imgIdx;
+        }
+        
+        // Position bottom row flush with gapEnd
+        const bottomRowY = gapEnd - maxBottomH;
+        
+        // Add block in the MIDDLE (between last row and bottom row)
+        const middleGap = bottomRowY - currentY;
+        if (middleGap > minBlockSize * 0.3) {
+          cells.push({ type: 'block', x: colX, y: currentY, w: colWidth, h: middleGap });
+        }
+        
+        // Add bottom row covers (flush with gapEnd)
+        for (const c of bottomRowCells) {
+          const coverY = gapEnd - c.h; // Flush with bottom at natural/scaled height
+          cells.push({ type: 'cover', x: c.x, imgIdx: c.imgIdx, y: coverY, w: c.w, h: c.h });
+          
+          // Micro-fill above shorter covers
+          if (c.h < maxBottomH) {
+            const microH = maxBottomH - c.h;
+            if (microH > minBlockSize * 0.3) {
+              cells.push({ type: 'block', x: c.x, y: coverY - microH, w: c.w, h: microH });
             }
-            
-            const img = images[imgIdx];
-            const coverH = getCoverHeight(img, actualFillWidth);
-            maxBottomH = Math.max(maxBottomH, coverH);
-            bottomRowCells.push({ imgIdx, x: cellX, h: coverH });
-            lastIdx = imgIdx;
           }
-          
-          // Clamp height to available space
-          maxBottomH = Math.min(maxBottomH, finalGap);
-          const bottomRowY = gapEnd - maxBottomH;
-          
-          // Add block in the MIDDLE (between last row and bottom row)
-          const middleGap = bottomRowY - currentY;
-          if (middleGap > minBlockSize * 0.3) {
-            cells.push({ type: 'block', x: colX, y: currentY, w: colWidth, h: middleGap });
-          }
-          
-          // Add bottom row covers (flush with gapEnd)
-          for (const c of bottomRowCells) {
-            const coverH = Math.min(c.h, maxBottomH);
-            const coverY = gapEnd - coverH; // Flush with bottom
-            cells.push({ type: 'cover', x: c.x, imgIdx: c.imgIdx, y: coverY, w: actualFillWidth, h: coverH });
-            
-            // Micro-fill above shorter covers
-            if (coverH < maxBottomH) {
-              const microH = maxBottomH - coverH;
-              if (microH > minBlockSize * 0.3) {
-                cells.push({ type: 'block', x: c.x, y: coverY - microH, w: actualFillWidth, h: microH });
-              }
-            }
-          }
-        } else {
-          // Gap too small for covers - just block
-          cells.push({ type: 'block', x: colX, y: currentY, w: colWidth, h: finalGap });
         }
       }
       
