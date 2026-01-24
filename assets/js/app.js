@@ -2686,99 +2686,120 @@ const BooklistApp = (function() {
     }
     
     // =========================================================================
-    // STEP 5: Fill ALL white space with smaller repeated covers
-    // Fills go within zones but can bleed at canvas edges only
+    // STEP 5: Fill gaps with a mix of small repeated covers and color blocks
+    // Color blocks fill remaining space where covers don't quite fit
     // =========================================================================
     
-    const fillScale = 0.45; // Fills are smaller
-    const fillWidth = colWidth * fillScale;
-    const fillGutter = baseGutter * 0.4;
+    // Color palette for fill blocks (muted, complementary tones)
+    const fillColors = [
+      '#E8E4E1', // warm gray
+      '#D4CDC6', // taupe
+      '#C9D6D3', // sage
+      '#DED8C4', // cream
+      '#C4CCD4', // cool gray
+      '#D6CFC4', // sand
+      '#E0D5C7', // beige
+    ];
     
-    // How many small covers can fit side-by-side in a column?
-    const coversPerRow = Math.floor((colWidth + fillGutter) / (fillWidth + fillGutter));
-    const actualFillWidth = (colWidth - (coversPerRow - 1) * fillGutter) / coversPerRow;
+    let colorIdx = 0;
+    const getNextColor = () => {
+      const color = fillColors[colorIdx % fillColors.length];
+      colorIdx++;
+      return color;
+    };
+    
+    const fillScale = 0.5;
+    const fillWidth = colWidth * fillScale;
+    const minFillSize = baseGutter * 2; // Minimum size for a fill element
     
     let globalFillIdx = 0;
     
-    // Helper to fill a rectangular area with small covers
-    const fillArea = (startX, startY, areaWidth, areaHeight, canBleedBottom) => {
-      if (areaHeight < actualFillWidth * 0.3) return; // Too small to bother
+    // Helper to fill a column gap with covers and color blocks
+    const fillColumnGap = (colX, startY, gapHeight, canBleed) => {
+      if (gapHeight < minFillSize && !canBleed) return;
       
       let currentY = startY;
-      let rowCount = 0;
-      const maxRows = 20;
+      let attempts = 0;
+      const maxAttempts = 15;
       
-      while (currentY < startY + areaHeight && rowCount < maxRows) {
-        // Place a row of small covers
-        for (let i = 0; i < coversPerRow; i++) {
-          const img = images[globalFillIdx % images.length];
-          const coverH = getCoverHeight(img, actualFillWidth);
-          const x = startX + i * (actualFillWidth + fillGutter);
+      while (currentY < startY + gapHeight && attempts < maxAttempts) {
+        const remaining = startY + gapHeight - currentY;
+        
+        // Decide: small cover or color block?
+        // Use covers when there's good space, blocks for awkward gaps
+        const useBlock = remaining < fillWidth * 0.8 || attempts % 3 === 2;
+        
+        if (useBlock) {
+          // Color block - size it to fill remaining space or a portion
+          const blockH = Math.min(remaining, fillWidth * (0.5 + Math.random() * 0.5));
+          const blockW = colWidth * (0.4 + Math.random() * 0.4);
+          const blockX = colX + (colWidth - blockW) * Math.random();
           
-          // Check if this cover fits (or can bleed if at canvas edge)
-          const coversRemaining = startY + areaHeight - currentY;
-          if (coverH <= coversRemaining || canBleedBottom) {
-            drawCover(img, x, currentY, actualFillWidth, coverH);
-          } else if (coversRemaining > actualFillWidth * 0.4) {
-            // Partial fit - draw it anyway, it'll get clipped or covered
-            drawCover(img, x, currentY, actualFillWidth, coverH);
+          if (blockH >= minFillSize) {
+            ctx.fillStyle = getNextColor();
+            ctx.fillRect(blockX, currentY, blockW, blockH);
+            currentY += blockH + baseGutter * 0.5;
+          } else {
+            currentY += remaining; // Too small, just skip
+          }
+        } else {
+          // Small cover
+          const img = images[globalFillIdx % images.length];
+          const coverH = getCoverHeight(img, fillWidth);
+          const x = colX + (colWidth - fillWidth) / 2;
+          
+          if (coverH <= remaining || canBleed) {
+            drawCover(img, x, currentY, fillWidth, coverH);
+            currentY += coverH + baseGutter * 0.5;
+          } else {
+            // Cover doesn't fit, use a color block instead
+            const blockH = remaining;
+            const blockW = colWidth * 0.6;
+            const blockX = colX + (colWidth - blockW) / 2;
+            
+            if (blockH >= minFillSize) {
+              ctx.fillStyle = getNextColor();
+              ctx.fillRect(blockX, currentY, blockW, blockH);
+            }
+            currentY += remaining;
           }
           globalFillIdx++;
         }
-        
-        // Move to next row (use height of first cover in row as reference)
-        const refImg = images[(globalFillIdx - coversPerRow) % images.length];
-        const rowH = getCoverHeight(refImg, actualFillWidth);
-        currentY += rowH + fillGutter;
-        rowCount++;
+        attempts++;
+      }
+      
+      // Final gap fill - if there's any remaining space, fill with a color block
+      const finalGap = (startY + gapHeight) - currentY;
+      if (finalGap > minFillSize * 0.5 && !canBleed) {
+        const blockW = colWidth * (0.3 + Math.random() * 0.5);
+        const blockX = colX + (colWidth - blockW) * Math.random();
+        ctx.fillStyle = getNextColor();
+        ctx.fillRect(blockX, currentY, blockW, finalGap);
       }
     };
     
-    // Fill gaps in ABOVE zone (between primaries and title bar)
+    // Fill gaps in ABOVE zone
     if (aboveZoneHeight > 0 && position !== 'top') {
       for (let col = 0; col < numCols; col++) {
         const colX = getColX(col);
         const primaryEndY = colHeightsAbove[col];
-        const gapHeight = titleZoneTop - primaryEndY;
+        const gapHeight = titleZoneTop - primaryEndY - baseGutter;
         
-        if (gapHeight > actualFillWidth * 0.5) {
-          fillArea(colX, primaryEndY, colWidth, gapHeight, false);
+        if (gapHeight > minFillSize) {
+          fillColumnGap(colX, primaryEndY, gapHeight, false);
         }
       }
     }
     
-    // Fill gaps in BELOW zone (between primaries and canvas bottom)
+    // Fill gaps in BELOW zone
     if (belowZoneHeight > 0 && position !== 'bottom') {
       for (let col = 0; col < numCols; col++) {
         const colX = getColX(col);
         const primaryEndY = titleZoneBottom + colHeightsBelow[col];
         const gapHeight = canvasHeight - primaryEndY;
         
-        if (gapHeight > actualFillWidth * 0.3 || primaryEndY < canvasHeight) {
-          // Can bleed past canvas bottom
-          fillArea(colX, primaryEndY, colWidth, gapHeight + actualFillWidth, true);
-        }
-      }
-    }
-    
-    // Fill at TOP edge (bleeding off canvas top) if there's space above first row
-    if (position !== 'top') {
-      const minAboveY = Math.min(...colHeightsAbove.map((h, i) => {
-        // Find first cover Y in each column (0 if covers start at top)
-        return 0; // Primaries start at 0
-      }));
-      
-      // Add a row bleeding off the top
-      for (let col = 0; col < numCols; col++) {
-        const colX = getColX(col);
-        for (let i = 0; i < coversPerRow; i++) {
-          const img = images[globalFillIdx % images.length];
-          const coverH = getCoverHeight(img, actualFillWidth);
-          const x = colX + i * (actualFillWidth + fillGutter);
-          const y = -coverH * 0.6; // Bleed off top
-          
-          drawCover(img, x, y, actualFillWidth, coverH);
-          globalFillIdx++;
+        if (gapHeight > minFillSize * 0.5) {
+          fillColumnGap(colX, primaryEndY, gapHeight + fillWidth, true);
         }
       }
     }
