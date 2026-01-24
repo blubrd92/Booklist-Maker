@@ -2694,16 +2694,13 @@ const BooklistApp = (function() {
     }
     
     // =========================================================================
-    // STEP 5: Fill gaps with a mix of small repeated covers and color blocks
-    // Color blocks fill remaining space where covers don't quite fit
-    // No bleeding past canvas edges - blocks fill everything cleanly
+    // STEP 5: Fill gaps with densely packed small covers + color blocks for micro-gaps
     // =========================================================================
     
     // Get user-defined fill colors or use defaults
     const fillColor1 = document.getElementById('masonry-fill-color-1')?.value || '#E8E4E1';
     const fillColor2 = document.getElementById('masonry-fill-color-2')?.value || '#D4CDC6';
     const fillColor3 = document.getElementById('masonry-fill-color-3')?.value || '#C9D6D3';
-    
     const fillColors = [fillColor1, fillColor2, fillColor3];
     
     let colorIdx = 0;
@@ -2713,73 +2710,80 @@ const BooklistApp = (function() {
       return color;
     };
     
-    const fillScale = 0.5;
+    const fillScale = 0.45;
     const fillWidth = colWidth * fillScale;
-    const minFillSize = baseGutter * 2;
+    const fillGutter = baseGutter * 0.4;
+    
+    // How many small covers can fit side-by-side in a column?
+    const coversPerRow = Math.floor((colWidth + fillGutter) / (fillWidth + fillGutter));
+    const actualFillWidth = (colWidth - (coversPerRow - 1) * fillGutter) / coversPerRow;
     
     let globalFillIdx = 0;
+    const minBlockSize = baseGutter * 1.5;
     
-    // Helper to fill a column gap with covers and color blocks
-    const fillColumnGap = (colX, startY, gapHeight, zoneEndY) => {
-      if (gapHeight < minFillSize) return;
+    // Helper to fill a column gap with packed small covers + color blocks for micro-gaps
+    const fillColumnGap = (colX, startY, zoneEndY) => {
+      const gapHeight = zoneEndY - startY;
+      if (gapHeight < actualFillWidth * 0.3) return;
       
       let currentY = startY;
-      let attempts = 0;
-      const maxAttempts = 15;
+      let rowCount = 0;
+      const maxRows = 15;
       
-      while (currentY < zoneEndY && attempts < maxAttempts) {
+      while (currentY < zoneEndY && rowCount < maxRows) {
         const remaining = zoneEndY - currentY;
-        if (remaining < minFillSize) break;
+        if (remaining < minBlockSize) break;
         
-        // Decide: small cover or color block?
-        const useBlock = remaining < fillWidth * 0.8 || attempts % 3 === 2;
+        // Place a row of small covers side-by-side
+        const rowCovers = [];
+        let maxRowHeight = 0;
         
-        if (useBlock) {
-          // Color block - size it to fill remaining space or a portion
-          const blockH = Math.min(remaining, fillWidth * (0.5 + Math.random() * 0.5));
-          const blockW = colWidth * (0.4 + Math.random() * 0.4);
-          const blockX = colX + (colWidth - blockW) * Math.random();
-          
-          if (blockH >= minFillSize) {
-            ctx.fillStyle = getNextColor();
-            ctx.fillRect(blockX, currentY, blockW, blockH);
-            currentY += blockH + baseGutter * 0.5;
-          } else {
-            break;
-          }
-        } else {
-          // Small cover
+        for (let i = 0; i < coversPerRow; i++) {
           const img = images[globalFillIdx % images.length];
-          const coverH = getCoverHeight(img, fillWidth);
-          const x = colX + (colWidth - fillWidth) / 2;
+          const coverH = getCoverHeight(img, actualFillWidth);
+          const x = colX + i * (actualFillWidth + fillGutter);
           
+          // Check if this cover fits
           if (currentY + coverH <= zoneEndY) {
-            drawCover(img, x, currentY, fillWidth, coverH);
-            currentY += coverH + baseGutter * 0.5;
-          } else {
-            // Cover doesn't fit, use a color block instead
-            const blockH = remaining - baseGutter * 0.5;
-            const blockW = colWidth * 0.6;
-            const blockX = colX + (colWidth - blockW) / 2;
-            
-            if (blockH >= minFillSize) {
-              ctx.fillStyle = getNextColor();
-              ctx.fillRect(blockX, currentY, blockW, blockH);
-            }
-            break;
+            rowCovers.push({ img, x, y: currentY, w: actualFillWidth, h: coverH });
+            maxRowHeight = Math.max(maxRowHeight, coverH);
+          } else if (remaining > actualFillWidth * 0.5) {
+            // Partial fit - still add it
+            rowCovers.push({ img, x, y: currentY, w: actualFillWidth, h: coverH });
+            maxRowHeight = Math.max(maxRowHeight, coverH);
           }
           globalFillIdx++;
         }
-        attempts++;
+        
+        // Draw all covers in this row
+        for (const cover of rowCovers) {
+          drawCover(cover.img, cover.x, cover.y, cover.w, cover.h);
+        }
+        
+        // Fill micro-gaps: for covers shorter than maxRowHeight, add color blocks beneath
+        for (const cover of rowCovers) {
+          const coverBottom = cover.y + cover.h;
+          const rowBottom = currentY + maxRowHeight;
+          const microGap = rowBottom - coverBottom;
+          
+          if (microGap > minBlockSize) {
+            // Add a color block to fill the micro-gap
+            ctx.fillStyle = getNextColor();
+            ctx.fillRect(cover.x, coverBottom, cover.w, microGap);
+          }
+        }
+        
+        if (maxRowHeight === 0) break;
+        currentY += maxRowHeight + fillGutter;
+        rowCount++;
       }
       
-      // Final gap fill - if there's any remaining space, fill with a color block
+      // Final gap fill - any remaining vertical space gets a color block
       const finalGap = zoneEndY - currentY;
-      if (finalGap > minFillSize * 0.3) {
-        const blockW = colWidth * (0.3 + Math.random() * 0.5);
-        const blockX = colX + (colWidth - blockW) * Math.random();
+      if (finalGap > minBlockSize) {
+        // Fill entire column width with a color block
         ctx.fillStyle = getNextColor();
-        ctx.fillRect(blockX, currentY, blockW, finalGap);
+        ctx.fillRect(colX, currentY, colWidth, finalGap);
       }
     };
     
@@ -2788,10 +2792,11 @@ const BooklistApp = (function() {
       for (let col = 0; col < numCols; col++) {
         const colX = getColX(col);
         const primaryEndY = colHeightsAbove[col];
-        const gapHeight = titleZoneTop - primaryEndY - baseGutter;
+        const gapStart = primaryEndY;
+        const gapEnd = titleZoneTop - baseGutter;
         
-        if (gapHeight > minFillSize) {
-          fillColumnGap(colX, primaryEndY, gapHeight, titleZoneTop - baseGutter);
+        if (gapEnd - gapStart > actualFillWidth * 0.3) {
+          fillColumnGap(colX, gapStart, gapEnd);
         }
       }
     }
@@ -2801,10 +2806,11 @@ const BooklistApp = (function() {
       for (let col = 0; col < numCols; col++) {
         const colX = getColX(col);
         const primaryEndY = titleZoneBottom + colHeightsBelow[col];
-        const gapHeight = canvasHeight - primaryEndY;
+        const gapStart = primaryEndY;
+        const gapEnd = canvasHeight;
         
-        if (gapHeight > minFillSize * 0.5) {
-          fillColumnGap(colX, primaryEndY, gapHeight, canvasHeight);
+        if (gapEnd - gapStart > actualFillWidth * 0.3) {
+          fillColumnGap(colX, gapStart, gapEnd);
         }
       }
     }
