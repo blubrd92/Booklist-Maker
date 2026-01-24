@@ -744,6 +744,17 @@ const BooklistApp = (function() {
     if (elements.classicSettings) {
       elements.classicSettings.style.display = selectedLayout === 'classic' ? 'block' : 'none';
     }
+    
+    // Force scroll recalculation for settings tab
+    const settingsTab = document.getElementById('tab-settings');
+    if (settingsTab) {
+      requestAnimationFrame(() => {
+        settingsTab.style.overflow = 'hidden';
+        requestAnimationFrame(() => {
+          settingsTab.style.overflow = '';
+        });
+      });
+    }
   }
   
   function handleLayoutChange() {
@@ -2425,6 +2436,17 @@ const BooklistApp = (function() {
     if (elements.coverAdvancedStyle) {
       elements.coverAdvancedStyle.classList.toggle('visible', isAdvanced);
     }
+    
+    // Force scroll recalculation for settings tab
+    const settingsTab = document.getElementById('tab-settings');
+    if (settingsTab) {
+      requestAnimationFrame(() => {
+        settingsTab.style.overflow = 'hidden';
+        requestAnimationFrame(() => {
+          settingsTab.style.overflow = '';
+        });
+      });
+    }
   }
   
   // ---------------------------------------------------------------------------
@@ -2438,6 +2460,17 @@ const BooklistApp = (function() {
   function toggleExtendedCollageMode(enabled, isRestoring = false) {
     if (elements.extraCoversSection) {
       elements.extraCoversSection.style.display = enabled ? 'block' : 'none';
+      
+      // Force scroll recalculation for settings tab
+      const settingsTab = document.getElementById('tab-settings');
+      if (settingsTab) {
+        requestAnimationFrame(() => {
+          settingsTab.style.overflow = 'hidden';
+          requestAnimationFrame(() => {
+            settingsTab.style.overflow = '';
+          });
+        });
+      }
     }
     if (elements.collageCoverHint) {
       elements.collageCoverHint.textContent = enabled 
