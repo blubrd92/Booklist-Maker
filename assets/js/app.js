@@ -2518,58 +2518,35 @@ const BooklistApp = (function() {
     };
     
     // =========================================================================
-    // STEP 1: Find OPTIMAL column count (fits with highest fill ratio)
+    // STEP 1: Use fixed 5 columns, calculate fill ratio
     // =========================================================================
     
-    let bestConfig = null;
+    const numCols = 5;
+    let totalHGutter = (numCols + 1) * baseGutter;
+    let colWidth = (canvasWidth - totalHGutter) / numCols;
     
-    for (let numCols = 3; numCols <= 7; numCols++) {
-      const totalHGutter = (numCols + 1) * baseGutter;
-      const colWidth = (canvasWidth - totalHGutter) / numCols;
-      
-      // Simulate placement to get total height needed
-      const simHeights = new Array(numCols).fill(0);
-      for (const img of images) {
-        const coverH = getCoverHeight(img, colWidth);
-        const colIdx = getShortestCol(simHeights);
-        simHeights[colIdx] += coverH + baseGutter;
-      }
-      
-      const maxColHeight = Math.max(...simHeights);
-      const fits = maxColHeight <= totalPrimaryHeight;
-      const fillRatio = maxColHeight / totalPrimaryHeight;
-      const whiteSpace = totalPrimaryHeight - maxColHeight;
-      
-      // Pick the config that FITS with HIGHEST fill ratio
-      // Priority: fitting > non-fitting, then highest fill among fitting
-      if (!bestConfig) {
-        bestConfig = { numCols, colWidth, fillRatio, whiteSpace, fits };
-      } else if (fits && !bestConfig.fits) {
-        // New config fits, old doesn't - always prefer fitting
-        bestConfig = { numCols, colWidth, fillRatio, whiteSpace, fits };
-      } else if (fits && bestConfig.fits && fillRatio > bestConfig.fillRatio) {
-        // Both fit, prefer higher fill ratio
-        bestConfig = { numCols, colWidth, fillRatio, whiteSpace, fits };
-      } else if (!fits && !bestConfig.fits && fillRatio < bestConfig.fillRatio) {
-        // Neither fits, prefer lower overflow (closer to fitting)
-        bestConfig = { numCols, colWidth, fillRatio, whiteSpace, fits };
-      }
+    // Simulate placement to get total height needed
+    const simHeights = new Array(numCols).fill(0);
+    for (const img of images) {
+      const coverH = getCoverHeight(img, colWidth);
+      const colIdx = getShortestCol(simHeights);
+      simHeights[colIdx] += coverH + baseGutter;
     }
     
-    let numCols = bestConfig.numCols;
-    let totalHGutter = (numCols + 1) * baseGutter;
-    let colWidth = bestConfig.colWidth;
+    const maxColHeight = Math.max(...simHeights);
+    const fits = maxColHeight <= totalPrimaryHeight;
+    const fillRatio = maxColHeight / totalPrimaryHeight;
     
-    // If still doesn't fit, scale down
-    if (!bestConfig.fits) {
-      const scaleFactor = 0.85 / bestConfig.fillRatio;
+    // If doesn't fit, scale down
+    if (!fits) {
+      const scaleFactor = 0.85 / fillRatio;
       colWidth *= scaleFactor;
     }
     
     // If fill ratio is very low (< 65%), scale UP to use more space
-    if (bestConfig.fits && bestConfig.fillRatio < 0.65) {
+    if (fits && fillRatio < 0.65) {
       const targetFill = 0.80;
-      const scaleFactor = targetFill / bestConfig.fillRatio;
+      const scaleFactor = targetFill / fillRatio;
       colWidth *= Math.min(scaleFactor, 1.3); // Don't scale more than 30% up
     }
     
