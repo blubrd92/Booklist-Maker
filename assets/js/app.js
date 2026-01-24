@@ -2671,8 +2671,10 @@ const BooklistApp = (function() {
         return;
       }
       
+      // Track last used image in each horizontal position (for vertical duplicate check)
+      const lastImgByPosition = new Array(coversPerRow).fill(-1);
+      
       // Build a grid of cells to fill
-      // Each cell can be: cover, color block, or micro-fill
       const cells = [];
       let currentY = gapStart;
       let rowIdx = 0;
@@ -2689,36 +2691,46 @@ const BooklistApp = (function() {
         
         // Build this row - decide each cell independently
         const rowCells = [];
-        let lastImageIdx = -1;
+        let lastImageIdx = -1; // For horizontal duplicate check
+        
+        // CRITICAL: First and last rows MUST be covers (flush edges)
+        const isFirstRow = rowIdx === 0;
+        const isLastRow = remaining < avgFillH * 1.8; // This will be the last row
+        const mustBeCover = isFirstRow || isLastRow;
         
         for (let i = 0; i < coversPerRow; i++) {
           const cellX = colX + i * (actualFillWidth + fillGutter);
           
-          // Randomly decide: 70% cover, 30% color block (for interspersion)
-          // But first row and last row prefer covers for edge flush
-          const isEdgeRow = (rowIdx === 0) || (isBottomZone && remaining < avgFillH * 2);
-          const preferCover = isEdgeRow ? 0.9 : 0.7;
-          const useBlock = Math.random() > preferCover;
+          // Edge rows: 100% covers. Middle rows: 70% covers, 30% blocks
+          const useBlock = mustBeCover ? false : (Math.random() > 0.7);
           
           if (useBlock) {
             rowCells.push({ type: 'block', x: cellX, pos: i });
-            lastImageIdx = -1; // Reset - block breaks the sequence
+            lastImageIdx = -1; // Reset horizontal tracking
+            // Don't reset vertical tracking - block breaks the sequence
+            lastImgByPosition[i] = -1;
           } else {
-            // Pick an image that's NOT the same as the one to the left
+            // Pick an image that's NOT the same as:
+            // 1. The one to the left (horizontal duplicate)
+            // 2. The one above in this position (vertical duplicate)
             let imgIdx = Math.floor(Math.random() * images.length);
             let attempts = 0;
-            while (imgIdx === lastImageIdx && attempts < 15) {
+            while ((imgIdx === lastImageIdx || imgIdx === lastImgByPosition[i]) && attempts < 20) {
               imgIdx = (imgIdx + 1) % images.length;
               attempts++;
             }
             
-            // If we couldn't find a different image, use a color block instead
-            if (imgIdx === lastImageIdx) {
+            // If we couldn't find a non-duplicate AND we're on an edge row,
+            // just use it anyway (edge must have cover). Otherwise use block.
+            const isDuplicate = (imgIdx === lastImageIdx || imgIdx === lastImgByPosition[i]);
+            if (isDuplicate && !mustBeCover) {
               rowCells.push({ type: 'block', x: cellX, pos: i });
               lastImageIdx = -1;
+              lastImgByPosition[i] = -1;
             } else {
               rowCells.push({ type: 'cover', x: cellX, imgIdx, pos: i });
               lastImageIdx = imgIdx;
+              lastImgByPosition[i] = imgIdx; // Track for next row's vertical check
             }
           }
         }
@@ -2762,9 +2774,61 @@ const BooklistApp = (function() {
         rowIdx++;
       }
       
-      // Fill any final gap
-      if (currentY < gapEnd) {
-        cells.push({ type: 'block', x: colX, y: currentY, w: colWidth, h: gapEnd - currentY });
+      // Fill any final gap - cover at bottom, block in middle
+      const finalGap = gapEnd - currentY;
+      if (finalGap > minBlockSize) {
+        if (finalGap >= avgFillH * 0.5) {
+          // Place a final row of covers flush with bottom edge
+          let lastIdx = -1;
+          const bottomRowCells = [];
+          let maxBottomH = 0;
+          
+          for (let i = 0; i < coversPerRow; i++) {
+            const cellX = colX + i * (actualFillWidth + fillGutter);
+            
+            // Pick non-duplicate image
+            let imgIdx = Math.floor(Math.random() * images.length);
+            let att = 0;
+            while ((imgIdx === lastIdx || imgIdx === lastImgByPosition[i]) && att < 20) {
+              imgIdx = (imgIdx + 1) % images.length;
+              att++;
+            }
+            
+            const img = images[imgIdx];
+            const coverH = getCoverHeight(img, actualFillWidth);
+            maxBottomH = Math.max(maxBottomH, coverH);
+            bottomRowCells.push({ imgIdx, x: cellX, h: coverH });
+            lastIdx = imgIdx;
+          }
+          
+          // Clamp height to available space
+          maxBottomH = Math.min(maxBottomH, finalGap);
+          const bottomRowY = gapEnd - maxBottomH;
+          
+          // Add block in the MIDDLE (between last row and bottom row)
+          const middleGap = bottomRowY - currentY;
+          if (middleGap > minBlockSize * 0.3) {
+            cells.push({ type: 'block', x: colX, y: currentY, w: colWidth, h: middleGap });
+          }
+          
+          // Add bottom row covers (flush with gapEnd)
+          for (const c of bottomRowCells) {
+            const coverH = Math.min(c.h, maxBottomH);
+            const coverY = gapEnd - coverH; // Flush with bottom
+            cells.push({ type: 'cover', x: c.x, imgIdx: c.imgIdx, y: coverY, w: actualFillWidth, h: coverH });
+            
+            // Micro-fill above shorter covers
+            if (coverH < maxBottomH) {
+              const microH = maxBottomH - coverH;
+              if (microH > minBlockSize * 0.3) {
+                cells.push({ type: 'block', x: c.x, y: coverY - microH, w: actualFillWidth, h: microH });
+              }
+            }
+          }
+        } else {
+          // Gap too small for covers - just block
+          cells.push({ type: 'block', x: colX, y: currentY, w: colWidth, h: finalGap });
+        }
       }
       
       // Now draw all cells
