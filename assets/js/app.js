@@ -2686,58 +2686,99 @@ const BooklistApp = (function() {
     }
     
     // =========================================================================
-    // STEP 5: Fill ONLY at canvas edges with smaller repeated covers
-    // (No filling near title bar - only top edge and bottom edge bleed)
+    // STEP 5: Fill ALL white space with smaller repeated covers
+    // Fills go within zones but can bleed at canvas edges only
     // =========================================================================
     
-    const fillScale = 0.5; // Fills are half size
+    const fillScale = 0.45; // Fills are smaller
     const fillWidth = colWidth * fillScale;
-    const fillGutter = baseGutter * fillScale;
+    const fillGutter = baseGutter * 0.4;
     
-    // Fill at TOP edge only (bleeding off the top of canvas)
-    if (position !== 'top') {
-      // Find the highest point of placed covers in above zone
-      const maxAboveHeight = Math.max(...colHeightsAbove);
-      const gapAtTop = titleZoneTop - maxAboveHeight;
+    // How many small covers can fit side-by-side in a column?
+    const coversPerRow = Math.floor((colWidth + fillGutter) / (fillWidth + fillGutter));
+    const actualFillWidth = (colWidth - (coversPerRow - 1) * fillGutter) / coversPerRow;
+    
+    let globalFillIdx = 0;
+    
+    // Helper to fill a rectangular area with small covers
+    const fillArea = (startX, startY, areaWidth, areaHeight, canBleedBottom) => {
+      if (areaHeight < actualFillWidth * 0.3) return; // Too small to bother
       
-      // Only add top bleed if there's meaningful white space
-      if (gapAtTop > fillWidth * 0.5) {
-        // Add covers that bleed off the top
-        let fillIdx = 0;
-        for (let col = 0; col < numCols && fillIdx < 20; col++) {
-          const img = images[fillIdx % images.length];
-          const fillH = getCoverHeight(img, fillWidth);
-          const x = getColX(col) + (colWidth - fillWidth) / 2;
-          const y = -fillH * 0.4; // Start above canvas, partial bleed
+      let currentY = startY;
+      let rowCount = 0;
+      const maxRows = 20;
+      
+      while (currentY < startY + areaHeight && rowCount < maxRows) {
+        // Place a row of small covers
+        for (let i = 0; i < coversPerRow; i++) {
+          const img = images[globalFillIdx % images.length];
+          const coverH = getCoverHeight(img, actualFillWidth);
+          const x = startX + i * (actualFillWidth + fillGutter);
           
-          drawCover(img, x, y, fillWidth, fillH);
-          fillIdx++;
+          // Check if this cover fits (or can bleed if at canvas edge)
+          const coversRemaining = startY + areaHeight - currentY;
+          if (coverH <= coversRemaining || canBleedBottom) {
+            drawCover(img, x, currentY, actualFillWidth, coverH);
+          } else if (coversRemaining > actualFillWidth * 0.4) {
+            // Partial fit - draw it anyway, it'll get clipped or covered
+            drawCover(img, x, currentY, actualFillWidth, coverH);
+          }
+          globalFillIdx++;
+        }
+        
+        // Move to next row (use height of first cover in row as reference)
+        const refImg = images[(globalFillIdx - coversPerRow) % images.length];
+        const rowH = getCoverHeight(refImg, actualFillWidth);
+        currentY += rowH + fillGutter;
+        rowCount++;
+      }
+    };
+    
+    // Fill gaps in ABOVE zone (between primaries and title bar)
+    if (aboveZoneHeight > 0 && position !== 'top') {
+      for (let col = 0; col < numCols; col++) {
+        const colX = getColX(col);
+        const primaryEndY = colHeightsAbove[col];
+        const gapHeight = titleZoneTop - primaryEndY;
+        
+        if (gapHeight > actualFillWidth * 0.5) {
+          fillArea(colX, primaryEndY, colWidth, gapHeight, false);
         }
       }
     }
     
-    // Fill at BOTTOM edge only (bleeding off the bottom of canvas)
-    if (position !== 'bottom') {
-      // Find the lowest point of placed covers in below zone
-      const maxBelowHeight = Math.max(...colHeightsBelow);
-      const lowestY = titleZoneBottom + maxBelowHeight;
-      const gapAtBottom = canvasHeight - lowestY;
+    // Fill gaps in BELOW zone (between primaries and canvas bottom)
+    if (belowZoneHeight > 0 && position !== 'bottom') {
+      for (let col = 0; col < numCols; col++) {
+        const colX = getColX(col);
+        const primaryEndY = titleZoneBottom + colHeightsBelow[col];
+        const gapHeight = canvasHeight - primaryEndY;
+        
+        if (gapHeight > actualFillWidth * 0.3 || primaryEndY < canvasHeight) {
+          // Can bleed past canvas bottom
+          fillArea(colX, primaryEndY, colWidth, gapHeight + actualFillWidth, true);
+        }
+      }
+    }
+    
+    // Fill at TOP edge (bleeding off canvas top) if there's space above first row
+    if (position !== 'top') {
+      const minAboveY = Math.min(...colHeightsAbove.map((h, i) => {
+        // Find first cover Y in each column (0 if covers start at top)
+        return 0; // Primaries start at 0
+      }));
       
-      // Add covers that bleed off the bottom
-      if (gapAtBottom > 0 || lowestY < canvasHeight) {
-        let fillIdx = 0;
-        for (let col = 0; col < numCols && fillIdx < 20; col++) {
-          const currentBottom = titleZoneBottom + colHeightsBelow[col];
-          if (currentBottom < canvasHeight + fillWidth) {
-            const img = images[(fillIdx + col) % images.length];
-            const fillH = getCoverHeight(img, fillWidth);
-            const x = getColX(col) + (colWidth - fillWidth) / 2;
-            const y = currentBottom;
-            
-            drawCover(img, x, y, fillWidth, fillH);
-            colHeightsBelow[col] += fillH + fillGutter;
-            fillIdx++;
-          }
+      // Add a row bleeding off the top
+      for (let col = 0; col < numCols; col++) {
+        const colX = getColX(col);
+        for (let i = 0; i < coversPerRow; i++) {
+          const img = images[globalFillIdx % images.length];
+          const coverH = getCoverHeight(img, actualFillWidth);
+          const x = colX + i * (actualFillWidth + fillGutter);
+          const y = -coverH * 0.6; // Bleed off top
+          
+          drawCover(img, x, y, actualFillWidth, coverH);
+          globalFillIdx++;
         }
       }
     }
