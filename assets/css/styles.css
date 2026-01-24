@@ -1149,6 +1149,20 @@ input[type="color"]:hover {
   font-weight: 700;
 }
 
+/* Masonry layout: disabled stretch toggle */
+.checkbox-row.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.checkbox-row.disabled label {
+  cursor: not-allowed;
+}
+
+.masonry-hint {
+  transition: opacity var(--transition-fast);
+}
+
 /* Branding & QR */
 .custom-uploader {
   width: 480px; height: 144px; border: 1px dashed #ccc;
@@ -1945,10 +1959,3 @@ input[type="color"]:hover {
 .modal-footer .btn {
   min-width: 80px;
 }
-
-
-
-
-
-
-

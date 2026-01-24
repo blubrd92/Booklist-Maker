@@ -735,6 +735,7 @@ const BooklistApp = (function() {
   
   /**
    * Shows or hides the tilted-specific settings based on currently selected layout
+   * Also handles masonry-specific stretch toggle behavior
    */
   function updateTiltedSettingsVisibility() {
     const selectedLayout = elements.collageLayoutSelector?.querySelector('.layout-option.selected')?.dataset.layout || 'classic';
@@ -743,6 +744,30 @@ const BooklistApp = (function() {
     }
     if (elements.classicSettings) {
       elements.classicSettings.style.display = selectedLayout === 'classic' ? 'block' : 'none';
+    }
+    
+    // Handle masonry layout: disable stretch toggle and show hint
+    const stretchToggle = elements.stretchCoversToggle;
+    const masonryHint = document.getElementById('masonry-stretch-hint');
+    
+    if (selectedLayout === 'masonry') {
+      // Disable stretch toggle for masonry (it always uses natural proportions)
+      if (stretchToggle) {
+        stretchToggle.disabled = true;
+        stretchToggle.parentElement?.classList.add('disabled');
+      }
+      if (masonryHint) {
+        masonryHint.style.display = 'block';
+      }
+    } else {
+      // Re-enable stretch toggle for other layouts
+      if (stretchToggle) {
+        stretchToggle.disabled = false;
+        stretchToggle.parentElement?.classList.remove('disabled');
+      }
+      if (masonryHint) {
+        masonryHint.style.display = 'none';
+      }
     }
     
     // Force scroll recalculation for settings tab
@@ -1577,6 +1602,9 @@ const BooklistApp = (function() {
     }).then(images => {
       // Draw based on selected layout
       switch (selectedLayout) {
+        case 'masonry':
+          drawLayoutMasonry(ctx, canvas, images, styles, layoutOptions);
+          break;
         case 'staggered':
           drawLayoutStaggered(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
           break;
@@ -2408,6 +2436,249 @@ const BooklistApp = (function() {
     ctx.fillRect(0, titleY - marginAbove, canvasWidth, bgH + marginAbove + marginBelow);
     
     // Draw title bar on top of white margin
+    drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+  }
+
+  /**
+   * Layout: Masonry
+   * Pinterest-style columnar layout where covers maintain natural aspect ratios.
+   * Each cover appears once in full, then remaining space is filled with
+   * repeated covers that can crop/bleed past edges for a dense mosaic.
+   * Title bar at configurable position with covers flowing around it.
+   */
+  function drawLayoutMasonry(ctx, canvas, images, styles, options = {}) {
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    const position = options.titleBarPosition || 'classic';
+    
+    // Gutters scale with DPI
+    const baseGutter = 6 * (CONFIG.PDF_DPI / 72);
+    const titleGutter = 12 * (CONFIG.PDF_DPI / 72);
+    
+    // Get title bar dimensions first
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
+    // Clear it, we'll redraw at correct position
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvasWidth, bgH + 1);
+    
+    // Calculate title bar Y position
+    let titleY;
+    switch (position) {
+      case 'top':
+        titleY = 0;
+        break;
+      case 'classic':
+        titleY = (canvasHeight - bgH) * 0.20;
+        break;
+      case 'center':
+        titleY = (canvasHeight - bgH) / 2;
+        break;
+      case 'lower':
+        titleY = (canvasHeight - bgH) * 0.75;
+        break;
+      case 'bottom':
+        titleY = canvasHeight - bgH;
+        break;
+      default:
+        titleY = (canvasHeight - bgH) * 0.20;
+    }
+    
+    // Determine zones: above title, below title
+    const titleTop = titleY - (position === 'top' ? 0 : titleGutter);
+    const titleBottom = titleY + bgH + (position === 'bottom' ? 0 : titleGutter);
+    
+    // Zone heights
+    const zoneAboveHeight = position === 'top' ? 0 : titleTop;
+    const zoneBelowHeight = position === 'bottom' ? 0 : canvasHeight - titleBottom;
+    const totalUsableHeight = zoneAboveHeight + zoneBelowHeight;
+    
+    // Determine column count based on cover count and canvas dimensions
+    const coverCount = images.length;
+    const numCols = coverCount <= 12 ? 3 : 4;
+    
+    // Calculate column width with gutters
+    const totalHGutter = (numCols + 1) * baseGutter;
+    const colWidth = (canvasWidth - totalHGutter) / numCols;
+    
+    // Track column heights for both zones
+    const colHeightsAbove = new Array(numCols).fill(0);
+    const colHeightsBelow = new Array(numCols).fill(0);
+    
+    // Store placed covers for later filling
+    const placedCovers = [];
+    
+    // Helper: get shortest column index
+    const getShortestCol = (heights) => {
+      let minIdx = 0;
+      for (let i = 1; i < heights.length; i++) {
+        if (heights[i] < heights[minIdx]) minIdx = i;
+      }
+      return minIdx;
+    };
+    
+    // Helper: calculate cover height based on natural aspect ratio
+    const getCoverHeight = (img) => {
+      const imgAspect = img.naturalWidth / img.naturalHeight;
+      return colWidth / imgAspect;
+    };
+    
+    // Helper: draw a cover preserving aspect ratio (no stretch)
+    const drawMasonryCover = (img, x, y, w, h, clip = false) => {
+      if (clip) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, canvasWidth, canvasHeight);
+        ctx.clip();
+      }
+      
+      if (img && img.complete && img.naturalWidth > 0) {
+        // For masonry, always preserve aspect ratio
+        const imgAspect = img.naturalWidth / img.naturalHeight;
+        const slotAspect = w / h;
+        
+        // Cover mode: fill the slot, crop excess
+        if (imgAspect > slotAspect) {
+          const drawH = h;
+          const drawW = h * imgAspect;
+          const offsetX = (w - drawW) / 2;
+          ctx.drawImage(img, x + offsetX, y, drawW, drawH);
+        } else {
+          const drawW = w;
+          const drawH = w / imgAspect;
+          const offsetY = (h - drawH) / 2;
+          ctx.drawImage(img, x, y + offsetY, drawW, drawH);
+        }
+      } else {
+        ctx.fillStyle = '#ddd';
+        ctx.fillRect(x, y, w, h);
+      }
+      
+      if (clip) {
+        ctx.restore();
+      }
+    };
+    
+    // Helper: get X position for column
+    const getColX = (colIdx) => baseGutter + colIdx * (colWidth + baseGutter);
+    
+    // Distribute covers between zones based on title position
+    let coversForAbove, coversForBelow;
+    
+    if (position === 'top') {
+      coversForAbove = 0;
+      coversForBelow = coverCount;
+    } else if (position === 'bottom') {
+      coversForAbove = coverCount;
+      coversForBelow = 0;
+    } else {
+      // Distribute proportionally
+      const aboveRatio = zoneAboveHeight / totalUsableHeight;
+      coversForAbove = Math.round(coverCount * aboveRatio);
+      coversForBelow = coverCount - coversForAbove;
+      
+      // Ensure at least some covers in each zone if zone has space
+      if (coversForAbove === 0 && zoneAboveHeight > 0) coversForAbove = 1;
+      if (coversForBelow === 0 && zoneBelowHeight > 0) coversForBelow = 1;
+      if (coversForAbove + coversForBelow > coverCount) {
+        if (zoneAboveHeight > zoneBelowHeight) coversForBelow = coverCount - coversForAbove;
+        else coversForAbove = coverCount - coversForBelow;
+      }
+    }
+    
+    let imageIndex = 0;
+    
+    // PHASE 1: Place primary covers in ABOVE zone (place from top, flow downward)
+    if (coversForAbove > 0 && zoneAboveHeight > 0) {
+      for (let i = 0; i < coversForAbove && imageIndex < images.length; i++) {
+        const img = images[imageIndex];
+        const coverH = getCoverHeight(img);
+        const colIdx = getShortestCol(colHeightsAbove);
+        const x = getColX(colIdx);
+        const y = colHeightsAbove[colIdx];
+        
+        // Only place if it fits (at least partially) in the zone
+        if (y < titleTop) {
+          drawMasonryCover(img, x, y, colWidth, coverH);
+          placedCovers.push({ img, x, y, w: colWidth, h: coverH, zone: 'above' });
+          colHeightsAbove[colIdx] = y + coverH + baseGutter;
+          imageIndex++;
+        } else {
+          // Zone full, move remaining to below
+          break;
+        }
+      }
+    }
+    
+    // PHASE 2: Place primary covers in BELOW zone (place from title bottom, flow downward)
+    const belowStartY = titleBottom;
+    
+    if (imageIndex < images.length && zoneBelowHeight > 0) {
+      for (let i = 0; i < coversForBelow && imageIndex < images.length; i++) {
+        const img = images[imageIndex];
+        const coverH = getCoverHeight(img);
+        const colIdx = getShortestCol(colHeightsBelow);
+        const x = getColX(colIdx);
+        const y = belowStartY + colHeightsBelow[colIdx];
+        
+        drawMasonryCover(img, x, y, colWidth, coverH);
+        placedCovers.push({ img, x, y, w: colWidth, h: coverH, zone: 'below' });
+        colHeightsBelow[colIdx] += coverH + baseGutter;
+        imageIndex++;
+      }
+    }
+    
+    // PHASE 3: Fill remaining whitespace with repeated covers
+    // Fill above zone
+    if (zoneAboveHeight > 0) {
+      let fillAttempts = 0;
+      const maxAttempts = 50;
+      
+      while (fillAttempts < maxAttempts) {
+        const colIdx = getShortestCol(colHeightsAbove);
+        if (colHeightsAbove[colIdx] >= titleTop) break;
+        
+        const imgIdx = fillAttempts % images.length;
+        const img = images[imgIdx];
+        const coverH = getCoverHeight(img);
+        const x = getColX(colIdx);
+        const y = colHeightsAbove[colIdx];
+        
+        drawMasonryCover(img, x, y, colWidth, coverH, true);
+        colHeightsAbove[colIdx] = y + coverH + baseGutter;
+        fillAttempts++;
+      }
+    }
+    
+    // Fill below zone
+    if (zoneBelowHeight > 0) {
+      let fillAttempts = 0;
+      const maxAttempts = 50;
+      
+      while (fillAttempts < maxAttempts) {
+        const colIdx = getShortestCol(colHeightsBelow);
+        const currentY = belowStartY + colHeightsBelow[colIdx];
+        if (currentY >= canvasHeight) break;
+        
+        const imgIdx = fillAttempts % images.length;
+        const img = images[imgIdx];
+        const coverH = getCoverHeight(img);
+        const x = getColX(colIdx);
+        
+        drawMasonryCover(img, x, currentY, colWidth, coverH, true);
+        colHeightsBelow[colIdx] += coverH + baseGutter;
+        fillAttempts++;
+      }
+    }
+    
+    // PHASE 4: Draw title bar with white margin background on top
+    let marginAbove = titleGutter;
+    let marginBelow = titleGutter;
+    if (position === 'top') marginAbove = 0;
+    if (position === 'bottom') marginBelow = 0;
+    
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, titleY - marginAbove, canvasWidth, bgH + marginAbove + marginBelow);
+    
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
   }
 
