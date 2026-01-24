@@ -2695,6 +2695,7 @@ const BooklistApp = (function() {
     
     // =========================================================================
     // STEP 5: Fill gaps with densely packed small covers + color blocks for micro-gaps
+    // No bleeding - color blocks ensure flush edges at top, bottom, and title bar
     // =========================================================================
     
     // Get user-defined fill colors or use defaults
@@ -2718,13 +2719,27 @@ const BooklistApp = (function() {
     const coversPerRow = Math.floor((colWidth + fillGutter) / (fillWidth + fillGutter));
     const actualFillWidth = (colWidth - (coversPerRow - 1) * fillGutter) / coversPerRow;
     
-    let globalFillIdx = 0;
-    const minBlockSize = baseGutter * 1.5;
+    const minBlockSize = baseGutter;
+    
+    // Track last used image index per position to avoid adjacent duplicates
+    let lastUsedIndices = new Array(coversPerRow).fill(-1);
+    
+    // Get next image index, avoiding the last one used in this position
+    const getNextImageIdx = (position) => {
+      let idx = Math.floor(Math.random() * images.length);
+      let attempts = 0;
+      while (idx === lastUsedIndices[position] && attempts < 5) {
+        idx = (idx + 1) % images.length;
+        attempts++;
+      }
+      lastUsedIndices[position] = idx;
+      return idx;
+    };
     
     // Helper to fill a column gap with packed small covers + color blocks for micro-gaps
     const fillColumnGap = (colX, startY, zoneEndY) => {
       const gapHeight = zoneEndY - startY;
-      if (gapHeight < actualFillWidth * 0.3) return;
+      if (gapHeight < minBlockSize) return;
       
       let currentY = startY;
       let rowCount = 0;
@@ -2732,76 +2747,87 @@ const BooklistApp = (function() {
       
       while (currentY < zoneEndY && rowCount < maxRows) {
         const remaining = zoneEndY - currentY;
-        if (remaining < minBlockSize) break;
+        
+        // If remaining space is too small for covers, fill with color block
+        if (remaining < actualFillWidth * 0.6) {
+          ctx.fillStyle = getNextColor();
+          ctx.fillRect(colX, currentY, colWidth, remaining);
+          break;
+        }
         
         // Place a row of small covers side-by-side
         const rowCovers = [];
         let maxRowHeight = 0;
         
         for (let i = 0; i < coversPerRow; i++) {
-          const img = images[globalFillIdx % images.length];
+          const imgIdx = getNextImageIdx(i);
+          const img = images[imgIdx];
           const coverH = getCoverHeight(img, actualFillWidth);
           const x = colX + i * (actualFillWidth + fillGutter);
           
-          // Check if this cover fits
+          // Only place if cover fits entirely (no bleeding)
           if (currentY + coverH <= zoneEndY) {
             rowCovers.push({ img, x, y: currentY, w: actualFillWidth, h: coverH });
             maxRowHeight = Math.max(maxRowHeight, coverH);
-          } else if (remaining > actualFillWidth * 0.5) {
-            // Partial fit - still add it
-            rowCovers.push({ img, x, y: currentY, w: actualFillWidth, h: coverH });
-            maxRowHeight = Math.max(maxRowHeight, coverH);
+          } else {
+            // Cover doesn't fit - will fill with color block after
+            rowCovers.push({ img: null, x, y: currentY, w: actualFillWidth, h: remaining });
           }
-          globalFillIdx++;
         }
         
         // Draw all covers in this row
         for (const cover of rowCovers) {
-          drawCover(cover.img, cover.x, cover.y, cover.w, cover.h);
+          if (cover.img) {
+            drawCover(cover.img, cover.x, cover.y, cover.w, cover.h);
+          }
         }
         
-        // Fill micro-gaps: for covers shorter than maxRowHeight, add color blocks beneath
+        // If no covers fit, fill entire row with color block
+        if (maxRowHeight === 0) {
+          ctx.fillStyle = getNextColor();
+          ctx.fillRect(colX, currentY, colWidth, remaining);
+          break;
+        }
+        
+        // Fill micro-gaps: for covers shorter than maxRowHeight (or missing), add color blocks beneath
         for (const cover of rowCovers) {
-          const coverBottom = cover.y + cover.h;
+          const coverBottom = cover.img ? cover.y + cover.h : cover.y;
           const rowBottom = currentY + maxRowHeight;
-          const microGap = rowBottom - coverBottom;
+          const microGap = cover.img ? (rowBottom - coverBottom) : maxRowHeight;
           
-          if (microGap > minBlockSize) {
-            // Add a color block to fill the micro-gap
+          if (microGap > minBlockSize * 0.5) {
             ctx.fillStyle = getNextColor();
             ctx.fillRect(cover.x, coverBottom, cover.w, microGap);
           }
         }
         
-        if (maxRowHeight === 0) break;
         currentY += maxRowHeight + fillGutter;
         rowCount++;
       }
       
-      // Final gap fill - any remaining vertical space gets a color block
+      // Final gap fill - any remaining vertical space gets a color block (flush to edge)
       const finalGap = zoneEndY - currentY;
-      if (finalGap > minBlockSize) {
-        // Fill entire column width with a color block
+      if (finalGap > 0) {
         ctx.fillStyle = getNextColor();
         ctx.fillRect(colX, currentY, colWidth, finalGap);
       }
     };
     
-    // Fill gaps in ABOVE zone
+    // Fill gaps in ABOVE zone (flush to title bar)
     if (aboveZoneHeight > 0 && position !== 'top') {
       for (let col = 0; col < numCols; col++) {
         const colX = getColX(col);
         const primaryEndY = colHeightsAbove[col];
         const gapStart = primaryEndY;
-        const gapEnd = titleZoneTop - baseGutter;
+        const gapEnd = titleZoneTop;
         
-        if (gapEnd - gapStart > actualFillWidth * 0.3) {
+        if (gapEnd - gapStart > minBlockSize) {
           fillColumnGap(colX, gapStart, gapEnd);
         }
       }
     }
     
-    // Fill gaps in BELOW zone
+    // Fill gaps in BELOW zone (flush to bottom edge)
     if (belowZoneHeight > 0 && position !== 'bottom') {
       for (let col = 0; col < numCols; col++) {
         const colX = getColX(col);
@@ -2809,7 +2835,7 @@ const BooklistApp = (function() {
         const gapStart = primaryEndY;
         const gapEnd = canvasHeight;
         
-        if (gapEnd - gapStart > actualFillWidth * 0.3) {
+        if (gapEnd - gapStart > minBlockSize) {
           fillColumnGap(colX, gapStart, gapEnd);
         }
       }
