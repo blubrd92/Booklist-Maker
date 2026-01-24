@@ -734,16 +734,24 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   
   /**
-   * Shows or hides the tilted-specific settings based on currently selected layout
+   * Shows or hides layout-specific settings based on currently selected layout
    * Also handles masonry-specific stretch toggle behavior
    */
   function updateTiltedSettingsVisibility() {
     const selectedLayout = elements.collageLayoutSelector?.querySelector('.layout-option.selected')?.dataset.layout || 'classic';
+    
+    // Show/hide layout-specific settings panels
     if (elements.tiltedSettings) {
       elements.tiltedSettings.style.display = selectedLayout === 'tilted' ? 'block' : 'none';
     }
     if (elements.classicSettings) {
       elements.classicSettings.style.display = selectedLayout === 'classic' ? 'block' : 'none';
+    }
+    
+    // Masonry settings panel
+    const masonrySettings = document.getElementById('masonry-settings');
+    if (masonrySettings) {
+      masonrySettings.style.display = selectedLayout === 'masonry' ? 'block' : 'none';
     }
     
     // Handle masonry layout: disable stretch toggle and show hint
@@ -2688,18 +2696,15 @@ const BooklistApp = (function() {
     // =========================================================================
     // STEP 5: Fill gaps with a mix of small repeated covers and color blocks
     // Color blocks fill remaining space where covers don't quite fit
+    // No bleeding past canvas edges - blocks fill everything cleanly
     // =========================================================================
     
-    // Color palette for fill blocks (muted, complementary tones)
-    const fillColors = [
-      '#E8E4E1', // warm gray
-      '#D4CDC6', // taupe
-      '#C9D6D3', // sage
-      '#DED8C4', // cream
-      '#C4CCD4', // cool gray
-      '#D6CFC4', // sand
-      '#E0D5C7', // beige
-    ];
+    // Get user-defined fill colors or use defaults
+    const fillColor1 = document.getElementById('masonry-fill-color-1')?.value || '#E8E4E1';
+    const fillColor2 = document.getElementById('masonry-fill-color-2')?.value || '#D4CDC6';
+    const fillColor3 = document.getElementById('masonry-fill-color-3')?.value || '#C9D6D3';
+    
+    const fillColors = [fillColor1, fillColor2, fillColor3];
     
     let colorIdx = 0;
     const getNextColor = () => {
@@ -2710,23 +2715,23 @@ const BooklistApp = (function() {
     
     const fillScale = 0.5;
     const fillWidth = colWidth * fillScale;
-    const minFillSize = baseGutter * 2; // Minimum size for a fill element
+    const minFillSize = baseGutter * 2;
     
     let globalFillIdx = 0;
     
     // Helper to fill a column gap with covers and color blocks
-    const fillColumnGap = (colX, startY, gapHeight, canBleed) => {
-      if (gapHeight < minFillSize && !canBleed) return;
+    const fillColumnGap = (colX, startY, gapHeight, zoneEndY) => {
+      if (gapHeight < minFillSize) return;
       
       let currentY = startY;
       let attempts = 0;
       const maxAttempts = 15;
       
-      while (currentY < startY + gapHeight && attempts < maxAttempts) {
-        const remaining = startY + gapHeight - currentY;
+      while (currentY < zoneEndY && attempts < maxAttempts) {
+        const remaining = zoneEndY - currentY;
+        if (remaining < minFillSize) break;
         
         // Decide: small cover or color block?
-        // Use covers when there's good space, blocks for awkward gaps
         const useBlock = remaining < fillWidth * 0.8 || attempts % 3 === 2;
         
         if (useBlock) {
@@ -2740,7 +2745,7 @@ const BooklistApp = (function() {
             ctx.fillRect(blockX, currentY, blockW, blockH);
             currentY += blockH + baseGutter * 0.5;
           } else {
-            currentY += remaining; // Too small, just skip
+            break;
           }
         } else {
           // Small cover
@@ -2748,12 +2753,12 @@ const BooklistApp = (function() {
           const coverH = getCoverHeight(img, fillWidth);
           const x = colX + (colWidth - fillWidth) / 2;
           
-          if (coverH <= remaining || canBleed) {
+          if (currentY + coverH <= zoneEndY) {
             drawCover(img, x, currentY, fillWidth, coverH);
             currentY += coverH + baseGutter * 0.5;
           } else {
             // Cover doesn't fit, use a color block instead
-            const blockH = remaining;
+            const blockH = remaining - baseGutter * 0.5;
             const blockW = colWidth * 0.6;
             const blockX = colX + (colWidth - blockW) / 2;
             
@@ -2761,7 +2766,7 @@ const BooklistApp = (function() {
               ctx.fillStyle = getNextColor();
               ctx.fillRect(blockX, currentY, blockW, blockH);
             }
-            currentY += remaining;
+            break;
           }
           globalFillIdx++;
         }
@@ -2769,8 +2774,8 @@ const BooklistApp = (function() {
       }
       
       // Final gap fill - if there's any remaining space, fill with a color block
-      const finalGap = (startY + gapHeight) - currentY;
-      if (finalGap > minFillSize * 0.5 && !canBleed) {
+      const finalGap = zoneEndY - currentY;
+      if (finalGap > minFillSize * 0.3) {
         const blockW = colWidth * (0.3 + Math.random() * 0.5);
         const blockX = colX + (colWidth - blockW) * Math.random();
         ctx.fillStyle = getNextColor();
@@ -2786,7 +2791,7 @@ const BooklistApp = (function() {
         const gapHeight = titleZoneTop - primaryEndY - baseGutter;
         
         if (gapHeight > minFillSize) {
-          fillColumnGap(colX, primaryEndY, gapHeight, false);
+          fillColumnGap(colX, primaryEndY, gapHeight, titleZoneTop - baseGutter);
         }
       }
     }
@@ -2799,7 +2804,7 @@ const BooklistApp = (function() {
         const gapHeight = canvasHeight - primaryEndY;
         
         if (gapHeight > minFillSize * 0.5) {
-          fillColumnGap(colX, primaryEndY, gapHeight + fillWidth, true);
+          fillColumnGap(colX, primaryEndY, gapHeight, canvasHeight);
         }
       }
     }
@@ -3832,6 +3837,13 @@ const BooklistApp = (function() {
     const tiltDegree = parseFloat(elements.tiltDegree?.value ?? '-25');
     const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
     
+    // Get masonry fill colors
+    const masonryFillColors = [
+      document.getElementById('masonry-fill-color-1')?.value || '#E8E4E1',
+      document.getElementById('masonry-fill-color-2')?.value || '#D4CDC6',
+      document.getElementById('masonry-fill-color-3')?.value || '#C9D6D3',
+    ];
+    
     // Get list name (used for filename)
     const listName = (elements.listNameInput?.value || '').trim();
     
@@ -3864,6 +3876,7 @@ const BooklistApp = (function() {
         titleBarPosition,
         tiltDegree,
         tiltOffsetDirection,
+        masonryFillColors,
         extendedCollageMode: !!elements.extendedCollageToggle?.checked,
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: (elements.qrCodeTextArea?.innerText !== CONFIG.PLACEHOLDERS.qrText)
@@ -4051,6 +4064,15 @@ const BooklistApp = (function() {
     if (elements.tiltOffsetDirection) {
       elements.tiltOffsetDirection.value = loaded.ui?.tiltOffsetDirection || 'vertical';
     }
+    
+    // Restore masonry fill colors
+    const masonryColors = loaded.ui?.masonryFillColors || ['#E8E4E1', '#D4CDC6', '#C9D6D3'];
+    ['masonry-fill-color-1', 'masonry-fill-color-2', 'masonry-fill-color-3'].forEach((id, i) => {
+      const colorInput = document.getElementById(id);
+      if (colorInput && masonryColors[i]) {
+        colorInput.value = masonryColors[i];
+      }
+    });
     
     // Show/hide tilted settings based on layout
     updateTiltedSettingsVisibility();
@@ -4369,6 +4391,20 @@ const BooklistApp = (function() {
         autoRegenerateCoverIfAble();
       });
     }
+    
+    // Masonry layout color settings
+    ['masonry-fill-color-1', 'masonry-fill-color-2', 'masonry-fill-color-3'].forEach(id => {
+      const colorInput = document.getElementById(id);
+      if (colorInput) {
+        colorInput.addEventListener('input', () => {
+          debouncedCoverRegen();
+        });
+        colorInput.addEventListener('change', () => {
+          debouncedSave();
+          autoRegenerateCoverIfAble();
+        });
+      }
+    });
     
     // Cover mode toggle
     if (elements.coverAdvancedToggle) {
