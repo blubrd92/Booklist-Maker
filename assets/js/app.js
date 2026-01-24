@@ -2541,12 +2541,17 @@ const BooklistApp = (function() {
       const whiteSpace = totalPrimaryHeight - maxColHeight;
       
       // Pick the config that FITS with HIGHEST fill ratio
-      if (fits) {
-        if (!bestConfig || fillRatio > bestConfig.fillRatio) {
-          bestConfig = { numCols, colWidth, fillRatio, whiteSpace, fits };
-        }
-      } else if (!bestConfig) {
-        // No fit yet, track closest to fitting (might need scaling)
+      // Priority: fitting > non-fitting, then highest fill among fitting
+      if (!bestConfig) {
+        bestConfig = { numCols, colWidth, fillRatio, whiteSpace, fits };
+      } else if (fits && !bestConfig.fits) {
+        // New config fits, old doesn't - always prefer fitting
+        bestConfig = { numCols, colWidth, fillRatio, whiteSpace, fits };
+      } else if (fits && bestConfig.fits && fillRatio > bestConfig.fillRatio) {
+        // Both fit, prefer higher fill ratio
+        bestConfig = { numCols, colWidth, fillRatio, whiteSpace, fits };
+      } else if (!fits && !bestConfig.fits && fillRatio < bestConfig.fillRatio) {
+        // Neither fits, prefer lower overflow (closer to fitting)
         bestConfig = { numCols, colWidth, fillRatio, whiteSpace, fits };
       }
     }
