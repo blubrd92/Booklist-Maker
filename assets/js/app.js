@@ -2522,8 +2522,10 @@ const BooklistApp = (function() {
     // =========================================================================
     
     const numCols = 5;
+    console.log('[Masonry] Using numCols =', numCols, 'for', images.length, 'covers');
     let totalHGutter = (numCols + 1) * baseGutter;
     let colWidth = (canvasWidth - totalHGutter) / numCols;
+    const maxColWidth = colWidth; // Store original max that fits
     
     // Simulate placement to get total height needed
     const simHeights = new Array(numCols).fill(0);
@@ -2544,10 +2546,22 @@ const BooklistApp = (function() {
     }
     
     // If fill ratio is very low (< 65%), scale UP to use more space
+    // BUT don't exceed canvas width
     if (fits && fillRatio < 0.65) {
       const targetFill = 0.80;
-      const scaleFactor = targetFill / fillRatio;
-      colWidth *= Math.min(scaleFactor, 1.3); // Don't scale more than 30% up
+      let scaleFactor = targetFill / fillRatio;
+      scaleFactor = Math.min(scaleFactor, 1.3); // Don't scale more than 30% up
+      
+      // Check if scaled width would overflow canvas
+      const scaledColWidth = colWidth * scaleFactor;
+      const scaledTotalWidth = numCols * scaledColWidth + totalHGutter;
+      
+      if (scaledTotalWidth <= canvasWidth) {
+        colWidth = scaledColWidth;
+      } else {
+        // Scale only as much as fits
+        colWidth = maxColWidth;
+      }
     }
     
     const getColX = (colIdx) => baseGutter + colIdx * (colWidth + baseGutter);
