@@ -2483,29 +2483,39 @@ const BooklistApp = (function() {
         titleY = (canvasHeight - bgH) * 0.20;
     }
     
-    // Determine zones: above title, below title
+    // Determine zones: above title, below title (with margins)
     const titleTop = titleY - (position === 'top' ? 0 : titleGutter);
     const titleBottom = titleY + bgH + (position === 'bottom' ? 0 : titleGutter);
     
-    // Zone heights
+    // Zone heights (usable space for primary covers)
     const zoneAboveHeight = position === 'top' ? 0 : titleTop;
     const zoneBelowHeight = position === 'bottom' ? 0 : canvasHeight - titleBottom;
     const totalUsableHeight = zoneAboveHeight + zoneBelowHeight;
     
-    // Determine column count based on cover count and canvas dimensions
     const coverCount = images.length;
-    const numCols = coverCount <= 12 ? 3 : 4;
+    
+    // Dynamic column calculation
+    // Target: columns wide enough to show covers well, but enough columns to fit all covers
+    // Aim for roughly 4 covers per column on average, with 3-5 columns
+    const idealCoversPerCol = 4;
+    let numCols = Math.ceil(coverCount / idealCoversPerCol);
+    
+    // Clamp to reasonable range (3-5 columns)
+    numCols = Math.max(3, Math.min(5, numCols));
     
     // Calculate column width with gutters
     const totalHGutter = (numCols + 1) * baseGutter;
     const colWidth = (canvasWidth - totalHGutter) / numCols;
     
-    // Track column heights for both zones
-    const colHeightsAbove = new Array(numCols).fill(0);
-    const colHeightsBelow = new Array(numCols).fill(0);
+    // Helper: get X position for column
+    const getColX = (colIdx) => baseGutter + colIdx * (colWidth + baseGutter);
     
-    // Store placed covers for later filling
-    const placedCovers = [];
+    // Helper: calculate cover height based on natural aspect ratio
+    const getCoverHeight = (img) => {
+      if (!img || !img.naturalWidth || !img.naturalHeight) return colWidth * 1.5;
+      const imgAspect = img.naturalWidth / img.naturalHeight;
+      return colWidth / imgAspect;
+    };
     
     // Helper: get shortest column index
     const getShortestCol = (heights) => {
@@ -2516,147 +2526,160 @@ const BooklistApp = (function() {
       return minIdx;
     };
     
-    // Helper: calculate cover height based on natural aspect ratio
-    const getCoverHeight = (img) => {
-      const imgAspect = img.naturalWidth / img.naturalHeight;
-      return colWidth / imgAspect;
-    };
-    
-    // Helper: draw a cover preserving aspect ratio (no stretch)
-    const drawMasonryCover = (img, x, y, w, h, clip = false) => {
-      if (clip) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(0, 0, canvasWidth, canvasHeight);
-        ctx.clip();
-      }
-      
+    // Helper: draw a cover at natural aspect ratio (fills column width)
+    const drawMasonryCover = (img, x, y, w, h) => {
       if (img && img.complete && img.naturalWidth > 0) {
-        // For masonry, always preserve aspect ratio
-        const imgAspect = img.naturalWidth / img.naturalHeight;
-        const slotAspect = w / h;
-        
-        // Cover mode: fill the slot, crop excess
-        if (imgAspect > slotAspect) {
-          const drawH = h;
-          const drawW = h * imgAspect;
-          const offsetX = (w - drawW) / 2;
-          ctx.drawImage(img, x + offsetX, y, drawW, drawH);
-        } else {
-          const drawW = w;
-          const drawH = w / imgAspect;
-          const offsetY = (h - drawH) / 2;
-          ctx.drawImage(img, x, y + offsetY, drawW, drawH);
-        }
+        // Draw at exact dimensions - the slot is already sized to natural aspect ratio
+        ctx.drawImage(img, x, y, w, h);
       } else {
         ctx.fillStyle = '#ddd';
         ctx.fillRect(x, y, w, h);
       }
-      
-      if (clip) {
-        ctx.restore();
-      }
     };
     
-    // Helper: get X position for column
-    const getColX = (colIdx) => baseGutter + colIdx * (colWidth + baseGutter);
+    // Track column heights for both zones
+    const colHeightsAbove = new Array(numCols).fill(0);
+    const colHeightsBelow = new Array(numCols).fill(0);
     
-    // Distribute covers between zones based on title position
-    let coversForAbove, coversForBelow;
+    // Track which images have been placed (for fill phase)
+    const placedPrimary = [];
+    
+    // Distribute covers between zones based on title position and available space
+    let targetAbove = 0;
+    let targetBelow = coverCount;
     
     if (position === 'top') {
-      coversForAbove = 0;
-      coversForBelow = coverCount;
+      targetAbove = 0;
+      targetBelow = coverCount;
     } else if (position === 'bottom') {
-      coversForAbove = coverCount;
-      coversForBelow = 0;
+      targetAbove = coverCount;
+      targetBelow = 0;
     } else {
-      // Distribute proportionally
+      // Distribute proportionally based on zone heights
       const aboveRatio = zoneAboveHeight / totalUsableHeight;
-      coversForAbove = Math.round(coverCount * aboveRatio);
-      coversForBelow = coverCount - coversForAbove;
+      targetAbove = Math.round(coverCount * aboveRatio);
+      targetBelow = coverCount - targetAbove;
       
-      // Ensure at least some covers in each zone if zone has space
-      if (coversForAbove === 0 && zoneAboveHeight > 0) coversForAbove = 1;
-      if (coversForBelow === 0 && zoneBelowHeight > 0) coversForBelow = 1;
-      if (coversForAbove + coversForBelow > coverCount) {
-        if (zoneAboveHeight > zoneBelowHeight) coversForBelow = coverCount - coversForAbove;
-        else coversForAbove = coverCount - coversForBelow;
+      // Ensure at least 1 cover in each zone that has space
+      if (targetAbove === 0 && zoneAboveHeight > 0) {
+        targetAbove = 1;
+        targetBelow = coverCount - 1;
+      }
+      if (targetBelow === 0 && zoneBelowHeight > 0) {
+        targetBelow = 1;
+        targetAbove = coverCount - 1;
       }
     }
     
     let imageIndex = 0;
     
-    // PHASE 1: Place primary covers in ABOVE zone (place from top, flow downward)
-    if (coversForAbove > 0 && zoneAboveHeight > 0) {
-      for (let i = 0; i < coversForAbove && imageIndex < images.length; i++) {
+    // =========================================================================
+    // PHASE 1: Place PRIMARY covers in ABOVE zone
+    // Each cover must fit ENTIRELY within the zone (no clipping)
+    // =========================================================================
+    if (targetAbove > 0 && zoneAboveHeight > 0) {
+      let placedAbove = 0;
+      
+      while (placedAbove < targetAbove && imageIndex < images.length) {
         const img = images[imageIndex];
         const coverH = getCoverHeight(img);
         const colIdx = getShortestCol(colHeightsAbove);
         const x = getColX(colIdx);
         const y = colHeightsAbove[colIdx];
         
-        // Only place if it fits (at least partially) in the zone
-        if (y < titleTop) {
+        // Check if ENTIRE cover fits within the above zone
+        if (y + coverH <= titleTop) {
           drawMasonryCover(img, x, y, colWidth, coverH);
-          placedCovers.push({ img, x, y, w: colWidth, h: coverH, zone: 'above' });
+          placedPrimary.push({ img, x, y, w: colWidth, h: coverH });
           colHeightsAbove[colIdx] = y + coverH + baseGutter;
           imageIndex++;
+          placedAbove++;
         } else {
-          // Zone full, move remaining to below
-          break;
+          // This cover won't fit entirely - try next column
+          // Mark this column as "full" by setting it to zone height
+          colHeightsAbove[colIdx] = titleTop;
+          
+          // Check if ALL columns are now full
+          const allFull = colHeightsAbove.every(h => h >= titleTop - getCoverHeight(img));
+          if (allFull) {
+            // Zone is full, remaining covers go to below zone
+            break;
+          }
         }
       }
     }
     
-    // PHASE 2: Place primary covers in BELOW zone (place from title bottom, flow downward)
-    const belowStartY = titleBottom;
-    
+    // =========================================================================
+    // PHASE 2: Place PRIMARY covers in BELOW zone
+    // Each cover must fit ENTIRELY within the zone (no clipping)
+    // =========================================================================
     if (imageIndex < images.length && zoneBelowHeight > 0) {
-      for (let i = 0; i < coversForBelow && imageIndex < images.length; i++) {
+      while (imageIndex < images.length) {
         const img = images[imageIndex];
         const coverH = getCoverHeight(img);
         const colIdx = getShortestCol(colHeightsBelow);
         const x = getColX(colIdx);
-        const y = belowStartY + colHeightsBelow[colIdx];
+        const y = titleBottom + colHeightsBelow[colIdx];
         
-        drawMasonryCover(img, x, y, colWidth, coverH);
-        placedCovers.push({ img, x, y, w: colWidth, h: coverH, zone: 'below' });
-        colHeightsBelow[colIdx] += coverH + baseGutter;
-        imageIndex++;
+        // Check if ENTIRE cover fits within the below zone
+        if (y + coverH <= canvasHeight) {
+          drawMasonryCover(img, x, y, colWidth, coverH);
+          placedPrimary.push({ img, x, y, w: colWidth, h: coverH });
+          colHeightsBelow[colIdx] += coverH + baseGutter;
+          imageIndex++;
+        } else {
+          // This cover won't fit entirely - try next column
+          colHeightsBelow[colIdx] = zoneBelowHeight;
+          
+          // Check if ALL columns are now full
+          const allFull = colHeightsBelow.every(h => titleBottom + h >= canvasHeight - getCoverHeight(img));
+          if (allFull) {
+            // Zone is full, but we still need to place remaining covers
+            // They'll need to go somewhere - let's overflow into fill phase
+            break;
+          }
+        }
       }
     }
     
-    // PHASE 3: Fill remaining whitespace with repeated covers
-    // Fill above zone
+    // =========================================================================
+    // PHASE 3: Fill remaining whitespace with REPEATED covers (can bleed edges)
+    // =========================================================================
+    
+    // Fill above zone (toward title bar)
     if (zoneAboveHeight > 0) {
       let fillAttempts = 0;
-      const maxAttempts = 50;
+      const maxAttempts = 30;
       
       while (fillAttempts < maxAttempts) {
         const colIdx = getShortestCol(colHeightsAbove);
-        if (colHeightsAbove[colIdx] >= titleTop) break;
+        const currentY = colHeightsAbove[colIdx];
+        
+        // Stop if we've filled past the title bar
+        if (currentY >= titleTop) break;
         
         const imgIdx = fillAttempts % images.length;
         const img = images[imgIdx];
         const coverH = getCoverHeight(img);
         const x = getColX(colIdx);
-        const y = colHeightsAbove[colIdx];
         
-        drawMasonryCover(img, x, y, colWidth, coverH, true);
-        colHeightsAbove[colIdx] = y + coverH + baseGutter;
+        // Draw the fill cover (it can extend past titleTop, will be covered by title bar)
+        drawMasonryCover(img, x, currentY, colWidth, coverH);
+        colHeightsAbove[colIdx] = currentY + coverH + baseGutter;
         fillAttempts++;
       }
     }
     
-    // Fill below zone
+    // Fill below zone (toward bottom edge)
     if (zoneBelowHeight > 0) {
       let fillAttempts = 0;
-      const maxAttempts = 50;
+      const maxAttempts = 30;
       
       while (fillAttempts < maxAttempts) {
         const colIdx = getShortestCol(colHeightsBelow);
-        const currentY = belowStartY + colHeightsBelow[colIdx];
+        const currentY = titleBottom + colHeightsBelow[colIdx];
+        
+        // Stop if we've filled past the canvas bottom
         if (currentY >= canvasHeight) break;
         
         const imgIdx = fillAttempts % images.length;
@@ -2664,13 +2687,16 @@ const BooklistApp = (function() {
         const coverH = getCoverHeight(img);
         const x = getColX(colIdx);
         
-        drawMasonryCover(img, x, currentY, colWidth, coverH, true);
+        // Draw the fill cover (it can extend past canvasHeight, will be clipped)
+        drawMasonryCover(img, x, currentY, colWidth, coverH);
         colHeightsBelow[colIdx] += coverH + baseGutter;
         fillAttempts++;
       }
     }
     
-    // PHASE 4: Draw title bar with white margin background on top
+    // =========================================================================
+    // PHASE 4: Draw title bar with white margin background ON TOP
+    // =========================================================================
     let marginAbove = titleGutter;
     let marginBelow = titleGutter;
     if (position === 'top') marginAbove = 0;
