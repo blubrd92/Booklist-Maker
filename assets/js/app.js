@@ -2450,9 +2450,10 @@ const BooklistApp = (function() {
 
   /**
    * Layout: Masonry
-   * True masonry layout with 6 columns. Each column stacks independently.
+   * True masonry layout with columns (5 for 12 covers, 6 for 20 covers).
+   * Each column stacks independently.
    * Covers maintain natural aspect ratio (width matches column, height scales proportionally).
-   * Images cycle in a ping-pong pattern (0,1,2...11,10,9...1,0,1,2...) to avoid adjacent duplicates.
+   * Images loop in order (0,1,2...11,0,1,2... or 0,1,2...19,0,1,2...).
    * Title bar overlays the collage with a white background and margins.
    */
   function drawLayoutMasonry(ctx, canvas, images, styles, options = {}) {
@@ -2462,11 +2463,11 @@ const BooklistApp = (function() {
     
     // Gutters scale with DPI
     const baseGutter = 6 * (CONFIG.PDF_DPI / 72);
-    const titleGutter = 12 * (CONFIG.PDF_DPI / 72);
+    const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
     
-    // Fixed 6 columns, flush with left and right edges
-    const numCols = 6;
+    // Column count based on cover count: 5 for 12, 6 for 20
     const imageCount = images.length;
+    const numCols = imageCount <= 12 ? 5 : 6;
     console.log('[Masonry] Using numCols =', numCols, 'for', imageCount, 'covers');
     
     // Calculate column width - gutters only BETWEEN columns, not at edges
@@ -2514,23 +2515,6 @@ const BooklistApp = (function() {
       }
     };
     
-    /**
-     * Ping-pong index generator
-     * For 12 images: 0,1,2,3,4,5,6,7,8,9,10,11,10,9,8,7,6,5,4,3,2,1,0,1,2...
-     * For 20 images: 0,1,2,...18,19,18,17,...1,0,1,2...
-     */
-    const getPingPongIndex = (step) => {
-      const maxIdx = imageCount - 1; // 11 for 12 images, 19 for 20
-      const cycleLen = maxIdx * 2;   // 22 for 12 images, 38 for 20
-      const pos = step % cycleLen;
-      
-      if (pos <= maxIdx) {
-        return pos;
-      } else {
-        return cycleLen - pos;
-      }
-    };
-    
     // =========================================================================
     // PLACE COVERS IN TRUE MASONRY STYLE
     // =========================================================================
@@ -2548,7 +2532,8 @@ const BooklistApp = (function() {
         // Check if this column still needs covers
         if (colHeights[col] >= canvasHeight) continue;
         
-        const imgIdx = getPingPongIndex(step);
+        // Simple loop: 0,1,2...11,0,1,2... or 0,1,2...19,0,1,2...
+        const imgIdx = step % imageCount;
         const img = images[imgIdx];
         const coverH = getCoverHeight(img, colWidth);
         
