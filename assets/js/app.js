@@ -974,12 +974,42 @@ const BooklistApp = (function() {
     magicButton.setAttribute('aria-label', 'Fetch description for this book');
     magicButton.onclick = () => handleMagicButtonClick(bookItem);
     
-    // Item number
-    const itemNumber = document.createElement('span');
+    // Item number (editable input for reordering)
+    const itemNumber = document.createElement('input');
+    itemNumber.type = 'number';
     itemNumber.className = 'item-number';
-    itemNumber.textContent = index + 1;
-    itemNumber.setAttribute('aria-hidden', 'true');
-    itemNumber.title = `Book #${index + 1}`;
+    itemNumber.value = index + 1;
+    itemNumber.min = 1;
+    itemNumber.max = MAX_BOOKS;
+    itemNumber.title = `Book #${index + 1} - Edit to move`;
+    itemNumber.setAttribute('aria-label', `Position ${index + 1}, edit to reorder`);
+    
+    // Handle reordering when value changes
+    itemNumber.addEventListener('change', () => {
+      const newPos = parseInt(itemNumber.value, 10);
+      const oldPos = index + 1;
+      
+      // Validate input
+      if (isNaN(newPos) || newPos < 1 || newPos > MAX_BOOKS || newPos === oldPos) {
+        itemNumber.value = oldPos; // Reset to current position
+        return;
+      }
+      
+      // Reorder the book
+      handleBookReorder(index, newPos - 1);
+    });
+    
+    // Select all text on focus for easy editing
+    itemNumber.addEventListener('focus', () => {
+      itemNumber.select();
+    });
+    
+    // Prevent invalid characters
+    itemNumber.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        itemNumber.blur();
+      }
+    });
     
     // Delete button
     const deleteButton = document.createElement('button');
@@ -1050,6 +1080,27 @@ const BooklistApp = (function() {
       searchButton.textContent = 'Add to List';
       searchButton.classList.remove('added');
     }
+  }
+  
+  /**
+   * Reorder a book from one position to another
+   * @param {number} fromIndex - Current index (0-based)
+   * @param {number} toIndex - Target index (0-based)
+   */
+  function handleBookReorder(fromIndex, toIndex) {
+    if (fromIndex === toIndex) return;
+    if (fromIndex < 0 || fromIndex >= MAX_BOOKS) return;
+    if (toIndex < 0 || toIndex >= MAX_BOOKS) return;
+    
+    // Remove the book from its current position
+    const [movedBook] = myBooklist.splice(fromIndex, 1);
+    
+    // Insert it at the new position
+    myBooklist.splice(toIndex, 0, movedBook);
+    
+    // Re-render and save
+    renderBooklist();
+    debouncedSave();
   }
   
   function createCoverUploader(bookItem) {

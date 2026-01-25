@@ -864,7 +864,33 @@ input[type="color"]:hover {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
-.item-number { font-size: 1.1rem; font-weight: bold; color: #555; }
+.item-number { 
+  font-size: 1.1rem; 
+  font-weight: bold; 
+  color: #555; 
+  width: 2.5em;
+  text-align: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  padding: 2px 4px;
+  cursor: pointer;
+  -moz-appearance: textfield;
+}
+.item-number::-webkit-outer-spin-button,
+.item-number::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.item-number:hover {
+  border-color: #ccc;
+  background: #f8f8f8;
+}
+.item-number:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  background: #fff;
+}
 .delete-button { 
   background: none; 
   border: none; 
