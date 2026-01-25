@@ -2530,8 +2530,11 @@ const BooklistApp = (function() {
     // PLACE COVERS IN TRUE MASONRY STYLE
     // =========================================================================
     
+    // When title bar is at top, covers start below it; otherwise start at 0
+    const startY = position === 'top' ? bgH + titleGutter : 0;
+    
     // Track column heights (each column stacks independently)
-    const colHeights = new Array(numCols).fill(0);
+    const colHeights = new Array(numCols).fill(startY);
     
     let step = 0;
     const maxCovers = 200; // Safety limit
