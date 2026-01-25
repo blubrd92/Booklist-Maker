@@ -2449,25 +2449,15 @@ const BooklistApp = (function() {
 
 
   /**
-   * Layout: Masonry
-   * Pinterest-style columnar layout where covers maintain natural aspect ratios.
-   * Each cover appears once in full, then remaining space is filled with
-   * repeated covers and color blocks. Covers are flush at edges, blocks fill middle gaps.
-   */
-  /**
    * Layout: Masonry (Sandwich Approach)
+   * Pinterest-style columnar layout where covers maintain natural aspect ratios.
+   * Uses a "sandwich" structure: big covers at edges, small covers + blocks in middle.
    * 
    * Structure per zone:
-   * [BIG COVERS]  <- flush with zone top (canvas edge or title bar)
-   * [MIDDLE FILL] <- covers at largest size that fits + ~30% blocks
-   * [BIG COVERS]  <- flush with zone bottom (title bar or canvas edge)
-   * 
-   * Rules:
-   * - Each unique cover shown at full size at least once
-   * - Repeats can be any size that fits (prefer full, scale only if needed)
-   * - No horizontal duplicates (side-by-side)
-   * - No vertical duplicates (above/below)
-   * - No horizontal blocks at edges (only vertical bars beside scaled covers)
+   * [BIG COVER][BIG COVER][BIG COVER][BIG COVER][BIG COVER]  <- flush with edge
+   * [small][small][block][small][small][block][small][small]  <- middle fill
+   * [block][small][small][block][small][small][block][small]  <- middle fill  
+   * [BIG COVER][BIG COVER][BIG COVER][BIG COVER][BIG COVER]  <- flush with title bar
    */
   function drawLayoutMasonry(ctx, canvas, images, styles, options = {}) {
     const canvasWidth = canvas.width;
@@ -2478,8 +2468,9 @@ const BooklistApp = (function() {
     const baseGutter = 6 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 12 * (CONFIG.PDF_DPI / 72);
     
-    // Get title bar dimensions
+    // Get title bar dimensions first
     const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
+    // Clear it, we'll redraw at correct position
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvasWidth, bgH + 1);
     
@@ -2498,20 +2489,28 @@ const BooklistApp = (function() {
     const titleZoneTop = titleY - (position === 'top' ? 0 : titleGutter);
     const titleZoneBottom = titleY + bgH + (position === 'bottom' ? 0 : titleGutter);
     
-    // =========================================================================
-    // SETUP
-    // =========================================================================
+    // Available heights
+    const aboveZoneHeight = position === 'top' ? 0 : titleZoneTop;
+    const belowZoneHeight = position === 'bottom' ? 0 : canvasHeight - titleZoneBottom;
+    const totalPrimaryHeight = aboveZoneHeight + belowZoneHeight;
     
-    const numCols = 5;
-    console.log('[Masonry Sandwich] Using numCols =', numCols, 'for', images.length, 'covers');
+    const coverCount = images.length;
     
-    const totalHGutter = (numCols + 1) * baseGutter;
-    const colWidth = (canvasWidth - totalHGutter) / numCols;
-    const getColX = (col) => baseGutter + col * (colWidth + baseGutter);
+    // =========================================================================
+    // HELPER FUNCTIONS
+    // =========================================================================
     
     const getCoverHeight = (img, width) => {
       if (!img || !img.naturalWidth || !img.naturalHeight) return width * 1.5;
       return width / (img.naturalWidth / img.naturalHeight);
+    };
+    
+    const getShortestCol = (heights) => {
+      let minIdx = 0;
+      for (let i = 1; i < heights.length; i++) {
+        if (heights[i] < heights[minIdx]) minIdx = i;
+      }
+      return minIdx;
     };
     
     const drawCover = (img, x, y, w, h) => {
@@ -2523,7 +2522,79 @@ const BooklistApp = (function() {
       }
     };
     
-    // Colors
+    /**
+     * Pick a non-duplicate image index
+     */
+    const pickNonDuplicateImage = (horizExclude, vertExclude, extraExclude = -1) => {
+      let imgIdx = Math.floor(Math.random() * images.length);
+      let attempts = 0;
+      while (
+        (imgIdx === horizExclude || imgIdx === vertExclude || imgIdx === extraExclude) && 
+        attempts < images.length * 2
+      ) {
+        imgIdx = (imgIdx + 1) % images.length;
+        attempts++;
+      }
+      return imgIdx;
+    };
+    
+    // =========================================================================
+    // STEP 1: Use fixed 5 columns, calculate fill ratio
+    // =========================================================================
+    
+    const numCols = 5;
+    console.log('[Masonry] Using numCols =', numCols, 'for', images.length, 'covers');
+    let totalHGutter = (numCols + 1) * baseGutter;
+    let colWidth = (canvasWidth - totalHGutter) / numCols;
+    const maxColWidth = colWidth;
+    
+    // Simulate placement to get total height needed
+    const simHeights = new Array(numCols).fill(0);
+    for (const img of images) {
+      const coverH = getCoverHeight(img, colWidth);
+      const colIdx = getShortestCol(simHeights);
+      simHeights[colIdx] += coverH + baseGutter;
+    }
+    
+    const maxColHeight = Math.max(...simHeights);
+    const fits = maxColHeight <= totalPrimaryHeight;
+    const fillRatio = totalPrimaryHeight > 0 ? maxColHeight / totalPrimaryHeight : 1;
+    
+    if (!fits && fillRatio > 0) {
+      const scaleFactor = 0.85 / fillRatio;
+      colWidth *= scaleFactor;
+    }
+    
+    if (fits && fillRatio < 0.65 && fillRatio > 0) {
+      const targetFill = 0.80;
+      let scaleFactor = targetFill / fillRatio;
+      scaleFactor = Math.min(scaleFactor, 1.3);
+      
+      const scaledColWidth = colWidth * scaleFactor;
+      const scaledTotalWidth = numCols * scaledColWidth + totalHGutter;
+      
+      if (scaledTotalWidth <= canvasWidth) {
+        colWidth = scaledColWidth;
+      } else {
+        colWidth = maxColWidth;
+      }
+    }
+    
+    const getColX = (colIdx) => baseGutter + colIdx * (colWidth + baseGutter);
+    
+    // =========================================================================
+    // FILL PARAMETERS
+    // =========================================================================
+    
+    const fillScale = 0.45;
+    const fillGutter = baseGutter * 0.4;
+    const coversPerRow = Math.max(2, Math.floor((colWidth + fillGutter) / (colWidth * fillScale + fillGutter)));
+    const actualFillWidth = (colWidth - (coversPerRow - 1) * fillGutter) / coversPerRow;
+    const minBlockSize = baseGutter;
+    const avgFillH = actualFillWidth * 1.4;
+    const BLOCK_RATIO = 0.30; // 30% blocks in middle
+    
+    // Color palette for filler blocks
     const fillColor1 = document.getElementById('masonry-fill-color-1')?.value || '#E8E4E1';
     const fillColor2 = document.getElementById('masonry-fill-color-2')?.value || '#D4CDC6';
     const fillColor3 = document.getElementById('masonry-fill-color-3')?.value || '#C9D6D3';
@@ -2531,378 +2602,309 @@ const BooklistApp = (function() {
     let colorIdx = 0;
     const getNextColor = () => fillColors[colorIdx++ % fillColors.length];
     
-    // Track which covers have been shown at full size
-    const shownFullSize = new Set();
-    let nextCoverIdx = 0; // Round-robin for fair distribution
-    
-    // Get next cover, prioritizing ones not yet shown at full size
-    const getNextCoverIdx = (excludeH = -1, excludeV = -1) => {
-      // First try covers not yet shown at full size
-      if (shownFullSize.size < images.length) {
-        for (let i = 0; i < images.length; i++) {
-          const idx = (nextCoverIdx + i) % images.length;
-          if (!shownFullSize.has(idx) && idx !== excludeH && idx !== excludeV) {
-            nextCoverIdx = (idx + 1) % images.length;
-            return idx;
-          }
-        }
-      }
-      
-      // Fall back to any non-duplicate
-      for (let i = 0; i < images.length; i++) {
-        const idx = (nextCoverIdx + i) % images.length;
-        if (idx !== excludeH && idx !== excludeV) {
-          nextCoverIdx = (idx + 1) % images.length;
-          return idx;
-        }
-      }
-      
-      // Last resort
-      nextCoverIdx = (nextCoverIdx + 1) % images.length;
-      return nextCoverIdx;
-    };
-    
     // =========================================================================
-    // FILL A ZONE WITH SANDWICH STRUCTURE
+    // SANDWICH ZONE FILL FUNCTION
     // =========================================================================
     
-    const fillZone = (zoneTop, zoneBottom) => {
-      const zoneHeight = zoneBottom - zoneTop;
-      if (zoneHeight < colWidth * 0.3) return;
+    const fillZoneSandwich = (zoneStart, zoneEnd, zoneId) => {
+      const zoneHeight = zoneEnd - zoneStart;
+      if (zoneHeight < minBlockSize * 2) return;
       
-      // Calculate how much space big covers need
-      let avgBigH = 0;
-      for (const img of images) avgBigH += getCoverHeight(img, colWidth);
-      avgBigH /= images.length;
+      // Calculate average big cover height
+      let totalBigH = 0;
+      for (const img of images) {
+        totalBigH += getCoverHeight(img, colWidth);
+      }
+      const avgBigH = totalBigH / images.length;
       
-      // Check if we have room for full sandwich
-      const minSandwichH = avgBigH * 2 + baseGutter * 2;
+      // Check if zone is too small for full sandwich
+      const minSandwichHeight = avgBigH * 2 + baseGutter * 3 + minBlockSize;
       
-      if (zoneHeight < minSandwichH) {
-        // Too small for sandwich - just fill with scaled covers
-        fillSimpleZone(zoneTop, zoneBottom);
+      if (zoneHeight < minSandwichHeight) {
+        fillZoneEdgesOnly(zoneStart, zoneEnd);
         return;
       }
       
-      // =====================================================================
-      // TOP ROW: Big covers flush with zone top
-      // =====================================================================
+      // Track images in each column for vertical duplicate checking
+      const lastImgByMainCol = new Array(numCols).fill(-1);
+      const bottomRowImgs = new Array(numCols).fill(-1);
       
-      const topRow = [];
-      let maxTopH = 0;
-      let lastIdxTop = -1;
-      
+      // ===== TOP ROW: BIG COVERS (flush with zoneStart) =====
+      let lastTopIdx = -1;
       for (let col = 0; col < numCols; col++) {
-        const imgIdx = getNextCoverIdx(lastIdxTop, -1);
+        const imgIdx = pickNonDuplicateImage(lastTopIdx, -1);
+        
         const img = images[imgIdx];
-        const h = getCoverHeight(img, colWidth);
-        topRow.push({ col, imgIdx, img, h, w: colWidth });
-        maxTopH = Math.max(maxTopH, h);
-        lastIdxTop = imgIdx;
-        shownFullSize.add(imgIdx);
-      }
-      
-      // Clamp top row if too tall (shouldn't take more than 40% of zone)
-      const maxAllowedTop = zoneHeight * 0.4;
-      if (maxTopH > maxAllowedTop) {
-        const scale = maxAllowedTop / maxTopH;
-        for (const c of topRow) {
-          c.h *= scale;
-          c.w = colWidth * scale;
-        }
-        maxTopH = maxAllowedTop;
-      }
-      
-      // Draw top row
-      for (const c of topRow) {
-        const x = getColX(c.col);
-        drawCover(c.img, x, zoneTop, c.w, c.h);
+        let coverH = getCoverHeight(img, colWidth);
+        let coverW = colWidth;
         
-        // Vertical bar beside scaled cover
-        if (c.w < colWidth) {
-          ctx.fillStyle = getNextColor();
-          ctx.fillRect(x + c.w, zoneTop, colWidth - c.w, c.h);
+        if (coverH > avgBigH) {
+          const scaleFactor = avgBigH / coverH;
+          coverH = avgBigH;
+          coverW = colWidth * scaleFactor;
         }
         
-        // Micro-fill below shorter covers
-        if (c.h < maxTopH) {
+        const x = getColX(col);
+        const y = zoneStart;
+        
+        drawCover(img, x, y, coverW, coverH);
+        
+        lastImgByMainCol[col] = imgIdx;
+        lastTopIdx = imgIdx;
+        
+        // Vertical filler block beside scaled-down cover
+        if (coverW < colWidth - 1) {
           ctx.fillStyle = getNextColor();
-          ctx.fillRect(x, zoneTop + c.h, c.w, maxTopH - c.h);
+          ctx.fillRect(x + coverW, y, colWidth - coverW, coverH);
         }
       }
       
-      const topRowBottom = zoneTop + maxTopH + baseGutter;
-      
-      // =====================================================================
-      // BOTTOM ROW: Big covers flush with zone bottom
-      // =====================================================================
-      
-      const bottomRow = [];
-      let maxBottomH = 0;
-      let lastIdxBottom = -1;
-      // Track what's above each column for vertical duplicate prevention
-      const lastImgByCol = topRow.map(c => c.imgIdx);
-      
+      // ===== CALCULATE BOTTOM ROW first (to avoid duplicates in middle) =====
+      let lastBottomIdx = -1;
+      const bottomRowData = [];
       for (let col = 0; col < numCols; col++) {
-        const imgIdx = getNextCoverIdx(lastIdxBottom, lastImgByCol[col]);
+        const imgIdx = pickNonDuplicateImage(lastBottomIdx, lastImgByMainCol[col]);
+        
         const img = images[imgIdx];
-        const h = getCoverHeight(img, colWidth);
-        bottomRow.push({ col, imgIdx, img, h, w: colWidth });
-        maxBottomH = Math.max(maxBottomH, h);
-        lastIdxBottom = imgIdx;
-        shownFullSize.add(imgIdx);
-      }
-      
-      // Clamp bottom row (shouldn't take more than 40%)
-      const maxAllowedBottom = (zoneBottom - topRowBottom - baseGutter) * 0.5;
-      if (maxBottomH > maxAllowedBottom) {
-        const scale = maxAllowedBottom / maxBottomH;
-        for (const c of bottomRow) {
-          c.h *= scale;
-          c.w = colWidth * scale;
-        }
-        maxBottomH = maxAllowedBottom;
-      }
-      
-      // Draw bottom row (flush with zone bottom)
-      for (const c of bottomRow) {
-        const x = getColX(c.col);
-        const y = zoneBottom - c.h;
-        drawCover(c.img, x, y, c.w, c.h);
+        let coverH = getCoverHeight(img, colWidth);
+        let coverW = colWidth;
         
-        // Vertical bar beside scaled cover
-        if (c.w < colWidth) {
-          ctx.fillStyle = getNextColor();
-          ctx.fillRect(x + c.w, y, colWidth - c.w, c.h);
+        if (coverH > avgBigH) {
+          const scaleFactor = avgBigH / coverH;
+          coverH = avgBigH;
+          coverW = colWidth * scaleFactor;
         }
         
-        // Micro-fill above shorter covers
-        if (c.h < maxBottomH) {
-          ctx.fillStyle = getNextColor();
-          ctx.fillRect(x, zoneBottom - maxBottomH, c.w, maxBottomH - c.h);
-        }
+        bottomRowData.push({ imgIdx, coverH, coverW });
+        bottomRowImgs[col] = imgIdx;
+        lastBottomIdx = imgIdx;
       }
       
-      const bottomRowTop = zoneBottom - maxBottomH - baseGutter;
+      // ===== MIDDLE SECTION: SMALL COVERS + BLOCKS =====
+      const middleStart = zoneStart + avgBigH + baseGutter;
+      const middleEnd = zoneEnd - avgBigH - baseGutter;
+      const middleHeight = middleEnd - middleStart;
       
-      // =====================================================================
-      // MIDDLE: Fill with covers (largest size that fits) + blocks
-      // =====================================================================
-      
-      const middleTop = topRowBottom;
-      const middleBottom = bottomRowTop;
-      const middleHeight = middleBottom - middleTop;
-      
-      if (middleHeight > baseGutter * 2) {
-        fillMiddle(middleTop, middleBottom, topRow, bottomRow);
-      } else if (middleHeight > 0) {
-        // Tiny gap - just a block
-        ctx.fillStyle = getNextColor();
-        ctx.fillRect(baseGutter, middleTop, canvasWidth - 2 * baseGutter, middleHeight);
-      }
-    };
-    
-    // =========================================================================
-    // FILL MIDDLE: Covers at largest size that fits + ~30% blocks
-    // =========================================================================
-    
-    const fillMiddle = (top, bottom, topRowCovers, bottomRowCovers) => {
-      const height = bottom - top;
-      if (height < baseGutter) return;
-      
-      // Track last image per column for vertical duplicate prevention
-      const lastImgByCol = topRowCovers.map(c => c.imgIdx);
-      // Bottom row images (for preventing duplicates with bottom)
-      const bottomImgByCol = bottomRowCovers.map(c => c.imgIdx);
-      
-      let currentY = top;
-      let rowCount = 0;
-      const maxRows = 15;
-      
-      while (currentY < bottom - baseGutter && rowCount < maxRows) {
-        const remaining = bottom - currentY;
+      if (middleHeight > minBlockSize) {
+        let currentY = middleStart;
+        let rowIdx = 0;
         
-        // If very little space, fill with block
-        if (remaining < colWidth * 0.3) {
-          ctx.fillStyle = getNextColor();
-          ctx.fillRect(baseGutter, currentY, canvasWidth - 2 * baseGutter, remaining);
-          break;
-        }
-        
-        // Check if this is the last row (will touch bottom row)
-        const isLastMiddleRow = remaining < colWidth * 1.5 + baseGutter;
-        
-        // Build row
-        const rowCells = [];
-        let lastIdxInRow = -1;
-        let maxRowH = 0;
-        
-        for (let col = 0; col < numCols; col++) {
-          const x = getColX(col);
+        while (currentY < middleEnd - minBlockSize && rowIdx < 20) {
+          const remaining = middleEnd - currentY;
           
-          // For last middle row, also check against bottom row
-          const excludeV = isLastMiddleRow 
-            ? [lastImgByCol[col], bottomImgByCol[col]]
-            : [lastImgByCol[col]];
-          
-          // Only use random blocks AFTER all covers shown at full size
-          const allShown = shownFullSize.size >= images.length;
-          const useBlock = allShown && Math.random() < 0.3;
-          
-          if (useBlock) {
-            rowCells.push({ type: 'block', col, x });
-            lastIdxInRow = -1;
-            lastImgByCol[col] = -1;
-            continue;
+          // If remaining space is small, fill with blocks
+          if (remaining < avgFillH * 0.4) {
+            for (let col = 0; col < numCols; col++) {
+              ctx.fillStyle = getNextColor();
+              ctx.fillRect(getColX(col), currentY, colWidth, remaining);
+            }
+            break;
           }
           
-          // Prioritize covers not yet shown at full size
-          let imgIdx = -1;
-          if (shownFullSize.size < images.length) {
-            for (let i = 0; i < images.length; i++) {
-              if (!shownFullSize.has(i) && i !== lastIdxInRow && !excludeV.includes(i)) {
-                imgIdx = i;
-                break;
+          // Build row with GLOBAL horizontal tracking
+          let maxRowH = 0;
+          const rowCells = [];
+          let lastHorizIdx = -1;
+          
+          for (let col = 0; col < numCols; col++) {
+            const colX = getColX(col);
+            const vertExclude = lastImgByMainCol[col];
+            const isNearBottom = remaining < avgFillH * 2;
+            const bottomExclude = isNearBottom ? bottomRowImgs[col] : -1;
+            
+            for (let subCol = 0; subCol < coversPerRow; subCol++) {
+              const cellX = colX + subCol * (actualFillWidth + fillGutter);
+              const useBlock = Math.random() < BLOCK_RATIO;
+              
+              if (useBlock) {
+                rowCells.push({ type: 'block', x: cellX, col, subCol });
+                lastHorizIdx = -1;
+              } else {
+                const imgIdx = pickNonDuplicateImage(lastHorizIdx, vertExclude, bottomExclude);
+                const img = images[imgIdx];
+                const coverH = getCoverHeight(img, actualFillWidth);
+                
+                rowCells.push({
+                  type: 'cover',
+                  imgIdx,
+                  x: cellX,
+                  h: coverH,
+                  w: actualFillWidth,
+                  col,
+                  subCol
+                });
+                
+                maxRowH = Math.max(maxRowH, coverH);
+                lastHorizIdx = imgIdx;
+                lastImgByMainCol[col] = imgIdx;
               }
             }
           }
           
-          // Fall back to random non-duplicate
-          if (imgIdx === -1) {
-            imgIdx = Math.floor(Math.random() * images.length);
-            let attempts = 0;
-            while ((imgIdx === lastIdxInRow || excludeV.includes(imgIdx)) && attempts < 25) {
-              imgIdx = (imgIdx + 1) % images.length;
-              attempts++;
-            }
-          }
+          // Clamp row height
+          if (maxRowH === 0) maxRowH = Math.min(avgFillH * 0.6, remaining);
+          maxRowH = Math.min(maxRowH, remaining);
           
-          // If still duplicate, use block
-          if (imgIdx === lastIdxInRow || excludeV.includes(imgIdx)) {
-            rowCells.push({ type: 'block', col, x });
-            lastIdxInRow = -1;
-            lastImgByCol[col] = -1;
-            continue;
-          }
-          
-          const img = images[imgIdx];
-          let coverH = getCoverHeight(img, colWidth);
-          let coverW = colWidth;
-          
-          // Scale down ONLY if needed to fit
-          if (coverH > remaining - baseGutter) {
-            const scale = (remaining - baseGutter) / coverH;
-            coverH = remaining - baseGutter;
-            coverW = colWidth * scale;
-          } else {
-            // Full size - mark as shown
-            shownFullSize.add(imgIdx);
-          }
-          
-          rowCells.push({ type: 'cover', col, x, img, imgIdx, w: coverW, h: coverH });
-          maxRowH = Math.max(maxRowH, coverH);
-          lastIdxInRow = imgIdx;
-          lastImgByCol[col] = imgIdx;
-        }
-        
-        // If no covers, use block for this row
-        if (maxRowH === 0) {
-          maxRowH = Math.min(colWidth * 0.4, remaining - baseGutter);
-          if (maxRowH > 0) {
-            ctx.fillStyle = getNextColor();
-            ctx.fillRect(baseGutter, currentY, canvasWidth - 2 * baseGutter, maxRowH);
-            currentY += maxRowH + baseGutter;
-            rowCount++;
-            continue;
-          }
-          break;
-        }
-        
-        // Draw row
-        for (const cell of rowCells) {
-          if (cell.type === 'cover') {
-            drawCover(cell.img, cell.x, currentY, cell.w, cell.h);
-            
-            // Vertical bar beside scaled cover
-            if (cell.w < colWidth) {
+          // Draw cells
+          for (const cell of rowCells) {
+            const cellY = currentY;
+            if (cell.type === 'block') {
               ctx.fillStyle = getNextColor();
-              ctx.fillRect(cell.x + cell.w, currentY, colWidth - cell.w, cell.h);
+              ctx.fillRect(cell.x, cellY, actualFillWidth, maxRowH);
+            } else {
+              let drawH = cell.h;
+              let drawW = cell.w;
+              if (drawH > maxRowH) {
+                const scale = maxRowH / drawH;
+                drawH = maxRowH;
+                drawW = actualFillWidth * scale;
+              }
+              
+              const img = images[cell.imgIdx];
+              drawCover(img, cell.x, cellY, drawW, drawH);
+              
+              // Micro-fill for shorter covers
+              if (drawH < maxRowH) {
+                ctx.fillStyle = getNextColor();
+                ctx.fillRect(cell.x, cellY + drawH, drawW, maxRowH - drawH);
+              }
+              
+              // Horizontal fill beside scaled-down covers
+              if (drawW < actualFillWidth - 1) {
+                ctx.fillStyle = getNextColor();
+                ctx.fillRect(cell.x + drawW, cellY, actualFillWidth - drawW, maxRowH);
+              }
             }
-            
-            // Micro-fill below shorter covers
-            if (cell.h < maxRowH) {
-              ctx.fillStyle = getNextColor();
-              ctx.fillRect(cell.x, currentY + cell.h, cell.w, maxRowH - cell.h);
-            }
-          } else {
-            ctx.fillStyle = getNextColor();
-            ctx.fillRect(cell.x, currentY, colWidth, maxRowH);
           }
+          
+          currentY += maxRowH + fillGutter;
+          rowIdx++;
         }
         
-        currentY += maxRowH + baseGutter;
-        rowCount++;
+        // Fill gap between middle and bottom row
+        const bottomRowTop = zoneEnd - avgBigH;
+        if (bottomRowTop - currentY > minBlockSize * 0.3) {
+          for (let col = 0; col < numCols; col++) {
+            ctx.fillStyle = getNextColor();
+            ctx.fillRect(getColX(col), currentY, colWidth, bottomRowTop - currentY);
+          }
+        }
       }
       
-      // Fill any final gap
-      if (currentY < bottom) {
-        ctx.fillStyle = getNextColor();
-        ctx.fillRect(baseGutter, currentY, canvasWidth - 2 * baseGutter, bottom - currentY);
+      // Fill gap between top row and middle
+      const topRowBottom = zoneStart + avgBigH;
+      if (middleStart - topRowBottom > minBlockSize * 0.3) {
+        for (let col = 0; col < numCols; col++) {
+          ctx.fillStyle = getNextColor();
+          ctx.fillRect(getColX(col), topRowBottom, colWidth, middleStart - topRowBottom);
+        }
+      }
+      
+      // ===== BOTTOM ROW: BIG COVERS (flush with zoneEnd) =====
+      for (let col = 0; col < numCols; col++) {
+        const { imgIdx, coverH, coverW } = bottomRowData[col];
+        const img = images[imgIdx];
+        const x = getColX(col);
+        const y = zoneEnd - coverH;
+        
+        drawCover(img, x, y, coverW, coverH);
+        
+        if (coverW < colWidth - 1) {
+          ctx.fillStyle = getNextColor();
+          ctx.fillRect(x + coverW, y, colWidth - coverW, coverH);
+        }
       }
     };
     
     // =========================================================================
-    // SIMPLE ZONE: For zones too small for sandwich
+    // EDGES-ONLY FILL FOR SMALL ZONES
     // =========================================================================
     
-    const fillSimpleZone = (top, bottom) => {
-      const height = bottom - top;
-      let lastIdx = -1;
+    const fillZoneEdgesOnly = (zoneStart, zoneEnd) => {
+      const zoneHeight = zoneEnd - zoneStart;
+      
+      let lastTopIdx = -1;
+      const topRowImgs = [];
       
       for (let col = 0; col < numCols; col++) {
-        const x = getColX(col);
-        const imgIdx = getNextCoverIdx(lastIdx, -1);
+        const imgIdx = pickNonDuplicateImage(lastTopIdx, -1);
         const img = images[imgIdx];
-        let h = getCoverHeight(img, colWidth);
-        let w = colWidth;
+        let coverH = getCoverHeight(img, colWidth);
+        let coverW = colWidth;
         
-        // Scale to fit
-        if (h > height) {
-          const scale = height / h;
-          h = height;
-          w = colWidth * scale;
+        const maxH = (zoneHeight - baseGutter) / 2;
+        if (coverH > maxH) {
+          const scaleFactor = maxH / coverH;
+          coverH = maxH;
+          coverW = colWidth * scaleFactor;
         }
         
-        drawCover(img, x, top, w, h);
-        shownFullSize.add(imgIdx);
-        lastIdx = imgIdx;
+        const x = getColX(col);
+        drawCover(img, x, zoneStart, coverW, coverH);
         
-        // Vertical bar beside
-        if (w < colWidth) {
+        topRowImgs.push(imgIdx);
+        lastTopIdx = imgIdx;
+        
+        if (coverW < colWidth - 1) {
           ctx.fillStyle = getNextColor();
-          ctx.fillRect(x + w, top, colWidth - w, height);
+          ctx.fillRect(x + coverW, zoneStart, colWidth - coverW, coverH);
+        }
+      }
+      
+      // Calculate actual top row height for gap calculation
+      const topRowH = (zoneHeight - baseGutter) / 2;
+      
+      let lastBottomIdx = -1;
+      for (let col = 0; col < numCols; col++) {
+        const imgIdx = pickNonDuplicateImage(lastBottomIdx, topRowImgs[col]);
+        const img = images[imgIdx];
+        let coverH = getCoverHeight(img, colWidth);
+        let coverW = colWidth;
+        
+        const maxH = (zoneHeight - baseGutter) / 2;
+        if (coverH > maxH) {
+          const scaleFactor = maxH / coverH;
+          coverH = maxH;
+          coverW = colWidth * scaleFactor;
         }
         
-        // Fill below
-        if (h < height) {
+        const x = getColX(col);
+        const y = zoneEnd - coverH;
+        
+        drawCover(img, x, y, coverW, coverH);
+        lastBottomIdx = imgIdx;
+        
+        if (coverW < colWidth - 1) {
           ctx.fillStyle = getNextColor();
-          ctx.fillRect(x, top + h, w, height - h);
+          ctx.fillRect(x + coverW, y, colWidth - coverW, coverH);
+        }
+      }
+      
+      // Fill middle gap
+      const middleGapStart = zoneStart + topRowH;
+      const middleGapEnd = zoneEnd - topRowH;
+      const middleGap = middleGapEnd - middleGapStart;
+      
+      if (middleGap > minBlockSize * 0.3) {
+        for (let col = 0; col < numCols; col++) {
+          ctx.fillStyle = getNextColor();
+          ctx.fillRect(getColX(col), middleGapStart, colWidth, middleGap);
         }
       }
     };
     
     // =========================================================================
-    // EXECUTE
+    // EXECUTE ZONE FILLS
     // =========================================================================
     
-    // Above zone
-    if (position !== 'top' && titleZoneTop > 0) {
-      fillZone(0, titleZoneTop);
+    // Fill ABOVE zone (if exists)
+    if (aboveZoneHeight > 0 && position !== 'top') {
+      fillZoneSandwich(0, titleZoneTop, 'above');
     }
     
-    // Below zone
-    if (position !== 'bottom' && titleZoneBottom < canvasHeight) {
-      fillZone(titleZoneBottom, canvasHeight);
+    // Fill BELOW zone (if exists)
+    if (belowZoneHeight > 0 && position !== 'bottom') {
+      fillZoneSandwich(titleZoneBottom, canvasHeight, 'below');
     }
     
     // =========================================================================
@@ -2918,9 +2920,6 @@ const BooklistApp = (function() {
     ctx.fillRect(0, titleY - marginAbove, canvasWidth, bgH + marginAbove + marginBelow);
     
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
-    
-    // Log coverage
-    console.log('[Masonry Sandwich] Covers shown full size:', shownFullSize.size, '/', images.length);
   }
 
   function autoRegenerateCoverIfAble() {
