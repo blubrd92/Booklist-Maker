@@ -1209,6 +1209,8 @@ const BooklistApp = (function() {
         };
         reader.readAsDataURL(file);
       }
+      // Clear input so same file can be re-selected
+      e.target.value = '';
     };
     
     coverUploader.appendChild(coverImg);
@@ -3039,6 +3041,7 @@ const BooklistApp = (function() {
     const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
     if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
       showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
+      event.target.value = ''; // Clear input
       return;
     }
     
@@ -3048,6 +3051,8 @@ const BooklistApp = (function() {
       addExtraCover(coverData, slotIndex);
     };
     reader.readAsDataURL(file);
+    // Clear input so same file can be re-selected
+    event.target.value = '';
   }
   
   /**
@@ -4136,6 +4141,8 @@ const BooklistApp = (function() {
         };
         reader.readAsDataURL(file);
       }
+      // Clear input so same file can be re-selected
+      e.target.value = '';
     });
   }
   
@@ -4158,6 +4165,8 @@ const BooklistApp = (function() {
         };
         reader.readAsDataURL(file);
       }
+      // Clear input so same file can be re-selected
+      e.target.value = '';
     });
     
     elements.frontCoverUploader.addEventListener('click', (e) => {
