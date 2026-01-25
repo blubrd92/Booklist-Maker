@@ -490,25 +490,40 @@
               </div>
               <div class="layout-option" data-layout="masonry" title="Masonry: Pinterest-style columns with natural proportions">
                 <svg viewBox="0 0 40 50">
-                  <!-- Masonry: 3 columns with varying height covers, title bar in upper area -->
-                  <!-- Column 1 (left) -->
-                  <rect x="3" y="0" width="9" height="11" rx="0.5"/>
-                  <!-- Title bar (after first row area) -->
-                  <rect x="3" y="12.5" width="34" height="4" rx="0.5"/>
-                  <!-- Column 1 continues -->
-                  <rect x="3" y="18" width="9" height="14" rx="0.5"/>
-                  <rect x="3" y="33.5" width="9" height="10" rx="0.5"/>
-                  <rect x="3" y="45" width="9" height="5" rx="0.5"/>
-                  <!-- Column 2 (center) -->
-                  <rect x="15.5" y="0" width="9" height="8" rx="0.5"/>
-                  <rect x="15.5" y="18" width="9" height="12" rx="0.5"/>
-                  <rect x="15.5" y="31.5" width="9" height="9" rx="0.5"/>
-                  <rect x="15.5" y="42" width="9" height="8" rx="0.5"/>
-                  <!-- Column 3 (right) -->
-                  <rect x="28" y="0" width="9" height="10" rx="0.5"/>
-                  <rect x="28" y="18" width="9" height="8" rx="0.5"/>
-                  <rect x="28" y="27.5" width="9" height="13" rx="0.5"/>
-                  <rect x="28" y="42" width="9" height="8" rx="0.5"/>
+                  <!-- Masonry: 5 columns flush with edges, varying heights, title bar overlaid -->
+                  <!-- Column 1 -->
+                  <rect x="0" y="0" width="6.5" height="9" rx="0.5"/>
+                  <rect x="0" y="10.5" width="6.5" height="12" rx="0.5"/>
+                  <rect x="0" y="24" width="6.5" height="8" rx="0.5"/>
+                  <rect x="0" y="33.5" width="6.5" height="11" rx="0.5"/>
+                  <rect x="0" y="46" width="6.5" height="6" rx="0.5"/>
+                  <!-- Column 2 -->
+                  <rect x="8" y="0" width="6.5" height="11" rx="0.5"/>
+                  <rect x="8" y="12.5" width="6.5" height="9" rx="0.5"/>
+                  <rect x="8" y="23" width="6.5" height="13" rx="0.5"/>
+                  <rect x="8" y="37.5" width="6.5" height="8" rx="0.5"/>
+                  <rect x="8" y="47" width="6.5" height="5" rx="0.5"/>
+                  <!-- Column 3 -->
+                  <rect x="16" y="0" width="6.5" height="8" rx="0.5"/>
+                  <rect x="16" y="9.5" width="6.5" height="14" rx="0.5"/>
+                  <rect x="16" y="25" width="6.5" height="10" rx="0.5"/>
+                  <rect x="16" y="36.5" width="6.5" height="9" rx="0.5"/>
+                  <rect x="16" y="47" width="6.5" height="5" rx="0.5"/>
+                  <!-- Column 4 -->
+                  <rect x="24" y="0" width="6.5" height="12" rx="0.5"/>
+                  <rect x="24" y="13.5" width="6.5" height="8" rx="0.5"/>
+                  <rect x="24" y="23" width="6.5" height="11" rx="0.5"/>
+                  <rect x="24" y="35.5" width="6.5" height="10" rx="0.5"/>
+                  <rect x="24" y="47" width="6.5" height="5" rx="0.5"/>
+                  <!-- Column 5 -->
+                  <rect x="32" y="0" width="6.5" height="10" rx="0.5"/>
+                  <rect x="32" y="11.5" width="6.5" height="13" rx="0.5"/>
+                  <rect x="32" y="26" width="6.5" height="9" rx="0.5"/>
+                  <rect x="32" y="36.5" width="6.5" height="12" rx="0.5"/>
+                  <rect x="32" y="50" width="6.5" height="4" rx="0.5"/>
+                  <!-- Title bar with white background (overlaid, classic position) -->
+                  <rect x="0" y="10" width="40" height="6" fill="white"/>
+                  <rect x="2" y="11" width="36" height="4" rx="0.5"/>
                 </svg>
                 <span class="layout-option-label">Masonry</span>
               </div>
@@ -611,18 +626,6 @@
                 <input id="show-shelves-toggle" type="checkbox"/>
                 <label for="show-shelves-toggle">Show Shelves</label>
               </div>
-            </div>
-            
-            <!-- Masonry-specific settings -->
-            <div id="masonry-settings" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-              <div class="line-style-label" style="margin-bottom: 8px;">Masonry Layout Settings</div>
-              <div class="control-row" style="align-items: center;">
-                <label class="mini-label" style="white-space: nowrap;">Fill Block Colors:</label>
-                <input id="masonry-fill-color-1" class="color-picker" type="color" value="#E8E4E1" title="Fill color 1" aria-label="Fill block color 1"/>
-                <input id="masonry-fill-color-2" class="color-picker" type="color" value="#D4CDC6" title="Fill color 2" aria-label="Fill block color 2"/>
-                <input id="masonry-fill-color-3" class="color-picker" type="color" value="#C9D6D3" title="Fill color 3" aria-label="Fill block color 3"/>
-              </div>
-              <p style="font-size: 0.7rem; color: #888; margin: 6px 0 0 0; font-style: italic; font-weight: bold;">Colors used to fill gaps between covers</p>
             </div>
             
             <!-- Tilted-specific settings -->

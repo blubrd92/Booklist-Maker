@@ -748,12 +748,6 @@ const BooklistApp = (function() {
       elements.classicSettings.style.display = selectedLayout === 'classic' ? 'block' : 'none';
     }
     
-    // Masonry settings panel
-    const masonrySettings = document.getElementById('masonry-settings');
-    if (masonrySettings) {
-      masonrySettings.style.display = selectedLayout === 'masonry' ? 'block' : 'none';
-    }
-    
     // Handle masonry layout: disable stretch toggle and show hint
     const stretchToggle = elements.stretchCoversToggle;
     const masonryHint = document.getElementById('masonry-stretch-hint');
@@ -775,6 +769,23 @@ const BooklistApp = (function() {
       }
       if (masonryHint) {
         masonryHint.style.display = 'none';
+      }
+    }
+    
+    // Disable outer margin for layouts that set their own title bar margins
+    const outerMarginInput = document.getElementById('cover-title-outer-margin');
+    const outerMarginLabel = outerMarginInput?.previousElementSibling;
+    const layoutsWithFixedMargin = ['masonry', 'tilted', 'staggered'];
+    
+    if (outerMarginInput) {
+      if (layoutsWithFixedMargin.includes(selectedLayout)) {
+        outerMarginInput.disabled = true;
+        outerMarginInput.style.opacity = '0.5';
+        if (outerMarginLabel) outerMarginLabel.style.opacity = '0.5';
+      } else {
+        outerMarginInput.disabled = false;
+        outerMarginInput.style.opacity = '1';
+        if (outerMarginLabel) outerMarginLabel.style.opacity = '1';
       }
     }
     
@@ -2682,6 +2693,29 @@ const BooklistApp = (function() {
       renderBooklist();
     }
     
+    // Auto-generate if we have enough covers (and not restoring from saved state)
+    if (!isRestoring) {
+      const requiredCovers = enabled ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+      
+      // Count covers from starred books
+      const booksWithCovers = myBooklist.filter(book =>
+        !book.isBlank &&
+        book.includeInCollage &&
+        (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co')))
+      );
+      
+      // Count extra covers (only in extended mode)
+      const extraCoverCount = enabled 
+        ? extraCollageCovers.filter(ec => ec.coverData && !ec.coverData.includes('placehold.co')).length
+        : 0;
+      
+      const totalCovers = booksWithCovers.length + extraCoverCount;
+      
+      if (totalCovers >= requiredCovers) {
+        generateCoverCollage();
+      }
+    }
+    
     if (!isRestoring) {
       debouncedSave();
     }
@@ -3583,13 +3617,6 @@ const BooklistApp = (function() {
     const tiltDegree = parseFloat(elements.tiltDegree?.value ?? '-25');
     const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
     
-    // Get masonry fill colors
-    const masonryFillColors = [
-      document.getElementById('masonry-fill-color-1')?.value || '#E8E4E1',
-      document.getElementById('masonry-fill-color-2')?.value || '#D4CDC6',
-      document.getElementById('masonry-fill-color-3')?.value || '#C9D6D3',
-    ];
-    
     // Get list name (used for filename)
     const listName = (elements.listNameInput?.value || '').trim();
     
@@ -3622,7 +3649,6 @@ const BooklistApp = (function() {
         titleBarPosition,
         tiltDegree,
         tiltOffsetDirection,
-        masonryFillColors,
         extendedCollageMode: !!elements.extendedCollageToggle?.checked,
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: (elements.qrCodeTextArea?.innerText !== CONFIG.PLACEHOLDERS.qrText)
@@ -3810,15 +3836,6 @@ const BooklistApp = (function() {
     if (elements.tiltOffsetDirection) {
       elements.tiltOffsetDirection.value = loaded.ui?.tiltOffsetDirection || 'vertical';
     }
-    
-    // Restore masonry fill colors
-    const masonryColors = loaded.ui?.masonryFillColors || ['#E8E4E1', '#D4CDC6', '#C9D6D3'];
-    ['masonry-fill-color-1', 'masonry-fill-color-2', 'masonry-fill-color-3'].forEach((id, i) => {
-      const colorInput = document.getElementById(id);
-      if (colorInput && masonryColors[i]) {
-        colorInput.value = masonryColors[i];
-      }
-    });
     
     // Show/hide tilted settings based on layout
     updateTiltedSettingsVisibility();
@@ -4137,20 +4154,6 @@ const BooklistApp = (function() {
         autoRegenerateCoverIfAble();
       });
     }
-    
-    // Masonry layout color settings
-    ['masonry-fill-color-1', 'masonry-fill-color-2', 'masonry-fill-color-3'].forEach(id => {
-      const colorInput = document.getElementById(id);
-      if (colorInput) {
-        colorInput.addEventListener('input', () => {
-          debouncedCoverRegen();
-        });
-        colorInput.addEventListener('change', () => {
-          debouncedSave();
-          autoRegenerateCoverIfAble();
-        });
-      }
-    });
     
     // Cover mode toggle
     if (elements.coverAdvancedToggle) {
