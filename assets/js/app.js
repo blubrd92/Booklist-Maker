@@ -2452,7 +2452,7 @@ const BooklistApp = (function() {
    * Layout: Masonry
    * True masonry layout with 6 columns. Each column stacks independently.
    * Covers maintain natural aspect ratio (width matches column, height scales proportionally).
-   * Images cycle in a ping-pong pattern to avoid adjacent duplicates.
+   * Images cycle in a ping-pong pattern (0,1,2...11,10,9...1,0,1,2...) to avoid adjacent duplicates.
    * Title bar overlays the collage with a white background and margins.
    */
   function drawLayoutMasonry(ctx, canvas, images, styles, options = {}) {
@@ -2464,15 +2464,37 @@ const BooklistApp = (function() {
     const baseGutter = 6 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 12 * (CONFIG.PDF_DPI / 72);
     
-    // Fixed 6 columns
+    // Fixed 6 columns, flush with left and right edges
     const numCols = 6;
-    console.log('[Masonry] Using numCols =', numCols, 'for', images.length, 'covers');
+    const imageCount = images.length;
+    console.log('[Masonry] Using numCols =', numCols, 'for', imageCount, 'covers');
     
-    // Calculate column width
-    const totalHGutter = (numCols + 1) * baseGutter;
+    // Calculate column width - gutters only BETWEEN columns, not at edges
+    const totalHGutter = (numCols - 1) * baseGutter;
     const colWidth = (canvasWidth - totalHGutter) / numCols;
     
-    const getColX = (colIdx) => baseGutter + colIdx * (colWidth + baseGutter);
+    // Column X positions - first column starts at 0, last column ends at canvasWidth
+    const getColX = (colIdx) => colIdx * (colWidth + baseGutter);
+    
+    // =========================================================================
+    // MEASURE TITLE BAR FIRST (before drawing anything)
+    // =========================================================================
+    
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
+    // Clear the measurement draw
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvasWidth, bgH + 1);
+    
+    // Calculate title bar Y position
+    let titleY;
+    switch (position) {
+      case 'top': titleY = 0; break;
+      case 'classic': titleY = (canvasHeight - bgH) * 0.22; break;
+      case 'center': titleY = (canvasHeight - bgH) / 2; break;
+      case 'lower': titleY = (canvasHeight - bgH) * 0.75; break;
+      case 'bottom': titleY = canvasHeight - bgH; break;
+      default: titleY = (canvasHeight - bgH) * 0.22;
+    }
     
     // =========================================================================
     // HELPER FUNCTIONS
@@ -2494,18 +2516,18 @@ const BooklistApp = (function() {
     
     /**
      * Ping-pong index generator
-     * For 12 images (indices 0-11): 0,1,2,3,4,5,6,7,8,9,10,11,10,9,8,7,6,5,4,3,2,1,0,1,2...
-     * This naturally prevents adjacent duplicates.
+     * For 12 images: 0,1,2,3,4,5,6,7,8,9,10,11,10,9,8,7,6,5,4,3,2,1,0,1,2...
+     * For 20 images: 0,1,2,...18,19,18,17,...1,0,1,2...
      */
-    const getPingPongIndex = (step, imageCount) => {
-      const maxIndex = imageCount - 1;
-      const cycleLength = maxIndex * 2;
-      const posInCycle = step % cycleLength;
+    const getPingPongIndex = (step) => {
+      const maxIdx = imageCount - 1; // 11 for 12 images, 19 for 20
+      const cycleLen = maxIdx * 2;   // 22 for 12 images, 38 for 20
+      const pos = step % cycleLen;
       
-      if (posInCycle <= maxIndex) {
-        return posInCycle;
+      if (pos <= maxIdx) {
+        return pos;
       } else {
-        return cycleLength - posInCycle;
+        return cycleLen - pos;
       }
     };
     
@@ -2516,16 +2538,17 @@ const BooklistApp = (function() {
     // Track column heights (each column stacks independently)
     const colHeights = new Array(numCols).fill(0);
     
-    const imageCount = images.length;
     let step = 0;
     const maxCovers = 200; // Safety limit
-    let totalCoversPlaced = 0;
     
     // Keep placing until all columns extend past canvas bottom
-    while (Math.min(...colHeights) < canvasHeight && totalCoversPlaced < maxCovers) {
-      // Place one cover in each column per round
-      for (let col = 0; col < numCols; col++) {
-        const imgIdx = getPingPongIndex(step, imageCount);
+    while (Math.min(...colHeights) < canvasHeight && step < maxCovers) {
+      // Place one cover in each column (left to right) per round
+      for (let col = 0; col < numCols && step < maxCovers; col++) {
+        // Check if this column still needs covers
+        if (colHeights[col] >= canvasHeight) continue;
+        
+        const imgIdx = getPingPongIndex(step);
         const img = images[imgIdx];
         const coverH = getCoverHeight(img, colWidth);
         
@@ -2538,44 +2561,27 @@ const BooklistApp = (function() {
         colHeights[col] = y + coverH + baseGutter;
         
         step++;
-        totalCoversPlaced++;
-        
-        if (totalCoversPlaced >= maxCovers) break;
       }
     }
     
     // =========================================================================
-    // DRAW TITLE BAR ON TOP (overlaid like Tilted/Staggered)
+    // DRAW TITLE BAR ON TOP (same as Tilted)
     // =========================================================================
     
-    // Get title bar dimensions
-    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
-    // Clear it temporarily
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, canvasWidth, bgH + 1);
-    
-    // Calculate title bar Y position
-    let titleY;
-    switch (position) {
-      case 'top': titleY = 0; break;
-      case 'classic': titleY = (canvasHeight - bgH) * 0.22; break;
-      case 'center': titleY = (canvasHeight - bgH) / 2; break;
-      case 'lower': titleY = (canvasHeight - bgH) * 0.75; break;
-      case 'bottom': titleY = canvasHeight - bgH; break;
-      default: titleY = (canvasHeight - bgH) * 0.22;
-    }
-    
-    // Calculate margins (same approach as Tilted/Staggered)
+    // Calculate margin sizes based on position
     let marginAbove = titleGutter;
     let marginBelow = titleGutter;
-    if (position === 'top') marginAbove = 0;
-    if (position === 'bottom') marginBelow = 0;
+    if (position === 'top') {
+      marginAbove = 0;
+    } else if (position === 'bottom') {
+      marginBelow = 0;
+    }
     
-    // Draw white background behind title bar
+    // Draw white rectangle behind title bar
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, titleY - marginAbove, canvasWidth, bgH + marginAbove + marginBelow);
     
-    // Draw title bar on top
+    // Draw title bar on top of white margin
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
   }
 
