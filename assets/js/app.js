@@ -4526,6 +4526,7 @@ const BooklistApp = (function() {
         const text = await file.text();
         const parsed = JSON.parse(text);
         applyState(parsed);
+        debouncedSave(); // Sync browser draft with loaded file
       } catch (err) {
         console.error('Import failed:', err);
         showNotification('Could not load this file. Is it a valid .booklist?', 'error');
