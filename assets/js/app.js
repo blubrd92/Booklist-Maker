@@ -241,9 +241,48 @@ const BooklistApp = (function() {
   function handlePastePlainText(e) {
     e.preventDefault();
     const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-    // execCommand is "deprecated" but still the only way to insert text
-    // into contenteditable while preserving proper undo/redo behavior
     document.execCommand('insertText', false, text);
+  }
+  
+  /**
+   * Strips any HTML/inline styles from a contenteditable element,
+   * preserving only plain text. Call this on 'input' events as a safety net.
+   */
+  function sanitizeContentEditable(element) {
+    // Check if there's any HTML formatting (spans, styles, etc.)
+    if (element.innerHTML !== element.textContent) {
+      // Save cursor position relative to text length
+      const selection = window.getSelection();
+      let cursorOffset = 0;
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const preCaretRange = range.cloneRange();
+        preCaretRange.selectNodeContents(element);
+        preCaretRange.setEnd(range.endContainer, range.endOffset);
+        cursorOffset = preCaretRange.toString().length;
+      }
+      
+      // Strip to plain text
+      const plainText = element.textContent;
+      element.textContent = plainText;
+      
+      // Restore cursor position
+      try {
+        const newRange = document.createRange();
+        const safeOffset = Math.min(cursorOffset, plainText.length);
+        if (element.firstChild && element.firstChild.nodeType === Node.TEXT_NODE) {
+          newRange.setStart(element.firstChild, safeOffset);
+          newRange.setEnd(element.firstChild, safeOffset);
+        } else {
+          newRange.selectNodeContents(element);
+          newRange.collapse(false);
+        }
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      } catch (err) {
+        // If cursor restoration fails, just leave it
+      }
+    }
   }
   
   // ---------------------------------------------------------------------------
@@ -1247,6 +1286,7 @@ const BooklistApp = (function() {
     titleField.setAttribute('aria-label', 'Book title');
     titleField.addEventListener('paste', handlePastePlainText);
     titleField.oninput = (e) => {
+      sanitizeContentEditable(e.target);
       bookItem.title = e.target.innerText;
       if (bookItem.isBlank && bookItem.title !== CONFIG.PLACEHOLDERS.title) {
         bookItem.isBlank = false;
@@ -1269,6 +1309,7 @@ const BooklistApp = (function() {
     authorField.setAttribute('aria-label', 'Author and call number');
     authorField.addEventListener('paste', handlePastePlainText);
     authorField.oninput = (e) => {
+      sanitizeContentEditable(e.target);
       // Store the raw display text exactly as typed
       bookItem.authorDisplay = e.target.innerText;
     };
@@ -1282,6 +1323,7 @@ const BooklistApp = (function() {
     descriptionField.setAttribute('aria-label', 'Book description');
     descriptionField.addEventListener('paste', handlePastePlainText);
     descriptionField.oninput = (e) => {
+      sanitizeContentEditable(e.target);
       bookItem.description = e.target.innerText;
     };
     
@@ -1329,6 +1371,12 @@ const BooklistApp = (function() {
       elements.previewArea.style.setProperty(`--${styleGroup}-color`, color);
       elements.previewArea.style.setProperty(`--${styleGroup}-font-weight`, isBold ? 'bold' : 'normal');
       elements.previewArea.style.setProperty(`--${styleGroup}-font-style`, isItalic ? 'italic' : 'normal');
+      
+      // Apply line spacing if present (used by QR text)
+      const lineSpacingInput = group.querySelector('.line-spacing');
+      if (lineSpacingInput) {
+        elements.previewArea.style.setProperty(`--${styleGroup}-line-height`, lineSpacingInput.value);
+      }
     });
   }
   
@@ -3703,12 +3751,14 @@ const BooklistApp = (function() {
     
     document.querySelectorAll('.export-controls .form-group[data-style-group]').forEach(group => {
       const k = group.dataset.styleGroup;
+      const lineSpacingInput = group.querySelector('.line-spacing');
       styles[k] = {
         font: group.querySelector('.font-select')?.value ?? '',
         sizePt: parseFloat(group.querySelector('.font-size-input')?.value ?? '12'),
         color: group.querySelector('.color-picker')?.value ?? '#000000',
         bold: !!group.querySelector('.bold-toggle')?.classList.contains('active'),
         italic: !!group.querySelector('.italic-toggle')?.classList.contains('active'),
+        lineSpacing: lineSpacingInput ? parseFloat(lineSpacingInput.value ?? '1.3') : null,
       };
     });
     
@@ -3843,12 +3893,14 @@ const BooklistApp = (function() {
       const colorInp = group.querySelector('.color-picker');
       const boldBtn = group.querySelector('.bold-toggle');
       const italicBtn = group.querySelector('.italic-toggle');
+      const lineSpacingInp = group.querySelector('.line-spacing');
       
       if (fontSel) fontSel.value = s.font ?? fontSel.value;
       if (sizeInp) sizeInp.value = s.sizePt ?? sizeInp.value;
       if (colorInp) colorInp.value = s.color ?? colorInp.value;
       if (boldBtn) boldBtn.classList.toggle('active', !!s.bold);
       if (italicBtn) italicBtn.classList.toggle('active', !!s.italic);
+      if (lineSpacingInp && s.lineSpacing != null) lineSpacingInp.value = s.lineSpacing;
     });
     
     // Cover title styles
@@ -4660,6 +4712,11 @@ const BooklistApp = (function() {
     
     // Strip formatting on paste (same as other editable fields)
     elements.qrCodeTextArea.addEventListener('paste', handlePastePlainText);
+    
+    // Safety net: sanitize any formatting that sneaks through on input
+    elements.qrCodeTextArea.addEventListener('input', () => {
+      sanitizeContentEditable(elements.qrCodeTextArea);
+    });
     
     // Save on blur
     elements.qrCodeTextArea.addEventListener('blur', debouncedSave);
