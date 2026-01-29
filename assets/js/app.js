@@ -246,42 +246,66 @@ const BooklistApp = (function() {
   
   /**
    * Strips any HTML/inline styles from a contenteditable element,
-   * preserving only plain text. Call this on 'input' events as a safety net.
+   * preserving line breaks. Call this on 'input' events as a safety net.
    */
   function sanitizeContentEditable(element) {
-    // Check if there's any HTML formatting (spans, styles, etc.)
-    if (element.innerHTML !== element.textContent) {
-      // Save cursor position relative to text length
-      const selection = window.getSelection();
-      let cursorOffset = 0;
-      if (selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const preCaretRange = range.cloneRange();
-        preCaretRange.selectNodeContents(element);
-        preCaretRange.setEnd(range.endContainer, range.endOffset);
-        cursorOffset = preCaretRange.toString().length;
+    // Check for problematic formatting elements (not just line breaks)
+    const hasFormatting = element.querySelector('span, font, b, i, u, strong, em, [style]') !== null;
+    
+    if (!hasFormatting) {
+      return; // Only line breaks and plain text, nothing to sanitize
+    }
+    
+    // Save cursor position relative to text length
+    const selection = window.getSelection();
+    let cursorOffset = 0;
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const preCaretRange = range.cloneRange();
+      preCaretRange.selectNodeContents(element);
+      preCaretRange.setEnd(range.endContainer, range.endOffset);
+      cursorOffset = preCaretRange.toString().length;
+    }
+    
+    // Strip formatting but preserve line breaks
+    // Replace formatting elements with their text content, keep <br> and <div> structure
+    element.querySelectorAll('span, font, b, i, u, strong, em, [style]').forEach(el => {
+      el.replaceWith(...el.childNodes);
+    });
+    
+    // Remove any remaining style attributes
+    element.querySelectorAll('[style]').forEach(el => {
+      el.removeAttribute('style');
+    });
+    
+    // Restore cursor position
+    try {
+      const textLength = element.textContent.length;
+      const newRange = document.createRange();
+      const safeOffset = Math.min(cursorOffset, textLength);
+      
+      // Find the text node at the cursor position
+      let currentOffset = 0;
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+      let node = walker.nextNode();
+      
+      while (node) {
+        const nodeLength = node.textContent.length;
+        if (currentOffset + nodeLength >= safeOffset) {
+          newRange.setStart(node, safeOffset - currentOffset);
+          newRange.setEnd(node, safeOffset - currentOffset);
+          break;
+        }
+        currentOffset += nodeLength;
+        node = walker.nextNode();
       }
       
-      // Strip to plain text
-      const plainText = element.textContent;
-      element.textContent = plainText;
-      
-      // Restore cursor position
-      try {
-        const newRange = document.createRange();
-        const safeOffset = Math.min(cursorOffset, plainText.length);
-        if (element.firstChild && element.firstChild.nodeType === Node.TEXT_NODE) {
-          newRange.setStart(element.firstChild, safeOffset);
-          newRange.setEnd(element.firstChild, safeOffset);
-        } else {
-          newRange.selectNodeContents(element);
-          newRange.collapse(false);
-        }
+      if (node) {
         selection.removeAllRanges();
         selection.addRange(newRange);
-      } catch (err) {
-        // If cursor restoration fails, just leave it
       }
+    } catch (err) {
+      // If cursor restoration fails, just leave it
     }
   }
   
