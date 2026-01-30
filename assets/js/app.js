@@ -3933,7 +3933,6 @@ const BooklistApp = (function() {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 750);
-    isDirty = false; // Clear dirty flag after successful save to file
     return true;
   }
   
@@ -4695,7 +4694,8 @@ const BooklistApp = (function() {
       const didSave = downloadBooklist(state);
       if (didSave) {
         showNotification('Booklist saved to file.', 'success');
-        debouncedSave(); // Sync browser draft with saved file
+        saveDraftLocal(); // Sync browser draft with saved file (direct call, not debounced)
+        isDirty = false; // Clear after sync
       }
     });
     
