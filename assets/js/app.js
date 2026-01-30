@@ -67,7 +67,7 @@ const CONFIG = {
     callNumber: '[Call #]',
     description: '[Enter a brief description here...]',
     authorWithCall: '[Enter Author] - [Call #]',
-    qrText: "Enter your blurb here. To link to an online list (like Bibliocommons), go to Settings > Back Cover and paste the URL in the\n'QR Code URL' field and click update. Remember to test the code with your phone!",
+    qrText: "Enter your blurb here.\nTo link to an online list (like Bibliocommons), go to Settings > Back Cover and paste the URL in the 'QR Code URL' field and click update. Remember to test the code with your phone!",
   },
   
   // Colors
