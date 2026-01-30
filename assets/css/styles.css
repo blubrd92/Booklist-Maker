@@ -1641,6 +1641,12 @@ input[type="color"]:hover {
   background-color: #f0f7ff;
 }
 
+.extra-cover-slot.drag-over {
+  border-color: var(--primary-color);
+  background-color: var(--primary-light);
+  border-style: solid;
+}
+
 .extra-cover-slot.has-cover {
   border-style: solid;
   border-color: var(--border-color);
