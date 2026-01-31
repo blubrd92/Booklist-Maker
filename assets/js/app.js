@@ -424,6 +424,7 @@ const BooklistApp = (function() {
         bookItem.description = '[Description unavailable]';
         showNotification(`Could not fetch description: ${errorMsg}`, 'error');
         renderBooklist();
+        debouncedSave();
       }
       return;
     }
@@ -455,6 +456,7 @@ const BooklistApp = (function() {
         } else {
           bookItem.description = data.description;
           renderBooklist();
+          debouncedSave();
         }
       } else {
         throw new Error(data.error || 'Unknown error from description service.');
@@ -472,6 +474,7 @@ const BooklistApp = (function() {
         bookItem.description = '[Description unavailable]';
         showNotification(`Could not fetch description for "${bookItem.title}": ${errorMessage}`, 'error');
         renderBooklist();
+        debouncedSave();
       }
     });
   }
@@ -778,6 +781,7 @@ const BooklistApp = (function() {
         addButton.setAttribute('aria-label', `Remove "${book.title}" from booklist`);
         
         renderBooklist();
+        debouncedSave();
         getAiDescription(newBook.key);
         
         // Auto-generate if this book has a cover, is starred, and completes the required count
@@ -813,6 +817,7 @@ const BooklistApp = (function() {
       addButton.classList.remove('added');
       addButton.setAttribute('aria-label', `Add "${book.title}" to booklist`);
       renderBooklist();
+      debouncedSave();
     }
   }
   
@@ -915,6 +920,7 @@ const BooklistApp = (function() {
     
     if (listWasTrimmed) {
       renderBooklist();
+      debouncedSave();
     } else {
       updateBackCoverVisibility();
     }
@@ -1179,6 +1185,7 @@ const BooklistApp = (function() {
     
     bookItem.description = "Fetching title description... May take a few minutes.";
     renderBooklist();
+    debouncedSave();
     getAiDescription(bookItem.key);
   }
   
@@ -1186,6 +1193,7 @@ const BooklistApp = (function() {
     const originalKey = myBooklist[index].key;
     myBooklist[index] = createBlankBook();
     renderBooklist();
+    debouncedSave();
     
     const searchButton = document.querySelector(`#results-container button[data-book-key="${originalKey}"]`);
     if (searchButton) {
@@ -1317,6 +1325,7 @@ const BooklistApp = (function() {
       if (bookItem.isBlank && bookItem.title !== CONFIG.PLACEHOLDERS.title) {
         bookItem.isBlank = false;
       }
+      debouncedSave();
     };
     
     // Author field
@@ -1338,6 +1347,7 @@ const BooklistApp = (function() {
       sanitizeContentEditable(e.target);
       // Store the raw display text exactly as typed
       bookItem.authorDisplay = e.target.innerText;
+      debouncedSave();
     };
     
     // Description field
@@ -1351,6 +1361,7 @@ const BooklistApp = (function() {
     descriptionField.oninput = (e) => {
       sanitizeContentEditable(e.target);
       bookItem.description = e.target.innerText;
+      debouncedSave();
     };
     
     detailsDiv.appendChild(titleField);
@@ -5185,8 +5196,10 @@ const BooklistApp = (function() {
     // Warn before leaving with unsaved changes
     window.addEventListener('beforeunload', (e) => {
       if (isDirty) {
+        // Different browsers need different approaches
         e.preventDefault();
-        e.returnValue = '';
+        e.returnValue = 'You have unsaved changes.';
+        return 'You have unsaved changes.';
       }
     });
   }
@@ -5196,6 +5209,7 @@ const BooklistApp = (function() {
     init,
     showNotification,
     getAiDescription, // For testing
+    get isDirty() { return isDirty; }, // For debugging
   };
   
 })();
