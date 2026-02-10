@@ -178,6 +178,26 @@ button.is-loading::after {
   background-color: rgba(255,255,255,0.2);
   transform: translateY(-1px);
 }
+/* Unsaved-file indicator dot on Save button */
+#save-list-button {
+  position: relative;
+}
+#save-list-button.has-unsaved::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  background-color: var(--warning-color);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: unsaved-pulse 2s ease-in-out infinite;
+}
+@keyframes unsaved-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 .btn-header-primary {
   background-color: var(--success-color);
   border: none;

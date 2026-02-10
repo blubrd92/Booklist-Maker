@@ -86,7 +86,14 @@ const BooklistApp = (function() {
   let myBooklist = [];
   let extraCollageCovers = []; // Additional covers for collage (beyond book blocks)
   let MAX_BOOKS = CONFIG.MAX_BOOKS_FULL;
-  let isDirty = false; // Tracks unsaved changes for beforeunload warning
+  let isDirtyLocal = false;   // True while edits haven't reached localStorage yet (crash guard)
+  let hasUnsavedFile = false;  // True while edits haven't been downloaded as a .booklist file
+
+  /** Toggles the visual "unsaved" indicator on the Save button */
+  function updateSaveIndicator() {
+    const btn = document.getElementById('save-list-button');
+    if (btn) btn.classList.toggle('has-unsaved', hasUnsavedFile);
+  }
   
   // ---------------------------------------------------------------------------
   // Debounced Autosave (defined early so it can be used by renderBooklist)
@@ -94,7 +101,9 @@ const BooklistApp = (function() {
   const debouncedSave = (() => {
     let t;
     return () => {
-      isDirty = true; // Mark as having unsaved changes
+      isDirtyLocal = true;    // Edits not yet in localStorage
+      hasUnsavedFile = true;  // Edits not yet in a .booklist file
+      updateSaveIndicator();
       clearTimeout(t);
       t = setTimeout(() => {
         saveDraftLocal();
@@ -4237,6 +4246,7 @@ const BooklistApp = (function() {
   function saveDraftLocal() {
     try {
       localStorage.setItem('booklist-draft', JSON.stringify(serializeDraftForLocal()));
+      isDirtyLocal = false; // localStorage now has current state
     } catch (_) { /* ignore quota errors */ }
   }
   
@@ -4252,6 +4262,7 @@ const BooklistApp = (function() {
   
   function resetToBlank() {
     try { localStorage.removeItem('booklist-draft'); } catch (_) {}
+    isDirtyLocal = false; // Prevent beforeunload after user already confirmed reset
     location.reload();
   }
   
@@ -4706,7 +4717,9 @@ const BooklistApp = (function() {
       if (didSave) {
         showNotification('Booklist saved to file.', 'success');
         saveDraftLocal(); // Sync browser draft with saved file (direct call, not debounced)
-        isDirty = false; // Clear after sync
+        isDirtyLocal = false;    // Nothing unsaved anywhere
+        hasUnsavedFile = false;  // File has been downloaded
+        updateSaveIndicator();
       }
     });
     
@@ -5193,9 +5206,9 @@ const BooklistApp = (function() {
     // Try restoring draft
     restoreDraftLocalIfPresent();
     
-    // Warn before leaving with unsaved changes
+    // Warn before leaving with unsaved changes (only if localStorage hasn't caught up)
     window.addEventListener('beforeunload', (e) => {
-      if (isDirty) {
+      if (isDirtyLocal) {
         // Different browsers need different approaches
         e.preventDefault();
         e.returnValue = 'You have unsaved changes.';
@@ -5209,7 +5222,8 @@ const BooklistApp = (function() {
     init,
     showNotification,
     getAiDescription, // For testing
-    get isDirty() { return isDirty; }, // For debugging
+    get isDirtyLocal() { return isDirtyLocal; },   // For debugging
+    get hasUnsavedFile() { return hasUnsavedFile; }, // For debugging
   };
   
 })();
