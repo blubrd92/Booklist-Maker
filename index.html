@@ -641,7 +641,6 @@
       }
 
       // Fix scroll calculation when settings sections toggle rapidly
-      // and auto-scroll when opening a section near the bottom
       const settingsTab = document.getElementById('tab-settings');
       if (settingsTab) {
         settingsTab.addEventListener('toggle', function(e) {
@@ -651,20 +650,6 @@
               settingsTab.style.overflow = 'hidden';
               requestAnimationFrame(function() {
                 settingsTab.style.overflow = '';
-                
-                // If the section just opened and its content extends below
-                // the visible panel, scroll the header up so the user can
-                // see what was just revealed
-                if (e.target.open) {
-                  var detailsRect = e.target.getBoundingClientRect();
-                  var tabRect = settingsTab.getBoundingClientRect();
-                  if (detailsRect.bottom > tabRect.bottom) {
-                    var summary = e.target.querySelector('summary');
-                    if (summary) {
-                      summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                  }
-                }
               });
             });
           }
