@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPCEtLSBEb2N1bWVudCBib2R5IC0tPgogIDxyZWN0IHg9IjQiIHk9IjIiIHdpZHRoPSIyNCIgaGVpZ2h0PSIyOCIgcng9IjIiIGZpbGw9IiNmZmYiIHN0cm9rZT0iIzE5NzZkMiIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPCEtLSBUb3Agcm93IG9mIGJvb2sgY292ZXJzIC0tPgogIDxyZWN0IHg9IjciIHk9IjYuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiMxOTc2ZDIiLz4KICA8cmVjdCB4PSIxMy41IiB5PSI2LjUiIHdpZHRoPSI1IiBoZWlnaHQ9IjYiIHJ4PSIxIiBmaWxsPSIjMTk3NmQyIi8+CiAgPHJlY3QgeD0iMjAiIHk9IjYuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiMxOTc2ZDIiLz4KICA8IS0tIEhvcml6b250YWwgYmFyIGJldHdlZW4gcm93cyAtIHJlZCAtLT4KICA8cmVjdCB4PSI3IiB5PSIxNC41IiB3aWR0aD0iMTgiIGhlaWdodD0iMyIgcng9IjEiIGZpbGw9IiNlNTM5MzUiLz4KICA8IS0tIEJvdHRvbSByb3cgb2YgYm9vayBjb3ZlcnMgLS0+CiAgPHJlY3QgeD0iNyIgeT0iMTkuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiMxOTc2ZDIiLz4KICA8cmVjdCB4PSIxMy41IiB5PSIxOS41IiB3aWR0aD0iNSIgaGVpZ2h0PSI2IiByeD0iMSIgZmlsbD0iIzE5NzZkMiIvPgogIDxyZWN0IHg9IjIwIiB5PSIxOS41IiB3aWR0aD0iNSIgaGVpZ2h0PSI2IiByeD0iMSIgZmlsbD0iIzE5NzZkMiIvPgo8L3N2Zz4K">
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Booklist Maker</title>
@@ -24,10 +25,17 @@
   <div id="notification-area" role="alert" aria-live="polite"></div>
 
   <nav class="app-header" role="banner">
-    <div class="logo">
-      <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklist Maker
+    <div class="header-left">
+      <div class="header-panel-toggles">
+        <button id="toggle-sidebar-btn" class="panel-toggle-btn active" title="Toggle Search & Settings Panel" aria-label="Toggle sidebar panel">
+          <i class="fa-solid fa-bars" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="logo">
+        <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklist Maker
+      </div>
     </div>
-    
+
     <div class="header-actions">
       <button id="load-list-button" class="btn btn-header" title="Load Saved List" aria-label="Load saved booklist file">
         <i class="fa-solid fa-upload" aria-hidden="true"></i> Load
@@ -93,7 +101,12 @@
       </div>
 
       <div id="tab-settings" class="tab-content export-controls" role="tabpanel" aria-labelledby="settings-tab">
-        
+
+        <!-- Text Styling Section -->
+        <details class="settings-section" open>
+          <summary title="Customize fonts, sizes, and colors for book titles, authors, and descriptions"><i class="fa-solid fa-font" aria-hidden="true"></i> Text Styling</summary>
+          <div class="settings-section-content">
+
         <div class="form-group" data-style-group="title">
           <label>Book Title</label>
           <div class="control-row">
@@ -216,7 +229,13 @@
           <label for="stretch-block-covers-toggle">Stretch Book Covers</label>
         </div>
 
-        <hr class="separator">
+          </div>
+        </details>
+
+        <!-- Cover Header Section -->
+        <details class="settings-section">
+          <summary title="Edit the front cover title text and styling options"><i class="fa-solid fa-heading" aria-hidden="true"></i> Cover Header</summary>
+          <div class="settings-section-content">
 
         <div class="form-group" id="cover-header-text-group">
           <label>Cover Header Text</label>
@@ -432,10 +451,19 @@
             <input id="stretch-covers-toggle" type="checkbox" checked/>
             <label for="stretch-covers-toggle">Stretch Header Covers</label>
           </div>
-          
-          <div class="layout-settings" id="collage-layout-details" style="margin-top: 10px;">
+          <p id="masonry-stretch-hint" class="masonry-hint" style="display: none; font-size: 0.7rem; color: #888; margin: 4px 0 0 22px; font-style: italic; font-weight: bold;">Masonry uses actual cover proportions</p>
+
+          </div>
+        </details>
+
+        <!-- Cover Layout Section -->
+        <details class="settings-section">
+          <summary title="Choose collage layout style (Classic, Staggered, Tilted) and configure cover arrangement"><i class="fa-solid fa-grip" aria-hidden="true"></i> Cover Layout</summary>
+          <div class="settings-section-content">
+
+          <div class="layout-settings" id="collage-layout-details">
             <label style="font-weight: 600; font-size: 0.85rem;">Collage Layout Options</label>
-            <p style="font-size: 0.75rem; color: #666; margin: 6px 0;">Star 12 books to include in the collage</p>
+            <p id="collage-cover-hint" style="font-size: 0.75rem; color: #666; margin: 6px 0;">Star 12 books to include in the collage</p>
             <div id="collage-layout-selector" aria-label="Select collage layout">
               <div class="layout-option selected" data-layout="classic" title="Classic: grid layout">
                 <svg viewBox="0 0 40 50">
@@ -461,6 +489,45 @@
                 </svg>
                 <span class="layout-option-label">Classic</span>
               </div>
+              <div class="layout-option" data-layout="masonry" title="Masonry: Pinterest-style columns with natural proportions">
+                <svg viewBox="0 0 40 50">
+                  <!-- Masonry: 5 columns flush with edges, varying heights, title bar overlaid -->
+                  <!-- Column 1 -->
+                  <rect x="0" y="0" width="6.5" height="9" rx="0.5"/>
+                  <rect x="0" y="10.5" width="6.5" height="12" rx="0.5"/>
+                  <rect x="0" y="24" width="6.5" height="8" rx="0.5"/>
+                  <rect x="0" y="33.5" width="6.5" height="11" rx="0.5"/>
+                  <rect x="0" y="46" width="6.5" height="6" rx="0.5"/>
+                  <!-- Column 2 -->
+                  <rect x="8" y="0" width="6.5" height="11" rx="0.5"/>
+                  <rect x="8" y="12.5" width="6.5" height="9" rx="0.5"/>
+                  <rect x="8" y="23" width="6.5" height="13" rx="0.5"/>
+                  <rect x="8" y="37.5" width="6.5" height="8" rx="0.5"/>
+                  <rect x="8" y="47" width="6.5" height="5" rx="0.5"/>
+                  <!-- Column 3 -->
+                  <rect x="16" y="0" width="6.5" height="8" rx="0.5"/>
+                  <rect x="16" y="9.5" width="6.5" height="14" rx="0.5"/>
+                  <rect x="16" y="25" width="6.5" height="10" rx="0.5"/>
+                  <rect x="16" y="36.5" width="6.5" height="9" rx="0.5"/>
+                  <rect x="16" y="47" width="6.5" height="5" rx="0.5"/>
+                  <!-- Column 4 -->
+                  <rect x="24" y="0" width="6.5" height="12" rx="0.5"/>
+                  <rect x="24" y="13.5" width="6.5" height="8" rx="0.5"/>
+                  <rect x="24" y="23" width="6.5" height="11" rx="0.5"/>
+                  <rect x="24" y="35.5" width="6.5" height="10" rx="0.5"/>
+                  <rect x="24" y="47" width="6.5" height="5" rx="0.5"/>
+                  <!-- Column 5 -->
+                  <rect x="32" y="0" width="6.5" height="10" rx="0.5"/>
+                  <rect x="32" y="11.5" width="6.5" height="13" rx="0.5"/>
+                  <rect x="32" y="26" width="6.5" height="9" rx="0.5"/>
+                  <rect x="32" y="36.5" width="6.5" height="12" rx="0.5"/>
+                  <rect x="32" y="50" width="6.5" height="4" rx="0.5"/>
+                  <!-- Title bar with white background (overlaid, classic position) -->
+                  <rect x="0" y="9" width="40" height="8" fill="white"/>
+                  <rect x="4" y="11" width="32" height="4" rx="0.5"/>
+                </svg>
+                <span class="layout-option-label">Masonry</span>
+              </div>
               <div class="layout-option" data-layout="staggered" title="Staggered: brick pattern, fills edge-to-edge">
                 <svg viewBox="0 0 40 50">
                   <!-- Staggered: brick pattern, covers bleed off edges, 0.667 aspect, center title -->
@@ -478,7 +545,7 @@
                   <rect x="36" y="11" width="7" height="10" rx="0.5"/>
                   <!-- Title bar (center) with margin -->
                   <rect x="0" y="21" width="40" height="8" fill="white"/>
-                  <rect x="2" y="23" width="36" height="4" rx="0.5"/>
+                  <rect x="4" y="23" width="32" height="4" rx="0.5"/>
                   <!-- Row 3 (no offset) -->
                   <rect x="-2" y="29" width="7" height="10" rx="0.5"/>
                   <rect x="6.5" y="29" width="7" height="10" rx="0.5"/>
@@ -536,7 +603,7 @@
                   </g>
                   <!-- Title bar (not rotated, on top with white margin) -->
                   <rect x="0" y="21" width="40" height="8" fill="white"/>
-                  <rect x="2" y="23" width="36" height="4" rx="1"/>
+                  <rect x="4" y="23" width="32" height="4" rx="0.5"/>
                 </svg>
                 <span class="layout-option-label">Tilted</span>
               </div>
@@ -566,9 +633,8 @@
             <div id="tilted-settings" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
               <div class="line-style-label" style="margin-bottom: 8px;">Tilted Layout Settings</div>
               <div class="control-row">
-                <label for="tilt-degree" class="mini-label" style="white-space: nowrap;">Tilt Angle:</label>
+                <label for="tilt-degree" class="mini-label" style="white-space: nowrap;">Tilt Angle in Degrees:</label>
                 <input id="tilt-degree" class="font-size-input" type="number" min="-45" max="45" value="-25" aria-label="Tilt angle in degrees"/>
-                <span class="mini-label">°</span>
               </div>
               <div class="control-row" style="margin-top: 6px;">
                 <label for="tilt-offset-direction" class="mini-label" style="white-space: nowrap;">Offset Direction:</label>
@@ -578,8 +644,35 @@
                 </select>
               </div>
             </div>
+            
+            <!-- Extended collage mode toggle -->
+            <div class="control-row checkbox-row" style="margin-top: 12px;">
+              <input id="extended-collage-toggle" type="checkbox"/>
+              <label for="extended-collage-toggle">Extended collage (20 covers)</label>
+            </div>
+            
+            <!-- Extra Collage Covers Section (shown when extended mode enabled) -->
+            <div id="extra-covers-section" class="extra-covers-section" style="display: none;">
+              <div class="extra-covers-header">
+                <span class="line-style-label">Additional Covers (Covers 13-20)</span>
+                <button type="button" id="extra-cover-search-btn" class="btn btn-sm btn-primary">
+                  <i class="fa-solid fa-magnifying-glass"></i> Search
+                </button>
+              </div>
+              <p class="extra-covers-hint"><span id="extra-covers-count">0</span> of 8 extra cover slots filled</p>
+              <div id="extra-covers-grid" class="extra-covers-grid">
+                <!-- Slots will be generated by JS -->
+              </div>
+            </div>
           </div>
-        </div>
+
+          </div>
+        </details>
+
+        <!-- Back Cover Section -->
+        <details class="settings-section">
+          <summary title="Configure QR code, branding visibility, and QR text styling"><i class="fa-solid fa-qrcode" aria-hidden="true"></i> Back Cover</summary>
+          <div class="settings-section-content">
 
         <div class="form-group">
           <label>Back Cover Elements</label>
@@ -603,7 +696,7 @@
           <div class="form-group" data-style-group="qr" style="margin-top:15px;">
               <label>QR Text Style</label>
               <div class="control-row">
-                  <select class="font-select" aria-label="QR text font family">
+                  <select class="font-select" id="qr-font-select" aria-label="QR text font family">
                     <option value="'Anton', sans-serif">Anton</option>
                     <option value="'Arvo', serif">Arvo</option>
                     <option value="'Bangers', system-ui">Bangers</option>
@@ -636,21 +729,60 @@
                   <button class="bold-toggle active btn-icon" aria-label="Toggle bold" aria-pressed="true">B</button>
                   <button class="italic-toggle btn-icon" aria-label="Toggle italic" aria-pressed="false">I</button>
                   <input class="color-picker" type="color" value="#000000" aria-label="QR text color"/>
+                  <span class="mini-label">Line Spacing:</span>
+                  <input class="font-size-input line-spacing" id="qr-line-spacing" type="number" min="0.8" max="3" step="0.1" value="1.3" title="Line height multiplier" aria-label="QR text line spacing"/>
               </div>
           </div>
         </div>
 
+          </div>
+        </details>
+
       </div>
     </aside>
 
+    <!-- Extra Cover Search Modal -->
+    <div id="extra-cover-search-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Search for Covers</h3>
+          <button type="button" class="modal-close" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-search-form">
+            <div class="search-row">
+              <input type="text" id="extra-cover-search-input" placeholder="Keyword..." />
+              <button type="button" id="extra-cover-search-submit" class="btn btn-primary">Search</button>
+            </div>
+            <details class="advanced-search-toggle">
+              <summary>Advanced Fields</summary>
+              <div class="advanced-fields-grid">
+                <input id="extra-title-input" type="text" placeholder="Title"/>
+                <input id="extra-author-input" type="text" placeholder="Author"/>
+                <input id="extra-subject-input" type="text" placeholder="Subject"/>
+                <input id="extra-isbn-input" type="text" placeholder="ISBN"/>
+              </div>
+            </details>
+          </div>
+          <div id="extra-cover-search-results" class="modal-search-results">
+            <p class="modal-search-placeholder">Enter a search term to find book covers</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span class="cover-count" id="modal-cover-count">0 of 8 extra slots filled</span>
+          <button type="button" class="btn btn-primary modal-done-btn">Done</button>
+        </div>
+      </div>
+    </div>
+
     <main class="main-content" role="main">
       <div class="toolbar">
-        <div class="toolbar-left">
-          <label for="list-name-input" class="toolbar-label">List Name:</label>
+        <div class="toolbar-list-name">
+          <label for="list-name-input">List Name:</label>
           <input type="text" id="list-name-input" class="list-name-input" placeholder="My Booklist" aria-label="Name for this booklist"/>
         </div>
         <div class="toolbar-hint">
-            <i class="fa-solid fa-circle-info" aria-hidden="true"></i> Find titles using the Search tab or edit text fields directly.
+          <i class="fa-solid fa-circle-info" aria-hidden="true"></i> <strong>Find titles using the Search tab or edit text fields and covers directly.</strong>
         </div>
       </div>
 
@@ -658,14 +790,17 @@
         <div class="page" id="print-page-1">
           <div class="panel" id="back-cover-panel" role="list" aria-label="Back cover books">
             <div class="qr-code-container" id="qr-code-area">
-              <div id="qr-code-text" class="editable-field" contenteditable="true" role="textbox" aria-label="QR code description text">Enter your blurb here. To link to an online list (like Bibliocommons), go to the Settings tab and paste the URL in the 'QR Code URL' field and click update. Remember to test the code with your phone!</div>
+              <div id="qr-code-text" class="editable-field" contenteditable="true" role="textbox" aria-label="QR code description text">Enter your blurb here. To link to an online list (like Bibliocommons), go to Settings > Back Cover and paste the URL in the<br/>'QR Code URL' field and click update. Remember to test the code with your phone!</div>
               <div id="qr-code-canvas" aria-label="QR code image">
                 <img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>
               </div>
             </div>
-            <label class="custom-uploader" id="branding-uploader" role="button" aria-label="Upload library branding image">
+            <label class="custom-uploader has-image" id="branding-uploader" role="button" aria-label="Upload library branding image">
               <img alt="Library Branding Placeholder" src="assets/img/branding-default.png"/>
+              <div class="placeholder-text">Click to upload<br/>library branding image<br/>(5 x 1.5 inches recommended)</div>
               <input type="file" accept="image/*" aria-hidden="true"/>
+              <button type="button" class="branding-delete-btn" title="Remove branding image"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+              <button type="button" class="branding-default-btn" title="Use default branding"><i class="fa-solid fa-image" aria-hidden="true"></i> Use Default</button>
             </label>
           </div>
 
@@ -673,7 +808,7 @@
             <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or generate front cover image">
               <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
-                Upload a Custom Cover<br/>For the best results, its dimensions should be 5x8 inches<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in the Settings tab<br/>(Star 12 books to include in the collage)
+                Click to upload a custom cover<br/>(5 x 8 inches recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)
               </div>
               <input type="file" accept="image/*" aria-hidden="true"/>
             </div>
@@ -691,6 +826,37 @@
   </div>
 
   <script src="assets/js/app.js"></script>
+
+  <!-- Sidebar Toggle Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const toggleBtn = document.getElementById('toggle-sidebar-btn');
+      const sidebar = document.querySelector('.sidebar');
+
+      if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', function() {
+          sidebar.classList.toggle('collapsed');
+          toggleBtn.classList.toggle('active');
+        });
+      }
+
+      // Fix scroll calculation when settings sections toggle rapidly
+      const settingsTab = document.getElementById('tab-settings');
+      if (settingsTab) {
+        settingsTab.addEventListener('toggle', function(e) {
+          if (e.target.classList.contains('settings-section')) {
+            // Force reflow to fix scroll height calculation
+            requestAnimationFrame(function() {
+              settingsTab.style.overflow = 'hidden';
+              requestAnimationFrame(function() {
+                settingsTab.style.overflow = '';
+              });
+            });
+          }
+        }, true);
+      }
+    });
+  </script>
 
   <!-- Font preloader: ensures Google Fonts are ready before canvas drawing -->
   <div class="font-preloader" aria-hidden="true">
@@ -780,5 +946,5 @@
   </div>
   
 </body>
-</html>
 
+</html>

@@ -25,6 +25,7 @@ const CONFIG = {
   
   // Collage generation
   MIN_COVERS_FOR_COLLAGE: 12,
+  MAX_COVERS_FOR_COLLAGE: 20,
   COLLAGE_GRID_COLS: 3,
   COLLAGE_TOP_ROW_COUNT: 3,
   COLLAGE_BOTTOM_ROWS: 3,
@@ -44,7 +45,7 @@ const CONFIG = {
   BRANDING_HEIGHT: 144,
   
   // Timing
-  NOTIFICATION_DURATION_MS: 5000,
+  NOTIFICATION_DURATION_MS: 3000,
   AUTOSAVE_DEBOUNCE_MS: 400,
   PDF_RENDER_DELAY_MS: 100,
   
@@ -66,7 +67,7 @@ const CONFIG = {
     callNumber: '[Call #]',
     description: '[Enter a brief description here...]',
     authorWithCall: '[Enter Author] - [Call #]',
-    qrText: "Enter your blurb here. To link to an online list (like Bibliocommons), go to the Settings tab and paste the URL in the 'QR Code URL' field and click update. Remember to test the code with your phone!",
+    qrText: "Enter your blurb here. To link to an online list (like Bibliocommons), go to Settings > Back Cover and paste the URL in the\n'QR Code URL' field and click update. Remember to test the code with your phone!",
   },
   
   // Colors
@@ -83,7 +84,9 @@ const BooklistApp = (function() {
   // Private State
   // ---------------------------------------------------------------------------
   let myBooklist = [];
+  let extraCollageCovers = []; // Additional covers for collage (beyond book blocks)
   let MAX_BOOKS = CONFIG.MAX_BOOKS_FULL;
+  let isDirty = false; // Tracks unsaved changes for beforeunload warning
   
   // ---------------------------------------------------------------------------
   // Debounced Autosave (defined early so it can be used by renderBooklist)
@@ -91,6 +94,7 @@ const BooklistApp = (function() {
   const debouncedSave = (() => {
     let t;
     return () => {
+      isDirty = true; // Mark as having unsaved changes
       clearTimeout(t);
       t = setTimeout(() => {
         saveDraftLocal();
@@ -157,6 +161,14 @@ const BooklistApp = (function() {
       tiltOffsetDirection: document.getElementById('tilt-offset-direction'),
       classicSettings: document.getElementById('classic-settings'),
       showShelvesToggle: document.getElementById('show-shelves-toggle'),
+      
+      // Extended collage mode
+      extendedCollageToggle: document.getElementById('extended-collage-toggle'),
+      extraCoversSection: document.getElementById('extra-covers-section'),
+      extraCoversGrid: document.getElementById('extra-covers-grid'),
+      extraCoversCount: document.getElementById('extra-covers-count'),
+      extraCoverSearchModal: document.getElementById('extra-cover-search-modal'),
+      collageCoverHint: document.getElementById('collage-cover-hint'),
       
       // Simple mode elements
       coverTitleInput: document.getElementById('cover-title-input'),
@@ -231,9 +243,72 @@ const BooklistApp = (function() {
   function handlePastePlainText(e) {
     e.preventDefault();
     const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-    // execCommand is "deprecated" but still the only way to insert text
-    // into contenteditable while preserving proper undo/redo behavior
     document.execCommand('insertText', false, text);
+  }
+  
+  /**
+   * Strips any HTML/inline styles from a contenteditable element,
+   * preserving line breaks. Call this on 'input' events as a safety net.
+   */
+  function sanitizeContentEditable(element) {
+    // Check for problematic formatting elements (not just line breaks)
+    const hasFormatting = element.querySelector('span, font, b, i, u, strong, em, [style]') !== null;
+    
+    if (!hasFormatting) {
+      return; // Only line breaks and plain text, nothing to sanitize
+    }
+    
+    // Save cursor position relative to text length
+    const selection = window.getSelection();
+    let cursorOffset = 0;
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const preCaretRange = range.cloneRange();
+      preCaretRange.selectNodeContents(element);
+      preCaretRange.setEnd(range.endContainer, range.endOffset);
+      cursorOffset = preCaretRange.toString().length;
+    }
+    
+    // Strip formatting but preserve line breaks
+    // Replace formatting elements with their text content, keep <br> and <div> structure
+    element.querySelectorAll('span, font, b, i, u, strong, em, [style]').forEach(el => {
+      el.replaceWith(...el.childNodes);
+    });
+    
+    // Remove any remaining style attributes
+    element.querySelectorAll('[style]').forEach(el => {
+      el.removeAttribute('style');
+    });
+    
+    // Restore cursor position
+    try {
+      const textLength = element.textContent.length;
+      const newRange = document.createRange();
+      const safeOffset = Math.min(cursorOffset, textLength);
+      
+      // Find the text node at the cursor position
+      let currentOffset = 0;
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+      let node = walker.nextNode();
+      
+      while (node) {
+        const nodeLength = node.textContent.length;
+        if (currentOffset + nodeLength >= safeOffset) {
+          newRange.setStart(node, safeOffset - currentOffset);
+          newRange.setEnd(node, safeOffset - currentOffset);
+          break;
+        }
+        currentOffset += nodeLength;
+        node = walker.nextNode();
+      }
+      
+      if (node) {
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      }
+    } catch (err) {
+      // If cursor restoration fails, just leave it
+    }
   }
   
   // ---------------------------------------------------------------------------
@@ -349,6 +424,7 @@ const BooklistApp = (function() {
         bookItem.description = '[Description unavailable]';
         showNotification(`Could not fetch description: ${errorMsg}`, 'error');
         renderBooklist();
+        debouncedSave();
       }
       return;
     }
@@ -380,6 +456,7 @@ const BooklistApp = (function() {
         } else {
           bookItem.description = data.description;
           renderBooklist();
+          debouncedSave();
         }
       } else {
         throw new Error(data.error || 'Unknown error from description service.');
@@ -397,6 +474,7 @@ const BooklistApp = (function() {
         bookItem.description = '[Description unavailable]';
         showNotification(`Could not fetch description for "${bookItem.title}": ${errorMessage}`, 'error');
         renderBooklist();
+        debouncedSave();
       }
     });
   }
@@ -703,7 +781,30 @@ const BooklistApp = (function() {
         addButton.setAttribute('aria-label', `Remove "${book.title}" from booklist`);
         
         renderBooklist();
+        debouncedSave();
         getAiDescription(newBook.key);
+        
+        // Auto-generate if this book has a cover, is starred, and completes the required count
+        const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+        if (frontCoverImg?.dataset.isAutoGenerated === 'true' && newBook.includeInCollage && carouselState.allCoverIds.length > 0) {
+          const extendedMode = elements.extendedCollageToggle?.checked || false;
+          const requiredCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+          
+          // Count starred books with covers after adding
+          const booksWithCovers = myBooklist.filter(b =>
+            !b.isBlank &&
+            b.includeInCollage &&
+            (b.cover_ids.length > 0 || (b.customCoverData && !b.customCoverData.includes('placehold.co')))
+          );
+          
+          const extraCoverCount = extendedMode 
+            ? extraCollageCovers.filter(ec => ec.coverData && !ec.coverData.includes('placehold.co')).length
+            : 0;
+          
+          if (booksWithCovers.length + extraCoverCount === requiredCovers) {
+            generateCoverCollage();
+          }
+        }
       } else {
         showNotification(`All ${MAX_BOOKS} book slots are full. Please delete one before adding another.`);
       }
@@ -716,6 +817,7 @@ const BooklistApp = (function() {
       addButton.classList.remove('added');
       addButton.setAttribute('aria-label', `Add "${book.title}" to booklist`);
       renderBooklist();
+      debouncedSave();
     }
   }
   
@@ -724,15 +826,70 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   
   /**
-   * Shows or hides the tilted-specific settings based on currently selected layout
+   * Shows or hides layout-specific settings based on currently selected layout
+   * Also handles masonry-specific stretch toggle behavior
    */
   function updateTiltedSettingsVisibility() {
     const selectedLayout = elements.collageLayoutSelector?.querySelector('.layout-option.selected')?.dataset.layout || 'classic';
+    
+    // Show/hide layout-specific settings panels
     if (elements.tiltedSettings) {
       elements.tiltedSettings.style.display = selectedLayout === 'tilted' ? 'block' : 'none';
     }
     if (elements.classicSettings) {
       elements.classicSettings.style.display = selectedLayout === 'classic' ? 'block' : 'none';
+    }
+    
+    // Handle masonry layout: disable stretch toggle and show hint
+    const stretchToggle = elements.stretchCoversToggle;
+    const masonryHint = document.getElementById('masonry-stretch-hint');
+    
+    if (selectedLayout === 'masonry') {
+      // Disable stretch toggle for masonry (it always uses natural proportions)
+      if (stretchToggle) {
+        stretchToggle.disabled = true;
+        stretchToggle.parentElement?.classList.add('disabled');
+      }
+      if (masonryHint) {
+        masonryHint.style.display = 'block';
+      }
+    } else {
+      // Re-enable stretch toggle for other layouts
+      if (stretchToggle) {
+        stretchToggle.disabled = false;
+        stretchToggle.parentElement?.classList.remove('disabled');
+      }
+      if (masonryHint) {
+        masonryHint.style.display = 'none';
+      }
+    }
+    
+    // Disable outer margin for layouts that set their own title bar margins
+    const outerMarginInput = document.getElementById('cover-title-outer-margin');
+    const outerMarginLabel = outerMarginInput?.previousElementSibling;
+    const layoutsWithFixedMargin = ['masonry', 'tilted', 'staggered'];
+    
+    if (outerMarginInput) {
+      if (layoutsWithFixedMargin.includes(selectedLayout)) {
+        outerMarginInput.disabled = true;
+        outerMarginInput.style.opacity = '0.5';
+        if (outerMarginLabel) outerMarginLabel.style.opacity = '0.5';
+      } else {
+        outerMarginInput.disabled = false;
+        outerMarginInput.style.opacity = '1';
+        if (outerMarginLabel) outerMarginLabel.style.opacity = '1';
+      }
+    }
+    
+    // Force scroll recalculation for settings tab
+    const settingsTab = document.getElementById('tab-settings');
+    if (settingsTab) {
+      requestAnimationFrame(() => {
+        settingsTab.style.overflow = 'hidden';
+        requestAnimationFrame(() => {
+          settingsTab.style.overflow = '';
+        });
+      });
     }
   }
   
@@ -763,6 +920,7 @@ const BooklistApp = (function() {
     
     if (listWasTrimmed) {
       renderBooklist();
+      debouncedSave();
     } else {
       updateBackCoverVisibility();
     }
@@ -873,10 +1031,13 @@ const BooklistApp = (function() {
     const starButton = document.createElement('button');
     starButton.className = 'star-button';
     
-    // Count currently starred books
+    // Count currently starred books + extra collage covers
     const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+    const extendedMode = elements.extendedCollageToggle?.checked || false;
+    const maxCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+    const totalCollageCovers = starredCount + (extendedMode ? extraCollageCovers.length : 0);
     const isStarred = bookItem.includeInCollage;
-    const atLimit = starredCount >= CONFIG.MIN_COVERS_FOR_COLLAGE;
+    const atLimit = totalCollageCovers >= maxCovers;
     
     if (isStarred) {
       starButton.classList.add('active');
@@ -886,7 +1047,7 @@ const BooklistApp = (function() {
     }
     
     starButton.innerHTML = '<i class="fa-solid fa-star"></i>';
-    starButton.title = isStarred ? 'Remove from collage' : (atLimit ? '12 covers already selected' : 'Include in collage');
+    starButton.title = isStarred ? 'Remove from collage' : (atLimit ? `${maxCovers} covers already selected` : 'Include in collage');
     starButton.setAttribute('aria-label', 'Toggle inclusion in cover collage');
     starButton.setAttribute('aria-pressed', isStarred ? 'true' : 'false');
     starButton.onclick = () => {
@@ -895,6 +1056,32 @@ const BooklistApp = (function() {
       bookItem.includeInCollage = !bookItem.includeInCollage;
       debouncedSave();
       renderBooklist(); // Re-render to update all star states
+      updateExtraCoversCount(); // Update the extra covers section count
+      
+      // Auto-regenerate if there's already an auto-generated image and we have enough covers
+      const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+      if (frontCoverImg?.dataset.isAutoGenerated === 'true') {
+        const currentExtendedMode = elements.extendedCollageToggle?.checked || false;
+        const requiredCovers = currentExtendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+        
+        // Count starred books with covers
+        const booksWithCovers = myBooklist.filter(book =>
+          !book.isBlank &&
+          book.includeInCollage &&
+          (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co')))
+        );
+        
+        // Count extra covers (only in extended mode)
+        const extraCoverCount = currentExtendedMode 
+          ? extraCollageCovers.filter(ec => ec.coverData && !ec.coverData.includes('placehold.co')).length
+          : 0;
+        
+        const totalCovers = booksWithCovers.length + extraCoverCount;
+        
+        if (totalCovers >= requiredCovers) {
+          generateCoverCollage();
+        }
+      }
     };
     
     // Magic button (fetch description)
@@ -905,12 +1092,42 @@ const BooklistApp = (function() {
     magicButton.setAttribute('aria-label', 'Fetch description for this book');
     magicButton.onclick = () => handleMagicButtonClick(bookItem);
     
-    // Item number
-    const itemNumber = document.createElement('span');
+    // Item number (editable input for reordering)
+    const itemNumber = document.createElement('input');
+    itemNumber.type = 'number';
     itemNumber.className = 'item-number';
-    itemNumber.textContent = index + 1;
-    itemNumber.setAttribute('aria-hidden', 'true');
-    itemNumber.title = `Book #${index + 1}`;
+    itemNumber.value = index + 1;
+    itemNumber.min = 1;
+    itemNumber.max = MAX_BOOKS;
+    itemNumber.title = `Book #${index + 1} - Edit to move`;
+    itemNumber.setAttribute('aria-label', `Position ${index + 1}, edit to reorder`);
+    
+    // Handle reordering when value changes
+    itemNumber.addEventListener('change', () => {
+      const newPos = parseInt(itemNumber.value, 10);
+      const oldPos = index + 1;
+      
+      // Validate input
+      if (isNaN(newPos) || newPos < 1 || newPos > MAX_BOOKS || newPos === oldPos) {
+        itemNumber.value = oldPos; // Reset to current position
+        return;
+      }
+      
+      // Reorder the book
+      handleBookReorder(index, newPos - 1);
+    });
+    
+    // Select all text on focus for easy editing
+    itemNumber.addEventListener('focus', () => {
+      itemNumber.select();
+    });
+    
+    // Prevent invalid characters
+    itemNumber.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        itemNumber.blur();
+      }
+    });
     
     // Delete button
     const deleteButton = document.createElement('button');
@@ -968,6 +1185,7 @@ const BooklistApp = (function() {
     
     bookItem.description = "Fetching title description... May take a few minutes.";
     renderBooklist();
+    debouncedSave();
     getAiDescription(bookItem.key);
   }
   
@@ -975,11 +1193,39 @@ const BooklistApp = (function() {
     const originalKey = myBooklist[index].key;
     myBooklist[index] = createBlankBook();
     renderBooklist();
+    debouncedSave();
     
     const searchButton = document.querySelector(`#results-container button[data-book-key="${originalKey}"]`);
     if (searchButton) {
       searchButton.textContent = 'Add to List';
       searchButton.classList.remove('added');
+    }
+  }
+  
+  /**
+   * Reorder a book from one position to another
+   * @param {number} fromIndex - Current index (0-based)
+   * @param {number} toIndex - Target index (0-based)
+   */
+  function handleBookReorder(fromIndex, toIndex) {
+    if (fromIndex === toIndex) return;
+    if (fromIndex < 0 || fromIndex >= MAX_BOOKS) return;
+    if (toIndex < 0 || toIndex >= MAX_BOOKS) return;
+    
+    // Remove the book from its current position
+    const [movedBook] = myBooklist.splice(fromIndex, 1);
+    
+    // Insert it at the new position
+    myBooklist.splice(toIndex, 0, movedBook);
+    
+    // Re-render and save
+    renderBooklist();
+    debouncedSave();
+    
+    // Auto-regenerate if there's an auto-generated cover
+    const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+    if (frontCoverImg?.dataset.isAutoGenerated === 'true') {
+      generateCoverCollage();
     }
   }
   
@@ -1006,23 +1252,57 @@ const BooklistApp = (function() {
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
     fileInput.setAttribute('aria-label', 'Choose cover image file');
+    
+    // Shared handler for processing an image file (used by both file input and drag-drop)
+    const processImageFile = (file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const book = myBooklist.find(b => b.key === bookItem.key);
+        book.customCoverData = event.target.result;
+        book.cover_ids = [];
+        book.currentCoverIndex = 0;
+        coverImg.src = event.target.result;
+        debouncedSave();
+        
+        // Auto-generate if this book is starred and completes the required count
+        const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+        if (frontCoverImg?.dataset.isAutoGenerated === 'true' && book.includeInCollage) {
+          const extendedMode = elements.extendedCollageToggle?.checked || false;
+          const requiredCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+          
+          // Count starred books with covers after this upload
+          const booksWithCovers = myBooklist.filter(b =>
+            !b.isBlank &&
+            b.includeInCollage &&
+            (b.cover_ids.length > 0 || (b.customCoverData && !b.customCoverData.includes('placehold.co')))
+          );
+          
+          const extraCoverCount = extendedMode 
+            ? extraCollageCovers.filter(ec => ec.coverData && !ec.coverData.includes('placehold.co')).length
+            : 0;
+          
+          if (booksWithCovers.length + extraCoverCount === requiredCovers) {
+            generateCoverCollage();
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+    
     fileInput.onchange = (e) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const book = myBooklist.find(b => b.key === bookItem.key);
-          book.customCoverData = event.target.result;
-          book.cover_ids = [];
-          book.currentCoverIndex = 0;
-          coverImg.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
+        processImageFile(file);
       }
+      // Clear input so same file can be re-selected
+      e.target.value = '';
     };
     
     coverUploader.appendChild(coverImg);
     coverUploader.appendChild(fileInput);
+    
+    // Add drag-and-drop support
+    setupDragDropUpload(coverUploader, processImageFile);
     
     return coverUploader;
   }
@@ -1040,10 +1320,12 @@ const BooklistApp = (function() {
     titleField.setAttribute('aria-label', 'Book title');
     titleField.addEventListener('paste', handlePastePlainText);
     titleField.oninput = (e) => {
+      sanitizeContentEditable(e.target);
       bookItem.title = e.target.innerText;
       if (bookItem.isBlank && bookItem.title !== CONFIG.PLACEHOLDERS.title) {
         bookItem.isBlank = false;
       }
+      debouncedSave();
     };
     
     // Author field
@@ -1062,8 +1344,10 @@ const BooklistApp = (function() {
     authorField.setAttribute('aria-label', 'Author and call number');
     authorField.addEventListener('paste', handlePastePlainText);
     authorField.oninput = (e) => {
+      sanitizeContentEditable(e.target);
       // Store the raw display text exactly as typed
       bookItem.authorDisplay = e.target.innerText;
+      debouncedSave();
     };
     
     // Description field
@@ -1075,7 +1359,9 @@ const BooklistApp = (function() {
     descriptionField.setAttribute('aria-label', 'Book description');
     descriptionField.addEventListener('paste', handlePastePlainText);
     descriptionField.oninput = (e) => {
+      sanitizeContentEditable(e.target);
       bookItem.description = e.target.innerText;
+      debouncedSave();
     };
     
     detailsDiv.appendChild(titleField);
@@ -1122,6 +1408,12 @@ const BooklistApp = (function() {
       elements.previewArea.style.setProperty(`--${styleGroup}-color`, color);
       elements.previewArea.style.setProperty(`--${styleGroup}-font-weight`, isBold ? 'bold' : 'normal');
       elements.previewArea.style.setProperty(`--${styleGroup}-font-style`, isItalic ? 'italic' : 'normal');
+      
+      // Apply line spacing if present (used by QR text)
+      const lineSpacingInput = group.querySelector('.line-spacing');
+      if (lineSpacingInput) {
+        elements.previewArea.style.setProperty(`--${styleGroup}-line-height`, lineSpacingInput.value);
+      }
     });
   }
   
@@ -1481,6 +1773,10 @@ const BooklistApp = (function() {
     const tiltDegree = parseFloat(elements.tiltDegree?.value ?? '-25');
     const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
     
+    // Check if extended mode is enabled
+    const extendedMode = elements.extendedCollageToggle?.checked || false;
+    const maxCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+    
     // Gather books with covers that are marked for inclusion
     const booksWithCovers = myBooklist.filter(book =>
       !book.isBlank &&
@@ -1488,21 +1784,8 @@ const BooklistApp = (function() {
       (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co')))
     );
     
-    if (booksWithCovers.length < CONFIG.MIN_COVERS_FOR_COLLAGE) {
-      const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
-      const totalWithCovers = myBooklist.filter(b => !b.isBlank && (b.cover_ids.length > 0 || (b.customCoverData && !b.customCoverData.includes('placehold.co')))).length;
-      
-      if (starredCount < CONFIG.MIN_COVERS_FOR_COLLAGE) {
-        showNotification(`Need ${CONFIG.MIN_COVERS_FOR_COLLAGE} starred books. Currently ${starredCount} starred.`);
-      } else {
-        showNotification(`Need ${CONFIG.MIN_COVERS_FOR_COLLAGE} starred books with covers. ${totalWithCovers} have covers.`);
-      }
-      setLoading(button, false);
-      return;
-    }
-    
-    // Get cover URLs
-    const coversToDraw = booksWithCovers.slice(0, CONFIG.MIN_COVERS_FOR_COLLAGE).map(book => {
+    // Get URLs from starred book blocks
+    const bookBlockCoverUrls = booksWithCovers.map(book => {
       if (book.customCoverData && !book.customCoverData.includes('placehold.co')) {
         return book.customCoverData;
       } else if (book.cover_ids.length > 0) {
@@ -1514,6 +1797,36 @@ const BooklistApp = (function() {
       return CONFIG.PLACEHOLDER_COLLAGE_COVER_URL;
     });
     
+    // Get URLs from extra collage covers (only if extended mode)
+    const extraCoverUrls = extendedMode 
+      ? extraCollageCovers
+          .filter(ec => ec.coverData && !ec.coverData.includes('placehold.co'))
+          .map(ec => ec.coverData)
+      : [];
+    
+    // Combine all cover URLs (up to max for current mode)
+    const allCoverUrls = [...bookBlockCoverUrls, ...extraCoverUrls].slice(0, maxCovers);
+    
+    // In extended mode, require exactly 20 covers; otherwise require 12
+    const requiredCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+    
+    if (allCoverUrls.length < requiredCovers) {
+      const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+      const totalWithCovers = booksWithCovers.length + extraCoverUrls.length;
+      const totalSelected = starredCount + (extendedMode ? extraCollageCovers.length : 0);
+      
+      if (totalSelected < requiredCovers) {
+        showNotification(`Need ${requiredCovers} covers. Currently ${totalSelected} selected.`);
+      } else {
+        showNotification(`Need ${requiredCovers} covers with images. ${totalWithCovers} have covers.`);
+      }
+      setLoading(button, false);
+      return;
+    }
+    
+    // Use all gathered covers
+    const coversToDraw = allCoverUrls;
+    
     const { canvas, ctx } = createCollageCanvas();
     const styles = getCoverTitleStyles();
     
@@ -1521,7 +1834,8 @@ const BooklistApp = (function() {
     const layoutOptions = {
       titleBarPosition,
       tiltDegree,
-      tiltOffsetDirection
+      tiltOffsetDirection,
+      coverCount: coversToDraw.length
     };
     
     // Wait for fonts, then load images and draw
@@ -1530,6 +1844,9 @@ const BooklistApp = (function() {
     }).then(images => {
       // Draw based on selected layout
       switch (selectedLayout) {
+        case 'masonry':
+          drawLayoutMasonry(ctx, canvas, images, styles, layoutOptions);
+          break;
         case 'staggered':
           drawLayoutStaggered(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
           break;
@@ -1552,7 +1869,9 @@ const BooklistApp = (function() {
       const frontCoverImg = elements.frontCoverUploader.querySelector('img');
       frontCoverImg.src = dataUrl;
       frontCoverImg.dataset.isPlaceholder = "false";
+      frontCoverImg.dataset.isAutoGenerated = "true";
       elements.frontCoverUploader.classList.add('has-image');
+      debouncedSave();
       
     }).catch(err => {
       console.error('Cover generation failed:', err);
@@ -1732,6 +2051,7 @@ const BooklistApp = (function() {
    * Grid of covers with title bar at configurable position
    * Positions: top, classic, center, lower, bottom
    * Rows are flush with top and bottom edges
+   * 12 covers = 3×4 (3 cols, 4 rows), 20 covers = 4×5 (4 cols, 5 rows)
    */
   function drawLayoutClassic(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -1739,19 +2059,25 @@ const BooklistApp = (function() {
     const position = options.titleBarPosition || 'classic';
     
     const margin = styles.outerMarginPx;
-    const bookAspect = 0.75;
-    const numRows = 4;
-    const numCols = 3;
+    const bookAspect = 0.75; // width / height
+    
+    // Binary: 12 or 20 covers
+    const coverCount = images.length;
+    const numCols = coverCount <= 12 ? 3 : 4;
+    const numRows = coverCount <= 12 ? 4 : 5;
     
     // Determine row distribution based on position
     let rowsAbove, rowsBelow;
     switch (position) {
-      case 'top': rowsAbove = 0; rowsBelow = 4; break;
-      case 'classic': rowsAbove = 1; rowsBelow = 3; break;
-      case 'center': rowsAbove = 2; rowsBelow = 2; break;
-      case 'lower': rowsAbove = 3; rowsBelow = 1; break;
-      case 'bottom': rowsAbove = 4; rowsBelow = 0; break;
-      default: rowsAbove = 1; rowsBelow = 3;
+      case 'top': rowsAbove = 0; rowsBelow = numRows; break;
+      case 'classic': rowsAbove = 1; rowsBelow = numRows - 1; break;
+      case 'center': 
+        rowsAbove = Math.floor(numRows / 2); 
+        rowsBelow = numRows - rowsAbove; 
+        break;
+      case 'lower': rowsAbove = numRows - 1; rowsBelow = 1; break;
+      case 'bottom': rowsAbove = numRows; rowsBelow = 0; break;
+      default: rowsAbove = 1; rowsBelow = numRows - 1;
     }
     
     // First, draw title bar to get actual height
@@ -1761,23 +2087,44 @@ const BooklistApp = (function() {
     ctx.fillRect(0, 0, canvasWidth, bgH + 1);
     
     // Calculate actual number of vGutters used
-    // For top/bottom: 3 (all 4 rows on one side)
-    // For middle positions: (rowsAbove-1) + (rowsBelow-1) = 2
-    const numVGutters = (position === 'top' || position === 'bottom') ? 3 : 
+    const numVGutters = (position === 'top' || position === 'bottom') ? (numRows - 1) : 
                         (rowsAbove > 0 ? rowsAbove - 1 : 0) + (rowsBelow > 0 ? rowsBelow - 1 : 0);
     
-    // Calculate uniform slot height based on actual bgH and vGutter count
+    // Calculate available space
     const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
-    const totalRowSpace = canvasHeight - bgH - marginCount * margin;
+    const totalVerticalSpace = canvasHeight - bgH - marginCount * margin;
     
-    // Use ratio-based vGutter calculation
+    // Gutter ratios
     const vGutterRatio = 0.08;
-    const totalVGutterRatio = numVGutters * vGutterRatio;
-    const slotHeight = totalRowSpace / (numRows + totalVGutterRatio);
-    const vGutter = slotHeight * vGutterRatio;
+    const hGutterRatio = 0.12;
     
-    // Calculate horizontal dimensions
-    const slotWidth = slotHeight * bookAspect;
+    // Calculate slot dimensions that fit BOTH horizontally and vertically
+    // Vertical constraint: totalVerticalSpace = numRows * slotHeight + numVGutters * vGutter
+    // where vGutter = slotHeight * vGutterRatio
+    // totalVerticalSpace = numRows * slotHeight + numVGutters * slotHeight * vGutterRatio
+    // totalVerticalSpace = slotHeight * (numRows + numVGutters * vGutterRatio)
+    const slotHeightFromVertical = totalVerticalSpace / (numRows + numVGutters * vGutterRatio);
+    const slotWidthFromVertical = slotHeightFromVertical * bookAspect;
+    
+    // Horizontal constraint: canvasWidth = numCols * slotWidth + (numCols + 1) * hGutter
+    // where hGutter = slotWidth * hGutterRatio
+    // canvasWidth = numCols * slotWidth + (numCols + 1) * slotWidth * hGutterRatio
+    // canvasWidth = slotWidth * (numCols + (numCols + 1) * hGutterRatio)
+    const slotWidthFromHorizontal = canvasWidth / (numCols + (numCols + 1) * hGutterRatio);
+    const slotHeightFromHorizontal = slotWidthFromHorizontal / bookAspect;
+    
+    // Use the smaller of the two to ensure fit
+    let slotWidth, slotHeight;
+    if (slotWidthFromVertical <= slotWidthFromHorizontal) {
+      slotWidth = slotWidthFromVertical;
+      slotHeight = slotHeightFromVertical;
+    } else {
+      slotWidth = slotWidthFromHorizontal;
+      slotHeight = slotHeightFromHorizontal;
+    }
+    
+    // Calculate actual gutters
+    const vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
     
     // Calculate title bar position based on uniform slot height
@@ -1797,8 +2144,8 @@ const BooklistApp = (function() {
     
     if (rowsAbove > 0) {
       let currentY = 0; // Start flush at top
-      for (let row = 0; row < rowsAbove; row++) {
-        for (let col = 0; col < numCols; col++) {
+      for (let row = 0; row < rowsAbove && imageIndex < images.length; row++) {
+        for (let col = 0; col < numCols && imageIndex < images.length; col++) {
           const slotX = hGutter + col * (slotWidth + hGutter);
           drawCoverImage(ctx, images[imageIndex], slotX, currentY, slotWidth, slotHeight, shouldStretch);
           imageIndex++;
@@ -1816,8 +2163,8 @@ const BooklistApp = (function() {
       const belowTotalHeight = rowsBelow * slotHeight + (rowsBelow > 0 ? (rowsBelow - 1) * vGutter : 0);
       let currentY = canvasHeight - belowTotalHeight; // Start so last row ends at bottom
       
-      for (let row = 0; row < rowsBelow; row++) {
-        for (let col = 0; col < numCols; col++) {
+      for (let row = 0; row < rowsBelow && imageIndex < images.length; row++) {
+        for (let col = 0; col < numCols && imageIndex < images.length; col++) {
           const slotX = hGutter + col * (slotWidth + hGutter);
           drawCoverImage(ctx, images[imageIndex], slotX, currentY, slotWidth, slotHeight, shouldStretch);
           imageIndex++;
@@ -1832,6 +2179,7 @@ const BooklistApp = (function() {
    * Grid of covers with shelf lines under each row
    * Title bar at configurable position
    * Rows are flush with top and bottom edges
+   * 12 covers = 3×4 (3 cols, 4 rows), 20 covers = 4×5 (4 cols, 5 rows)
    */
   function drawLayoutBookshelf(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -1844,18 +2192,24 @@ const BooklistApp = (function() {
     const margin = styles.outerMarginPx;
     
     const bookAspect = 0.75;
-    const numRows = 4;
-    const numCols = 3;
+    
+    // Binary: 12 or 20 covers
+    const coverCount = images.length;
+    const numCols = coverCount <= 12 ? 3 : 4;
+    const numRows = coverCount <= 12 ? 4 : 5;
     
     // Determine row distribution
     let rowsAbove, rowsBelow;
     switch (position) {
-      case 'top': rowsAbove = 0; rowsBelow = 4; break;
-      case 'classic': rowsAbove = 1; rowsBelow = 3; break;
-      case 'center': rowsAbove = 2; rowsBelow = 2; break;
-      case 'lower': rowsAbove = 3; rowsBelow = 1; break;
-      case 'bottom': rowsAbove = 4; rowsBelow = 0; break;
-      default: rowsAbove = 1; rowsBelow = 3;
+      case 'top': rowsAbove = 0; rowsBelow = numRows; break;
+      case 'classic': rowsAbove = 1; rowsBelow = numRows - 1; break;
+      case 'center': 
+        rowsAbove = Math.floor(numRows / 2); 
+        rowsBelow = numRows - rowsAbove; 
+        break;
+      case 'lower': rowsAbove = numRows - 1; rowsBelow = 1; break;
+      case 'bottom': rowsAbove = numRows; rowsBelow = 0; break;
+      default: rowsAbove = 1; rowsBelow = numRows - 1;
     }
     
     // First, draw title bar to get actual height
@@ -1864,35 +2218,50 @@ const BooklistApp = (function() {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvasWidth, bgH + 1);
     
-    // All 4 rows have shelves underneath
-    const numShelves = 4;
+    // All rows have shelves underneath
+    const numShelves = numRows;
     const totalShelfHeight = numShelves * shelfLineWidth;
     
     // Calculate actual number of vGutters used
-    // For top/bottom: 3 (all 4 rows on one side)
-    // For middle positions: (rowsAbove-1) + (rowsBelow-1) = 2
-    const numVGutters = (position === 'top' || position === 'bottom') ? 3 : 
+    const numVGutters = (position === 'top' || position === 'bottom') ? (numRows - 1) : 
                         (rowsAbove > 0 ? rowsAbove - 1 : 0) + (rowsBelow > 0 ? rowsBelow - 1 : 0);
     
-    // Calculate uniform slot height based on actual bgH and vGutter count
+    // Calculate available space
     const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
-    const totalRowSpace = canvasHeight - bgH - marginCount * margin - totalShelfHeight;
+    const totalVerticalSpace = canvasHeight - bgH - marginCount * margin - totalShelfHeight;
     
-    // Use ratio-based vGutter calculation
+    // Gutter ratios
     const vGutterRatio = 0.05;
-    const totalVGutterRatio = numVGutters * vGutterRatio;
-    const slotHeight = totalRowSpace / (numRows + totalVGutterRatio);
-    const vGutter = slotHeight * vGutterRatio;
+    const hGutterRatio = 0.12;
     
-    // Calculate horizontal dimensions
-    const slotWidth = slotHeight * bookAspect;
+    // Calculate slot dimensions that fit BOTH horizontally and vertically
+    const slotHeightFromVertical = totalVerticalSpace / (numRows + numVGutters * vGutterRatio);
+    const slotWidthFromVertical = slotHeightFromVertical * bookAspect;
+    
+    const slotWidthFromHorizontal = canvasWidth / (numCols + (numCols + 1) * hGutterRatio);
+    const slotHeightFromHorizontal = slotWidthFromHorizontal / bookAspect;
+    
+    // Use the smaller to ensure fit
+    let slotWidth, slotHeight;
+    if (slotWidthFromVertical <= slotWidthFromHorizontal) {
+      slotWidth = slotWidthFromVertical;
+      slotHeight = slotHeightFromVertical;
+    } else {
+      slotWidth = slotWidthFromHorizontal;
+      slotHeight = slotHeightFromHorizontal;
+    }
+    
+    const vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
     
-    // Helper to draw a row with shelf
-    const drawRowWithShelf = (rowY, height, startIndex) => {
-      for (let col = 0; col < numCols; col++) {
+    // Helper to draw a row with shelf (handles partial rows)
+    let globalImageIndex = 0;
+    const drawRowWithShelf = (rowY, height) => {
+      const coversInRow = Math.min(numCols, images.length - globalImageIndex);
+      for (let col = 0; col < coversInRow; col++) {
         const slotX = hGutter + col * (slotWidth + hGutter);
-        drawCoverImage(ctx, images[startIndex + col], slotX, rowY, slotWidth, height, shouldStretch);
+        drawCoverImage(ctx, images[globalImageIndex], slotX, rowY, slotWidth, height, shouldStretch);
+        globalImageIndex++;
       }
       // Shelf under the row
       const shelfY = rowY + height;
@@ -1913,13 +2282,10 @@ const BooklistApp = (function() {
     }
     
     // Draw rows above title bar (flush at top)
-    let imageIndex = 0;
-    
     if (rowsAbove > 0) {
       let currentY = 0; // Start flush at top
-      for (let row = 0; row < rowsAbove; row++) {
-        drawRowWithShelf(currentY, slotHeight, imageIndex);
-        imageIndex += numCols;
+      for (let row = 0; row < rowsAbove && globalImageIndex < images.length; row++) {
+        drawRowWithShelf(currentY, slotHeight);
         currentY += slotHeight + shelfLineWidth + vGutter;
       }
     }
@@ -1930,13 +2296,11 @@ const BooklistApp = (function() {
     // Draw rows below title bar (flush at bottom)
     if (rowsBelow > 0) {
       // Work backwards from bottom to ensure flush
-      // Each row takes: slotHeight + shelfLineWidth, plus vGutter between rows
       const belowTotalHeight = rowsBelow * (slotHeight + shelfLineWidth) + (rowsBelow > 0 ? (rowsBelow - 1) * vGutter : 0);
-      let currentY = canvasHeight - belowTotalHeight; // Start so last shelf ends at bottom
+      let currentY = canvasHeight - belowTotalHeight;
       
-      for (let row = 0; row < rowsBelow; row++) {
-        drawRowWithShelf(currentY, slotHeight, imageIndex);
-        imageIndex += numCols;
+      for (let row = 0; row < rowsBelow && globalImageIndex < images.length; row++) {
+        drawRowWithShelf(currentY, slotHeight);
         currentY += slotHeight + shelfLineWidth + vGutter;
       }
     }
@@ -1947,6 +2311,7 @@ const BooklistApp = (function() {
    * Brick pattern with gutters, every row fills edge-to-edge (covers bleed off edges)
    * Title bar at configurable position
    * Rows are flush with top and bottom edges
+   * 12 covers = 4 rows (3 per row), 20 covers = 5 rows (4 per row)
    */
   function drawLayoutStaggered(ctx, canvas, images, styles, shouldStretch, options = {}) {
     const canvasWidth = canvas.width;
@@ -1958,16 +2323,26 @@ const BooklistApp = (function() {
     const vGutter = 6 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
     
+    // Dynamic rows: 4 for 12 covers, 5 for 20 covers
+    const coverCount = images.length;
+    const numRows = coverCount <= 12 ? 4 : 5;
+    
     // Determine row distribution
     let rowsAbove, rowsBelow;
     switch (position) {
-      case 'top': rowsAbove = 0; rowsBelow = 4; break;
-      case 'classic': rowsAbove = 1; rowsBelow = 3; break;
-      case 'center': rowsAbove = 2; rowsBelow = 2; break;
-      case 'lower': rowsAbove = 3; rowsBelow = 1; break;
-      case 'bottom': rowsAbove = 4; rowsBelow = 0; break;
-      default: rowsAbove = 2; rowsBelow = 2;
+      case 'top': rowsAbove = 0; rowsBelow = numRows; break;
+      case 'classic': rowsAbove = 1; rowsBelow = numRows - 1; break;
+      case 'center': 
+        rowsAbove = Math.floor(numRows / 2); 
+        rowsBelow = numRows - rowsAbove; 
+        break;
+      case 'lower': rowsAbove = numRows - 1; rowsBelow = 1; break;
+      case 'bottom': rowsAbove = numRows; rowsBelow = 0; break;
+      default: rowsAbove = Math.floor(numRows / 2); rowsBelow = numRows - rowsAbove;
     }
+    
+    // Calculate offset per row to ensure all covers appear
+    const imageOffsetPerRow = Math.ceil(images.length / numRows);
     
     // Helper to draw a row filling edge-to-edge with partial covers bleeding off both edges
     const drawBrickRow = (y, h, useOffset, imgOffset) => {
@@ -1983,7 +2358,7 @@ const BooklistApp = (function() {
       }
       
       for (let i = 0; i < coversNeeded; i++) {
-        const imgIdx = (imgOffset + i) % 12;
+        const imgIdx = (imgOffset + i) % images.length;
         const x = startX + i * spacing;
         drawCoverImage(ctx, images[imgIdx], x, y, w, h, shouldStretch);
       }
@@ -1996,15 +2371,13 @@ const BooklistApp = (function() {
     ctx.fillRect(0, 0, canvasWidth, bgH + 1);
     
     // Calculate actual number of vGutters used
-    // For top/bottom: 3 (all 4 rows on one side)
-    // For middle positions: (rowsAbove-1) + (rowsBelow-1) = 2
-    const numVGutters = (position === 'top' || position === 'bottom') ? 3 : 
+    const numVGutters = (position === 'top' || position === 'bottom') ? (numRows - 1) : 
                         (rowsAbove > 0 ? rowsAbove - 1 : 0) + (rowsBelow > 0 ? rowsBelow - 1 : 0);
     
     // Calculate uniform slot height based on actual bgH and vGutter count
     const marginCount = (position === 'top' || position === 'bottom') ? 1 : 2;
     const totalRowSpace = canvasHeight - bgH - marginCount * titleGutter;
-    const uniformSlotHeight = (totalRowSpace - numVGutters * vGutter) / 4;
+    const uniformSlotHeight = (totalRowSpace - numVGutters * vGutter) / numRows;
     
     // Calculate title bar position based on uniform slot height
     let titleY;
@@ -2027,7 +2400,7 @@ const BooklistApp = (function() {
       for (let row = 0; row < rowsAbove; row++) {
         const shouldOffset = globalRowIndex % 2 === 1;
         drawBrickRow(currentY, uniformSlotHeight, shouldOffset, imageOffset);
-        imageOffset += 3;
+        imageOffset += imageOffsetPerRow;
         globalRowIndex++;
         currentY += uniformSlotHeight + vGutter;
       }
@@ -2045,7 +2418,7 @@ const BooklistApp = (function() {
       for (let row = 0; row < rowsBelow; row++) {
         const shouldOffset = globalRowIndex % 2 === 1;
         drawBrickRow(currentY, uniformSlotHeight, shouldOffset, imageOffset);
-        imageOffset += 3;
+        imageOffset += imageOffsetPerRow;
         globalRowIndex++;
         currentY += uniformSlotHeight + vGutter;
       }
@@ -2202,20 +2575,61 @@ const BooklistApp = (function() {
     const gridOriginX = centerX - (numCols * hStep) / 2;
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
-    // Deterministic image selection based on offset direction
+    // Deterministic image selection based on offset direction and bar position
+    // Supports both 12 and 20 image counts
+    const totalImages = images.length;
+    // Only use sequential order for 20-image covers with horizontal offset and non-center position
+    const useRegularSequential = totalImages > 12 && position !== 'center' && offsetDirection === 'horizontal';
+
     const getImageForCell = (row, col) => {
-      if (offsetDirection === 'horizontal') {
-        // Each row cycles through 4 consecutive books
-        // Row 0: 0,1,2,3,0,1,2,3...  Row 1: 4,5,6,7,4,5,6,7...  etc.
-        const rowGroup = (row % 3) * 4;  // 0, 4, or 8
-        return rowGroup + (col % 4);
+      // For non-center positions with horizontal offset and 20 images, use 4 rows of 5 in a loop
+      // Each row shows only its 5 books, columns cycle within that set
+      if (useRegularSequential) {
+        const rowGroup = (row % 4) * 5;  // 0, 5, 10, 15, then repeats
+        return rowGroup + (col % 5);
+      }
+
+      if (totalImages <= 12) {
+        // Original 12-image logic
+        if (offsetDirection === 'horizontal') {
+          const rowGroup = (row % 3) * 4;
+          return rowGroup + (col % 4);
+        } else {
+          // Vertical: 4 column groups, each cycles through 3 books
+          const colGroup = (col % 4) * 3;
+          const rowOffset = col % 3;
+          return colGroup + ((row + rowOffset) % 3);
+        }
       } else {
-        // Vertical: each column cycles through 3 books
-        // 4 column groups: 0-2, 3-5, 6-8, 9-11
-        // Row offset varies by column to reduce adjacent repetition
-        const colGroup = (col % 4) * 3;  // 0, 3, 6, or 9
-        const rowOffset = col % 3;  // 0, 1, 2, 0, 1, 2...
-        return colGroup + ((row + rowOffset) % 3);
+        // 20-image logic
+        if (offsetDirection === 'horizontal') {
+          // Pattern for maximum visibility:
+          // Row 0,2: books 0-4 (1-5)
+          // Row 1: books 5-9 (6-10)
+          // Row 3,5: books 10-14 (11-15)
+          // Row 4: books 15-19 (16-20)
+          // Repeats every 6 rows
+          const rowMod = row % 6;
+          let rowGroup;
+          if (rowMod === 0 || rowMod === 2) {
+            rowGroup = 0;  // books 0-4
+          } else if (rowMod === 1) {
+            rowGroup = 5;  // books 5-9
+          } else if (rowMod === 3 || rowMod === 5) {
+            rowGroup = 10; // books 10-14
+          } else {
+            rowGroup = 15; // books 15-19
+          }
+          return rowGroup + (col % 5);
+        } else {
+          // Vertical: each column cycles through 4 books
+          // 5 column groups to show all 20: 0-3, 4-7, 8-11, 12-15, 16-19
+          // Add cycle offset to prevent same book appearing in repeated columns
+          const cycleNum = Math.floor(col / 5);
+          const colGroup = (col % 5) * 4;  // 0, 4, 8, 12, 16
+          const rowOffset = (col % 4 + cycleNum * 2) % 4;
+          return colGroup + ((row + rowOffset) % 4);
+        }
       }
     };
     
@@ -2224,7 +2638,7 @@ const BooklistApp = (function() {
     for (let row = 0; row < numRows; row++) {
       for (let col = 0; col < numCols; col++) {
         let gridX, gridY;
-        
+
         if (offsetDirection === 'vertical') {
           // Vertical stagger: odd COLUMNS shift down
           const isOddCol = col % 2 === 1;
@@ -2238,12 +2652,12 @@ const BooklistApp = (function() {
           gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
           gridY = gridOriginY + row * vStep + slotHeight / 2;
         }
-        
+
         const rotated = rotatePoint(gridX, gridY);
-        
+
         // Draw if cover intersects the canvas at all
         if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
-          const imgIdx = getImageForCell(row, col);
+          const imgIdx = getImageForCell(row, col) % images.length;
           drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
         }
       }
@@ -2251,6 +2665,132 @@ const BooklistApp = (function() {
     
     // === DRAW WHITE MARGIN + TITLE BAR ON TOP ===
     // titleY was calculated using actual bgH, so it's already correct
+    
+    // Calculate margin sizes based on position
+    let marginAbove = titleGutter;
+    let marginBelow = titleGutter;
+    if (position === 'top') {
+      marginAbove = 0;
+    } else if (position === 'bottom') {
+      marginBelow = 0;
+    }
+    
+    // Draw white rectangle behind title bar
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, titleY - marginAbove, canvasWidth, bgH + marginAbove + marginBelow);
+    
+    // Draw title bar on top of white margin
+    drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+  }
+
+
+  /**
+   * Layout: Masonry
+   * True masonry layout with columns (5 for 12 covers, 6 for 20 covers).
+   * Each column stacks independently.
+   * Covers maintain natural aspect ratio (width matches column, height scales proportionally).
+   * Images loop in order (0,1,2...11,0,1,2... or 0,1,2...19,0,1,2...).
+   * Title bar overlays the collage with a white background and margins.
+   */
+  function drawLayoutMasonry(ctx, canvas, images, styles, options = {}) {
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    const position = options.titleBarPosition || 'classic';
+    
+    // Gutters scale with DPI
+    const baseGutter = 6 * (CONFIG.PDF_DPI / 72);
+    const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
+    
+    // Column count based on cover count: 5 for 12, 6 for 20
+    const imageCount = images.length;
+    const numCols = imageCount <= 12 ? 5 : 6;
+    console.log('[Masonry] Using numCols =', numCols, 'for', imageCount, 'covers');
+    
+    // Calculate column width - gutters only BETWEEN columns, not at edges
+    const totalHGutter = (numCols - 1) * baseGutter;
+    const colWidth = (canvasWidth - totalHGutter) / numCols;
+    
+    // Column X positions - first column starts at 0, last column ends at canvasWidth
+    const getColX = (colIdx) => colIdx * (colWidth + baseGutter);
+    
+    // =========================================================================
+    // MEASURE TITLE BAR FIRST (before drawing anything)
+    // =========================================================================
+    
+    const { bgH } = drawTitleBarAt(ctx, styles, canvasWidth, 0);
+    // Clear the measurement draw
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvasWidth, bgH + 1);
+    
+    // Calculate title bar Y position
+    let titleY;
+    switch (position) {
+      case 'top': titleY = 0; break;
+      case 'classic': titleY = (canvasHeight - bgH) * 0.22; break;
+      case 'center': titleY = (canvasHeight - bgH) / 2; break;
+      case 'lower': titleY = (canvasHeight - bgH) * 0.75; break;
+      case 'bottom': titleY = canvasHeight - bgH; break;
+      default: titleY = (canvasHeight - bgH) * 0.22;
+    }
+    
+    // =========================================================================
+    // HELPER FUNCTIONS
+    // =========================================================================
+    
+    const getCoverHeight = (img, width) => {
+      if (!img || !img.naturalWidth || !img.naturalHeight) return width * 1.5;
+      return width / (img.naturalWidth / img.naturalHeight);
+    };
+    
+    const drawCover = (img, x, y, w, h) => {
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, x, y, w, h);
+      } else {
+        ctx.fillStyle = '#ddd';
+        ctx.fillRect(x, y, w, h);
+      }
+    };
+    
+    // =========================================================================
+    // PLACE COVERS IN TRUE MASONRY STYLE
+    // =========================================================================
+    
+    // When title bar is at top, covers start below it; otherwise start at 0
+    const startY = position === 'top' ? bgH + titleGutter : 0;
+    
+    // Track column heights (each column stacks independently)
+    const colHeights = new Array(numCols).fill(startY);
+    
+    let step = 0;
+    const maxCovers = 200; // Safety limit
+    
+    // Keep placing until all columns extend past canvas bottom
+    while (Math.min(...colHeights) < canvasHeight && step < maxCovers) {
+      // Place one cover in each column (left to right) per round
+      for (let col = 0; col < numCols && step < maxCovers; col++) {
+        // Check if this column still needs covers
+        if (colHeights[col] >= canvasHeight) continue;
+        
+        // Simple loop: 0,1,2...11,0,1,2... or 0,1,2...19,0,1,2...
+        const imgIdx = step % imageCount;
+        const img = images[imgIdx];
+        const coverH = getCoverHeight(img, colWidth);
+        
+        const x = getColX(col);
+        const y = colHeights[col];
+        
+        drawCover(img, x, y, colWidth, coverH);
+        
+        // Update column height (cover height + gutter)
+        colHeights[col] = y + coverH + baseGutter;
+        
+        step++;
+      }
+    }
+    
+    // =========================================================================
+    // DRAW TITLE BAR ON TOP (same as Tilted)
+    // =========================================================================
     
     // Calculate margin sizes based on position
     let marginAbove = titleGutter;
@@ -2294,6 +2834,856 @@ const BooklistApp = (function() {
     if (elements.coverAdvancedStyle) {
       elements.coverAdvancedStyle.classList.toggle('visible', isAdvanced);
     }
+    
+    // Force scroll recalculation for settings tab
+    const settingsTab = document.getElementById('tab-settings');
+    if (settingsTab) {
+      requestAnimationFrame(() => {
+        settingsTab.style.overflow = 'hidden';
+        requestAnimationFrame(() => {
+          settingsTab.style.overflow = '';
+        });
+      });
+    }
+  }
+  
+  // ---------------------------------------------------------------------------
+  // Extra Collage Covers (Extended Mode)
+  // ---------------------------------------------------------------------------
+  const MAX_EXTRA_COVERS = 8;
+  
+  /**
+   * Toggles extended collage mode visibility
+   */
+  function toggleExtendedCollageMode(enabled, isRestoring = false) {
+    if (elements.extraCoversSection) {
+      elements.extraCoversSection.style.display = enabled ? 'block' : 'none';
+      
+      // Force scroll recalculation for settings tab
+      const settingsTab = document.getElementById('tab-settings');
+      if (settingsTab) {
+        requestAnimationFrame(() => {
+          settingsTab.style.overflow = 'hidden';
+          requestAnimationFrame(() => {
+            settingsTab.style.overflow = '';
+          });
+        });
+      }
+    }
+    if (elements.collageCoverHint) {
+      elements.collageCoverHint.textContent = enabled 
+        ? 'Add covers 13-20 below to generate collage'
+        : 'Star 12 books to include in the collage';
+    }
+    
+    if (enabled) {
+      // Only do these things when NOT restoring from saved state
+      if (!isRestoring) {
+        // Clear existing front cover and show placeholder (need 20 covers message)
+        clearFrontCoverForExtendedMode();
+
+        // Auto-star all books with covers (not just first 12) up to position 15
+        let starredCount = 0;
+        for (let i = 0; i < myBooklist.length; i++) {
+          const book = myBooklist[i];
+          if (book.isBlank) continue;
+
+          const hasCover = book.cover_ids.length > 0 ||
+            (book.customCoverData && !book.customCoverData.includes('placehold.co'));
+
+          if (hasCover && starredCount < 15) {
+            book.includeInCollage = true;
+            starredCount++;
+          }
+        }
+      } else {
+        // When restoring, just update the placeholder text (don't clear cover)
+        updateExtendedModePlaceholderText();
+      }
+      
+      // Always render booklist and extra covers grid
+      renderBooklist();
+      renderExtraCoversGrid();
+    } else {
+      // When disabling extended mode, unstar books beyond 12
+      let starredCount = 0;
+      for (let i = 0; i < myBooklist.length; i++) {
+        const book = myBooklist[i];
+        if (!book.isBlank && book.includeInCollage) {
+          starredCount++;
+          if (starredCount > 12) {
+            book.includeInCollage = false;
+          }
+        }
+      }
+      // Restore default placeholder text
+      restoreFrontCoverPlaceholderText();
+      renderBooklist();
+    }
+    
+    // Auto-generate if we have enough covers (and not restoring from saved state)
+    if (!isRestoring) {
+      const requiredCovers = enabled ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+      
+      // Count covers from starred books
+      const booksWithCovers = myBooklist.filter(book =>
+        !book.isBlank &&
+        book.includeInCollage &&
+        (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co')))
+      );
+      
+      // Count extra covers (only in extended mode)
+      const extraCoverCount = enabled 
+        ? extraCollageCovers.filter(ec => ec.coverData && !ec.coverData.includes('placehold.co')).length
+        : 0;
+      
+      const totalCovers = booksWithCovers.length + extraCoverCount;
+      
+      if (totalCovers >= requiredCovers) {
+        generateCoverCollage();
+      }
+    }
+    
+    if (!isRestoring) {
+      debouncedSave();
+    }
+  }
+  
+  /**
+   * Clears the front cover when switching to extended mode
+   */
+  function clearFrontCoverForExtendedMode() {
+    const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+    const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
+    
+    if (frontCoverImg) {
+      // Use transparent gif instead of placehold.co URL
+      frontCoverImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+      frontCoverImg.dataset.isPlaceholder = "true";
+    }
+    
+    if (placeholderText) {
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(5 x 8 inches recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
+    }
+    
+    elements.frontCoverUploader?.classList.remove('has-image');
+  }
+  
+  /**
+   * Restores the default placeholder text for 12-cover mode
+   */
+  function restoreFrontCoverPlaceholderText() {
+    const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
+    if (placeholderText) {
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(5 x 8 inches recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)';
+    }
+  }
+
+  /**
+   * Updates placeholder text for 20-cover extended mode (without clearing cover)
+   */
+  function updateExtendedModePlaceholderText() {
+    const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
+    if (placeholderText) {
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(5 x 8 inches recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
+    }
+  }
+  
+  /**
+   * Updates the extra covers count display in both section and modal
+   */
+  function updateExtraCoversCount() {
+    // Count starred books beyond 12
+    const starredBooks = myBooklist.filter(b => !b.isBlank && b.includeInCollage);
+    const booksWithCovers = starredBooks.filter(b => 
+      b.cover_ids.length > 0 || (b.customCoverData && !b.customCoverData.includes('placehold.co'))
+    );
+    const starredBeyond12 = Math.max(0, booksWithCovers.length - 12);
+    const extraCount = extraCollageCovers.length;
+    const totalExtra = starredBeyond12 + extraCount;
+    
+    if (elements.extraCoversCount) {
+      elements.extraCoversCount.textContent = totalExtra;
+    }
+    const modalCount = document.getElementById('modal-cover-count');
+    if (modalCount) {
+      if (starredBeyond12 > 0) {
+        modalCount.textContent = `${totalExtra} of 8 slots filled (${starredBeyond12} from list, ${extraCount} added)`;
+      } else {
+        modalCount.textContent = `${totalExtra} of 8 extra slots filled`;
+      }
+    }
+  }
+  
+  /**
+   * Renders the extra covers grid with 8 slots
+   * Shows starred books 13-15 first (from list, not removable), then extra covers
+   */
+  function renderExtraCoversGrid() {
+    if (!elements.extraCoversGrid) return;
+    
+    elements.extraCoversGrid.innerHTML = '';
+    
+    // Get starred books with covers, take those beyond position 12
+    const starredBooks = myBooklist.filter(b => !b.isBlank && b.includeInCollage);
+    const booksWithCovers = starredBooks.filter(b => 
+      b.cover_ids.length > 0 || (b.customCoverData && !b.customCoverData.includes('placehold.co'))
+    );
+    const starredBeyond12 = booksWithCovers.slice(12); // Books 13, 14, 15...
+    
+    let slotIndex = 0;
+    
+    // First: show covers from starred books beyond 12 (from list, not removable)
+    for (let i = 0; i < starredBeyond12.length && slotIndex < MAX_EXTRA_COVERS; i++) {
+      const book = starredBeyond12[i];
+      const slot = document.createElement('div');
+      slot.className = 'extra-cover-slot has-cover from-list';
+      slot.dataset.slotIndex = slotIndex;
+      slot.title = `${book.title} (from your list)`;
+      
+      const img = document.createElement('img');
+      if (book.customCoverData && !book.customCoverData.includes('placehold.co')) {
+        img.src = book.customCoverData;
+      } else if (book.cover_ids.length > 0) {
+        const coverId = book.cover_ids[book.currentCoverIndex || 0];
+        img.src = coverId !== 'placehold' 
+          ? `${CONFIG.OPEN_LIBRARY_COVERS_URL}${coverId}-M.jpg`
+          : CONFIG.PLACEHOLDER_COLLAGE_COVER_URL;
+      }
+      img.alt = book.title;
+      slot.appendChild(img);
+      
+      // Label to indicate it's from the list
+      const label = document.createElement('span');
+      label.className = 'from-list-label';
+      label.textContent = `#${13 + i}`;
+      slot.appendChild(label);
+      
+      elements.extraCoversGrid.appendChild(slot);
+      slotIndex++;
+    }
+    
+    // Second: show extra covers added via search/upload (removable and draggable)
+    for (let i = 0; i < extraCollageCovers.length && slotIndex < MAX_EXTRA_COVERS; i++) {
+      const existingCover = extraCollageCovers[i];
+      
+      if (existingCover && existingCover.coverData) {
+        const slot = document.createElement('div');
+        slot.className = 'extra-cover-slot has-cover draggable-extra';
+        slot.dataset.slotIndex = slotIndex;
+        slot.dataset.extraIndex = i;
+        slot.dataset.extraId = existingCover.id;
+        
+        // Drag handle
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'extra-drag-handle';
+        dragHandle.innerHTML = '⋮⋮';
+        dragHandle.title = 'Drag to reorder';
+        slot.appendChild(dragHandle);
+        
+        const img = document.createElement('img');
+        img.src = existingCover.coverData;
+        img.alt = 'Extra cover';
+        slot.appendChild(img);
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'remove-btn';
+        removeBtn.innerHTML = '&times;';
+        removeBtn.title = 'Remove cover';
+        removeBtn.onclick = (e) => {
+          e.stopPropagation();
+          removeExtraCover(i);
+        };
+        slot.appendChild(removeBtn);
+        
+        elements.extraCoversGrid.appendChild(slot);
+        slotIndex++;
+      }
+    }
+    
+    // Third: show empty slots for remaining positions
+    while (slotIndex < MAX_EXTRA_COVERS) {
+      const slot = document.createElement('div');
+      slot.className = 'extra-cover-slot';
+      slot.dataset.slotIndex = slotIndex;
+      
+      const placeholder = document.createElement('span');
+      placeholder.className = 'slot-placeholder';
+      placeholder.innerHTML = '<i class="fa-solid fa-plus"></i>';
+      slot.appendChild(placeholder);
+      
+      // File input for upload
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+      const currentSlotIndex = slotIndex;
+      
+      // Shared handler for processing an image file (used by both file input and drag-drop)
+      const processExtraCoverFile = (file) => {
+        // Check if at max covers total
+        const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+        if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+          showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const coverData = e.target.result;
+          addExtraCover(coverData, currentSlotIndex);
+        };
+        reader.readAsDataURL(file);
+      };
+      
+      fileInput.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          processExtraCoverFile(file);
+        }
+        e.target.value = ''; // Clear input so same file can be re-selected
+      };
+      slot.appendChild(fileInput);
+      
+      slot.onclick = () => fileInput.click();
+      
+      // Add drag-and-drop support
+      setupDragDropUpload(slot, processExtraCoverFile);
+      
+      elements.extraCoversGrid.appendChild(slot);
+      slotIndex++;
+    }
+    
+    updateExtraCoversCount();
+  }
+  
+  /**
+   * Handles file upload for an extra cover slot
+   */
+  function handleExtraCoverUpload(event, slotIndex) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Check if at max covers total
+    const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+    if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+      showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
+      event.target.value = ''; // Clear input
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const coverData = e.target.result;
+      addExtraCover(coverData, slotIndex);
+    };
+    reader.readAsDataURL(file);
+    // Clear input so same file can be re-selected
+    event.target.value = '';
+  }
+  
+  /**
+   * Adds an extra cover at the specified slot (or next available)
+   */
+  function addExtraCover(coverData, preferredSlot = null) {
+    // Check if at max
+    const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+    if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+      showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
+      return null;
+    }
+    
+    const newCover = {
+      id: `extra-${crypto.randomUUID()}`,
+      coverData: coverData
+    };
+    
+    if (preferredSlot !== null && preferredSlot < MAX_EXTRA_COVERS) {
+      // Insert at specific slot
+      if (extraCollageCovers.length <= preferredSlot) {
+        extraCollageCovers.push(newCover);
+      } else {
+        extraCollageCovers.splice(preferredSlot, 0, newCover);
+        // Trim if over max slots
+        if (extraCollageCovers.length > MAX_EXTRA_COVERS) {
+          extraCollageCovers = extraCollageCovers.slice(0, MAX_EXTRA_COVERS);
+        }
+      }
+    } else {
+      // Add to end if room
+      if (extraCollageCovers.length < MAX_EXTRA_COVERS) {
+        extraCollageCovers.push(newCover);
+      } else {
+        showNotification('All extra cover slots are full.');
+        return null;
+      }
+    }
+    
+    renderExtraCoversGrid();
+    debouncedSave();
+
+    // Auto-generate cover when 20th cover is added (if auto-generated image exists)
+    const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+    if (frontCoverImg?.dataset.isAutoGenerated === 'true') {
+      const starredAfterAdd = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+      if (starredAfterAdd + extraCollageCovers.length === CONFIG.MAX_COVERS_FOR_COLLAGE) {
+        generateCoverCollage();
+      }
+    }
+
+    return newCover.id;
+  }
+
+  /**
+   * Removes an extra cover by its id
+   */
+  function removeExtraCoverById(coverId) {
+    const index = extraCollageCovers.findIndex(c => c.id === coverId);
+    if (index !== -1) {
+      extraCollageCovers.splice(index, 1);
+      renderExtraCoversGrid();
+      renderBooklist();
+      debouncedSave();
+      return true;
+    }
+    return false;
+  }
+  
+  /**
+   * Removes an extra cover at the specified index
+   */
+  function removeExtraCover(index) {
+    if (index >= 0 && index < extraCollageCovers.length) {
+      extraCollageCovers.splice(index, 1);
+      renderExtraCoversGrid();
+      renderBooklist(); // Update star states
+      debouncedSave();
+    }
+  }
+  
+  /**
+   * Opens the extra cover search modal
+   */
+  function openExtraCoverSearchModal() {
+    if (!elements.extraCoverSearchModal) return;
+    elements.extraCoverSearchModal.style.display = 'flex';
+    
+    // Clear main search field
+    const searchInput = document.getElementById('extra-cover-search-input');
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.focus();
+    }
+    
+    // Clear advanced fields
+    ['extra-title-input', 'extra-author-input', 'extra-subject-input', 'extra-isbn-input'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) input.value = '';
+    });
+    
+    const resultsContainer = document.getElementById('extra-cover-search-results');
+    if (resultsContainer) {
+      resultsContainer.innerHTML = '<p class="modal-search-placeholder">Enter a search term to find book covers</p>';
+    }
+    
+    // Update count display
+    updateExtraCoversCount();
+  }
+  
+  /**
+   * Closes the extra cover search modal
+   */
+  function closeExtraCoverSearchModal() {
+    if (elements.extraCoverSearchModal) {
+      elements.extraCoverSearchModal.style.display = 'none';
+    }
+  }
+  
+  /**
+   * Performs search for extra cover modal with advanced fields
+   */
+  async function searchExtraCovers() {
+    const resultsContainer = document.getElementById('extra-cover-search-results');
+    if (!resultsContainer) return;
+    
+    // Build query from all fields
+    const keyword = document.getElementById('extra-cover-search-input')?.value?.trim() || '';
+    const title = document.getElementById('extra-title-input')?.value?.trim() || '';
+    const author = document.getElementById('extra-author-input')?.value?.trim() || '';
+    const subject = document.getElementById('extra-subject-input')?.value?.trim() || '';
+    const isbn = document.getElementById('extra-isbn-input')?.value?.trim() || '';
+    
+    // Build query string
+    let queryParts = [];
+    if (keyword) queryParts.push(keyword);
+    if (title) queryParts.push(`title:${title}`);
+    if (author) queryParts.push(`author:${author}`);
+    if (subject) queryParts.push(`subject:${subject}`);
+    if (isbn) queryParts.push(`isbn:${isbn}`);
+    
+    const query = queryParts.join(' ');
+    
+    if (!query) {
+      resultsContainer.innerHTML = '<p class="modal-search-placeholder">Enter a search term to find book covers</p>';
+      return;
+    }
+    
+    resultsContainer.innerHTML = '<p class="modal-search-placeholder">Searching...</p>';
+    
+    try {
+      const response = await fetch(`${CONFIG.OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(query)}&limit=15`);
+      if (!response.ok) throw new Error('Search failed');
+      
+      const data = await response.json();
+      const books = data.docs || [];
+      
+      if (books.length === 0) {
+        resultsContainer.innerHTML = '<p class="modal-search-placeholder">No results found</p>';
+        return;
+      }
+      
+      // Filter to only books with covers
+      const booksWithCovers = books.filter(b => b.cover_i);
+      
+      if (booksWithCovers.length === 0) {
+        resultsContainer.innerHTML = '<p class="modal-search-placeholder">No books with covers found</p>';
+        return;
+      }
+      
+      resultsContainer.innerHTML = '';
+      const grid = document.createElement('div');
+      grid.className = 'modal-results-grid';
+      
+      booksWithCovers.slice(0, 12).forEach(book => {
+        const card = createExtraCoverSearchCard(book);
+        grid.appendChild(card);
+      });
+      
+      resultsContainer.appendChild(grid);
+      
+    } catch (err) {
+      console.error('Extra cover search error:', err);
+      resultsContainer.innerHTML = '<p class="modal-search-placeholder">Search failed. Please try again.</p>';
+    }
+  }
+  
+  /**
+   * Creates a search result card for the extra covers modal (matches main search style)
+   */
+  function createExtraCoverSearchCard(book) {
+    const initialCoverId = book.cover_i || 'placehold';
+    
+    const card = document.createElement('div');
+    card.className = 'modal-cover-result book-card';
+    card.dataset.key = book.key;
+    
+    // Cover carousel
+    const coverCarousel = document.createElement('div');
+    coverCarousel.className = 'cover-carousel';
+    
+    const coverImg = document.createElement('img');
+    coverImg.src = initialCoverId === 'placehold'
+      ? CONFIG.PLACEHOLDER_NO_COVER_URL
+      : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${initialCoverId}-M.jpg`;
+    coverImg.alt = `Cover for ${book.title}`;
+    coverImg.loading = 'lazy';
+    coverCarousel.appendChild(coverImg);
+    
+    // Title
+    const titleEl = document.createElement('p');
+    titleEl.className = 'book-title modal-cover-title';
+    titleEl.textContent = book.title || 'Unknown Title';
+    
+    // Author
+    const authorEl = document.createElement('p');
+    authorEl.className = 'book-author modal-cover-author';
+    const authorName = book.author_name ? book.author_name[0] : 'Unknown Author';
+    authorEl.textContent = authorName;
+    authorEl.title = authorName;
+    
+    // Actions group
+    const actionsGroup = document.createElement('div');
+    actionsGroup.className = 'card-actions-group';
+    
+    // Carousel controls
+    const { carouselControls, state: carouselState } = createExtraCoverCarouselControls(
+      coverImg, 
+      initialCoverId, 
+      book.key
+    );
+    
+    // Track added cover id for removal
+    let addedCoverId = null;
+    
+    // Add to Collage button
+    const addButton = document.createElement('button');
+    addButton.className = 'add-to-list-button add-to-collage-button';
+    addButton.setAttribute('aria-label', `Add "${book.title}" to collage`);
+    addButton.textContent = 'Add to Collage';
+    
+    addButton.addEventListener('click', async () => {
+      // If already added, remove it
+      if (addButton.classList.contains('added') && addedCoverId) {
+        if (removeExtraCoverById(addedCoverId)) {
+          addButton.textContent = 'Add to Collage';
+          addButton.classList.remove('added');
+          addButton.setAttribute('aria-label', `Add "${book.title}" to collage`);
+          addedCoverId = null;
+          showNotification(`Removed "${book.title}" from collage`);
+        }
+        return;
+      }
+      
+      // Check if at limit
+      const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+      const totalCovers = starredCount + extraCollageCovers.length;
+      
+      if (totalCovers >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+        showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
+        return;
+      }
+      
+      addButton.disabled = true;
+      const originalText = addButton.textContent;
+      addButton.textContent = 'Adding...';
+      
+      // Get current cover from carousel state
+      const currentCoverId = carouselState.allCoverIds[carouselState.currentCoverIndex];
+      const largeCoverUrl = currentCoverId === 'placehold'
+        ? CONFIG.PLACEHOLDER_NO_COVER_URL
+        : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${currentCoverId}-L.jpg`;
+      const mediumCoverUrl = currentCoverId === 'placehold'
+        ? CONFIG.PLACEHOLDER_NO_COVER_URL
+        : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${currentCoverId}-M.jpg`;
+      
+      try {
+        // Try large first, fallback to medium
+        let dataUrl;
+        try {
+          dataUrl = await loadImageAsDataUrl(largeCoverUrl);
+        } catch {
+          dataUrl = await loadImageAsDataUrl(mediumCoverUrl);
+        }
+        
+        addedCoverId = addExtraCover(dataUrl);
+        if (addedCoverId) {
+          addButton.textContent = '✓ Added';
+          addButton.classList.add('added');
+          addButton.setAttribute('aria-label', `Remove "${book.title}" from collage`);
+          addButton.disabled = false;
+          showNotification(`Added "${book.title}" to collage`, 'success');
+        } else {
+          addButton.textContent = originalText;
+          addButton.disabled = false;
+        }
+      } catch (err) {
+        addButton.textContent = originalText;
+        addButton.disabled = false;
+        showNotification('Failed to load cover image', 'error');
+      }
+    });
+    
+    // Assemble card
+    card.appendChild(coverCarousel);
+    card.appendChild(titleEl);
+    card.appendChild(authorEl);
+    actionsGroup.appendChild(carouselControls);
+    actionsGroup.appendChild(addButton);
+    card.appendChild(actionsGroup);
+    
+    return card;
+  }
+  
+  /**
+   * Creates carousel controls for extra cover search cards
+   */
+  function createExtraCoverCarouselControls(coverElement, initialCoverId, bookKey) {
+    const carouselControls = document.createElement('div');
+    carouselControls.className = 'carousel-controls';
+    
+    const coverCounter = document.createElement('span');
+    coverCounter.className = 'cover-counter';
+    coverCounter.textContent = '1 of 1';
+    
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.className = 'carousel-buttons-container';
+    
+    const prevButton = document.createElement('button');
+    prevButton.className = 'carousel-button';
+    prevButton.textContent = '◀';
+    prevButton.setAttribute('aria-label', 'Previous cover');
+    prevButton.disabled = true;
+    
+    const nextButton = document.createElement('button');
+    nextButton.className = 'carousel-button';
+    nextButton.textContent = '▶';
+    nextButton.setAttribute('aria-label', 'Next cover');
+    nextButton.disabled = true;
+    
+    buttonsContainer.appendChild(prevButton);
+    buttonsContainer.appendChild(nextButton);
+    carouselControls.appendChild(coverCounter);
+    carouselControls.appendChild(buttonsContainer);
+    
+    // Carousel state
+    const state = {
+      allCoverIds: [initialCoverId],
+      currentCoverIndex: 0,
+      coversLoaded: false
+    };
+    
+    const updateCarousel = () => {
+      const currentId = state.allCoverIds[state.currentCoverIndex];
+      coverElement.src = currentId === 'placehold'
+        ? CONFIG.PLACEHOLDER_NO_COVER_URL
+        : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${currentId}-M.jpg`;
+      coverCounter.textContent = `${state.currentCoverIndex + 1} of ${state.allCoverIds.length}`;
+      prevButton.disabled = state.currentCoverIndex === 0;
+      nextButton.disabled = state.currentCoverIndex === state.allCoverIds.length - 1;
+    };
+    
+    const loadAllCovers = async () => {
+      if (state.coversLoaded || !bookKey) return;
+      
+      const fetchedCovers = await fetchAllCoverIdsForWork(bookKey);
+      
+      let finalCovers = [];
+      if (initialCoverId !== 'placehold') {
+        finalCovers.push(initialCoverId);
+      }
+      fetchedCovers.forEach(id => finalCovers.push(id));
+      
+      state.allCoverIds = [...new Set(finalCovers)];
+      if (state.allCoverIds.length === 0) {
+        state.allCoverIds.push('placehold');
+      }
+      
+      state.coversLoaded = true;
+      updateCarousel();
+    };
+    
+    prevButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!state.coversLoaded) await loadAllCovers();
+      if (state.currentCoverIndex > 0) {
+        state.currentCoverIndex--;
+        updateCarousel();
+      }
+    });
+    
+    nextButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!state.coversLoaded) await loadAllCovers();
+      if (state.currentCoverIndex < state.allCoverIds.length - 1) {
+        state.currentCoverIndex++;
+        updateCarousel();
+      }
+    });
+    
+    // Pre-load covers
+    if (bookKey) {
+      loadAllCovers();
+    }
+    
+    return { carouselControls, state };
+  }
+  
+  /**
+   * Loads an image URL and converts to data URL
+   */
+  function loadImageAsDataUrl(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        try {
+          resolve(canvas.toDataURL('image/jpeg', 0.9));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+  
+  /**
+   * Binds events for extra covers feature
+   */
+  function bindExtraCoversEvents() {
+    // Extended mode toggle
+    if (elements.extendedCollageToggle) {
+      elements.extendedCollageToggle.addEventListener('change', () => {
+        toggleExtendedCollageMode(elements.extendedCollageToggle.checked);
+      });
+    }
+    
+    // Search button
+    const searchBtn = document.getElementById('extra-cover-search-btn');
+    if (searchBtn) {
+      searchBtn.addEventListener('click', openExtraCoverSearchModal);
+    }
+    
+    // Modal close button
+    const modalClose = elements.extraCoverSearchModal?.querySelector('.modal-close');
+    if (modalClose) {
+      modalClose.addEventListener('click', closeExtraCoverSearchModal);
+    }
+    
+    // Modal Done button
+    const modalDone = elements.extraCoverSearchModal?.querySelector('.modal-done-btn');
+    if (modalDone) {
+      modalDone.addEventListener('click', closeExtraCoverSearchModal);
+    }
+    
+    // Modal overlay click to close - track mousedown to prevent closing during text selection
+    if (elements.extraCoverSearchModal) {
+      let mouseDownOnOverlay = false;
+      elements.extraCoverSearchModal.addEventListener('mousedown', (e) => {
+        mouseDownOnOverlay = e.target === elements.extraCoverSearchModal;
+      });
+      elements.extraCoverSearchModal.addEventListener('click', (e) => {
+        if (e.target === elements.extraCoverSearchModal && mouseDownOnOverlay) {
+          closeExtraCoverSearchModal();
+        }
+        mouseDownOnOverlay = false;
+      });
+    }
+
+    // Modal search submit
+    const searchSubmit = document.getElementById('extra-cover-search-submit');
+    if (searchSubmit) {
+      searchSubmit.addEventListener('click', searchExtraCovers);
+    }
+
+    // Modal search input enter key
+    const searchInput = document.getElementById('extra-cover-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          searchExtraCovers();
+        }
+      });
+    }
+
+    // Advanced fields enter key support
+    ['extra-title-input', 'extra-author-input', 'extra-subject-input', 'extra-isbn-input'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) {
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            searchExtraCovers();
+          }
+        });
+      }
+    });
   }
   
   // ---------------------------------------------------------------------------
@@ -2415,6 +3805,8 @@ const BooklistApp = (function() {
     const img = uploaderEl.querySelector('img');
     if (!img || !img.src) return null;
     if (img.src.includes('placehold.co')) return null;
+    // Filter out transparent placeholder GIF used when image is cleared
+    if (img.src.startsWith('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP')) return null;
     return img.src;
   }
   
@@ -2423,12 +3815,14 @@ const BooklistApp = (function() {
     
     document.querySelectorAll('.export-controls .form-group[data-style-group]').forEach(group => {
       const k = group.dataset.styleGroup;
+      const lineSpacingInput = group.querySelector('.line-spacing');
       styles[k] = {
         font: group.querySelector('.font-select')?.value ?? '',
         sizePt: parseFloat(group.querySelector('.font-size-input')?.value ?? '12'),
         color: group.querySelector('.color-picker')?.value ?? '#000000',
         bold: !!group.querySelector('.bold-toggle')?.classList.contains('active'),
         italic: !!group.querySelector('.italic-toggle')?.classList.contains('active'),
+        lineSpacing: lineSpacingInput ? parseFloat(lineSpacingInput.value ?? '1.3') : null,
       };
     });
     
@@ -2501,6 +3895,10 @@ const BooklistApp = (function() {
         listName: listName || 'booklist'
       },
       books,
+      extraCollageCovers: extraCollageCovers.map(ec => ({
+        id: ec.id,
+        coverData: ec.coverData
+      })),
       ui: {
         stretchCovers: !!elements.stretchCoversToggle?.checked,
         stretchBlockCovers: !!elements.stretchBlockCoversToggle?.checked,
@@ -2514,6 +3912,7 @@ const BooklistApp = (function() {
         titleBarPosition,
         tiltDegree,
         tiltOffsetDirection,
+        extendedCollageMode: !!elements.extendedCollageToggle?.checked,
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: (elements.qrCodeTextArea?.innerText !== CONFIG.PLACEHOLDERS.qrText)
           ? (elements.qrCodeTextArea?.innerText || '')
@@ -2521,7 +3920,10 @@ const BooklistApp = (function() {
       },
       styles: captureStyleGroups(),
       images: {
-        frontCover: getUploaderImageSrc(elements.frontCoverUploader),
+        frontCover: (elements.frontCoverUploader?.querySelector('img')?.dataset.isAutoGenerated === 'true')
+          ? null
+          : getUploaderImageSrc(elements.frontCoverUploader),
+        frontCoverIsAutoGenerated: elements.frontCoverUploader?.querySelector('img')?.dataset.isAutoGenerated === 'true',
         branding: getUploaderImageSrc(elements.brandingUploader),
       },
     };
@@ -2557,12 +3959,14 @@ const BooklistApp = (function() {
       const colorInp = group.querySelector('.color-picker');
       const boldBtn = group.querySelector('.bold-toggle');
       const italicBtn = group.querySelector('.italic-toggle');
+      const lineSpacingInp = group.querySelector('.line-spacing');
       
       if (fontSel) fontSel.value = s.font ?? fontSel.value;
       if (sizeInp) sizeInp.value = s.sizePt ?? sizeInp.value;
       if (colorInp) colorInp.value = s.color ?? colorInp.value;
       if (boldBtn) boldBtn.classList.toggle('active', !!s.bold);
       if (italicBtn) italicBtn.classList.toggle('active', !!s.italic);
+      if (lineSpacingInp && s.lineSpacing != null) lineSpacingInp.value = s.lineSpacing;
     });
     
     // Cover title styles
@@ -2601,6 +4005,20 @@ const BooklistApp = (function() {
         line.spacing.value = saved.spacingPt ?? 10;
       }
     });
+    
+    // Refresh custom font dropdowns to reflect loaded values
+    refreshAllCustomFontDropdowns();
+  }
+  
+  /**
+   * Refreshes all custom font dropdowns to sync with their hidden select values
+   */
+  function refreshAllCustomFontDropdowns() {
+    document.querySelectorAll('.font-select.has-custom-dropdown').forEach(select => {
+      if (select._customDropdown) {
+        select._customDropdown.updateValue(select.value);
+      }
+    });
   }
   
   function applyUploaderImage(uploaderEl, dataUrl) {
@@ -2608,13 +4026,18 @@ const BooklistApp = (function() {
     const img = uploaderEl.querySelector('img');
     if (!img) return;
     
-    if (dataUrl) {
+    // Treat transparent placeholder GIF as null (handles legacy drafts)
+    const isTransparentGif = dataUrl && dataUrl.startsWith('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP');
+    
+    if (dataUrl && !isTransparentGif) {
       img.src = dataUrl;
       img.dataset.isPlaceholder = "false";
       uploaderEl.classList.add('has-image');
     } else {
+      // Reset to transparent gif so placeholder text shows via CSS
+      img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+      img.dataset.isPlaceholder = 'true';
       uploaderEl.classList.remove('has-image');
-      delete img.dataset.isPlaceholder;
     }
   }
   
@@ -2685,6 +4108,20 @@ const BooklistApp = (function() {
     // Show/hide tilted settings based on layout
     updateTiltedSettingsVisibility();
     
+    // Restore extended collage mode and extra covers
+    const isExtendedMode = !!loaded.ui?.extendedCollageMode;
+    if (elements.extendedCollageToggle) {
+      elements.extendedCollageToggle.checked = isExtendedMode;
+    }
+    
+    // Load extra collage covers (will be rendered after books are loaded)
+    extraCollageCovers = Array.isArray(loaded.extraCollageCovers)
+      ? loaded.extraCollageCovers.map(ec => ({
+          id: ec.id || `extra-${crypto.randomUUID()}`,
+          coverData: ec.coverData || null
+        })).filter(ec => ec.coverData)
+      : [];
+
     // QR Code URL
     if (elements.qrUrlInput) elements.qrUrlInput.value = loaded.ui?.qrCodeUrl || '';
     
@@ -2726,14 +4163,21 @@ const BooklistApp = (function() {
     
     // Images
     applyUploaderImage(elements.frontCoverUploader, loaded.images?.frontCover || null);
+    // Restore isAutoGenerated flag for front cover
+    const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+    if (frontCoverImg) {
+      frontCoverImg.dataset.isAutoGenerated = loaded.images?.frontCoverIsAutoGenerated ? 'true' : 'false';
+    }
     applyUploaderImage(elements.brandingUploader, loaded.images?.branding || null);
     
     // Books
     const incoming = Array.isArray(loaded.books) ? loaded.books : [];
     let starCount = 0;
+    // Allow up to 15 starred books when extended mode is enabled, otherwise 12
+    const maxStars = isExtendedMode ? 15 : CONFIG.MIN_COVERS_FOR_COLLAGE;
     myBooklist = incoming.slice(0, CONFIG.TOTAL_SLOTS).map(b => {
       const wasStarred = b.includeInCollage !== false;
-      const shouldStar = wasStarred && !b.isBlank && starCount < CONFIG.MIN_COVERS_FOR_COLLAGE;
+      const shouldStar = wasStarred && !b.isBlank && starCount < maxStars;
       if (shouldStar) starCount++;
       
       return {
@@ -2760,6 +4204,26 @@ const BooklistApp = (function() {
     applyStyles();
     applyBlockCoverStyle();
     updateBackCoverVisibility();
+
+    // Toggle extended mode AFTER books are loaded so renderExtraCoversGrid sees the correct data
+    toggleExtendedCollageMode(isExtendedMode, true);
+
+    // Auto-generate cover collage if:
+    // 1. All required covers are present
+    // 2. Front cover is empty
+    // 3. User previously had an auto-generated cover (flag explicitly true)
+    // This respects user intent - if they never generated or uploaded custom, don't assume
+    const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+    const totalCovers = starredCount + extraCollageCovers.length;
+    const requiredCovers = isExtendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+    const hasFrontCover = elements.frontCoverUploader?.classList.contains('has-image');
+    const wasAutoGenerated = loaded.images?.frontCoverIsAutoGenerated === true;
+    
+    if (totalCovers >= requiredCovers && !hasFrontCover && wasAutoGenerated) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => generateCoverCollage(), 150);
+    }
+
     showNotification('Booklist loaded.', 'success');
   }
   
@@ -2794,42 +4258,109 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   // File Upload Handlers
   // ---------------------------------------------------------------------------
+  
+  /**
+   * Adds drag-and-drop functionality to an uploader element
+   * @param {HTMLElement} uploaderElement - The uploader container
+   * @param {Function} onFileDrop - Callback when a valid image file is dropped
+   */
+  function setupDragDropUpload(uploaderElement, onFileDrop) {
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      uploaderElement.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    });
+    
+    // Highlight on drag enter/over
+    ['dragenter', 'dragover'].forEach(eventName => {
+      uploaderElement.addEventListener(eventName, () => {
+        uploaderElement.classList.add('drag-over');
+      });
+    });
+    
+    // Remove highlight on drag leave/drop
+    ['dragleave', 'drop'].forEach(eventName => {
+      uploaderElement.addEventListener(eventName, () => {
+        uploaderElement.classList.remove('drag-over');
+      });
+    });
+    
+    // Handle dropped files
+    uploaderElement.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        const file = files[0];
+        // Check if the file is an image
+        if (file.type.startsWith('image/')) {
+          onFileDrop(file);
+        } else {
+          showNotification('Please drop an image file.', 'error');
+        }
+      }
+    });
+  }
+  
   function setupFileChangeHandler(uploaderElement) {
     const fileInput = uploaderElement.querySelector('input[type="file"]');
     const imgElement = uploaderElement.querySelector('img');
     
+    // Shared handler for processing an image file
+    const processImageFile = (file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        imgElement.src = event.target.result;
+        imgElement.dataset.isPlaceholder = "false";
+        uploaderElement.classList.add('has-image');
+        debouncedSave();
+      };
+      reader.readAsDataURL(file);
+    };
+    
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          imgElement.src = event.target.result;
-          imgElement.dataset.isPlaceholder = "false";
-          uploaderElement.classList.add('has-image');
-        };
-        reader.readAsDataURL(file);
+        processImageFile(file);
       }
+      // Clear input so same file can be re-selected
+      e.target.value = '';
     });
+    
+    // Add drag-and-drop support
+    setupDragDropUpload(uploaderElement, processImageFile);
   }
   
   function setupFrontCoverHandler() {
     const frontCoverFileInput = elements.frontCoverUploader.querySelector('input[type="file"]');
     const frontCoverImgElement = elements.frontCoverUploader.querySelector('img');
     
+    // Shared handler for processing an image file
+    const processImageFile = (file) => {
+      elements.frontCoverUploader.dataset.fileName = file.name;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        frontCoverImgElement.src = event.target.result;
+        frontCoverImgElement.dataset.isPlaceholder = "false";
+        frontCoverImgElement.dataset.isAutoGenerated = "false";
+        elements.frontCoverUploader.classList.add('has-image');
+        debouncedSave(); // Save draft with updated flag
+      };
+      reader.readAsDataURL(file);
+    };
+    
     frontCoverFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        elements.frontCoverUploader.dataset.fileName = file.name;
-        
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          frontCoverImgElement.src = event.target.result;
-          frontCoverImgElement.dataset.isPlaceholder = "false";
-          elements.frontCoverUploader.classList.add('has-image');
-        };
-        reader.readAsDataURL(file);
+        processImageFile(file);
       }
+      // Clear input so same file can be re-selected
+      e.target.value = '';
     });
+    
+    // Add drag-and-drop support
+    setupDragDropUpload(elements.frontCoverUploader, processImageFile);
     
     elements.frontCoverUploader.addEventListener('click', (e) => {
       frontCoverFileInput.click();
@@ -2867,12 +4398,47 @@ const BooklistApp = (function() {
         
         myBooklist = newBooklist;
         renderBooklist();
+        
+        // Auto-regenerate if there's an auto-generated cover
+        const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+        if (frontCoverImg?.dataset.isAutoGenerated === 'true') {
+          generateCoverCollage();
+        }
       },
     };
     
     new Sortable(elements.insideLeftPanel, sortableOptions);
     new Sortable(elements.insideRightPanel, sortableOptions);
     new Sortable(elements.backCoverPanel, sortableOptions);
+    
+    // Extra covers sortable (only for draggable-extra items, not from-list)
+    if (elements.extraCoversGrid) {
+      new Sortable(elements.extraCoversGrid, {
+        handle: '.extra-drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        filter: '.from-list, .slot-placeholder',
+        draggable: '.draggable-extra',
+        onEnd: function() {
+          // Rebuild extraCollageCovers array based on new order
+          const draggableItems = elements.extraCoversGrid.querySelectorAll('.draggable-extra');
+          const newOrder = [];
+          draggableItems.forEach(item => {
+            const extraId = item.dataset.extraId;
+            const cover = extraCollageCovers.find(c => c.id === extraId);
+            if (cover) newOrder.push(cover);
+          });
+          extraCollageCovers = newOrder;
+          debouncedSave();
+          
+          // Auto-regenerate if there's an auto-generated cover
+          const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+          if (frontCoverImg?.dataset.isAutoGenerated === 'true') {
+            generateCoverCollage();
+          }
+        }
+      });
+    }
   }
   
   // ---------------------------------------------------------------------------
@@ -2892,8 +4458,14 @@ const BooklistApp = (function() {
     
     // Cover generation
     elements.generateCoverButton.addEventListener('click', generateCoverCollage);
-    elements.stretchCoversToggle.addEventListener('change', autoRegenerateCoverIfAble);
-    elements.stretchBlockCoversToggle.addEventListener('change', applyBlockCoverStyle);
+    elements.stretchCoversToggle.addEventListener('change', () => {
+      autoRegenerateCoverIfAble();
+      debouncedSave();
+    });
+    elements.stretchBlockCoversToggle.addEventListener('change', () => {
+      applyBlockCoverStyle();
+      debouncedSave();
+    });
     
     // Layout selector
     if (elements.collageLayoutSelector) {
@@ -2943,6 +4515,22 @@ const BooklistApp = (function() {
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
+    }
+    
+    // Margins & Padding inputs
+    ['cover-title-outer-margin', 'cover-title-side-margin', 'cover-title-pad-x', 'cover-title-pad-y'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) {
+        input.addEventListener('input', debouncedSave);
+        input.addEventListener('change', autoRegenerateCoverIfAble);
+      }
+    });
+    
+    // BG Color picker
+    const bgColorPicker = document.getElementById('cover-title-bg-color');
+    if (bgColorPicker) {
+      bgColorPicker.addEventListener('input', debouncedSave);
+      bgColorPicker.addEventListener('change', autoRegenerateCoverIfAble);
     }
     
     // Cover mode toggle
@@ -3117,6 +4705,8 @@ const BooklistApp = (function() {
       const didSave = downloadBooklist(state);
       if (didSave) {
         showNotification('Booklist saved to file.', 'success');
+        saveDraftLocal(); // Sync browser draft with saved file (direct call, not debounced)
+        isDirty = false; // Clear after sync
       }
     });
     
@@ -3131,6 +4721,7 @@ const BooklistApp = (function() {
         const text = await file.text();
         const parsed = JSON.parse(text);
         applyState(parsed);
+        debouncedSave(); // Sync browser draft with loaded file
       } catch (err) {
         console.error('Import failed:', err);
         showNotification('Could not load this file. Is it a valid .booklist?', 'error');
@@ -3148,6 +4739,34 @@ const BooklistApp = (function() {
     // File uploaders
     setupFileChangeHandler(elements.brandingUploader);
     setupFrontCoverHandler();
+
+    // Branding delete button - clears the branding image
+    const brandingDeleteBtn = elements.brandingUploader.querySelector('.branding-delete-btn');
+    if (brandingDeleteBtn) {
+      brandingDeleteBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const imgElement = elements.brandingUploader.querySelector('img');
+        imgElement.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        imgElement.dataset.isPlaceholder = 'true';
+        elements.brandingUploader.classList.remove('has-image');
+        debouncedSave();
+      });
+    }
+    
+    // Branding "Use Default" button - loads the default branding image
+    const brandingDefaultBtn = elements.brandingUploader.querySelector('.branding-default-btn');
+    if (brandingDefaultBtn) {
+      brandingDefaultBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const imgElement = elements.brandingUploader.querySelector('img');
+        imgElement.src = 'assets/img/branding-default.png';
+        imgElement.dataset.isPlaceholder = 'false';
+        elements.brandingUploader.classList.add('has-image');
+        debouncedSave();
+      });
+    }
   }
   
   // ---------------------------------------------------------------------------
@@ -3160,6 +4779,395 @@ const BooklistApp = (function() {
     
     // Strip formatting on paste (same as other editable fields)
     elements.qrCodeTextArea.addEventListener('paste', handlePastePlainText);
+    
+    // Safety net: sanitize any formatting that sneaks through on input
+    elements.qrCodeTextArea.addEventListener('input', () => {
+      sanitizeContentEditable(elements.qrCodeTextArea);
+    });
+    
+    // Save on blur
+    elements.qrCodeTextArea.addEventListener('blur', debouncedSave);
+    
+    // Save QR URL input on change
+    if (elements.qrUrlInput) {
+      elements.qrUrlInput.addEventListener('input', debouncedSave);
+    }
+  }
+  
+  // ---------------------------------------------------------------------------
+  // Custom Font Dropdown System (Hover Preview)
+  // ---------------------------------------------------------------------------
+  
+  /**
+   * Extracts the font family name from a CSS font value
+   * e.g., "'Oswald', sans-serif" -> "Oswald"
+   */
+  function extractFontName(fontValue) {
+    const match = fontValue.match(/^'([^']+)'/);
+    return match ? match[1] : fontValue.split(',')[0].trim().replace(/'/g, '');
+  }
+  
+  /**
+   * Creates a custom dropdown for a font select element
+   * @param {HTMLSelectElement} select - The original select element
+   * @param {Object} options - Configuration options
+   * @param {string} options.type - 'cover-simple' | 'cover-advanced' | 'book-block'
+   * @param {number} [options.lineIndex] - Line index for cover-advanced (0, 1, 2)
+   */
+  function createCustomFontDropdown(select, options = {}) {
+    const { type, lineIndex } = options;
+    
+    // Mark original select as having custom dropdown
+    select.classList.add('has-custom-dropdown');
+    
+    // Create wrapper
+    const wrapper = document.createElement('div');
+    wrapper.className = 'custom-font-dropdown';
+    
+    // Create trigger button
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'custom-font-dropdown-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    
+    // Create dropdown list
+    const list = document.createElement('ul');
+    list.className = 'custom-font-dropdown-list';
+    list.setAttribute('role', 'listbox');
+    list.tabIndex = -1;
+    
+    // Track state
+    let isOpen = false;
+    let committedValue = select.value;
+    let highlightedIndex = -1;
+    
+    // Populate options
+    function populateList() {
+      list.innerHTML = '';
+      Array.from(select.options).forEach((opt, idx) => {
+        const li = document.createElement('li');
+        li.className = 'custom-font-dropdown-option';
+        li.setAttribute('role', 'option');
+        li.dataset.value = opt.value;
+        li.dataset.index = idx;
+        li.textContent = opt.textContent;
+        
+        // Style each option in its respective font
+        li.style.fontFamily = opt.value;
+        
+        if (opt.value === select.value) {
+          li.classList.add('selected');
+          li.setAttribute('aria-selected', 'true');
+        }
+        
+        list.appendChild(li);
+      });
+    }
+    
+    // Update trigger display
+    function updateTrigger() {
+      const selectedOption = select.options[select.selectedIndex];
+      if (selectedOption) {
+        trigger.textContent = selectedOption.textContent;
+        trigger.style.fontFamily = selectedOption.value;
+      }
+    }
+    
+    // Preview function based on type
+    function triggerPreview(fontValue) {
+      const originalValue = select.value;
+      select.value = fontValue;
+      
+      if (type === 'cover-simple' || type === 'cover-advanced') {
+        // Regenerate cover immediately for preview
+        if (elements.frontCoverUploader?.classList.contains('has-image')) {
+          generateCoverCollage();
+        }
+      } else if (type === 'book-block') {
+        // Apply styles to book list
+        applyStyles();
+      }
+      
+      return originalValue;
+    }
+    
+    // Revert preview
+    function revertPreview() {
+      select.value = committedValue;
+      
+      if (type === 'cover-simple' || type === 'cover-advanced') {
+        if (elements.frontCoverUploader?.classList.contains('has-image')) {
+          generateCoverCollage();
+        }
+      } else if (type === 'book-block') {
+        applyStyles();
+      }
+    }
+    
+    // Commit selection
+    function commitSelection(value) {
+      committedValue = value;
+      select.value = value;
+      
+      // Update selected state in list
+      list.querySelectorAll('.custom-font-dropdown-option').forEach(li => {
+        const isSelected = li.dataset.value === value;
+        li.classList.toggle('selected', isSelected);
+        li.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+      });
+      
+      updateTrigger();
+      
+      // Trigger change event on original select for any listeners
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      
+      // Save state
+      debouncedSave();
+    }
+    
+    // Open dropdown
+    function openDropdown() {
+      if (isOpen) return;
+      isOpen = true;
+      wrapper.classList.add('open');
+      trigger.setAttribute('aria-expanded', 'true');
+      
+      // Update highlighted index to current selection
+      const currentIdx = Array.from(select.options).findIndex(o => o.value === committedValue);
+      highlightedIndex = currentIdx >= 0 ? currentIdx : 0;
+      updateHighlight();
+      
+      // Scroll selected item into view
+      const selectedLi = list.querySelector('.selected');
+      if (selectedLi) {
+        selectedLi.scrollIntoView({ block: 'nearest' });
+      }
+    }
+    
+    // Close dropdown
+    function closeDropdown(revert = true) {
+      if (!isOpen) return;
+      isOpen = false;
+      wrapper.classList.remove('open');
+      trigger.setAttribute('aria-expanded', 'false');
+      highlightedIndex = -1;
+      
+      // Remove highlight from all options
+      list.querySelectorAll('.custom-font-dropdown-option').forEach(li => {
+        li.classList.remove('highlighted');
+      });
+      
+      if (revert && select.value !== committedValue) {
+        revertPreview();
+      }
+    }
+    
+    // Update visual highlight
+    function updateHighlight() {
+      const items = list.querySelectorAll('.custom-font-dropdown-option');
+      items.forEach((li, idx) => {
+        li.classList.toggle('highlighted', idx === highlightedIndex);
+      });
+      
+      // Scroll highlighted into view
+      if (highlightedIndex >= 0 && items[highlightedIndex]) {
+        items[highlightedIndex].scrollIntoView({ block: 'nearest' });
+      }
+    }
+    
+    // Event handlers
+    trigger.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isOpen) {
+        closeDropdown(true);
+      } else {
+        openDropdown();
+      }
+    });
+    
+    trigger.addEventListener('keydown', (e) => {
+      const items = list.querySelectorAll('.custom-font-dropdown-option');
+      
+      switch (e.key) {
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          if (isOpen) {
+            if (highlightedIndex >= 0 && items[highlightedIndex]) {
+              const value = items[highlightedIndex].dataset.value;
+              commitSelection(value);
+              closeDropdown(false);
+            }
+          } else {
+            openDropdown();
+          }
+          break;
+          
+        case 'Escape':
+          if (isOpen) {
+            e.preventDefault();
+            closeDropdown(true);
+            trigger.focus();
+          }
+          break;
+          
+        case 'ArrowDown':
+          e.preventDefault();
+          if (!isOpen) {
+            openDropdown();
+          } else {
+            highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+            updateHighlight();
+            // Preview on keyboard nav
+            if (items[highlightedIndex]) {
+              triggerPreview(items[highlightedIndex].dataset.value);
+            }
+          }
+          break;
+          
+        case 'ArrowUp':
+          e.preventDefault();
+          if (!isOpen) {
+            openDropdown();
+          } else {
+            highlightedIndex = Math.max(highlightedIndex - 1, 0);
+            updateHighlight();
+            // Preview on keyboard nav
+            if (items[highlightedIndex]) {
+              triggerPreview(items[highlightedIndex].dataset.value);
+            }
+          }
+          break;
+          
+        case 'Home':
+          if (isOpen) {
+            e.preventDefault();
+            highlightedIndex = 0;
+            updateHighlight();
+            if (items[highlightedIndex]) {
+              triggerPreview(items[highlightedIndex].dataset.value);
+            }
+          }
+          break;
+          
+        case 'End':
+          if (isOpen) {
+            e.preventDefault();
+            highlightedIndex = items.length - 1;
+            updateHighlight();
+            if (items[highlightedIndex]) {
+              triggerPreview(items[highlightedIndex].dataset.value);
+            }
+          }
+          break;
+      }
+    });
+    
+    // Mouse events on list items
+    list.addEventListener('mouseenter', (e) => {
+      const li = e.target.closest('.custom-font-dropdown-option');
+      if (li) {
+        highlightedIndex = parseInt(li.dataset.index, 10);
+        updateHighlight();
+        triggerPreview(li.dataset.value);
+      }
+    }, true);
+    
+    list.addEventListener('mouseleave', () => {
+      // Revert to committed value when leaving the list
+      if (isOpen) {
+        revertPreview();
+      }
+    });
+    
+    list.addEventListener('click', (e) => {
+      const li = e.target.closest('.custom-font-dropdown-option');
+      if (li) {
+        e.preventDefault();
+        e.stopPropagation();
+        commitSelection(li.dataset.value);
+        closeDropdown(false);
+        trigger.focus();
+      }
+    });
+    
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (isOpen && !wrapper.contains(e.target)) {
+        closeDropdown(true);
+      }
+    });
+    
+    // Close on scroll (prevents visual detachment)
+    let scrollParent = wrapper.parentElement;
+    while (scrollParent && scrollParent !== document.body) {
+      if (scrollParent.scrollHeight > scrollParent.clientHeight) {
+        scrollParent.addEventListener('scroll', () => {
+          if (isOpen) closeDropdown(true);
+        }, { passive: true });
+      }
+      scrollParent = scrollParent.parentElement;
+    }
+    
+    // Initialize
+    populateList();
+    updateTrigger();
+    
+    // Insert into DOM
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(list);
+    select.parentNode.insertBefore(wrapper, select);
+    
+    // Store reference for external updates
+    select._customDropdown = {
+      wrapper,
+      trigger,
+      list,
+      updateValue: (newValue) => {
+        committedValue = newValue;
+        select.value = newValue;
+        populateList();
+        updateTrigger();
+      },
+      refresh: () => {
+        populateList();
+        updateTrigger();
+      }
+    };
+    
+    return wrapper;
+  }
+  
+  /**
+   * Initializes custom font dropdowns for all font selects
+   */
+  function initializeCustomFontDropdowns() {
+    // Cover Header - Simple mode
+    const coverFontSelect = document.getElementById('cover-font-select');
+    if (coverFontSelect) {
+      createCustomFontDropdown(coverFontSelect, { type: 'cover-simple' });
+    }
+    
+    // Cover Header - Advanced mode (Line 1, 2, 3)
+    ['line-1-font', 'line-2-font', 'line-3-font'].forEach((id, index) => {
+      const el = document.getElementById(id);
+      if (el) {
+        createCustomFontDropdown(el, { type: 'cover-advanced', lineIndex: index });
+      }
+    });
+    
+    // Book Block fonts (title, author, desc) - inside .export-controls, excluding QR
+    document.querySelectorAll('.export-controls .form-group[data-style-group]:not([data-style-group="qr"]) .font-select').forEach(select => {
+      createCustomFontDropdown(select, { type: 'book-block' });
+    });
+    
+    // QR Text font
+    const qrFontSelect = document.getElementById('qr-font-select');
+    if (qrFontSelect) {
+      createCustomFontDropdown(qrFontSelect, { type: 'book-block' });
+    }
   }
   
   // ---------------------------------------------------------------------------
@@ -3168,10 +5176,13 @@ const BooklistApp = (function() {
   function init() {
     cacheElements();
     bindEvents();
+    bindExtraCoversEvents();
     setupQrPlaceholder();
     initializeBooklist();
     applyStyles();
     initializeSortable();
+    initializeCustomFontDropdowns();
+    renderExtraCoversGrid();
     
     // Set default cover mode (simple)
     toggleCoverMode(false);
@@ -3181,6 +5192,16 @@ const BooklistApp = (function() {
     
     // Try restoring draft
     restoreDraftLocalIfPresent();
+    
+    // Warn before leaving with unsaved changes
+    window.addEventListener('beforeunload', (e) => {
+      if (isDirty) {
+        // Different browsers need different approaches
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes.';
+        return 'You have unsaved changes.';
+      }
+    });
   }
   
   // Expose necessary functions for external access
@@ -3188,6 +5209,7 @@ const BooklistApp = (function() {
     init,
     showNotification,
     getAiDescription, // For testing
+    get isDirty() { return isDirty; }, // For debugging
   };
   
 })();
