@@ -661,22 +661,24 @@ input[type="color"]:hover {
   list-style: none;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .advanced-settings summary::-webkit-details-marker { display: none; }
 .advanced-settings summary::before {
-  content: '\f078';
-  font-family: 'Font Awesome 6 Free';
-  font-weight: 900;
-  font-size: 0.55rem;
-  color: var(--primary-color);
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--primary-color);
   transition: transform var(--transition-fast);
 }
 .advanced-settings[open] summary::before {
   transform: rotate(180deg);
 }
 .advanced-settings summary:hover { color: var(--primary-hover); }
-.advanced-settings summary:hover::before { color: var(--primary-hover); }
+.advanced-settings summary:hover::before { border-top-color: var(--primary-hover); }
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
