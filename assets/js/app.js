@@ -92,7 +92,9 @@ const BooklistApp = (function() {
   /** Toggles the visual "unsaved" indicator on the Save button */
   function updateSaveIndicator() {
     const btn = document.getElementById('save-list-button');
-    if (btn) btn.classList.toggle('has-unsaved', hasUnsavedFile);
+    if (!btn) return;
+    btn.classList.toggle('has-unsaved', hasUnsavedFile);
+    btn.title = hasUnsavedFile ? 'Save Recent Changes' : 'Save Current List';
   }
   
   // ---------------------------------------------------------------------------
@@ -4735,6 +4737,8 @@ const BooklistApp = (function() {
         const parsed = JSON.parse(text);
         applyState(parsed);
         debouncedSave(); // Sync browser draft with loaded file
+        hasUnsavedFile = false; // File was just loaded from disk
+        updateSaveIndicator();
       } catch (err) {
         console.error('Import failed:', err);
         showNotification('Could not load this file. Is it a valid .booklist?', 'error');
@@ -5215,6 +5219,10 @@ const BooklistApp = (function() {
         return 'You have unsaved changes.';
       }
     });
+    
+    // Page load / draft restore is not a user edit
+    hasUnsavedFile = false;
+    updateSaveIndicator();
   }
   
   // Expose necessary functions for external access
