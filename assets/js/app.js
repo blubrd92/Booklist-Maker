@@ -72,6 +72,35 @@ const CONFIG = {
   
   // Colors
   PLACEHOLDER_COLOR: '#757575',
+  
+  // Available fonts (single source of truth for all font dropdowns)
+  FONTS: [
+    { value: "'Anton', sans-serif", label: 'Anton' },
+    { value: "'Arvo', serif", label: 'Arvo' },
+    { value: "'Bangers', system-ui", label: 'Bangers' },
+    { value: "'Bebas Neue', sans-serif", label: 'Bebas Neue' },
+    { value: "'Bungee', system-ui", label: 'Bungee' },
+    { value: "'Calibri', sans-serif", label: 'Calibri' },
+    { value: "'Cinzel', serif", label: 'Cinzel' },
+    { value: "'Crimson Text', serif", label: 'Crimson Text' },
+    { value: "'EB Garamond', serif", label: 'EB Garamond' },
+    { value: "'Georgia', serif", label: 'Georgia' },
+    { value: "'Helvetica', sans-serif", label: 'Helvetica' },
+    { value: "'Lato', sans-serif", label: 'Lato' },
+    { value: "'Libre Baskerville', serif", label: 'Libre Baskerville' },
+    { value: "'Merriweather', serif", label: 'Merriweather' },
+    { value: "'Montserrat', sans-serif", label: 'Montserrat' },
+    { value: "'Open Sans', sans-serif", label: 'Open Sans' },
+    { value: "'Oswald', sans-serif", label: 'Oswald' },
+    { value: "'Playfair Display', serif", label: 'Playfair Display' },
+    { value: "'Poppins', sans-serif", label: 'Poppins' },
+    { value: "'Raleway', sans-serif", label: 'Raleway' },
+    { value: "'Roboto', sans-serif", label: 'Roboto' },
+    { value: "'Roboto Slab', serif", label: 'Roboto Slab' },
+    { value: "'Source Sans 3', sans-serif", label: 'Source Sans 3' },
+    { value: "'Staatliches', system-ui", label: 'Staatliches' },
+    { value: "'Times New Roman', serif", label: 'Times New Roman' },
+  ],
 };
 
 // =============================================================================
@@ -246,6 +275,26 @@ const BooklistApp = (function() {
       // Notification
       notificationArea: document.getElementById('notification-area'),
     };
+  }
+  
+  // ---------------------------------------------------------------------------
+  // Populate Font Dropdowns from CONFIG.FONTS (single source of truth)
+  // ---------------------------------------------------------------------------
+  function populateFontSelects() {
+    const selects = document.querySelectorAll(
+      '.font-select:not(#title-bar-position):not(#tilt-offset-direction)'
+    );
+    selects.forEach(select => {
+      const defaultValue = select.dataset.default || '';
+      select.innerHTML = '';
+      CONFIG.FONTS.forEach(font => {
+        const option = document.createElement('option');
+        option.value = font.value;
+        option.textContent = font.label;
+        if (font.value === defaultValue) option.selected = true;
+        select.appendChild(option);
+      });
+    });
   }
   
   // ---------------------------------------------------------------------------
@@ -5192,6 +5241,7 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   function init() {
     cacheElements();
+    populateFontSelects();
     bindEvents();
     bindExtraCoversEvents();
     setupQrPlaceholder();
