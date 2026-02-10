@@ -658,8 +658,25 @@ input[type="color"]:hover {
   color: var(--primary-color);
   font-weight: 500;
   padding: 6px 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.advanced-settings summary::-webkit-details-marker { display: none; }
+.advanced-settings summary::before {
+  content: '\f078';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  font-size: 0.55rem;
+  color: var(--primary-color);
+  transition: transform var(--transition-fast);
+}
+.advanced-settings[open] summary::before {
+  transform: rotate(180deg);
 }
 .advanced-settings summary:hover { color: var(--primary-hover); }
+.advanced-settings summary:hover::before { color: var(--primary-hover); }
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
