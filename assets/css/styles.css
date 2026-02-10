@@ -699,7 +699,7 @@ input[type="color"]:hover {
   background: white;
   flex-shrink: 0;
 }
-.settings-section summary {
+.settings-section > summary {
   padding: 12px 14px;
   background: var(--secondary-color);
   font-size: 0.9rem;
@@ -714,11 +714,11 @@ input[type="color"]:hover {
   list-style: none;
   border-radius: var(--radius) var(--radius) 0 0;
 }
-.settings-section:not([open]) summary {
+.settings-section:not([open]) > summary {
   border-radius: var(--radius);
 }
-.settings-section summary::-webkit-details-marker { display: none; }
-.settings-section summary::before {
+.settings-section > summary::-webkit-details-marker { display: none; }
+.settings-section > summary::before {
   content: '\f078';
   font-family: 'Font Awesome 6 Free';
   font-weight: 900;
@@ -728,13 +728,13 @@ input[type="color"]:hover {
   width: 16px;
   text-align: center;
 }
-.settings-section[open] summary::before {
+.settings-section[open] > summary::before {
   transform: rotate(180deg);
 }
-.settings-section summary:hover {
+.settings-section > summary:hover {
   background: var(--secondary-light);
 }
-.settings-section[open] summary {
+.settings-section[open] > summary {
   border-bottom: 1px solid var(--border-color);
 }
 .settings-section-content {
