@@ -189,7 +189,7 @@ button.is-loading::after {
   right: -3px;
   width: 8px;
   height: 8px;
-  background-color: var(--primary-color);
+  background-color: white;
   border-radius: 50%;
   pointer-events: none;
   animation: unsaved-pulse 2s ease-in-out infinite;
@@ -2056,4 +2056,5 @@ input[type="color"]:hover {
 
 .modal-footer .btn {
   min-width: 80px;
+
 }
