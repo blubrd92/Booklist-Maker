@@ -178,6 +178,26 @@ button.is-loading::after {
   background-color: rgba(255,255,255,0.2);
   transform: translateY(-1px);
 }
+/* Unsaved-file indicator dot on Save button */
+#save-list-button {
+  position: relative;
+}
+#save-list-button.has-unsaved::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  background-color: white;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: unsaved-pulse 2s ease-in-out infinite;
+}
+@keyframes unsaved-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 .btn-header-primary {
   background-color: var(--success-color);
   border: none;
@@ -435,10 +455,10 @@ input[type="color"]:hover {
 .search-form { display: flex; flex-direction: column; gap: 12px; }
 .advanced-search-toggle summary {
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: var(--primary-color);
   font-weight: 500;
-  padding: 4px 0;
+  padding: 0;
 }
 .advanced-search-toggle summary:hover {
   color: var(--primary-hover);
@@ -633,13 +653,32 @@ input[type="color"]:hover {
 .mini-label { font-size: 0.75rem; color: var(--text-light); font-weight: 500; }
 
 .advanced-settings summary {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   cursor: pointer;
   color: var(--primary-color);
   font-weight: 500;
   padding: 6px 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.advanced-settings summary::-webkit-details-marker { display: none; }
+.advanced-settings summary::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--primary-color);
+  transition: transform var(--transition-fast);
+}
+.advanced-settings[open] summary::before {
+  transform: rotate(180deg);
 }
 .advanced-settings summary:hover { color: var(--primary-hover); }
+.advanced-settings summary:hover::before { border-top-color: var(--primary-hover); }
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -660,7 +699,7 @@ input[type="color"]:hover {
   background: white;
   flex-shrink: 0;
 }
-.settings-section summary {
+.settings-section > summary {
   padding: 12px 14px;
   background: var(--secondary-color);
   font-size: 0.9rem;
@@ -675,11 +714,11 @@ input[type="color"]:hover {
   list-style: none;
   border-radius: var(--radius) var(--radius) 0 0;
 }
-.settings-section:not([open]) summary {
+.settings-section:not([open]) > summary {
   border-radius: var(--radius);
 }
-.settings-section summary::-webkit-details-marker { display: none; }
-.settings-section summary::before {
+.settings-section > summary::-webkit-details-marker { display: none; }
+.settings-section > summary::before {
   content: '\f078';
   font-family: 'Font Awesome 6 Free';
   font-weight: 900;
@@ -689,13 +728,13 @@ input[type="color"]:hover {
   width: 16px;
   text-align: center;
 }
-.settings-section[open] summary::before {
+.settings-section[open] > summary::before {
   transform: rotate(180deg);
 }
-.settings-section summary:hover {
+.settings-section > summary:hover {
   background: var(--secondary-light);
 }
-.settings-section[open] summary {
+.settings-section[open] > summary {
   border-bottom: 1px solid var(--border-color);
 }
 .settings-section-content {
@@ -1983,7 +2022,7 @@ input[type="color"]:hover {
 
 .modal-search-form .advanced-search-toggle summary {
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: var(--primary-color);
   padding: 4px 0;
 }
@@ -2017,4 +2056,6 @@ input[type="color"]:hover {
 
 .modal-footer .btn {
   min-width: 80px;
+
 }
+

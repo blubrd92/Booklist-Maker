@@ -72,6 +72,35 @@ const CONFIG = {
   
   // Colors
   PLACEHOLDER_COLOR: '#757575',
+  
+  // Available fonts (single source of truth for all font dropdowns)
+  FONTS: [
+    { value: "'Anton', sans-serif", label: 'Anton' },
+    { value: "'Arvo', serif", label: 'Arvo' },
+    { value: "'Bangers', system-ui", label: 'Bangers' },
+    { value: "'Bebas Neue', sans-serif", label: 'Bebas Neue' },
+    { value: "'Bungee', system-ui", label: 'Bungee' },
+    { value: "'Calibri', sans-serif", label: 'Calibri' },
+    { value: "'Cinzel', serif", label: 'Cinzel' },
+    { value: "'Crimson Text', serif", label: 'Crimson Text' },
+    { value: "'EB Garamond', serif", label: 'EB Garamond' },
+    { value: "'Georgia', serif", label: 'Georgia' },
+    { value: "'Helvetica', sans-serif", label: 'Helvetica' },
+    { value: "'Lato', sans-serif", label: 'Lato' },
+    { value: "'Libre Baskerville', serif", label: 'Libre Baskerville' },
+    { value: "'Merriweather', serif", label: 'Merriweather' },
+    { value: "'Montserrat', sans-serif", label: 'Montserrat' },
+    { value: "'Open Sans', sans-serif", label: 'Open Sans' },
+    { value: "'Oswald', sans-serif", label: 'Oswald' },
+    { value: "'Playfair Display', serif", label: 'Playfair Display' },
+    { value: "'Poppins', sans-serif", label: 'Poppins' },
+    { value: "'Raleway', sans-serif", label: 'Raleway' },
+    { value: "'Roboto', sans-serif", label: 'Roboto' },
+    { value: "'Roboto Slab', serif", label: 'Roboto Slab' },
+    { value: "'Source Sans 3', sans-serif", label: 'Source Sans 3' },
+    { value: "'Staatliches', system-ui", label: 'Staatliches' },
+    { value: "'Times New Roman', serif", label: 'Times New Roman' },
+  ],
 };
 
 // =============================================================================
@@ -86,7 +115,16 @@ const BooklistApp = (function() {
   let myBooklist = [];
   let extraCollageCovers = []; // Additional covers for collage (beyond book blocks)
   let MAX_BOOKS = CONFIG.MAX_BOOKS_FULL;
-  let isDirty = false; // Tracks unsaved changes for beforeunload warning
+  let isDirtyLocal = false;   // True while edits haven't reached localStorage yet (crash guard)
+  let hasUnsavedFile = false;  // True while edits haven't been downloaded as a .booklist file
+
+  /** Toggles the visual "unsaved" indicator on the Save button */
+  function updateSaveIndicator() {
+    const btn = document.getElementById('save-list-button');
+    if (!btn) return;
+    btn.classList.toggle('has-unsaved', hasUnsavedFile);
+    btn.title = hasUnsavedFile ? 'Save Recent Changes' : 'Save Current List';
+  }
   
   // ---------------------------------------------------------------------------
   // Debounced Autosave (defined early so it can be used by renderBooklist)
@@ -94,7 +132,9 @@ const BooklistApp = (function() {
   const debouncedSave = (() => {
     let t;
     return () => {
-      isDirty = true; // Mark as having unsaved changes
+      isDirtyLocal = true;    // Edits not yet in localStorage
+      hasUnsavedFile = true;  // Edits not yet in a .booklist file
+      updateSaveIndicator();
       clearTimeout(t);
       t = setTimeout(() => {
         saveDraftLocal();
@@ -235,6 +275,26 @@ const BooklistApp = (function() {
       // Notification
       notificationArea: document.getElementById('notification-area'),
     };
+  }
+  
+  // ---------------------------------------------------------------------------
+  // Populate Font Dropdowns from CONFIG.FONTS (single source of truth)
+  // ---------------------------------------------------------------------------
+  function populateFontSelects() {
+    const selects = document.querySelectorAll(
+      '.font-select:not(#title-bar-position):not(#tilt-offset-direction)'
+    );
+    selects.forEach(select => {
+      const defaultValue = select.dataset.default || '';
+      select.innerHTML = '';
+      CONFIG.FONTS.forEach(font => {
+        const option = document.createElement('option');
+        option.value = font.value;
+        option.textContent = font.label;
+        if (font.value === defaultValue) option.selected = true;
+        select.appendChild(option);
+      });
+    });
   }
   
   // ---------------------------------------------------------------------------
@@ -4237,6 +4297,7 @@ const BooklistApp = (function() {
   function saveDraftLocal() {
     try {
       localStorage.setItem('booklist-draft', JSON.stringify(serializeDraftForLocal()));
+      isDirtyLocal = false; // localStorage now has current state
     } catch (_) { /* ignore quota errors */ }
   }
   
@@ -4252,6 +4313,7 @@ const BooklistApp = (function() {
   
   function resetToBlank() {
     try { localStorage.removeItem('booklist-draft'); } catch (_) {}
+    isDirtyLocal = false; // Prevent beforeunload after user already confirmed reset
     location.reload();
   }
   
@@ -4706,7 +4768,9 @@ const BooklistApp = (function() {
       if (didSave) {
         showNotification('Booklist saved to file.', 'success');
         saveDraftLocal(); // Sync browser draft with saved file (direct call, not debounced)
-        isDirty = false; // Clear after sync
+        isDirtyLocal = false;    // Nothing unsaved anywhere
+        hasUnsavedFile = false;  // File has been downloaded
+        updateSaveIndicator();
       }
     });
     
@@ -4722,6 +4786,8 @@ const BooklistApp = (function() {
         const parsed = JSON.parse(text);
         applyState(parsed);
         debouncedSave(); // Sync browser draft with loaded file
+        hasUnsavedFile = false; // File was just loaded from disk
+        updateSaveIndicator();
       } catch (err) {
         console.error('Import failed:', err);
         showNotification('Could not load this file. Is it a valid .booklist?', 'error');
@@ -5175,6 +5241,7 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   function init() {
     cacheElements();
+    populateFontSelects();
     bindEvents();
     bindExtraCoversEvents();
     setupQrPlaceholder();
@@ -5193,15 +5260,19 @@ const BooklistApp = (function() {
     // Try restoring draft
     restoreDraftLocalIfPresent();
     
-    // Warn before leaving with unsaved changes
+    // Warn before leaving with unsaved changes (only if localStorage hasn't caught up)
     window.addEventListener('beforeunload', (e) => {
-      if (isDirty) {
+      if (isDirtyLocal) {
         // Different browsers need different approaches
         e.preventDefault();
         e.returnValue = 'You have unsaved changes.';
         return 'You have unsaved changes.';
       }
     });
+    
+    // Page load / draft restore is not a user edit
+    hasUnsavedFile = false;
+    updateSaveIndicator();
   }
   
   // Expose necessary functions for external access
@@ -5209,7 +5280,8 @@ const BooklistApp = (function() {
     init,
     showNotification,
     getAiDescription, // For testing
-    get isDirty() { return isDirty; }, // For debugging
+    get isDirtyLocal() { return isDirtyLocal; },   // For debugging
+    get hasUnsavedFile() { return hasUnsavedFile; }, // For debugging
   };
   
 })();
