@@ -4893,6 +4893,7 @@ const BooklistApp = (function() {
         updateSaveIndicator();
         // Folio: save complete
         if (window.folio) {
+          window.folio.react('satisfied');
           window.folio.setState('excited', 'save-complete');
           setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 3000);
         }
