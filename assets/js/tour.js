@@ -76,9 +76,17 @@
       steps: [
         {
           target: '#search-form',
-          text: "Start here. Type a keyword, title, or author and hit Search. Expand Advanced Fields if you need to get specific.",
+          text: "Start here. Type a keyword, title, or author into the search field and hit the Search button. Try it now, or keep going and come back later.",
           state: 'searching',
-          prepare: function() { openSidebarTab('tab-search'); },
+          prepare: function() {
+            openSidebarTab('tab-search');
+            // Pre-fill a demo search to make it obvious
+            var input = document.getElementById('keywordInput');
+            if (input && !input.value) {
+              input.value = 'octavia butler';
+              input.classList.add('tour-demo-filled');
+            }
+          },
         },
         {
           target: '#results-container',
@@ -109,30 +117,38 @@
           target: '#print-page-2',
           text: "Your books appear on page two in order. Each entry shows the cover, title, author, and description.",
           state: 'evaluating',
+          prepare: function() {
+            var page2 = document.getElementById('print-page-2');
+            if (page2) page2.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          },
           padding: 4,
         },
         {
-          target: null,
-          text: "See the star icon on each book? Click it to include that book's cover in the front page collage. You need at least 12 starred books for the standard layout.",
+          target: '.list-item:first-child .star-button',
+          text: "See the star icon? Click it to include that book's cover in the front page collage. You need at least 12 starred books for the standard layout.",
           state: 'evaluating',
+          prepare: function() {
+            var page2 = document.getElementById('print-page-2');
+            if (page2) page2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          },
         },
         {
-          target: null,
-          text: "Drag the handle on any book to reorder your list. Or type a new number in the position field to jump a book to a specific spot.",
+          target: '.list-item:first-child .drag-handle',
+          text: "Drag this handle to reorder books on your list. Or type a new number in the position field to jump a book to a specific spot.",
           state: 'idle',
         },
         {
-          target: null,
-          text: "The magic wand button fetches an AI-generated description for a book. One click and you get a ready-to-use blurb for your display.",
+          target: '.list-item:first-child .magic-button',
+          text: "The magic wand fetches an AI-generated description for this book. One click and you get a ready-to-use blurb for your display.",
           state: 'evaluating',
         },
         {
-          target: null,
-          text: "Click any book's cover image to upload your own. Handy when the search didn't find the right edition or you want a custom look.",
+          target: '.list-item:first-child .cover-uploader',
+          text: "Click the cover image to upload your own. Handy when the search didn't find the right edition or you want a custom look.",
           state: 'idle',
         },
         {
-          target: null,
+          target: '.list-item:first-child .delete-button',
           text: "The X button removes a book and frees up that slot. Don't worry, you can always search and add another.",
           state: 'worried',
         },
@@ -148,6 +164,10 @@
           target: '#front-cover-uploader',
           text: "This is your front cover. You can upload a custom image here, or auto-generate a collage from your starred books.",
           state: 'evaluating',
+          prepare: function() {
+            var page1 = document.getElementById('print-page-1');
+            if (page1) page1.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          },
         },
         {
           target: '#generate-cover-button',
@@ -180,6 +200,8 @@
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
+            var page1 = document.getElementById('print-page-1');
+            if (page1) page1.scrollIntoView({ behavior: 'smooth', block: 'center' });
           },
         },
       ]
@@ -201,16 +223,16 @@
           target: '#list-name-input',
           text: "Give your booklist a name. This shows up on the PDF filename when you export, so make it descriptive.",
           state: 'idle',
-          prepare: function() { openSidebarTab('tab-settings'); },
         },
         {
-          target: null,
+          target: '.settings-section:first-of-type',
           text: "The Text Styling section controls fonts, sizes, and colors for book titles, authors, and descriptions on the list page.",
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Text Styling');
           },
+          padding: 0,
         },
         {
           target: '#qr-code-area',
@@ -219,12 +241,18 @@
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
+            var page2 = document.getElementById('print-page-2');
+            if (page2) page2.scrollIntoView({ behavior: 'smooth', block: 'end' });
           },
         },
         {
           target: '#qr-code-text',
           text: "This text area is your back cover blurb, next to the QR code. Write a short description, reading prompt, or instructions for patrons.",
           state: 'idle',
+          prepare: function() {
+            var page2 = document.getElementById('print-page-2');
+            if (page2) page2.scrollIntoView({ behavior: 'smooth', block: 'end' });
+          },
         },
       ]
     },
@@ -491,6 +519,9 @@
   }
 
   function beginTour() {
+    // Mark body as tour-active (elevates Folio, suppresses speech bubble)
+    document.body.classList.add('tour-active');
+
     // Ensure Folio is visible
     var container = document.getElementById('folio-container');
     if (container) {
@@ -512,16 +543,14 @@
 
     // Small delay for DOM to settle after prepare
     setTimeout(function() {
-      // Spotlight
       var target = step.target ? document.querySelector(step.target) : null;
-      positionSpotlight(target, step.padding);
 
       // Folio state
       if (window.folio) {
         window.folio.setState(step.state || 'idle');
       }
 
-      // Panel content
+      // Panel content (update immediately, position after scroll)
       var sectionLabel = panel.querySelector('.tour-panel-section');
       var message = panel.querySelector('.tour-panel-message');
       var counter = panel.querySelector('.tour-step-counter');
@@ -538,12 +567,18 @@
       prevBtn.disabled = (gIdx === 0);
       nextBtn.textContent = (gIdx === total - 1) ? 'Finish' : 'Next';
 
-      // Position panel
-      positionPanel(target);
+      // Scroll target into view, then position spotlight and panel
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
 
-      // Show
-      spotlight.classList.add('visible');
-      panel.classList.add('visible');
+      // Wait for scroll to settle before positioning
+      setTimeout(function() {
+        positionSpotlight(target, step.padding);
+        positionPanel(target);
+        spotlight.classList.add('visible');
+        panel.classList.add('visible');
+      }, 350);
     }, 150);
   }
 
@@ -586,6 +621,16 @@
     currentStepIndex = 0;
     isFullTour = false;
     fullTourSectionIndex = 0;
+
+    // Remove tour-active state
+    document.body.classList.remove('tour-active');
+
+    // Clean up demo search text if we filled it
+    var input = document.getElementById('keywordInput');
+    if (input && input.classList.contains('tour-demo-filled')) {
+      input.value = '';
+      input.classList.remove('tour-demo-filled');
+    }
 
     // Hide spotlight and panel
     spotlight.classList.remove('visible');
