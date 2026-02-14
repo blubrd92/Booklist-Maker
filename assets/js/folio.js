@@ -346,9 +346,14 @@
 
     // Sleeping: bypass escalation, trigger full wake sequence
     if (currentState === 'sleeping') {
+      if (isWaking) return;
+      isWaking = true;
       react('startle');
       setTimeout(() => setState('greeting', 'wake-up'), 800);
-      setTimeout(() => setState('idle'), 4000);
+      setTimeout(() => {
+        setState('idle');
+        isWaking = false;
+      }, 4000);
       return;
     }
 
@@ -517,16 +522,22 @@
      ---------------------------------------------------------------- */
   let inactivityTimer = null;
   let yawnFired = false;
+  let isWaking = false;
 
   function resetInactivity() {
     clearTimeout(inactivityTimer);
     yawnFired = false;
 
-    // If waking from sleep, trigger the wake sequence
+    // If waking from sleep, trigger the wake sequence (once)
     if (currentState === 'sleeping') {
+      if (isWaking) return;
+      isWaking = true;
       react('startle');
       setTimeout(() => setState('greeting', 'wake-up'), 800);
-      setTimeout(() => setState('idle'), 4000);
+      setTimeout(() => {
+        setState('idle');
+        isWaking = false;
+      }, 4000);
       return;
     }
 
