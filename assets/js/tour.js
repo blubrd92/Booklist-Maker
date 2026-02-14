@@ -109,9 +109,16 @@
         },
         {
           target: '#results-container',
-          text: "Click 'Add to List' to drop a book into the next open slot. It'll appear in your preview right away.",
+          text: "Click 'Add to List' to drop a book into the next open slot. It'll appear in your preview right away. Let me add one for you.",
           state: 'excited',
           interactive: true,
+          prepare: function() {
+            openSidebarTab('tab-search');
+            setTimeout(function() {
+              var addBtn = document.querySelector('#results-container .add-to-list-button:not(.added)');
+              if (addBtn) addBtn.click();
+            }, 600);
+          },
         },
       ]
     },
@@ -265,7 +272,7 @@
         },
         {
           target: '#qr-code-area',
-          text: "Add a QR code that links to your online booklist. Paste a URL in Settings and click Generate. Patrons can scan it to find the books digitally.",
+          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. Paste a URL and click Generate. Makes it easy for patrons to visit the link quickly.",
           state: 'idle',
           prepare: function() {
             openSidebarTab('tab-settings');
