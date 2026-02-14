@@ -102,7 +102,7 @@
         },
         {
           target: '#results-container',
-          text: "Each result has arrow buttons to browse different cover editions. Pick the one that looks best for your display.",
+          text: "Some results have arrow buttons to browse different cover editions. If there are multiple, pick the one that looks best for your display.",
           state: 'evaluating',
         },
         {
