@@ -212,7 +212,7 @@
         },
         {
           target: '#branding-uploader',
-          text: "Add your library's logo or branding here. It appears on the front cover, giving the list a polished, official look.",
+          text: "Add your library's logo or branding here. It appears on the back cover, giving the list a polished, official look.",
           state: 'idle',
           prepare: function() {
             openSidebarTab('tab-settings');
@@ -244,6 +244,10 @@
           target: '#list-name-input',
           text: "Give your booklist a name. This shows up on the PDF filename when you export, so make it descriptive.",
           state: 'idle',
+          prepare: function() {
+            var mainContent = document.querySelector('.main-content');
+            if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+          },
         },
         {
           target: '.settings-section:first-of-type',
@@ -262,7 +266,11 @@
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
-            scrollPreviewTo('print-page-2');
+            var qr = document.getElementById('qr-code-area');
+            var mainContent = document.querySelector('.main-content');
+            if (qr && mainContent) {
+              qr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
           },
         },
         {
@@ -270,7 +278,8 @@
           text: "This text area is your back cover blurb, next to the QR code. Write a short description, reading prompt, or instructions for patrons.",
           state: 'idle',
           prepare: function() {
-            scrollPreviewTo('print-page-2');
+            var qrText = document.getElementById('qr-code-text');
+            if (qrText) qrText.scrollIntoView({ behavior: 'smooth', block: 'center' });
           },
         },
       ]
@@ -301,7 +310,7 @@
         },
         {
           target: null,
-          text: "That's it! You're all set to make some great booklists. I'll be down here keeping an eye on things if you need me.",
+          text: "That's it! You're all set to make some great booklists. I'll be down here keeping an eye on things. Click the cat button to hide or show me anytime.",
           state: 'greeting',
         },
       ]
