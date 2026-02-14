@@ -123,6 +123,8 @@
           text: "Your books appear on page two in order. Each entry shows the cover, title, author, and description.",
           state: 'evaluating',
           prepare: function() {
+            var previewArea = document.getElementById('preview-area');
+            if (previewArea) previewArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             scrollPreviewTo('print-page-2');
           },
           padding: 4,
