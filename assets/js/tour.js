@@ -114,6 +114,8 @@
           interactive: true,
           prepare: function() {
             openSidebarTab('tab-search');
+            var results = document.getElementById('results-container');
+            if (results) results.scrollTop = 0;
             setTimeout(function() {
               var addBtn = document.querySelector('#results-container .add-to-list-button:not(.added)');
               if (addBtn) addBtn.click();
@@ -303,7 +305,7 @@
       steps: [
         {
           target: '#save-list-button',
-          text: "Save your work anytime as a .booklist file. It captures everything: books, covers, settings, styling. You can pick it back up later.",
+          text: "Save your work anytime as a .booklist file. It captures everything: books, covers, settings, styling. You can pick it back up later. If you see a blinking white dot on this button, that means you have unsaved changes, so make sure to save often!",
           state: 'idle',
           padding: 6,
         },
@@ -323,6 +325,11 @@
           target: null,
           text: "That's it! You're all set to make some great booklists. I'll be down here keeping an eye on things. Click the cat button to hide or show me anytime.",
           state: 'greeting',
+          prepare: function() {
+            var mainContent = document.querySelector('.main-content');
+            if (mainContent) mainContent.scrollTop = 0;
+            openSidebarTab('tab-search');
+          },
         },
       ]
     }
@@ -765,11 +772,13 @@
     // Remove tour-active state
     document.body.classList.remove('tour-active');
 
-    // Clean up demo search text if we filled it
+    // Clean up demo search text and results if we filled them
     var input = document.getElementById('keywordInput');
     if (input && input.classList.contains('tour-demo-filled')) {
       input.value = '';
       input.classList.remove('tour-demo-filled');
+      var results = document.getElementById('results-container');
+      if (results) results.innerHTML = '';
     }
 
     // Hide spotlight and panel
