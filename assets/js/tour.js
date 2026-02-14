@@ -95,7 +95,7 @@
         },
         {
           target: '#results-container',
-          text: "Results show up here with cover images and edition info. Scroll through to find what you're looking for.",
+          text: "Results show up here from OpenLibrary. It has a huge catalog, but not everything. If a book doesn't come up, you can always add it manually and upload your own cover.",
           state: 'evaluating',
           prepare: function() { openSidebarTab('tab-search'); },
           padding: 4,
@@ -232,7 +232,12 @@
           target: '#tab-settings',
           text: "The Settings tab is where you dial in the look. Fonts, colors, text sizes, spacing... it's all here.",
           state: 'evaluating',
-          prepare: function() { openSidebarTab('tab-settings'); },
+          prepare: function() {
+            openSidebarTab('tab-settings');
+            // Scroll settings tab to the top so Text Styling is visible
+            var tabSettings = document.getElementById('tab-settings');
+            if (tabSettings) tabSettings.scrollTop = 0;
+          },
           padding: 0,
         },
         {
@@ -610,8 +615,8 @@
       prevBtn.disabled = (gIdx === 0);
       nextBtn.textContent = (gIdx === total - 1) ? 'Finish' : 'Next';
 
-      // Scroll target into view, then position spotlight and panel
-      if (target) {
+      // Scroll target into view only if step didn't handle its own scrolling via prepare
+      if (target && !step.prepare) {
         target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
 
