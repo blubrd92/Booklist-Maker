@@ -1,1857 +1,562 @@
 /* =============================================================================
-   FOLIO MASCOT — CSS
+   FOLIO MASCOT — INTEGRATION SCRIPT
    Animated SVG cat companion for the Booklist Maker.
-   
-   Structure:
-   1. Container & toggle button (positioning, visibility)
-   2. Transform origins
-   3. State animations (idle, searching, excited, evaluating, sleeping, greeting, worried)
-   4. Face animations (nose, mouth per state)
-   5. Face in micro-reactions
-   6. Micro-reaction animations (nod, perk, wince, watch, yawn, startle, satisfied)
-   7. Speech bubble
-   
-   DO NOT rearrange sections. The cascade matters.
+
+   Public API (available after DOM ready):
+     window.folio.setState(state, event?)
+     window.folio.react(name)
+     window.folio.stopWatch()
+     window.folio.showBubble(text)
+     window.folio.clickFolio()
+     window.folio.currentState()
    ============================================================================= */
 
-/* --- CONTAINER & TOGGLE --- */
-
-.folio-container {
-  position: fixed;
-  bottom: 0;
-  left: 340px;
-  z-index: 900;
-  pointer-events: none;
-  transition: opacity 0.3s ease, left 0.3s ease;
-}
-
-/* Slide with sidebar when it collapses */
-.sidebar.collapsed ~ .folio-container,
-body:has(.sidebar.collapsed) .folio-container {
-  left: 0;
-}
-
-.folio-container > * {
-  pointer-events: auto;
-}
-
-.folio-toggle {
-  position: absolute;
-  bottom: 8px;
-  left: 12px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 2px solid var(--primary-color, #5c6bc0);
-  background: var(--sidebar-bg, #ffffff);
-  color: var(--primary-color, #5c6bc0);
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s ease, color 0.2s ease;
-  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.05));
-  z-index: 2;
-}
-
-.folio-toggle:hover {
-  background: var(--primary-color, #5c6bc0);
-  color: white;
-}
-
-/* Hidden state: scene fades, toggle stays fixed in place */
-.folio-container.folio-hidden #folio-scene {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-
-.folio-container:not(.folio-hidden) #folio-scene {
-  transition: opacity 0.3s ease 0.05s;
-}
-
-/* Scene container - scales with viewport, capped so it never dominates the preview.
-   760/466 aspect ratio matches the cropped SVG viewBox (shelf flush with bottom).
-   At 1920px: 280px (max). At 1280px: ~205px. At 1024px: ~164px. At 900px: 140px (min). */
-#folio-scene {
-  position: relative;
-  cursor: pointer;
-  width: clamp(140px, 16vw, 280px);
-  aspect-ratio: 760 / 466;
-}
-
-#folio-scene svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-/* --- STATE-BASED ANIMATION SYSTEM --- */
-
-  /* Transform origins for each part */
-  #tail {
-    transform-origin: 130px 420px;
-    /* Snap-back: when leaving sleep, the tail springs up fast.
-       This transition only fires on state change (class swap).
-       During animation, the animation property overrides this. */
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  #body { transform-origin: 250px 445px; }
-  #back-feet { transform-origin: 250px 445px; }
-  #front-legs { transform-origin: 250px 445px; }
-  #head-group { transform-origin: 250px 310px; }
-  #eyes { transform-origin: center; transform-box: fill-box; }
-  #glasses { transform-origin: 250px 200px; }
-
-  /* ============================================================
-     IDLE STATE
-     Resting cat on a shelf. Slow breathing. Occasional glances.
-     Lazy tail. Organic blinks. Glasses slip and get nudged.
-     ============================================================ */
-
-  /* BODY: slow breath. scaleY up = inhale (slight stretch + narrow).
-     Principle 1 (squash/stretch): widen slightly on exhale, narrow on inhale.
-     Principle 6 (slow in/out): smooth cubic-bezier.
-     Principle 9 (timing): 5.5s = resting cat breath rate. */
-  #folio.idle #body {
-    animation: idleBreath 5.5s cubic-bezier(0.37,0,0.63,1) infinite;
-  }
-  @keyframes idleBreath {
-    0%, 100% { transform: scaleX(1.003) scaleY(0.998); }
-    50% { transform: scaleX(0.997) scaleY(1.006) translateY(-1px); }
-  }
-
-  /* HEAD: bob with breath + slow look-around with ARC.
-     Principle 5 (follow-through): 0.08s delay behind body.
-     Principle 7 (arcs): head DIPS as it rotates, tracing an arc not a flat pan.
-     Combined into single animation to allow arc movement. */
-  #folio.idle #head-group {
-    animation: idleHead 11s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.08s;
-  }
-  @keyframes idleHead {
-    0%        { transform: translateY(0) rotate(0deg); }
-    8%        { transform: translateY(-1px) rotate(0deg); }
-    /* Glance right: dip down into the turn (arc) */
-    18%       { transform: translateY(0.5px) rotate(0.3deg); }
-    24%       { transform: translateY(1.5px) rotate(2deg); }
-    30%       { transform: translateY(0.5px) rotate(1.8deg); }
-    /* Return through center with slight overshoot */
-    40%       { transform: translateY(-0.5px) rotate(-0.3deg); }
-    46%       { transform: translateY(-1px) rotate(0deg); }
-    /* Glance left: dip into turn */
-    56%       { transform: translateY(0.5px) rotate(-0.3deg); }
-    62%       { transform: translateY(1.2px) rotate(-1.5deg); }
-    68%       { transform: translateY(0.5px) rotate(-1.3deg); }
-    /* Return */
-    78%       { transform: translateY(-0.5px) rotate(0.2deg); }
-    86%       { transform: translateY(-1px) rotate(0deg); }
-    100%      { transform: translateY(0) rotate(0deg); }
-  }
-
-  /* EYES: organic double-blink.
-     Principle 5 (follow-through): 0.1s behind head.
-     Principle 9 (timing): 7s cycle, blinks occupy a small window. */
-  #folio.idle #eyes {
-    animation: idleBlink 7s ease-in-out infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes idleBlink {
-    0%, 80%, 100% { transform: scaleY(1); }
-    /* First blink */
-    82%   { transform: scaleY(0.06); }
-    84.5% { transform: scaleY(1); }
-    /* Second blink (faster, smaller) */
-    86%   { transform: scaleY(0.06); }
-    88%   { transform: scaleY(1); }
-  }
-
-  /* TAIL: slow, lazy wag. Slight delay behind body.
-     Principle 5 (follow-through): 0.12s delay, different cycle length.
-     Principle 7 (arcs): rotation = natural arc.
-     Principle 6 (slow in/out): ease curves on direction changes.
-     Principle 9 (timing): 6.5s, prime number avoids sync with breath. */
-  #folio.idle #tail {
-    animation: idleTail 6.5s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.12s;
-  }
-  @keyframes idleTail {
-    0%, 100% { transform: rotate(0deg); }
-    30%  { transform: rotate(-5deg); }
-    50%  { transform: rotate(-3deg); }
-    75%  { transform: rotate(3deg); }
-    90%  { transform: rotate(1deg); }
-  }
-
-  /* GLASSES: follow-through behind head movement + periodic slip/nudge.
-     Principle 5 (follow-through): 0.15s delay, reacts to head rotation.
-     Principle 8 (secondary action): slip is secondary to breathing.
-     Principle 9 (timing): 13s cycle so slip moment drifts relative to head. */
-  #folio.idle #glasses {
-    animation: idleGlasses 13s ease-in-out infinite;
-    animation-delay: 0.15s;
-  }
-  @keyframes idleGlasses {
-    /* Follow head's rightward glance (delayed, exaggerated) */
-    0%, 8%    { transform: translateY(0) translateX(0) rotate(0deg); }
-    20%       { transform: translateY(0.3px) translateX(0.5px) rotate(0.3deg); }
-    28%       { transform: translateY(0.1px) translateX(0.2px) rotate(0.1deg); }
-    /* Follow head's leftward glance */
-    50%       { transform: translateY(0.3px) translateX(-0.4px) rotate(-0.2deg); }
-    58%       { transform: translateY(0.1px) translateX(-0.1px) rotate(-0.05deg); }
-    /* Gravity slip */
-    70%       { transform: translateY(0) translateX(0) rotate(0deg); }
-    75%       { transform: translateY(1.2px) rotate(0.4deg); }
-    78%       { transform: translateY(2px) rotate(0.7deg); }
-    /* Nudge back up (paw push) */
-    80%       { transform: translateY(2.2px) rotate(0.8deg); }
-    82%       { transform: translateY(-0.5px) rotate(-0.2deg); }
-    85%       { transform: translateY(0) rotate(0deg); }
-    100%      { transform: translateY(0) rotate(0deg); }
-  }
-
-  /* EARS: independent twitches on prime-number cycles.
-     Principle 5 (overlapping): different timing per ear.
-     Principle 8 (secondary action): twitches are secondary to everything else.
-     Principle 10 (exaggeration): ear rotation is bigger than real life.
-     Principle 2 (anticipation): tiny counter-rotate before the twitch. */
-  #folio.idle .ear-left-anim {
-    transform-origin: 170px 150px;
-    animation: idleEarL 8.5s ease-in-out infinite;
-    animation-delay: 0.2s;
-  }
-  @keyframes idleEarL {
-    0%, 100% { transform: rotate(0deg); }
-    60%  { transform: rotate(0deg); }
-    /* Anticipation: slight opposite lean */
-    62%  { transform: rotate(1deg); }
-    /* Twitch */
-    64%  { transform: rotate(-5deg); }
-    /* Overshoot and settle (follow-through) */
-    67%  { transform: rotate(1.5deg); }
-    70%  { transform: rotate(-0.5deg); }
-    72%  { transform: rotate(0deg); }
-  }
-
-  #folio.idle .ear-right-anim {
-    transform-origin: 330px 150px;
-    animation: idleEarR 11.5s ease-in-out infinite;
-    animation-delay: 0.2s;
-  }
-  @keyframes idleEarR {
-    0%, 100% { transform: rotate(0deg); }
-    42%  { transform: rotate(0deg); }
-    /* Anticipation */
-    44%  { transform: rotate(-1deg); }
-    /* Twitch */
-    46%  { transform: rotate(5deg); }
-    /* Overshoot and settle */
-    49%  { transform: rotate(-1.5deg); }
-    52%  { transform: rotate(0.5deg); }
-    54%  { transform: rotate(0deg); }
-  }
-
-  /* FRONT LEGS: very subtle weight shift with breath.
-     Principle 1 (squash/stretch): compress slightly on exhale.
-     Principle 5 (follow-through): 0.06s delay. */
-  #folio.idle #front-legs {
-    animation: idleLegs 5.5s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.06s;
-  }
-  @keyframes idleLegs {
-    0%, 100% { transform: scaleY(1); }
-    50% { transform: scaleY(0.997); }
-  }
-
-  /* ============================================================
-     SEARCHING STATE
-     Alert, scanning shelves. Head darts left-right on arcs.
-     Ears perked and twitching. Tail up and tense. Fast blinks.
-     ============================================================ */
-
-  /* BODY: slight forward lean, alert posture.
-     P1: subtle stretch upward (alert cat elongates).
-     P9: 3s cycle, faster than idle. */
-  #folio.searching #body {
-    animation: searchBreath 3s cubic-bezier(0.37,0,0.63,1) infinite;
-  }
-  @keyframes searchBreath {
-    0%, 100% { transform: scaleX(0.998) scaleY(1.004) translateY(-1px); }
-    50% { transform: scaleX(1.002) scaleY(0.998); }
-  }
-
-  /* HEAD: darting look left-right on ARCS. Each glance has anticipation.
-     P2: lean opposite before darting. P7: dip into each turn.
-     P5: 0.08s delay. P9: 3.5s, snappy. */
-  #folio.searching #head-group {
-    animation: searchHead 3.5s cubic-bezier(0.25,0.1,0.25,1) infinite;
-    animation-delay: 0.08s;
-  }
-  @keyframes searchHead {
-    0%   { transform: translateY(0) rotate(0deg); }
-    /* Anticipation: lean left before darting right */
-    8%   { transform: translateY(0.5px) rotate(-1deg); }
-    /* Dart right (arc: dip into turn) */
-    16%  { transform: translateY(2px) rotate(4deg); }
-    /* Hold, scanning */
-    26%  { transform: translateY(1.5px) rotate(3.5deg); }
-    /* Snap back through center */
-    34%  { transform: translateY(-1px) rotate(-0.5deg); }
-    /* Anticipation: lean right before darting left */
-    42%  { transform: translateY(0.5px) rotate(1deg); }
-    /* Dart left (arc) */
-    50%  { transform: translateY(2px) rotate(-4.5deg); }
-    /* Hold, scanning */
-    60%  { transform: translateY(1.5px) rotate(-4deg); }
-    /* Snap back */
-    70%  { transform: translateY(-1px) rotate(0.5deg); }
-    /* Quick glance up */
-    78%  { transform: translateY(-3px) rotate(0deg); }
-    85%  { transform: translateY(-2px) rotate(0deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-
-  /* EYES: alert, faster blinks, single sharp blinks.
-     P9: 3s cycle. P10: exaggerated open phase. */
-  #folio.searching #eyes {
-    animation: searchBlink 3s ease-in-out infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes searchBlink {
-    0%, 100% { transform: scaleY(1); }
-    48% { transform: scaleY(1); }
-    50% { transform: scaleY(0.05); }
-    53% { transform: scaleY(1.05); }
-    55% { transform: scaleY(1); }
-  }
-
-  /* TAIL: tense, upright, small twitchy movements.
-     P10: less range than idle but faster. P9: 2s cycle. */
-  #folio.searching #tail {
-    animation: searchTail 2s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.12s;
-  }
-  @keyframes searchTail {
-    0%, 100% { transform: rotate(-3deg); }
-    25% { transform: rotate(-5deg); }
-    50% { transform: rotate(-2deg); }
-    75% { transform: rotate(-4deg); }
-  }
-
-  /* GLASSES: follow the head darts, lag behind.
-     P5: 0.15s delay, exaggerated slide on each dart. */
-  #folio.searching #glasses {
-    animation: searchGlasses 3.5s ease-in-out infinite;
-    animation-delay: 0.15s;
-  }
-  @keyframes searchGlasses {
-    0%, 100% { transform: translateX(0) translateY(0) rotate(0deg); }
-    16%  { transform: translateX(1.5px) translateY(0.5px) rotate(0.5deg); }
-    26%  { transform: translateX(1px) translateY(0.3px) rotate(0.3deg); }
-    50%  { transform: translateX(-1.5px) translateY(0.5px) rotate(-0.5deg); }
-    60%  { transform: translateX(-1px) translateY(0.3px) rotate(-0.3deg); }
-    78%  { transform: translateX(0) translateY(-0.5px) rotate(0deg); }
-  }
-
-  /* EARS: alert, both perked forward, twitching.
-     P5: different cycles. P2: anticipation before each twitch. */
-  #folio.searching .ear-left-anim {
-    transform-origin: 170px 150px;
-    animation: searchEarL 2.5s ease-in-out infinite;
-    animation-delay: 0.2s;
-  }
-  @keyframes searchEarL {
-    0%, 100% { transform: rotate(-2deg); }
-    30% { transform: rotate(-1deg); }
-    35% { transform: rotate(1deg); }
-    40% { transform: rotate(-4deg); }
-    50% { transform: rotate(-1.5deg); }
-    55% { transform: rotate(-2deg); }
-  }
-
-  #folio.searching .ear-right-anim {
-    transform-origin: 330px 150px;
-    animation: searchEarR 3.2s ease-in-out infinite;
-    animation-delay: 0.2s;
-  }
-  @keyframes searchEarR {
-    0%, 100% { transform: rotate(2deg); }
-    40% { transform: rotate(1deg); }
-    45% { transform: rotate(-1deg); }
-    50% { transform: rotate(4deg); }
-    60% { transform: rotate(1.5deg); }
-    65% { transform: rotate(2deg); }
-  }
-
-  #folio.searching #front-legs {
-    animation: searchLegs 3s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.06s;
-  }
-  @keyframes searchLegs {
-    0%, 100% { transform: scaleY(1); }
-    50% { transform: scaleY(0.995); }
-  }
-
-  /* ============================================================
-     EXCITED STATE
-     Found a title! Bouncy hops, wide eyes, frantic tail.
-     Max squash & stretch. Strong anticipation on each hop.
-     ============================================================ */
-
-  /* BODY: hop cycle with full squash and stretch.
-     P1: squash wide on land, stretch narrow on rise.
-     P2: crouch (squash) before launch.
-     P11: volume conservation - scaleX inverts scaleY.
-     P9: 1.2s per hop cycle, energetic. */
-  #folio.excited #body {
-    animation: excitedHop 1.2s cubic-bezier(0.37,0,0.63,1) infinite;
-  }
-  @keyframes excitedHop {
-    /* Resting */
-    0%   { transform: scaleX(1) scaleY(1) translateY(0); }
-    /* Anticipation: crouch/squash */
-    15%  { transform: scaleX(1.04) scaleY(0.94) translateY(2px); }
-    /* Launch: stretch */
-    30%  { transform: scaleX(0.96) scaleY(1.06) translateY(-8px); }
-    /* Airborne */
-    45%  { transform: scaleX(0.97) scaleY(1.04) translateY(-12px); }
-    /* Falling */
-    60%  { transform: scaleX(0.98) scaleY(1.02) translateY(-6px); }
-    /* Landing: squash */
-    75%  { transform: scaleX(1.05) scaleY(0.93) translateY(2px); }
-    /* Settle */
-    90%  { transform: scaleX(1.01) scaleY(0.99) translateY(0); }
-    100% { transform: scaleX(1) scaleY(1) translateY(0); }
-  }
-
-  /* HEAD: bounces with body but delayed, overshoots.
-     P5: 0.06s delay, head keeps going after body stops.
-     P7: arc on the bounce. P10: exaggerated bob. */
-  #folio.excited #head-group {
-    animation: excitedHead 1.2s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.06s;
-  }
-  @keyframes excitedHead {
-    0%   { transform: translateY(0) rotate(0deg); }
-    15%  { transform: translateY(3px) rotate(0deg); }
-    30%  { transform: translateY(-6px) rotate(1deg); }
-    45%  { transform: translateY(-14px) rotate(-0.5deg); }
-    60%  { transform: translateY(-5px) rotate(0.5deg); }
-    /* Head keeps going down after body lands (follow-through) */
-    75%  { transform: translateY(4px) rotate(-0.5deg); }
-    85%  { transform: translateY(-1px) rotate(0.3deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-
-  /* EYES: wide open, excited, rapid blinks.
-     P10: eyes slightly larger (scaleY > 1 at rest). */
-  #folio.excited #eyes {
-    animation: excitedBlink 2.5s ease-in-out infinite;
-    animation-delay: 0.08s;
-  }
-  @keyframes excitedBlink {
-    0%, 100% { transform: scaleY(1.05); }
-    70% { transform: scaleY(1.05); }
-    72% { transform: scaleY(0.05); }
-    75% { transform: scaleY(1.08); }
-    78% { transform: scaleY(1.05); }
-  }
-
-  /* TAIL: fast, big wags. Max energy.
-     P10: exaggerated arc. P9: 0.8s cycle, fastest state. */
-  #folio.excited #tail {
-    animation: excitedTail 0.8s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes excitedTail {
-    0%, 100% { transform: rotate(0deg); }
-    25%  { transform: rotate(-12deg); }
-    75%  { transform: rotate(8deg); }
-  }
-
-  /* GLASSES: bouncing with the hops, slip and recover.
-     P5: big delay, glasses lag behind bounces.
-     P8: secondary bounce action. */
-  #folio.excited #glasses {
-    animation: excitedGlasses 1.2s ease-in-out infinite;
-    animation-delay: 0.12s;
-  }
-  @keyframes excitedGlasses {
-    0%   { transform: translateY(0) rotate(0deg); }
-    15%  { transform: translateY(1px) rotate(0.5deg); }
-    30%  { transform: translateY(-2px) rotate(-0.3deg); }
-    45%  { transform: translateY(-4px) rotate(0.4deg); }
-    60%  { transform: translateY(-1px) rotate(-0.2deg); }
-    75%  { transform: translateY(3px) rotate(0.8deg); }
-    85%  { transform: translateY(0) rotate(-0.3deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-
-  /* EARS: perked forward, bouncing with body.
-     P5: different delays per ear. */
-  #folio.excited .ear-left-anim {
-    transform-origin: 170px 150px;
-    animation: excitedEarL 1.2s ease-in-out infinite;
-    animation-delay: 0.15s;
-  }
-  @keyframes excitedEarL {
-    0%, 100% { transform: rotate(-2deg); }
-    45% { transform: rotate(-6deg); }
-    75% { transform: rotate(1deg); }
-  }
-
-  #folio.excited .ear-right-anim {
-    transform-origin: 330px 150px;
-    animation: excitedEarR 1.2s ease-in-out infinite;
-    animation-delay: 0.18s;
-  }
-  @keyframes excitedEarR {
-    0%, 100% { transform: rotate(2deg); }
-    45% { transform: rotate(6deg); }
-    75% { transform: rotate(-1deg); }
-  }
-
-  #folio.excited #front-legs {
-    animation: excitedLegs 1.2s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.04s;
-  }
-  @keyframes excitedLegs {
-    0%   { transform: scaleY(1) translateY(0); }
-    15%  { transform: scaleY(0.96) translateY(1px); }
-    45%  { transform: scaleY(1.02) translateY(-4px); }
-    75%  { transform: scaleY(0.95) translateY(1px); }
-    100% { transform: scaleY(1) translateY(0); }
-  }
-
-  /* ============================================================
-     EVALUATING STATE
-     Head tilt, thoughtful. One-sided lean. Slow, skeptical.
-     Tail wraps close. Occasional squint.
-     ============================================================ */
-
-  /* BODY: barely moving, slight lean to one side.
-     P9: 7s, slowest active state. Deliberate. */
-  #folio.evaluating #body {
-    animation: evalBreath 7s cubic-bezier(0.37,0,0.63,1) infinite;
-  }
-  @keyframes evalBreath {
-    0%, 100% { transform: scaleX(1) scaleY(1); }
-    50% { transform: scaleX(0.999) scaleY(1.003) translateY(-0.5px); }
-  }
-
-  /* HEAD: sustained tilt. Holds angles longer (thinking).
-     P2: slight straighten before re-tilting (anticipation).
-     P7: arc into the tilt. P9: 8s cycle, ponderous. */
-  #folio.evaluating #head-group {
-    animation: evalHead 8s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.08s;
-  }
-  @keyframes evalHead {
-    0%   { transform: translateY(0) rotate(0deg); }
-    /* Settle into right tilt */
-    8%   { transform: translateY(0.5px) rotate(1deg); }
-    15%  { transform: translateY(1px) rotate(5deg); }
-    /* Hold tilt, thinking */
-    35%  { transform: translateY(1.2px) rotate(4.5deg); }
-    /* Anticipation: straighten before tilting other way */
-    42%  { transform: translateY(-0.5px) rotate(0.5deg); }
-    45%  { transform: translateY(0) rotate(-0.5deg); }
-    /* Tilt left */
-    52%  { transform: translateY(1px) rotate(-4deg); }
-    /* Hold */
-    70%  { transform: translateY(1px) rotate(-3.5deg); }
-    /* Return slowly */
-    85%  { transform: translateY(0.3px) rotate(-1deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-
-  /* EYES: slow blinks, occasional skeptical squint (scaleY partial).
-     P10: exaggerated squint. */
-  #folio.evaluating #eyes {
-    animation: evalBlink 9s ease-in-out infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes evalBlink {
-    0%, 100% { transform: scaleY(1); }
-    /* Skeptical squint */
-    20%  { transform: scaleY(0.7); }
-    35%  { transform: scaleY(0.65); }
-    42%  { transform: scaleY(1); }
-    /* Full blink */
-    75%  { transform: scaleY(1); }
-    77%  { transform: scaleY(0.05); }
-    80%  { transform: scaleY(1); }
-  }
-
-  /* TAIL: slow, close wrap. Thinking tail.
-     P9: 9s. Minimal movement. */
-  #folio.evaluating #tail {
-    animation: evalTail 9s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.12s;
-  }
-  @keyframes evalTail {
-    0%, 100% { transform: rotate(0deg); }
-    40%  { transform: rotate(-2deg); }
-    60%  { transform: rotate(-1deg); }
-    80%  { transform: rotate(1deg); }
-  }
-
-  /* GLASSES: slide down during tilts (gravity!).
-     P5: delayed reaction to head angle. */
-  #folio.evaluating #glasses {
-    animation: evalGlasses 8s ease-in-out infinite;
-    animation-delay: 0.18s;
-  }
-  @keyframes evalGlasses {
-    0%, 100% { transform: translateX(0) translateY(0) rotate(0deg); }
-    /* Slide during right tilt */
-    15%  { transform: translateX(1px) translateY(1.5px) rotate(0.5deg); }
-    35%  { transform: translateX(0.8px) translateY(2px) rotate(0.6deg); }
-    /* Nudge back on straighten */
-    42%  { transform: translateX(0) translateY(-0.3px) rotate(-0.1deg); }
-    /* Slide during left tilt */
-    52%  { transform: translateX(-0.8px) translateY(1.5px) rotate(-0.4deg); }
-    70%  { transform: translateX(-0.6px) translateY(1.8px) rotate(-0.5deg); }
-    85%  { transform: translateX(0) translateY(0) rotate(0deg); }
-  }
-
-  #folio.evaluating .ear-left-anim {
-    transform-origin: 170px 150px;
-    animation: evalEarL 10s ease-in-out infinite;
-    animation-delay: 0.2s;
-  }
-  @keyframes evalEarL {
-    0%, 100% { transform: rotate(0deg); }
-    15% { transform: rotate(-2deg); }
-    35% { transform: rotate(-1.5deg); }
-    50% { transform: rotate(0deg); }
-  }
-
-  #folio.evaluating .ear-right-anim {
-    transform-origin: 330px 150px;
-    animation: evalEarR 10s ease-in-out infinite;
-    animation-delay: 0.25s;
-  }
-  @keyframes evalEarR {
-    0%, 100% { transform: rotate(0deg); }
-    52% { transform: rotate(2deg); }
-    70% { transform: rotate(1.5deg); }
-    85% { transform: rotate(0deg); }
-  }
-
-  #folio.evaluating #front-legs {
-    animation: evalLegs 7s cubic-bezier(0.37,0,0.63,1) infinite;
-  }
-  @keyframes evalLegs {
-    0%, 100% { transform: scaleY(1); }
-    50% { transform: scaleY(0.999); }
-  }
-
-  /* ============================================================
-     SLEEPING STATE
-     Head droops forward. Eyes shut. Very slow breathing.
-     Occasional twitch (dreaming). Tail still.
-     ============================================================ */
-
-  /* BODY: deep, slow breath.
-     P1: more pronounced squash/stretch than idle.
-     P9: 8s, deep sleep breathing. */
-  #folio.sleeping #body {
-    animation: sleepBreath 8s cubic-bezier(0.37,0,0.63,1) infinite;
-  }
-  @keyframes sleepBreath {
-    0%, 100% { transform: scaleX(1.005) scaleY(0.996); }
-    50% { transform: scaleX(0.995) scaleY(1.008) translateY(-1.5px); }
-  }
-
-  /* HEAD: drooped forward, very slow sway.
-     P7: arc on the gentle sway. P5: 0.1s delay.
-     P9: 12s, very slow dreaming drift. */
-  #folio.sleeping #head-group {
-    animation: sleepHead 12s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes sleepHead {
-    0%   { transform: translateY(6px) rotate(2deg); }
-    /* Dreaming drift right */
-    25%  { transform: translateY(7px) rotate(3.5deg); }
-    40%  { transform: translateY(6.5px) rotate(2.5deg); }
-    /* Drift left */
-    65%  { transform: translateY(7px) rotate(0.5deg); }
-    80%  { transform: translateY(6.5px) rotate(1deg); }
-    100% { transform: translateY(6px) rotate(2deg); }
-  }
-
-  /* EYES: shut. Occasional dream-flutter.
-     P10: mostly closed, tiny flutters. */
-  #folio.sleeping #eyes {
-    animation: sleepEyes 10s ease-in-out infinite;
-  }
-  @keyframes sleepEyes {
-    0%, 100% { transform: scaleY(0.05); }
-    /* Dream flutter */
-    40%  { transform: scaleY(0.05); }
-    42%  { transform: scaleY(0.2); }
-    44%  { transform: scaleY(0.05); }
-    46%  { transform: scaleY(0.15); }
-    48%  { transform: scaleY(0.05); }
-  }
-
-  /* TAIL: droops down (gravity), slow breathing curl at drooped angle,
-     with occasional dream twitch clusters.
-     The tail DOM element gets moved behind #books-left via JS when
-     entering sleep, so it visually tucks behind the book spines.
-
-     DROOP MECHANIC: The JS adds class .tail-droop which sets
-     transform: rotate(18deg) with a slow 2.5s transition. After
-     the transition completes, JS adds .tail-sleeping which starts
-     the curl animation at the drooped angle.
-
-     WAKE MECHANIC: On state change, both classes are removed.
-     The base #tail transition (0.3s overshoot) snaps it back. */
-
-  #folio.tail-droop #tail {
-    transform: rotate(-70deg);
-    transition: transform 2.5s cubic-bezier(0.37,0,0.63,1);
-  }
-
-  #folio.tail-sleeping #tail {
-    animation: sleepTailCurl 8s cubic-bezier(0.37,0,0.63,1) infinite;
-  }
-  @keyframes sleepTailCurl {
-    0%, 100% { transform: rotate(-70deg); }
-    25%  { transform: rotate(-72deg); }
-    50%  { transform: rotate(-67deg); }
-    75%  { transform: rotate(-71deg); }
-    /* Dream twitch cluster */
-    82%  { transform: rotate(-70deg); }
-    84%  { transform: rotate(-65deg); }
-    86%  { transform: rotate(-72deg); }
-    88%  { transform: rotate(-66deg); }
-    90%  { transform: rotate(-70deg); }
-  }
-
-  /* GLASSES: slipped down, resting on nose.
-     P8: gravity wins while sleeping. */
-  #folio.sleeping #glasses {
-    animation: sleepGlasses 12s ease-in-out infinite;
-  }
-  @keyframes sleepGlasses {
-    0%, 100% { transform: translateY(3.5px) rotate(1.5deg); }
-    50% { transform: translateY(4px) rotate(1.8deg); }
-  }
-
-  /* EARS: relaxed, drooped, occasional dream twitch. */
-  #folio.sleeping .ear-left-anim {
-    transform-origin: 170px 150px;
-    animation: sleepEarL 13s ease-in-out infinite;
-  }
-  @keyframes sleepEarL {
-    0%, 100% { transform: rotate(3deg); }
-    60%  { transform: rotate(3deg); }
-    63%  { transform: rotate(0deg); }
-    66%  { transform: rotate(2deg); }
-    69%  { transform: rotate(3deg); }
-  }
-
-  #folio.sleeping .ear-right-anim {
-    transform-origin: 330px 150px;
-    animation: sleepEarR 17s ease-in-out infinite;
-  }
-  @keyframes sleepEarR {
-    0%, 100% { transform: rotate(-3deg); }
-    45%  { transform: rotate(-3deg); }
-    48%  { transform: rotate(0deg); }
-    51%  { transform: rotate(-2deg); }
-    54%  { transform: rotate(-3deg); }
-  }
-
-  #folio.sleeping #front-legs {
-    animation: sleepLegs 8s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.06s;
-  }
-  @keyframes sleepLegs {
-    0%, 100% { transform: scaleY(1); }
-    50% { transform: scaleY(0.998); }
-  }
-
-  /* ============================================================
-     GREETING STATE
-     Perky, happy to see you. Small bounces. Bright-eyed.
-     Tail high and wagging. Ears forward.
-     ============================================================ */
-
-  /* BODY: happy little bounces, less extreme than excited.
-     P1: squash on land. P2: small crouch before bounce.
-     P9: 1.8s, peppy but not frantic. */
-  #folio.greeting #body {
-    animation: greetBounce 1.8s cubic-bezier(0.37,0,0.63,1) infinite;
-  }
-  @keyframes greetBounce {
-    0%   { transform: scaleX(1) scaleY(1) translateY(0); }
-    /* Small crouch */
-    20%  { transform: scaleX(1.02) scaleY(0.97) translateY(1px); }
-    /* Bounce up */
-    40%  { transform: scaleX(0.98) scaleY(1.03) translateY(-5px); }
-    /* Float */
-    55%  { transform: scaleX(0.99) scaleY(1.02) translateY(-6px); }
-    /* Land */
-    70%  { transform: scaleX(1.02) scaleY(0.97) translateY(1px); }
-    /* Settle */
-    85%  { transform: scaleX(1) scaleY(1) translateY(0); }
-    100% { transform: scaleX(1) scaleY(1) translateY(0); }
-  }
-
-  /* HEAD: follows bounce, slight tilt of recognition.
-     P5: delayed behind body. P7: arc on bounce. */
-  #folio.greeting #head-group {
-    animation: greetHead 1.8s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.06s;
-  }
-  @keyframes greetHead {
-    0%   { transform: translateY(0) rotate(0deg); }
-    20%  { transform: translateY(2px) rotate(-1deg); }
-    40%  { transform: translateY(-4px) rotate(1.5deg); }
-    55%  { transform: translateY(-7px) rotate(0.5deg); }
-    70%  { transform: translateY(2px) rotate(-0.5deg); }
-    85%  { transform: translateY(-0.5px) rotate(0.3deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-
-  /* EYES: bright, wide open, happy blinks.
-     P10: slightly enlarged (1.03). */
-  #folio.greeting #eyes {
-    animation: greetBlink 4s ease-in-out infinite;
-    animation-delay: 0.08s;
-  }
-  @keyframes greetBlink {
-    0%, 100% { transform: scaleY(1.03); }
-    60% { transform: scaleY(1.03); }
-    62% { transform: scaleY(0.06); }
-    65% { transform: scaleY(1.06); }
-    68% { transform: scaleY(1.03); }
-  }
-
-  /* TAIL: high, happy wag. Big arcs.
-     P7: natural arc. P9: 1.5s, happy pace. */
-  #folio.greeting #tail {
-    animation: greetTail 1.5s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes greetTail {
-    0%, 100% { transform: rotate(-2deg); }
-    30%  { transform: rotate(-9deg); }
-    70%  { transform: rotate(6deg); }
-  }
-
-  /* GLASSES: bounce with the greeting. */
-  #folio.greeting #glasses {
-    animation: greetGlasses 1.8s ease-in-out infinite;
-    animation-delay: 0.12s;
-  }
-  @keyframes greetGlasses {
-    0%   { transform: translateY(0) rotate(0deg); }
-    20%  { transform: translateY(0.5px) rotate(0.3deg); }
-    40%  { transform: translateY(-1px) rotate(-0.2deg); }
-    55%  { transform: translateY(-2px) rotate(0.3deg); }
-    70%  { transform: translateY(1.5px) rotate(0.5deg); }
-    85%  { transform: translateY(-0.3px) rotate(-0.1deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-
-  #folio.greeting .ear-left-anim {
-    transform-origin: 170px 150px;
-    animation: greetEarL 1.8s ease-in-out infinite;
-    animation-delay: 0.15s;
-  }
-  @keyframes greetEarL {
-    0%, 100% { transform: rotate(-1deg); }
-    40% { transform: rotate(-4deg); }
-    70% { transform: rotate(0deg); }
-  }
-
-  #folio.greeting .ear-right-anim {
-    transform-origin: 330px 150px;
-    animation: greetEarR 1.8s ease-in-out infinite;
-    animation-delay: 0.18s;
-  }
-  @keyframes greetEarR {
-    0%, 100% { transform: rotate(1deg); }
-    40% { transform: rotate(4deg); }
-    70% { transform: rotate(0deg); }
-  }
-
-  #folio.greeting #front-legs {
-    animation: greetLegs 1.8s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.04s;
-  }
-  @keyframes greetLegs {
-    0%   { transform: scaleY(1) translateY(0); }
-    20%  { transform: scaleY(0.98) translateY(0.5px); }
-    55%  { transform: scaleY(1.01) translateY(-2px); }
-    70%  { transform: scaleY(0.98) translateY(0.5px); }
-    100% { transform: scaleY(1) translateY(0); }
-  }
-
-  /* ============================================================
-     WORRIED STATE
-     Nervous energy. Rapid shifting. Small jittery movements.
-     Fast blinks. Ears back. Tail low and twitchy.
-     ============================================================ */
-
-  /* BODY: nervous weight shift side to side.
-     P1: slight squash on each shift. P9: 2.5s, anxious. */
-  #folio.worried #body {
-    animation: worriedShift 2.5s cubic-bezier(0.37,0,0.63,1) infinite;
-  }
-  @keyframes worriedShift {
-    0%, 100% { transform: translateX(0) scaleX(1) scaleY(1); }
-    25%  { transform: translateX(-2px) scaleX(1.005) scaleY(0.998); }
-    50%  { transform: translateX(0) scaleX(1) scaleY(1); }
-    75%  { transform: translateX(2px) scaleX(1.005) scaleY(0.998); }
-  }
-
-  /* HEAD: nervous looking around, faster than searching.
-     P2: flinchy anticipation. P7: quick arcs.
-     P10: more exaggerated than searching. */
-  #folio.worried #head-group {
-    animation: worriedHead 2.8s cubic-bezier(0.25,0.1,0.25,1) infinite;
-    animation-delay: 0.06s;
-  }
-  @keyframes worriedHead {
-    0%   { transform: translateY(0.5px) rotate(0deg); }
-    /* Flinch right */
-    10%  { transform: translateY(1px) rotate(0.5deg); }
-    18%  { transform: translateY(2px) rotate(3deg); }
-    28%  { transform: translateY(1.5px) rotate(2deg); }
-    /* Quick snap left */
-    35%  { transform: translateY(0) rotate(-0.5deg); }
-    42%  { transform: translateY(1.5px) rotate(-2.5deg); }
-    52%  { transform: translateY(1px) rotate(-2deg); }
-    /* Hunker down center */
-    65%  { transform: translateY(2px) rotate(0deg); }
-    /* Tiny glance right */
-    75%  { transform: translateY(1.5px) rotate(1.5deg); }
-    85%  { transform: translateY(1px) rotate(0.5deg); }
-    100% { transform: translateY(0.5px) rotate(0deg); }
-  }
-
-  /* EYES: rapid, nervous blinks. Multiple per cycle.
-     P9: 3.5s with 3 blinks. Anxious. */
-  #folio.worried #eyes {
-    animation: worriedBlink 3.5s ease-in-out infinite;
-    animation-delay: 0.08s;
-  }
-  @keyframes worriedBlink {
-    0%, 100% { transform: scaleY(1); }
-    20%  { transform: scaleY(1); }
-    22%  { transform: scaleY(0.06); }
-    25%  { transform: scaleY(1); }
-    50%  { transform: scaleY(1); }
-    52%  { transform: scaleY(0.06); }
-    55%  { transform: scaleY(1); }
-    78%  { transform: scaleY(1); }
-    80%  { transform: scaleY(0.06); }
-    83%  { transform: scaleY(1); }
-  }
-
-  /* TAIL: low, tight twitches. Nervous energy.
-     P9: 1.8s, jittery. P10: small but sharp movements. */
-  #folio.worried #tail {
-    animation: worriedTail 1.8s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes worriedTail {
-    0%, 100% { transform: rotate(2deg); }
-    20%  { transform: rotate(0deg); }
-    40%  { transform: rotate(3deg); }
-    60%  { transform: rotate(0deg); }
-    80%  { transform: rotate(2.5deg); }
-  }
-
-  /* GLASSES: jittery, following nervous head movements. */
-  #folio.worried #glasses {
-    animation: worriedGlasses 2.8s ease-in-out infinite;
-    animation-delay: 0.14s;
-  }
-  @keyframes worriedGlasses {
-    0%, 100% { transform: translateX(0) translateY(0.5px) rotate(0deg); }
-    18%  { transform: translateX(0.8px) translateY(1px) rotate(0.4deg); }
-    42%  { transform: translateX(-0.6px) translateY(1px) rotate(-0.3deg); }
-    65%  { transform: translateX(0) translateY(1.5px) rotate(0.2deg); }
-    75%  { transform: translateX(0.4px) translateY(0.8px) rotate(0.2deg); }
-  }
-
-  /* EARS: pulled back (negative rotation = flattened).
-     P10: exaggerated flatten. Twitchy. */
-  #folio.worried .ear-left-anim {
-    transform-origin: 170px 150px;
-    animation: worriedEarL 3s ease-in-out infinite;
-    animation-delay: 0.2s;
-  }
-  @keyframes worriedEarL {
-    0%, 100% { transform: rotate(5deg); }
-    30%  { transform: rotate(3deg); }
-    50%  { transform: rotate(6deg); }
-    70%  { transform: rotate(4deg); }
-  }
-
-  #folio.worried .ear-right-anim {
-    transform-origin: 330px 150px;
-    animation: worriedEarR 3.7s ease-in-out infinite;
-    animation-delay: 0.2s;
-  }
-  @keyframes worriedEarR {
-    0%, 100% { transform: rotate(-5deg); }
-    35%  { transform: rotate(-3deg); }
-    55%  { transform: rotate(-6deg); }
-    75%  { transform: rotate(-4deg); }
-  }
-
-  #folio.worried #front-legs {
-    animation: worriedLegs 2.5s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.04s;
-  }
-  @keyframes worriedLegs {
-    0%, 100% { transform: translateX(0); }
-    25%  { transform: translateX(-1px); }
-    75%  { transform: translateX(1px); }
-  }
-
-  /* ============================================================
-     FACE ANIMATIONS: NOSE, MOUTH
-     Consolidated section for all face-specific animations.
-
-     PRINCIPLES APPLIED TO ALL FACE ANIMATIONS:
-     P1/P11: Squash & stretch with volume conservation.
-             When scaleX expands, scaleY compresses and vice versa.
-     P2:     Anticipation. Counter-movement before every action.
-             Mouth tightens before opening, nose dips before lifting.
-     P5:     Follow-through. Nose delays 0.1s behind head, mouth
-             0.12s. Nose overshoots head on fast movements.
-     P6:     Slow in/out. Cubic-bezier on everything, no linear.
-     P7:     Arcs. Vertical movements include slight X shift.
-             Nothing moves on a pure straight line.
-     P8:     Secondary action. Face reacts to body, not independently.
-     P9:     Timing. Face cycles are prime-offset from body cycles.
-             Prevents sync. Nose and mouth on different cycles.
-     P10:    Exaggeration scales with emotional intensity.
-     ============================================================ */
-
-  /* --- IDLE FACE ---
-     P9: nose 6.1s, mouth 5.3s (neither matches body's 5.5s)
-     P5: nose 0.1s delay, mouth 0.12s behind head
-     P7: tiny X arc on breathing translateY */
-  #folio.idle #nose {
-    animation: idleNose 6.1s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes idleNose {
-    0%, 100% { transform: translateY(0) translateX(0); }
-    50% { transform: translateY(0.4px) translateX(0.15px); }
-  }
-  #folio.idle #mouth {
-    animation: idleMouth 5.3s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.12s;
-  }
-  @keyframes idleMouth {
-    0%, 100% { transform: translateY(0) translateX(0); }
-    50% { transform: translateY(0.3px) translateX(-0.1px); }
-  }
-
-  /* --- SEARCHING FACE ---
-     P9: nose 3.7s, mouth 4.1s (head is 3.5s)
-     P2: mouth tightens with anticipation before each direction shift
-     P7: nose traces arcs following head darts
-     P5: nose 0.1s, mouth 0.12s delays */
-  #folio.searching #nose {
-    animation: searchNose 3.7s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes searchNose {
-    0%, 100% { transform: translateY(0) translateX(0); }
-    /* Anticipation: slight opposite lean before following head */
-    15% { transform: translateX(-0.2px) translateY(0.2px); }
-    /* Follow head right with arc dip */
-    25% { transform: translateX(0.6px) translateY(-0.3px); }
-    45% { transform: translateX(0.1px) translateY(0.1px); }
-    /* Anticipation lean right before darting left */
-    55% { transform: translateX(0.2px) translateY(0.2px); }
-    /* Follow head left with arc dip */
-    70% { transform: translateX(-0.5px) translateY(-0.2px); }
-    85% { transform: translateX(-0.1px) translateY(0.1px); }
-  }
-  #folio.searching #mouth {
-    animation: searchMouth 4.1s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.12s;
-  }
-  @keyframes searchMouth {
-    0%, 100% { transform: scaleX(1) scaleY(1); }
-    /* P2: slight relax before tightening */
-    10% { transform: scaleX(1.01) scaleY(0.995); }
-    /* P1/P11: tighten with volume conservation */
-    25% { transform: scaleX(0.96) scaleY(1.02) translateX(0.2px); }
-    50% { transform: scaleX(0.95) scaleY(1.025); }
-    75% { transform: scaleX(0.96) scaleY(1.02) translateX(-0.2px); }
-  }
-
-  /* --- EXCITED FACE ---
-     P9: mouth 1.3s, nose 1.1s (body hops at 1.2s)
-     P1/P11: mouth squash/stretch with volume conservation on hops
-     P2: mouth compresses before stretching on launch
-     P7: arc X wobble on bounce
-     P5: nose 0.08s, mouth 0.1s delays */
-  #folio.excited #mouth {
-    animation: excitedMouth 1.3s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes excitedMouth {
-    /* P2: slight tighten before hop */
-    0%   { transform: scaleX(1) scaleY(1) translateY(0) translateX(0); }
-    10%  { transform: scaleX(0.98) scaleY(1.01) translateY(0.2px); }
-    /* Squash on crouch: wide + short (P1/P11) */
-    18%  { transform: scaleX(1.06) scaleY(0.94) translateY(0.5px) translateX(0.15px); }
-    /* Stretch on launch: narrow + tall (P1/P11) */
-    40%  { transform: scaleX(0.95) scaleY(1.05) translateY(-1.5px) translateX(-0.1px); }
-    /* Squash on landing (P1/P11) */
-    65%  { transform: scaleX(1.04) scaleY(0.96) translateY(0.5px) translateX(0.1px); }
-    /* Settle */
-    100% { transform: scaleX(1) scaleY(1) translateY(0) translateX(0); }
-  }
-  #folio.excited #nose {
-    animation: excitedNose 1.1s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.08s;
-  }
-  @keyframes excitedNose {
-    0%   { transform: translateY(0) translateX(0); }
-    /* P5: nose overshoots head on launch */
-    15%  { transform: translateY(0.5px) translateX(0.1px); }
-    42%  { transform: translateY(-2.2px) translateX(-0.15px); }
-    /* P5: nose overshoots head on landing */
-    68%  { transform: translateY(0.8px) translateX(0.1px); }
-    100% { transform: translateY(0) translateX(0); }
-  }
-
-  /* --- EVALUATING FACE ---
-     P9: mouth 8.5s, nose 7.7s (head tilt is 8s)
-     P2: mouth relaxes before tightening
-     P1/P11: mouth tighten preserves volume
-     P7: nose follows head tilt on arcs
-     P5: mouth 0.12s, nose 0.1s delays */
-  #folio.evaluating #mouth {
-    animation: evalMouth 8.5s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.12s;
-  }
-  @keyframes evalMouth {
-    0%, 100% { transform: scaleX(1) scaleY(1) translateX(0); }
-    /* P2: relax before tightening */
-    12%  { transform: scaleX(1.01) scaleY(0.995) translateX(0.1px); }
-    /* P1/P11: tighten with volume conservation */
-    22%  { transform: scaleX(0.94) scaleY(1.03) translateX(0.2px); }
-    /* Hold tight (thinking) */
-    42%  { transform: scaleX(0.92) scaleY(1.04) translateX(0.1px); }
-    /* P2: slight tighten before relaxing other direction */
-    50%  { transform: scaleX(0.93) scaleY(1.035) translateX(-0.1px); }
-    62%  { transform: scaleX(0.95) scaleY(1.025) translateX(-0.15px); }
-    80%  { transform: scaleX(0.97) scaleY(1.015) translateX(-0.05px); }
-  }
-  #folio.evaluating #nose {
-    animation: evalNose 7.7s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes evalNose {
-    0%, 100% { transform: translateX(0) translateY(0); }
-    /* P7: arc path following head tilt direction */
-    12%  { transform: translateX(0.5px) translateY(-0.2px); }
-    18%  { transform: translateX(0.9px) translateY(0.1px); }
-    35%  { transform: translateX(0.7px) translateY(0.15px); }
-    /* P2: slight overshoot before reversing */
-    48%  { transform: translateX(0.2px) translateY(-0.1px); }
-    55%  { transform: translateX(-0.4px) translateY(-0.15px); }
-    70%  { transform: translateX(-0.7px) translateY(0.1px); }
-    85%  { transform: translateX(-0.3px) translateY(0.05px); }
-  }
-
-  /* --- SLEEPING FACE ---
-     P9: mouth 8.3s, nose 7.9s (body breath is 8s)
-     P1/P11: mouth open/close preserves volume
-     P7: breathing has slight X drift (dreaming)
-     P5: mouth 0.12s, nose 0.1s delays */
-  #folio.sleeping #mouth {
-    animation: sleepMouth 8.3s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.12s;
-  }
-  @keyframes sleepMouth {
-    /* P1/P11: opens tall/narrow, closes short/wide */
-    0%, 100% { transform: scaleX(1.02) scaleY(1.03) translateY(0.5px) translateX(0); }
-    /* P7: slight X drift on exhale */
-    50% { transform: scaleX(0.98) scaleY(1.07) translateY(1px) translateX(0.2px); }
-  }
-  #folio.sleeping #nose {
-    animation: sleepNose 7.9s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes sleepNose {
-    0%, 100% { transform: translateY(0.5px) translateX(0); }
-    /* P7: follows breathing arc with dream drift */
-    50% { transform: translateY(1px) translateX(0.15px); }
-  }
-
-  /* --- GREETING FACE ---
-     P9: mouth 1.9s, nose 2.1s (body bounce is 1.8s)
-     P2: mouth dips before smiling up
-     P1/P11: smile widens with volume conservation
-     P7: bouncy arcs on the smile
-     P5: mouth 0.1s, nose 0.08s delays */
-  #folio.greeting #mouth {
-    animation: greetMouth 1.9s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes greetMouth {
-    /* P2: slight downturn before smile */
-    0%   { transform: scaleX(1) scaleY(1) translateY(0) translateX(0); }
-    12%  { transform: scaleX(0.99) scaleY(1.005) translateY(0.4px) translateX(0.05px); }
-    /* P1/P11: smile up, wider and shorter */
-    35%  { transform: scaleX(1.04) scaleY(0.96) translateY(-1px) translateX(-0.1px); }
-    /* Hold the smile peak */
-    50%  { transform: scaleX(1.05) scaleY(0.95) translateY(-1.2px) translateX(0.05px); }
-    /* P5: overshoot past neutral on return */
-    72%  { transform: scaleX(0.99) scaleY(1.005) translateY(0.3px) translateX(-0.05px); }
-    100% { transform: scaleX(1) scaleY(1) translateY(0) translateX(0); }
-  }
-  #folio.greeting #nose {
-    animation: greetNose 2.1s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.08s;
-  }
-  @keyframes greetNose {
-    0%   { transform: translateY(0) translateX(0); }
-    /* P2: dip before lifting */
-    10%  { transform: translateY(0.3px) translateX(0.05px); }
-    /* P7: arc on the bounce */
-    38%  { transform: translateY(-0.9px) translateX(-0.1px); }
-    55%  { transform: translateY(-0.7px) translateX(0.08px); }
-    /* P5: overshoot return */
-    75%  { transform: translateY(0.2px) translateX(-0.05px); }
-    100% { transform: translateY(0) translateX(0); }
-  }
-
-  /* --- WORRIED FACE ---
-     P9: mouth 2.7s, nose 3.1s (body rocks at 2.5s)
-     P1/P11: tighten preserves volume
-     P2: mouth fluctuates between tighten levels with anticipation
-     P7: nose jitters on arcs following nervous head
-     P5: mouth 0.1s, nose 0.12s delays */
-  #folio.worried #mouth {
-    animation: worriedMouth 2.7s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.1s;
-  }
-  @keyframes worriedMouth {
-    /* P1/P11: compressed. Wide = short, narrow = tall */
-    0%, 100% { transform: scaleX(0.93) scaleY(1.035) translateX(0); }
-    /* P2: tiny relax before re-tightening */
-    20%  { transform: scaleX(0.95) scaleY(1.025) translateX(0.15px); }
-    35%  { transform: scaleX(0.90) scaleY(1.05) translateX(0.1px); }
-    55%  { transform: scaleX(0.94) scaleY(1.03) translateX(-0.1px); }
-    75%  { transform: scaleX(0.91) scaleY(1.045) translateX(-0.15px); }
-  }
-  #folio.worried #nose {
-    animation: worriedNose 3.1s cubic-bezier(0.37,0,0.63,1) infinite;
-    animation-delay: 0.12s;
-  }
-  @keyframes worriedNose {
-    0%, 100% { transform: translateY(0) translateX(0) scaleY(1); }
-    /* P7: jittery arc path following nervous head */
-    20% { transform: translateY(-0.3px) translateX(0.2px) scaleY(0.97); }
-    40% { transform: translateY(0.1px) translateX(-0.15px) scaleY(0.98); }
-    60% { transform: translateY(-0.2px) translateX(0.1px) scaleY(0.97); }
-    80% { transform: translateY(0.2px) translateX(-0.1px) scaleY(0.99); }
-  }
-
-  /* ============================================================
-     FACE IN MICRO-REACTIONS
-     Same principles applied. One-shot animations.
-     ============================================================ */
-
-  /* NOD: brief smile with anticipation tighten first.
-     P2: mouth tightens before smiling. P1/P11: smile is wide+short.
-     P7: arc on the dip. P5: nose 0.08s behind mouth. */
-  #folio.react-nod #mouth {
-    animation: reactNodMouth 0.6s cubic-bezier(0.37,0,0.63,1) forwards !important;
-    animation-delay: 0.04s !important;
-  }
-  @keyframes reactNodMouth {
-    /* P2: tighten before smile */
-    0%   { transform: scaleX(1) scaleY(1) translateY(0) translateX(0); }
-    15%  { transform: scaleX(0.98) scaleY(1.01) translateY(0.3px) translateX(0.05px); }
-    /* P1/P11: smile wide + short */
-    45%  { transform: scaleX(1.05) scaleY(0.95) translateY(-1px) translateX(-0.1px); }
-    70%  { transform: scaleX(1.02) scaleY(0.985) translateY(-0.3px) translateX(0.05px); }
-    100% { transform: scaleX(1) scaleY(1) translateY(0) translateX(0); }
-  }
-  #folio.react-nod #nose {
-    animation: reactNodNose 0.6s cubic-bezier(0.37,0,0.63,1) forwards !important;
-    animation-delay: 0.08s !important;
-  }
-  @keyframes reactNodNose {
-    0%   { transform: translateY(0) translateX(0); }
-    /* P2: tiny lift before dipping with head */
-    12%  { transform: translateY(-0.3px) translateX(0.05px); }
-    /* P7: arc on the dip */
-    45%  { transform: translateY(1px) translateX(-0.1px); }
-    70%  { transform: translateY(0.3px) translateX(0.05px); }
-    100% { transform: translateY(0) translateX(0); }
-  }
-
-  /* PERK: nose wiggles, mouth opens slightly.
-     P2: mouth closes before opening. P1/P11: nose wiggle preserves volume.
-     P7: nose traces oval not line. P5: mouth 0.06s behind nose. */
-  #folio.react-perk #nose {
-    animation: reactPerkNose 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-  }
-  @keyframes reactPerkNose {
-    /* P7: oval arc path, not straight line */
-    0%   { transform: translateX(0) translateY(0) scaleX(1) scaleY(1); }
-    /* P1/P11: widens with compensating height */
-    20%  { transform: translateX(0.5px) translateY(-0.2px) scaleX(1.05) scaleY(0.96); }
-    40%  { transform: translateX(-0.5px) translateY(-0.15px) scaleX(1.04) scaleY(0.97); }
-    60%  { transform: translateX(0.3px) translateY(-0.1px) scaleX(1.02) scaleY(0.98); }
-    100% { transform: translateX(0) translateY(0) scaleX(1) scaleY(1); }
-  }
-  #folio.react-perk #mouth {
-    animation: reactPerkMouth 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-    animation-delay: 0.06s !important;
-  }
-  @keyframes reactPerkMouth {
-    /* P2: slight close before opening */
-    0%   { transform: scaleX(1) scaleY(1) translateY(0); }
-    12%  { transform: scaleX(0.98) scaleY(1.01) translateY(0.2px); }
-    /* P1/P11: opens tall + narrow */
-    38%  { transform: scaleX(0.97) scaleY(1.04) translateY(-0.5px); }
-    60%  { transform: scaleX(0.985) scaleY(1.02) translateY(-0.2px); }
-    100% { transform: scaleX(1) scaleY(1) translateY(0); }
-  }
-
-  /* WINCE: nose scrunches, mouth tightens. No anticipation (flinch).
-     P1/P11: scrunch compresses Y, expands X. P7: scrunch arcs upward.
-     P5: nose 0.03s before mouth (face crumples top-down). */
-  #folio.react-wince #nose {
-    animation: reactWinceNose 0.5s cubic-bezier(0.37,0,0.63,1) forwards !important;
-  }
-  @keyframes reactWinceNose {
-    /* No P2: flinch is involuntary, no anticipation */
-    0%   { transform: translateY(0) translateX(0) scaleX(1) scaleY(1); }
-    /* P1/P11: scrunches short+wide */
-    22%  { transform: translateY(-1.5px) translateX(0.1px) scaleX(1.08) scaleY(0.85); }
-    /* P5: slight overshoot before recovering */
-    45%  { transform: translateY(-1px) translateX(-0.05px) scaleX(1.05) scaleY(0.88); }
-    100% { transform: translateY(0) translateX(0) scaleX(1) scaleY(1); }
-  }
-  #folio.react-wince #mouth {
-    animation: reactWinceMouth 0.5s cubic-bezier(0.37,0,0.63,1) forwards !important;
-    animation-delay: 0.03s !important;
-  }
-  @keyframes reactWinceMouth {
-    0%   { transform: scaleX(1) scaleY(1) translateX(0); }
-    /* P1/P11: tightens wide+short */
-    25%  { transform: scaleX(0.85) scaleY(1.08) translateX(0.1px); }
-    48%  { transform: scaleX(0.88) scaleY(1.06) translateX(-0.05px); }
-    100% { transform: scaleX(1) scaleY(1) translateX(0); }
-  }
-
-  /* WATCH: nose and mouth track mouse via CSS variable.
-     P5: mouth lags further behind nose (0.25s vs 0.2s transition). */
-  #folio.react-watch #nose {
-    animation: none !important;
-    transform: translateX(calc(var(--watch-x) * 0.3px)) !important;
-    transition: transform 0.2s cubic-bezier(0.37,0,0.63,1);
-  }
-  #folio.react-watch #mouth {
-    animation: none !important;
-    transform: translateX(calc(var(--watch-x) * 0.2px)) !important;
-    transition: transform 0.25s cubic-bezier(0.37,0,0.63,1);
-  }
-
-  /* YAWN: mouth opens wide, nose lifts.
-     P2: mouth tightens before opening. P1/P11: open is tall+narrow.
-     P7: nose lifts on arc. P5: nose 0.08s behind mouth.
-     P6: slow throughout (longest reaction at 2.5s). */
-  #folio.react-yawn #mouth {
-    animation: reactYawnMouth 2.5s cubic-bezier(0.37,0,0.63,1) forwards !important;
-  }
-  @keyframes reactYawnMouth {
-    /* P2: slight tighten before the yawn opens */
-    0%   { transform: scaleX(1) scaleY(1) translateY(0) translateX(0); }
-    8%   { transform: scaleX(1.02) scaleY(0.98) translateY(0.2px) translateX(0.05px); }
-    /* P1/P11: opening = tall + narrow */
-    22%  { transform: scaleX(0.93) scaleY(1.3) translateY(2px) translateX(-0.1px); }
-    /* Peak of yawn */
-    40%  { transform: scaleX(0.90) scaleY(1.5) translateY(3px) translateX(0.05px); }
-    /* P6: slow ease back */
-    58%  { transform: scaleX(0.92) scaleY(1.4) translateY(2.5px) translateX(-0.05px); }
-    78%  { transform: scaleX(0.97) scaleY(1.1) translateY(0.5px) translateX(0.03px); }
-    100% { transform: scaleX(1) scaleY(1) translateY(0) translateX(0); }
-  }
-  #folio.react-yawn #nose {
-    animation: reactYawnNose 2.5s cubic-bezier(0.37,0,0.63,1) forwards !important;
-    animation-delay: 0.08s !important;
-  }
-  @keyframes reactYawnNose {
-    0%   { transform: translateY(0) translateX(0); }
-    /* P2: tiny dip before lift */
-    6%   { transform: translateY(0.3px) translateX(0.05px); }
-    /* P7: arc on the lift */
-    22%  { transform: translateY(-2px) translateX(-0.15px); }
-    40%  { transform: translateY(-3px) translateX(0.1px); }
-    58%  { transform: translateY(-2.5px) translateX(-0.08px); }
-    78%  { transform: translateY(-1px) translateX(0.05px); }
-    100% { transform: translateY(0) translateX(0); }
-  }
-
-  /* STARTLE: mouth drops, nose lifts. No P2 (involuntary jolt).
-     P1/P11: gasp = tall+narrow. P7: arcs on the jolt.
-     P5: nose 0.04s behind mouth. Recovery overshoots (P5). */
-  #folio.react-startle #mouth {
-    animation: reactStartleMouth 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-  }
-  @keyframes reactStartleMouth {
-    /* Starting from sleep position */
-    0%   { transform: scaleX(1.02) scaleY(1.03) translateY(0.5px) translateX(0); }
-    /* P1/P11: gasp open tall+narrow */
-    18%  { transform: scaleX(0.88) scaleY(1.4) translateY(3px) translateX(0.15px); }
-    /* P5: overshoot before recovering */
-    42%  { transform: scaleX(0.92) scaleY(1.22) translateY(2px) translateX(-0.1px); }
-    65%  { transform: scaleX(1.02) scaleY(0.98) translateY(-0.3px) translateX(0.05px); }
-    100% { transform: scaleX(1) scaleY(1) translateY(0) translateX(0); }
-  }
-  #folio.react-startle #nose {
-    animation: reactStartleNose 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-    animation-delay: 0.04s !important;
-  }
-  @keyframes reactStartleNose {
-    /* Starting from sleep droop */
-    0%   { transform: translateY(0.5px) translateX(0) scaleX(1) scaleY(1); }
-    /* P1/P11: scrunch up wide+short */
-    20%  { transform: translateY(-3px) translateX(0.15px) scaleX(1.06) scaleY(0.9); }
-    /* P5: overshoot */
-    45%  { transform: translateY(-1.5px) translateX(-0.1px) scaleX(1.03) scaleY(0.95); }
-    70%  { transform: translateY(0.3px) translateX(0.05px) scaleX(0.99) scaleY(1.01); }
-    100% { transform: translateY(0) translateX(0) scaleX(1) scaleY(1); }
-  }
-
-  /* SATISFIED: gentle smile.
-     P2: mouth settles before smiling. P1/P11: smile wide+short.
-     P7: gentle arc. P5: nose 0.1s behind mouth.
-     P6: slowest ease (contented, not rushed). */
-  #folio.react-satisfied #mouth {
-    animation: reactSatMouth 1.5s cubic-bezier(0.37,0,0.63,1) forwards !important;
-  }
-  @keyframes reactSatMouth {
-    /* P2: settle before smiling */
-    0%   { transform: scaleX(1) scaleY(1) translateY(0) translateX(0); }
-    10%  { transform: scaleX(0.99) scaleY(1.005) translateY(0.1px) translateX(0.03px); }
-    /* P1/P11: smile wide+short */
-    32%  { transform: scaleX(1.05) scaleY(0.95) translateY(-1px) translateX(-0.08px); }
-    /* Hold the contentment */
-    55%  { transform: scaleX(1.06) scaleY(0.94) translateY(-1.2px) translateX(0.05px); }
-    /* P5: slight overshoot past neutral */
-    80%  { transform: scaleX(0.995) scaleY(1.003) translateY(0.1px) translateX(-0.03px); }
-    100% { transform: scaleX(1) scaleY(1) translateY(0) translateX(0); }
-  }
-  #folio.react-satisfied #nose {
-    animation: reactSatNose 1.5s cubic-bezier(0.37,0,0.63,1) forwards !important;
-    animation-delay: 0.1s !important;
-  }
-  @keyframes reactSatNose {
-    0%   { transform: translateY(0) translateX(0); }
-    /* P2: tiny dip */
-    8%   { transform: translateY(0.15px) translateX(0.03px); }
-    /* P7: gentle arc up */
-    35%  { transform: translateY(-0.4px) translateX(-0.06px); }
-    55%  { transform: translateY(-0.3px) translateX(0.04px); }
-    100% { transform: translateY(0) translateX(0); }
-  }
-
-  /* ============================================================
-     MICRO-REACTIONS
-     One-shot animations that play on TOP of the current state.
-     They fire once, then the class is removed by JS, returning
-     Folio to his current state seamlessly.
-
-     Usage: window.folio.react('nod')
-
-     These use !important to temporarily override state animations.
-     Each reaction class targets specific parts, leaving the rest
-     of the state animation running undisturbed.
-     ============================================================ */
-
-  /* --- NOD ---
-     Quick acknowledging head dip. Fires when a book is added.
-     P2: tiny lift before the dip (anticipation).
-     P7: arc on the dip. P5: glasses follow with delay.
-     Duration: 0.6s */
-  #folio.react-nod #head-group {
-    animation: reactNod 0.6s cubic-bezier(0.37,0,0.63,1) forwards !important;
-  }
-  @keyframes reactNod {
-    0%   { transform: translateY(0) rotate(0deg); }
-    15%  { transform: translateY(-2px) rotate(0deg); }
-    45%  { transform: translateY(5px) rotate(1deg); }
-    70%  { transform: translateY(3px) rotate(0.5deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-  #folio.react-nod #glasses {
-    animation: reactNodGlasses 0.6s ease-in-out forwards !important;
-    animation-delay: 0.08s !important;
-  }
-  @keyframes reactNodGlasses {
-    0%   { transform: translateY(0) rotate(0deg); }
-    45%  { transform: translateY(1.5px) rotate(0.4deg); }
-    70%  { transform: translateY(0.5px) rotate(0.1deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-
-  /* --- PERK ---
-     Ears snap forward, eyes widen. Search field focused.
-     P2: ears pull back slightly before snapping forward.
-     P10: exaggerated ear movement. P1: eyes scale up.
-     Duration: 0.7s */
-  #folio.react-perk .ear-left-anim {
-    animation: reactPerkL 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-  }
-  @keyframes reactPerkL {
-    0%   { transform: rotate(0deg); }
-    15%  { transform: rotate(2deg); }
-    40%  { transform: rotate(-8deg); }
-    70%  { transform: rotate(-6deg); }
-    100% { transform: rotate(0deg); }
-  }
-  #folio.react-perk .ear-right-anim {
-    animation: reactPerkR 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-    animation-delay: 0.04s !important;
-  }
-  @keyframes reactPerkR {
-    0%   { transform: rotate(0deg); }
-    15%  { transform: rotate(-2deg); }
-    40%  { transform: rotate(8deg); }
-    70%  { transform: rotate(6deg); }
-    100% { transform: rotate(0deg); }
-  }
-  #folio.react-perk #eyes {
-    animation: reactPerkEyes 0.7s ease-out forwards !important;
-  }
-  @keyframes reactPerkEyes {
-    0%   { transform: scaleY(1); }
-    30%  { transform: scaleY(1.15); }
-    60%  { transform: scaleY(1.1); }
-    100% { transform: scaleY(1); }
-  }
-
-  /* --- WINCE ---
-     Quick squint, ears flatten. Error notification fired.
-     P2: eyes snap shut fast (no anticipation, it's a flinch).
-     P10: ears flatten exaggerated. P5: glasses jostle.
-     Duration: 0.5s */
-  #folio.react-wince #eyes {
-    animation: reactWince 0.5s ease-in-out forwards !important;
-  }
-  @keyframes reactWince {
-    0%   { transform: scaleY(1); }
-    20%  { transform: scaleY(0.15); }
-    50%  { transform: scaleY(0.2); }
-    100% { transform: scaleY(1); }
-  }
-  #folio.react-wince .ear-left-anim {
-    animation: reactWinceEarL 0.5s ease-in-out forwards !important;
-  }
-  @keyframes reactWinceEarL {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(8deg); }
-    60%  { transform: rotate(6deg); }
-    100% { transform: rotate(0deg); }
-  }
-  #folio.react-wince .ear-right-anim {
-    animation: reactWinceEarR 0.5s ease-in-out forwards !important;
-  }
-  @keyframes reactWinceEarR {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(-8deg); }
-    60%  { transform: rotate(-6deg); }
-    100% { transform: rotate(0deg); }
-  }
-  #folio.react-wince #glasses {
-    animation: reactWinceGlasses 0.5s ease-in-out forwards !important;
-  }
-  @keyframes reactWinceGlasses {
-    0%   { transform: translateY(0) rotate(0deg); }
-    30%  { transform: translateY(1.5px) rotate(0.8deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-  #folio.react-wince #head-group {
-    animation: reactWinceHead 0.5s ease-in-out forwards !important;
-  }
-  @keyframes reactWinceHead {
-    0%   { transform: translateY(0); }
-    25%  { transform: translateY(2px); }
-    100% { transform: translateY(0); }
-  }
-
-  /* --- WATCH ---
-     Head tracks a drag operation. Unlike other reactions, this is
-     CONTINUOUS, not one-shot. JS sets --watch-x custom property
-     based on mouse position relative to Folio center.
-     Removed when drag ends. */
-  #folio.react-watch #head-group {
-    animation: none !important;
-    transform: translateY(calc(var(--watch-x) * 0.3px))
-               rotate(calc(var(--watch-x) * 1deg)) !important;
-    transition: transform 0.15s ease-out;
-  }
-  #folio.react-watch #eyes {
-    animation: none !important;
-    transform: scaleY(1);
-    transition: transform 0.15s ease-out;
-  }
-  #folio.react-watch #glasses {
-    animation: none !important;
-    transform: translateX(calc(var(--watch-x) * 0.4px))
-               rotate(calc(var(--watch-x) * 0.2deg)) !important;
-    transition: transform 0.2s ease-out;
-  }
-  #folio.react-watch .ear-left-anim {
-    animation: none !important;
-    transform: rotate(calc(var(--watch-x) * -0.8deg)) !important;
-    transition: transform 0.2s ease-out;
-  }
-  #folio.react-watch .ear-right-anim {
-    animation: none !important;
-    transform: rotate(calc(var(--watch-x) * 0.8deg)) !important;
-    transition: transform 0.2s ease-out;
-  }
-
-  /* --- YAWN ---
-     Pre-sleep transition. Head tilts up, eyes half-close,
-     mouth area shifts. Warning before full sleep.
-     P7: arc on the head tilt up. P6: slow ease throughout.
-     Duration: 2.5s */
-  #folio.react-yawn #head-group {
-    animation: reactYawn 2.5s cubic-bezier(0.37,0,0.63,1) forwards !important;
-  }
-  @keyframes reactYawn {
-    0%   { transform: translateY(0) rotate(0deg); }
-    15%  { transform: translateY(-3px) rotate(-2deg); }
-    35%  { transform: translateY(-5px) rotate(-3deg); }
-    55%  { transform: translateY(-4px) rotate(-2.5deg); }
-    75%  { transform: translateY(-2px) rotate(-1deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-  #folio.react-yawn #eyes {
-    animation: reactYawnEyes 2.5s ease-in-out forwards !important;
-  }
-  @keyframes reactYawnEyes {
-    0%   { transform: scaleY(1); }
-    20%  { transform: scaleY(0.3); }
-    40%  { transform: scaleY(0.15); }
-    60%  { transform: scaleY(0.2); }
-    80%  { transform: scaleY(0.4); }
-    100% { transform: scaleY(1); }
-  }
-  #folio.react-yawn #glasses {
-    animation: reactYawnGlasses 2.5s ease-in-out forwards !important;
-    animation-delay: 0.1s !important;
-  }
-  @keyframes reactYawnGlasses {
-    0%   { transform: translateY(0) rotate(0deg); }
-    35%  { transform: translateY(-1px) rotate(-0.3deg); }
-    75%  { transform: translateY(0.5px) rotate(0.2deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-  #folio.react-yawn .ear-left-anim {
-    animation: reactYawnEarL 2.5s ease-in-out forwards !important;
-  }
-  @keyframes reactYawnEarL {
-    0%   { transform: rotate(0deg); }
-    35%  { transform: rotate(4deg); }
-    100% { transform: rotate(0deg); }
-  }
-  #folio.react-yawn .ear-right-anim {
-    animation: reactYawnEarR 2.5s ease-in-out forwards !important;
-  }
-  @keyframes reactYawnEarR {
-    0%   { transform: rotate(0deg); }
-    35%  { transform: rotate(-4deg); }
-    100% { transform: rotate(0deg); }
-  }
-
-  /* --- STARTLE ---
-     Wake-up jolt from sleep. Full-body squash, eyes snap wide,
-     ears flare, then settle.
-     P1: big squash on jolt. P2: none (it's involuntary).
-     P5: each part recovers at different rates.
-     P10: exaggerated everything.
-     Duration: 0.8s */
-  #folio.react-startle #body {
-    animation: reactStartleBody 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-  }
-  @keyframes reactStartleBody {
-    0%   { transform: scaleX(1) scaleY(1); }
-    20%  { transform: scaleX(1.08) scaleY(0.88) translateY(3px); }
-    50%  { transform: scaleX(0.96) scaleY(1.06) translateY(-4px); }
-    75%  { transform: scaleX(1.02) scaleY(0.98); }
-    100% { transform: scaleX(1) scaleY(1); }
-  }
-  #folio.react-startle #head-group {
-    animation: reactStartleHead 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-  }
-  @keyframes reactStartleHead {
-    0%   { transform: translateY(6px) rotate(2deg); }
-    15%  { transform: translateY(8px) rotate(2deg); }
-    35%  { transform: translateY(-10px) rotate(-1deg); }
-    55%  { transform: translateY(-4px) rotate(0.5deg); }
-    75%  { transform: translateY(1px) rotate(-0.3deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-  #folio.react-startle #eyes {
-    animation: reactStartleEyes 0.8s ease-out forwards !important;
-  }
-  @keyframes reactStartleEyes {
-    0%   { transform: scaleY(0.05); }
-    25%  { transform: scaleY(1.2); }
-    50%  { transform: scaleY(1.15); }
-    100% { transform: scaleY(1); }
-  }
-  #folio.react-startle .ear-left-anim {
-    animation: reactStartleEarL 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-  }
-  @keyframes reactStartleEarL {
-    0%   { transform: rotate(3deg); }
-    25%  { transform: rotate(-10deg); }
-    50%  { transform: rotate(-7deg); }
-    100% { transform: rotate(0deg); }
-  }
-  #folio.react-startle .ear-right-anim {
-    animation: reactStartleEarR 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-  }
-  @keyframes reactStartleEarR {
-    0%   { transform: rotate(-3deg); }
-    25%  { transform: rotate(10deg); }
-    50%  { transform: rotate(7deg); }
-    100% { transform: rotate(0deg); }
-  }
-  #folio.react-startle #glasses {
-    animation: reactStartleGlasses 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-    animation-delay: 0.06s !important;
-  }
-  @keyframes reactStartleGlasses {
-    0%   { transform: translateY(3.5px) rotate(1.5deg); }
-    25%  { transform: translateY(-3px) rotate(-1deg); }
-    50%  { transform: translateY(1px) rotate(0.5deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-  #folio.react-startle #tail {
-    animation: reactStartleTail 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-  }
-  @keyframes reactStartleTail {
-    0%   { transform: rotate(-70deg); }
-    30%  { transform: rotate(8deg); }
-    55%  { transform: rotate(-3deg); }
-    75%  { transform: rotate(2deg); }
-    100% { transform: rotate(0deg); }
-  }
-  #folio.react-startle #front-legs {
-    animation: reactStartleLegs 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
-  }
-  @keyframes reactStartleLegs {
-    0%   { transform: scaleY(1); }
-    20%  { transform: scaleY(0.92) translateY(2px); }
-    50%  { transform: scaleY(1.04) translateY(-2px); }
-    100% { transform: scaleY(1) translateY(0); }
-  }
-
-  /* --- SATISFIED ---
-     Contented slow blink. PDF exported, save complete.
-     The opposite of nervous rapid blinks. Slow, warm, happy.
-     P6: very slow ease. P9: deliberately slow timing.
-     Duration: 1.5s */
-  #folio.react-satisfied #eyes {
-    animation: reactSatisfied 1.5s cubic-bezier(0.37,0,0.63,1) forwards !important;
-  }
-  @keyframes reactSatisfied {
-    0%   { transform: scaleY(1); }
-    20%  { transform: scaleY(0.9); }
-    35%  { transform: scaleY(0.06); }
-    55%  { transform: scaleY(0.06); }
-    75%  { transform: scaleY(0.5); }
-    100% { transform: scaleY(1); }
-  }
-  #folio.react-satisfied #head-group {
-    animation: reactSatisfiedHead 1.5s ease-in-out forwards !important;
-  }
-  @keyframes reactSatisfiedHead {
-    0%   { transform: translateY(0) rotate(0deg); }
-    35%  { transform: translateY(1px) rotate(1deg); }
-    55%  { transform: translateY(1.5px) rotate(1.5deg); }
-    100% { transform: translateY(0) rotate(0deg); }
-  }
-  #folio.react-satisfied .ear-left-anim {
-    animation: reactSatEarL 1.5s ease-in-out forwards !important;
-  }
-  @keyframes reactSatEarL {
-    0%   { transform: rotate(0deg); }
-    40%  { transform: rotate(2deg); }
-    100% { transform: rotate(0deg); }
-  }
-  #folio.react-satisfied .ear-right-anim {
-    animation: reactSatEarR 1.5s ease-in-out forwards !important;
-  }
-  @keyframes reactSatEarR {
-    0%   { transform: rotate(0deg); }
-    40%  { transform: rotate(-2deg); }
-    100% { transform: rotate(0deg); }
-  }
-
-  /* ============================================================
-     SPEECH BUBBLE
-     ============================================================ */
-  .speech-bubble {
-    position: absolute;
-    top: -30px;
-    left: 50%;
-    transform: translateX(-50%) scale(0);
-    background: white;
-    border-radius: 18px;
-    padding: 10px 18px;
-    font-family: 'Caveat', cursive;
-    font-size: 16px;
-    color: #3a3530;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    z-index: 10;
-  }
-  .speech-bubble.visible {
-    animation: bubPop 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
-  }
-  .speech-bubble.hiding {
-    animation: bubShrink 0.25s ease-in forwards;
-  }
-  @keyframes bubPop {
-    0% { transform: translateX(-50%) scale(0); opacity: 0; }
-    50% { transform: translateX(-50%) scale(1.06,0.96); opacity: 1; }
-    100% { transform: translateX(-50%) scale(1); opacity: 1; }
-  }
-  @keyframes bubShrink {
-    0% { transform: translateX(-50%) scale(1); opacity: 1; }
-    100% { transform: translateX(-50%) scale(0.5,0.8); opacity: 0; }
-  }
-  .speech-bubble::after {
-    content: '';
-    position: absolute;
-    bottom: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-top: 8px solid white;
-  }
+(function() {
+  'use strict';
+
+  /* ----------------------------------------------------------------
+     DOM REFERENCES
+     ---------------------------------------------------------------- */
+  const folioSvg = document.getElementById('folio');
+  const bubble = document.getElementById('speechBubble');
+  const folioContainer = document.getElementById('folio-container');
+  const folioToggle = document.getElementById('folio-toggle');
+
+  // Bail silently if Folio's SVG isn't in the DOM
+  if (!folioSvg || !bubble) return;
+
+  let currentState = 'idle';
+  let bubbleTimer = null;
+  let droopTimer = null;
+
+  /* ----------------------------------------------------------------
+     QUIP SYSTEM
+
+     "triggered" lines fire for specific events (deterministic).
+     "ambient" lines use a shuffle bag (all play before any repeat).
+     ---------------------------------------------------------------- */
+  const quips = {
+    greeting: {
+      triggered: {
+        'page-load':      "Ready to build a booklist?",
+        'draft-restored': "Welcome back! Your draft is right where you left it.",
+        'wake-up':        "I'm awake! I'm awake!",
+      },
+      ambient: [
+        "Hey! What are we making today?",
+        "Good morning! Or is it afternoon? I'm a cat.",
+        "We need to fill in those slots.",
+        "I already have opinions about fonts.",
+        "*happy purr*",
+        "The printer is probably ready. Probably.",
+        "Let's make something good.",
+      ]
+    },
+    idle: {
+      triggered: {},
+      ambient: [
+        "I could sit on this shelf all day.",
+        "*adjusts glasses*",
+        "Take your time. I'm not going anywhere.",
+        "A booklist is a love letter to readers.",
+        "*purrs while reviewing layout*",
+        "I wonder what patrons will pick up first.",
+        "Print is not dead. I'm proof.",
+      ]
+    },
+    searching: {
+      triggered: {
+        'search-started':  "Let's see what's out there...",
+        'results-loading': "Open Library is thinking...",
+      },
+      ambient: [
+        "I know Open Library has it...",
+        "Try the ISBN, it's faster.",
+        "*sniffs along the search results*",
+        "Browse the carousel, better covers might be hiding.",
+        "Open Library can be slow, give it a sec.",
+        "I love a good search hunt.",
+        "There's always something good hiding in here.",
+      ]
+    },
+    excited: {
+      triggered: {
+        'book-added':       "Great pick!",
+        'cover-uploaded': [
+          "Looking good!",
+          "Oh, that's a nice cover.",
+          "Sharp. Very sharp.",
+          "That one's going to catch some eyes.",
+          "Good image quality too. Nice.",
+          "I approve. Carry on.",
+          "*nods approvingly*",
+        ],
+        'collage-generated':"The collage just came together perfectly!",
+        'pdf-exported':     "PDF is on its way!",
+        'save-complete': [
+          "Saved! Your work is safe.",
+          "Tucked away. Nice and tidy.",
+          "Backed up. One less thing to worry about.",
+          "Safe and sound.",
+          "*contented blink*",
+          "Good habit. Save early, save often.",
+          "Filed away for next time.",
+        ],
+        'slots-full':       "Every slot filled! Full house!",
+      },
+      ambient: [
+        "THAT is a front cover!",
+        "*happy bouncing*",
+        "This booklist is going to fly off the rack!",
+        "Look at that layout!",
+        "Patrons will love this one!",
+        "Everything lines up! This is clean!",
+        "This is really coming together!",
+      ]
+    },
+    evaluating: {
+      triggered: {
+        'description-fetching': "Let's see what comes back...",
+        'browsing-covers': [
+          "Take your time, covers matter.",
+          "Ooh, that one has good contrast.",
+          "The spine art says a lot about a book.",
+          "Keep going, the right cover is in here.",
+          "This one would pop on the collage.",
+          "I'm partial to bold colors, personally.",
+        ],
+        'comparing-layouts': [
+          "They're all good... but which is best?",
+          "Classic is safe. Tilted is fun. Your call.",
+          "Try them all. I'll wait.",
+          "*squints at the grid spacing*",
+          "A good layout can make or break the list.",
+          "Trust your gut on this one.",
+          "The right layout makes the covers sing.",
+        ],
+        'font-previewing': [
+          "Ooh, try the next one too.",
+          "Serif or sans? The eternal question.",
+          "That one's clean. Very readable.",
+          "Bold move. Literally.",
+          "I have opinions about kerning. Don't test me.",
+          "Fonts set the mood before a single word is read.",
+        ],
+      },
+      ambient: [
+        "Hmm. Hmm. Hmmmmm.",
+        "*peers over glasses*",
+        "I go back and forth on these things.",
+        "Sometimes you just have to sit with it.",
+        "Trust the process.",
+        "*chin on paw, deep in thought*",
+        "Interesting. Very interesting.",
+      ]
+    },
+    sleeping: {
+      triggered: {
+        'inactivity': "zzz... five more minutes... zzz...",
+      },
+      ambient: [
+        "zzz... perfect kerning... zzz...",
+        "zzz... no paper jams... zzz...",
+        "*soft purring*",
+        "zzz... patrons read the QR code... zzz...",
+        "zzz... the fold lines up... zzz...",
+        "zzz... unlimited color ink... zzz...",
+        "*dream twitches*",
+      ]
+    },
+    worried: {
+      triggered: {
+        'search-empty':  "Nothing came back... try different keywords?",
+        'network-error': "Something's wrong with the connection...",
+        'fetch-failed':  "The description didn't come through...",
+        'covers-needed': "We need more starred covers for the collage...",
+      },
+      ambient: [
+        "Is the wifi ok? Asking for a friend.",
+        "*nervous tail twitch*",
+        "Deep breaths. We'll figure it out.",
+        "It's fine. Everything is fine.",
+        "Technical difficulties make my fur stand up.",
+        "I've seen this before. It usually resolves.",
+        "I don't like when things go quiet...",
+      ]
+    }
+  };
+
+  /* ----------------------------------------------------------------
+     SHUFFLE BAG: Cycles through all ambient quips before repeating.
+     Prevents same line twice in a row, even across bag refills.
+     ---------------------------------------------------------------- */
+  const bags = {};
+
+  function pickAmbient(state) {
+    const pool = quips[state]?.ambient;
+    if (!pool || pool.length === 0) return null;
+
+    if (!bags[state] || bags[state].remaining.length === 0) {
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      if (bags[state] && shuffled[0] === bags[state].last) {
+        const swapIdx = 1 + Math.floor(Math.random() * (shuffled.length - 1));
+        [shuffled[0], shuffled[swapIdx]] = [shuffled[swapIdx], shuffled[0]];
+      }
+      bags[state] = { remaining: shuffled, last: null };
+    }
+
+    const quip = bags[state].remaining.shift();
+    bags[state].last = quip;
+    return quip;
+  }
+
+  /* ----------------------------------------------------------------
+     REUSABLE SHUFFLE BAG for click escalation pools.
+     ---------------------------------------------------------------- */
+  function createShuffleBag(pool) {
+    let remaining = [];
+    let last = null;
+
+    function refill() {
+      remaining = [...pool].sort(() => Math.random() - 0.5);
+      if (last && remaining[0] === last) {
+        const swapIdx = 1 + Math.floor(Math.random() * (remaining.length - 1));
+        [remaining[0], remaining[swapIdx]] = [remaining[swapIdx], remaining[0]];
+      }
+    }
+
+    return {
+      next() {
+        if (remaining.length === 0) refill();
+        last = remaining.shift();
+        return last;
+      }
+    };
+  }
+
+  /* ----------------------------------------------------------------
+     STATE MACHINE
+
+     setState(state, event?)
+       Changes Folio's full-body animation.
+       With event: shows triggered quip.
+       Without event: shows random ambient quip.
+     ---------------------------------------------------------------- */
+  function setState(state, event) {
+    const tail = document.getElementById('tail');
+    const booksLeft = document.getElementById('books-left');
+    const body = document.getElementById('body');
+
+    // Clear sleep tail classes on any state change
+    folioSvg.classList.remove('tail-droop', 'tail-sleeping');
+    clearTimeout(droopTimer);
+
+    if (state === 'sleeping') {
+      // Move tail behind books (SVG paints in document order)
+      booksLeft.parentNode.insertBefore(tail, booksLeft);
+    } else if (tail.nextElementSibling === booksLeft) {
+      // Tail currently behind books; move it back in front
+      body.parentNode.insertBefore(tail, body);
+    }
+
+    // Set base state class (replaces all classes on SVG root)
+    folioSvg.className.baseVal = state;
+    currentState = state;
+
+    // Add droop classes after baseVal is set so they persist
+    if (state === 'sleeping') {
+      requestAnimationFrame(() => {
+        folioSvg.classList.add('tail-droop');
+        droopTimer = setTimeout(() => {
+          folioSvg.classList.add('tail-sleeping');
+        }, 2500);
+      });
+    }
+
+    // Pick quip: triggered if event matches, otherwise ambient.
+    // Triggered values can be a string (single line) or array (rotating pool).
+    let line = null;
+    const triggered = event && quips[state]?.triggered[event];
+    if (triggered) {
+      if (Array.isArray(triggered)) {
+        line = pickTriggered(state, event);
+      } else {
+        line = triggered;
+      }
+    } else {
+      line = pickAmbient(state);
+    }
+    if (line) showBubble(line);
+  }
+
+  /* ----------------------------------------------------------------
+     TRIGGERED SHUFFLE BAG: Same anti-repeat logic as ambient,
+     for triggered events that have an array of rotating lines.
+     ---------------------------------------------------------------- */
+  const triggeredBags = {};
+
+  function pickTriggered(state, event) {
+    const pool = quips[state]?.triggered[event];
+    if (!pool || !Array.isArray(pool) || pool.length === 0) return null;
+
+    const key = state + ':' + event;
+    if (!triggeredBags[key] || triggeredBags[key].remaining.length === 0) {
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      if (triggeredBags[key] && shuffled[0] === triggeredBags[key].last) {
+        const swapIdx = 1 + Math.floor(Math.random() * (shuffled.length - 1));
+        [shuffled[0], shuffled[swapIdx]] = [shuffled[swapIdx], shuffled[0]];
+      }
+      triggeredBags[key] = { remaining: shuffled, last: null };
+    }
+
+    const quip = triggeredBags[key].remaining.shift();
+    triggeredBags[key].last = quip;
+    return quip;
+  }
+
+  /* ----------------------------------------------------------------
+     CLICK INTERACTION: Playful escalation system.
+     ---------------------------------------------------------------- */
+  let clickTimestamps = [];
+  let clickResetTimer = null;
+
+  const pesteredQuips = [
+    "I'm right here, you know.",
+    "Yes? Yes? What.",
+    "You're going to wear out my pixels.",
+    "That tickles. Stop.",
+    "I am not a button.",
+    "This is not what my animation degree was for.",
+    "Ok. Ok. I see you.",
+  ];
+  const pesteredBag = createShuffleBag(pesteredQuips);
+
+  const annoyedQuips = [
+    "Hey! Still reading here.",
+    "One click is enough, I promise.",
+    "Ears are up. What do you need?",
+    "Alright, alright, you have my attention.",
+    "I heard you the first time!",
+  ];
+  const annoyedBag = createShuffleBag(annoyedQuips);
+
+  function clickFolio() {
+    const now = Date.now();
+
+    // Sleeping: bypass escalation, trigger full wake sequence
+    if (currentState === 'sleeping') {
+      react('startle');
+      setTimeout(() => setState('greeting', 'wake-up'), 800);
+      setTimeout(() => setState('idle'), 4000);
+      return;
+    }
+
+    // Track click timing
+    clickTimestamps.push(now);
+    clearTimeout(clickResetTimer);
+    clickResetTimer = setTimeout(() => { clickTimestamps = []; }, 3000);
+
+    // Count recent rapid clicks (within last 1.5s)
+    const recent = clickTimestamps.filter(t => now - t < 1500);
+    clickTimestamps = recent;
+
+    if (recent.length >= 4) {
+      // Persistent: exasperated, no physical reaction
+      showBubble(pesteredBag.next());
+    } else if (recent.length >= 2) {
+      // Rapid: perk + mildly annoyed
+      react('perk');
+      showBubble(annoyedBag.next());
+    } else {
+      // Single: nod + ambient quip
+      react('nod');
+      const quip = pickAmbient(currentState);
+      if (quip) showBubble(quip);
+    }
+  }
+
+  // Bind click handler (replaces inline onclick on SVG)
+  folioSvg.addEventListener('click', clickFolio);
+
+  /* ----------------------------------------------------------------
+     SPEECH BUBBLE: Pop in, hold, shrink out.
+     ---------------------------------------------------------------- */
+  function showBubble(text) {
+    clearTimeout(bubbleTimer);
+    bubble.className = 'speech-bubble';
+    bubble.textContent = text;
+    void bubble.offsetWidth;
+    bubble.classList.add('visible');
+    bubbleTimer = setTimeout(() => {
+      bubble.classList.remove('visible');
+      bubble.classList.add('hiding');
+      setTimeout(() => { bubble.className = 'speech-bubble'; }, 250);
+    }, 3200);
+  }
+
+  /* ----------------------------------------------------------------
+     MICRO-REACTION SYSTEM
+
+     react(name) adds a .react-{name} class to the SVG. CSS uses
+     !important to temporarily override state animations. After the
+     animation duration, the class is removed and the state animation
+     resumes seamlessly.
+
+     'watch' is special: continuous, ended with stopWatch().
+     ---------------------------------------------------------------- */
+  const reactionDurations = {
+    nod: 600,
+    perk: 700,
+    wince: 500,
+    yawn: 2500,
+    startle: 800,
+    satisfied: 1500,
+  };
+
+  let reactTimer = null;
+  let watchHandler = null;
+
+  function react(name) {
+    clearTimeout(reactTimer);
+    clearReaction();
+
+    if (name === 'watch') {
+      startWatch();
+      return;
+    }
+
+    // Startle: clear sleep droop so the CSS animation can take over
+    if (name === 'startle') {
+      folioSvg.classList.remove('tail-droop', 'tail-sleeping');
+      clearTimeout(droopTimer);
+    }
+
+    const duration = reactionDurations[name];
+    if (!duration) return;
+
+    folioSvg.classList.add('react-' + name);
+
+    reactTimer = setTimeout(() => {
+      folioSvg.classList.remove('react-' + name);
+
+      // Startle complete: tail is upright, move it in front of books
+      if (name === 'startle') {
+        const tail = document.getElementById('tail');
+        const booksLeft = document.getElementById('books-left');
+        const body = document.getElementById('body');
+        if (tail.nextElementSibling === booksLeft) {
+          body.parentNode.insertBefore(tail, body);
+        }
+      }
+    }, duration);
+  }
+
+  function clearReaction() {
+    Object.keys(reactionDurations).forEach(name => {
+      folioSvg.classList.remove('react-' + name);
+    });
+    folioSvg.classList.remove('react-watch');
+    if (watchHandler) stopWatch();
+  }
+
+  /* ----------------------------------------------------------------
+     WATCH: Continuous head tracking during drag operations.
+     ---------------------------------------------------------------- */
+  function startWatch() {
+    folioSvg.classList.add('react-watch');
+    folioSvg.style.setProperty('--watch-x', '0');
+
+    const folioRect = folioSvg.getBoundingClientRect();
+    const centerX = folioRect.left + folioRect.width / 2;
+
+    watchHandler = function(e) {
+      const dx = (e.clientX - centerX) / (folioRect.width / 2);
+      const clamped = Math.max(-3, Math.min(3, dx * 3));
+      folioSvg.style.setProperty('--watch-x', clamped.toFixed(2));
+    };
+
+    document.addEventListener('mousemove', watchHandler);
+  }
+
+  function stopWatch() {
+    folioSvg.classList.remove('react-watch');
+    folioSvg.style.removeProperty('--watch-x');
+    if (watchHandler) {
+      document.removeEventListener('mousemove', watchHandler);
+      watchHandler = null;
+    }
+  }
+
+  /* ----------------------------------------------------------------
+     TOGGLE: Show/hide Folio with localStorage persistence.
+     ---------------------------------------------------------------- */
+  function initToggle() {
+    if (!folioContainer || !folioToggle) return;
+
+    const shown = localStorage.getItem('folio-hidden') === 'false';
+    if (!shown) folioContainer.classList.add('folio-hidden');
+
+    folioToggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      folioContainer.classList.toggle('folio-hidden');
+      const isHidden = folioContainer.classList.contains('folio-hidden');
+      localStorage.setItem('folio-hidden', isHidden);
+    });
+  }
+
+  /* ----------------------------------------------------------------
+     INACTIVITY TIMER
+
+     90s of no interaction: yawn (pre-sleep warning)
+     90s more: full sleep
+     Any interaction during sleep: startle > greeting > idle
+     ---------------------------------------------------------------- */
+  let inactivityTimer = null;
+  let yawnFired = false;
+
+  function resetInactivity() {
+    clearTimeout(inactivityTimer);
+    yawnFired = false;
+
+    // If waking from sleep, trigger the wake sequence
+    if (currentState === 'sleeping') {
+      react('startle');
+      setTimeout(() => setState('greeting', 'wake-up'), 800);
+      setTimeout(() => setState('idle'), 4000);
+      return;
+    }
+
+    // Start the inactivity countdown
+    inactivityTimer = setTimeout(() => {
+      react('yawn');
+      yawnFired = true;
+
+      inactivityTimer = setTimeout(() => {
+        setState('sleeping', 'inactivity');
+      }, 90000); // Another 90s after yawn
+    }, 90000);   // First yawn at 90s
+  }
+
+  ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function(evt) {
+    document.addEventListener(evt, resetInactivity);
+  });
+
+  /* ----------------------------------------------------------------
+     INITIALIZATION
+     ---------------------------------------------------------------- */
+  initToggle();
+  resetInactivity();
+
+  /* ----------------------------------------------------------------
+     EXPOSE PUBLIC API
+     ---------------------------------------------------------------- */
+  window.folio = {
+    setState: setState,
+    react: react,
+    stopWatch: stopWatch,
+    showBubble: showBubble,
+    clickFolio: clickFolio,
+    currentState: function() { return currentState; }
+  };
+
+})();
