@@ -4928,8 +4928,9 @@ const BooklistApp = (function() {
         debouncedSave(); // Sync browser draft with loaded file
         hasUnsavedFile = false; // File was just loaded from disk
         updateSaveIndicator();
-        // Folio: greet on file load
+        // Folio: greet on file load (guard suppresses cascading hooks)
         if (window.folio) {
+          window.folio.guard(3500);
           window.folio.setState('greeting', 'file-loaded');
           setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
         }
@@ -5405,8 +5406,9 @@ const BooklistApp = (function() {
     // Try restoring draft
     restoreDraftLocalIfPresent();
     
-    // Folio: greet based on whether a draft was restored
+    // Folio: greet based on whether a draft was restored (guard suppresses cascading hooks)
     if (window.folio) {
+      window.folio.guard(3500);
       const hasDraft = localStorage.getItem('booklist-draft');
       if (hasDraft) {
         window.folio.setState('greeting', 'draft-restored');

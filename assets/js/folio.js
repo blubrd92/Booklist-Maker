@@ -242,8 +242,25 @@
        Changes Folio's full-body animation.
        With event: shows triggered quip.
        Without event: shows random ambient quip.
+
+     guard(duration)
+       Suppresses all setState and react calls except greetings
+       for the given duration. Used during file/draft loads to
+       prevent cascading hooks from stomping the greeting.
      ---------------------------------------------------------------- */
+  let guardTimer = null;
+  let isGuarded = false;
+
+  function guard(duration) {
+    isGuarded = true;
+    clearTimeout(guardTimer);
+    guardTimer = setTimeout(() => { isGuarded = false; }, duration);
+  }
+
   function setState(state, event) {
+    // While guarded, only greetings get through
+    if (isGuarded && state !== 'greeting') return;
+
     const tail = document.getElementById('tail');
     const booksLeft = document.getElementById('books-left');
     const body = document.getElementById('body');
@@ -423,6 +440,9 @@
   let watchHandler = null;
 
   function react(name) {
+    // While guarded, suppress reactions from cascading hooks
+    if (isGuarded) return;
+
     clearTimeout(reactTimer);
     clearReaction();
 
@@ -582,6 +602,7 @@
   window.folio = {
     setState: setState,
     react: react,
+    guard: guard,
     stopWatch: stopWatch,
     showBubble: showBubble,
     clickFolio: clickFolio,
