@@ -19,13 +19,19 @@
 .folio-container {
   position: fixed;
   bottom: 0;
-  left: 0;
+  left: 340px;
   z-index: 900;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   pointer-events: none;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, left 0.3s ease;
+}
+
+/* Slide with sidebar when it collapses */
+.sidebar.collapsed ~ .folio-container,
+body:has(.sidebar.collapsed) .folio-container {
+  left: 0;
 }
 
 .folio-container > * {
@@ -66,6 +72,7 @@
 /* Hidden state: scene collapses, toggle stays */
 .folio-container.folio-hidden #folio-scene {
   height: 0;
+  aspect-ratio: auto;
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
@@ -76,12 +83,14 @@
   transition: height 0.3s ease, opacity 0.3s ease 0.1s;
 }
 
-/* Scene container */
+/* Scene container - scales with viewport, capped so it never dominates the preview.
+   280/190 ≈ 1.474 aspect ratio preserved via aspect-ratio.
+   At 1920px: 280px (max). At 1280px: ~205px. At 1024px: ~164px. At 900px: 140px (min). */
 #folio-scene {
   position: relative;
   cursor: pointer;
-  width: 280px;
-  height: 190px;
+  width: clamp(140px, 16vw, 280px);
+  aspect-ratio: 280 / 190;
 }
 
 #folio-scene svg {

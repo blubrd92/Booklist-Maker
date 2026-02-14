@@ -773,6 +773,9 @@
         toggleBtn.addEventListener('click', function() {
           sidebar.classList.toggle('collapsed');
           toggleBtn.classList.toggle('active');
+          // Slide Folio with sidebar
+          var fc = document.getElementById('folio-container');
+          if (fc) fc.style.left = sidebar.classList.contains('collapsed') ? '0' : '';
         });
       }
 
