@@ -37,7 +37,7 @@ body:has(.sidebar.collapsed) .folio-container {
 
 .folio-toggle {
   position: absolute;
-  top: -40px;
+  bottom: 8px;
   left: 12px;
   width: 36px;
   height: 36px;

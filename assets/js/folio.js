@@ -82,6 +82,15 @@
     excited: {
       triggered: {
         'book-added':       "Great pick!",
+        'cover-uploaded': [
+          "Looking good!",
+          "Oh, that's a nice cover.",
+          "Sharp. Very sharp.",
+          "That one's going to catch some eyes.",
+          "Good image quality too. Nice.",
+          "I approve. Carry on.",
+          "*nods approvingly*",
+        ],
         'collage-generated':"The collage just came together perfectly!",
         'pdf-exported':     "PDF is on its way!",
         'save-complete':    "Saved! Your work is safe.",
