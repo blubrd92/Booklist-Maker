@@ -353,11 +353,11 @@ body.tour-active #speechBubble {
 /* --- HEADER TOUR BUTTON --- */
 
 #tour-button {
-  background: none;
-  border: 1px solid var(--border-color, #e1e5eb);
-  color: var(--text-light, #718096);
-  width: 32px;
-  height: 32px;
+  background: var(--primary-color, #5c6bc0);
+  border: none;
+  color: #fff;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -365,13 +365,13 @@ body.tour-active #speechBubble {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
   margin-right: 8px;
   flex-shrink: 0;
+  align-self: center;
 }
 
 #tour-button:hover {
-  background: var(--primary-light, #e8eaf6);
+  background: #fff;
   color: var(--primary-color, #5c6bc0);
-  border-color: var(--primary-color, #5c6bc0);
 }

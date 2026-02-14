@@ -76,15 +76,20 @@
       steps: [
         {
           target: '#search-form',
-          text: "Start here. Type a keyword, title, or author into the search field and hit the Search button. Try it now, or keep going and come back later.",
+          text: "Start here. Type a keyword, title, or author into the search field and hit the Search button. Let me run a quick demo search for you.",
           state: 'searching',
           prepare: function() {
             openSidebarTab('tab-search');
-            // Pre-fill a demo search to make it obvious
+            // Pre-fill and submit a demo search
             var input = document.getElementById('keywordInput');
             if (input && !input.value) {
-              input.value = 'octavia butler';
+              input.value = 'Discworld';
               input.classList.add('tour-demo-filled');
+              // Auto-click search after a beat
+              setTimeout(function() {
+                var searchBtn = document.getElementById('fetchButton');
+                if (searchBtn) searchBtn.click();
+              }, 600);
             }
           },
         },
@@ -118,8 +123,7 @@
           text: "Your books appear on page two in order. Each entry shows the cover, title, author, and description.",
           state: 'evaluating',
           prepare: function() {
-            var page2 = document.getElementById('print-page-2');
-            if (page2) page2.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            scrollPreviewTo('print-page-2');
           },
           padding: 4,
         },
@@ -128,29 +132,40 @@
           text: "See the star icon? Click it to include that book's cover in the front page collage. You need at least 12 starred books for the standard layout.",
           state: 'evaluating',
           prepare: function() {
-            var page2 = document.getElementById('print-page-2');
-            if (page2) page2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            scrollPreviewTo('print-page-2');
           },
         },
         {
           target: '.list-item:first-child .drag-handle',
           text: "Drag this handle to reorder books on your list. Or type a new number in the position field to jump a book to a specific spot.",
           state: 'idle',
+          prepare: function() {
+            scrollPreviewTo('print-page-2');
+          },
         },
         {
           target: '.list-item:first-child .magic-button',
-          text: "The magic wand fetches an AI-generated description for this book. One click and you get a ready-to-use blurb for your display.",
+          text: "The magic wand fetches a book description for you. If a slot is missing a blurb, one click fills it in.",
           state: 'evaluating',
+          prepare: function() {
+            scrollPreviewTo('print-page-2');
+          },
         },
         {
           target: '.list-item:first-child .cover-uploader',
           text: "Click the cover image to upload your own. Handy when the search didn't find the right edition or you want a custom look.",
           state: 'idle',
+          prepare: function() {
+            scrollPreviewTo('print-page-2');
+          },
         },
         {
           target: '.list-item:first-child .delete-button',
           text: "The X button removes a book and frees up that slot. Don't worry, you can always search and add another.",
           state: 'worried',
+          prepare: function() {
+            scrollPreviewTo('print-page-2');
+          },
         },
       ]
     },
@@ -165,15 +180,17 @@
           text: "This is your front cover. You can upload a custom image here, or auto-generate a collage from your starred books.",
           state: 'evaluating',
           prepare: function() {
-            var page1 = document.getElementById('print-page-1');
-            if (page1) page1.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            scrollPreviewTo('print-page-1');
           },
         },
         {
           target: '#generate-cover-button',
           text: "Click here to generate the collage automatically. You'll need at least 12 starred books with cover images loaded.",
           state: 'excited',
-          prepare: function() { openSidebarTab('tab-settings'); },
+          prepare: function() {
+            openSidebarTab('tab-settings');
+            openSettingsSection('Cover Header');
+          },
         },
         {
           target: '#collage-layout-selector',
@@ -200,8 +217,7 @@
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
-            var page1 = document.getElementById('print-page-1');
-            if (page1) page1.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            scrollPreviewTo('print-page-1');
           },
         },
       ]
@@ -241,8 +257,7 @@
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
-            var page2 = document.getElementById('print-page-2');
-            if (page2) page2.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            scrollPreviewTo('print-page-2');
           },
         },
         {
@@ -250,8 +265,7 @@
           text: "This text area is your back cover blurb, next to the QR code. Write a short description, reading prompt, or instructions for patrons.",
           state: 'idle',
           prepare: function() {
-            var page2 = document.getElementById('print-page-2');
-            if (page2) page2.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            scrollPreviewTo('print-page-2');
           },
         },
       ]
@@ -309,20 +323,36 @@
      HELPERS
      ---------------------------------------------------------------- */
   function openSidebarTab(tabId) {
+    // Ensure sidebar is expanded
     var sidebar = document.querySelector('.sidebar');
     if (sidebar && sidebar.classList.contains('collapsed')) {
-      document.getElementById('toggle-sidebar-btn')?.click();
+      sidebar.classList.remove('collapsed');
+      var toggleBtn = document.getElementById('toggle-sidebar-btn');
+      if (toggleBtn) toggleBtn.classList.add('active');
+      // Update Folio position
+      var fc = document.getElementById('folio-container');
+      if (fc) fc.style.left = '';
     }
-    var tab = document.getElementById(tabId);
-    if (tab && !tab.classList.contains('active')) {
-      // Click the corresponding tab button
-      var tabBtns = document.querySelectorAll('.sidebar-tabs .tab-btn');
-      tabBtns.forEach(function(btn) {
-        if (btn.getAttribute('aria-controls') === tabId || btn.textContent.trim().toLowerCase().includes(tabId === 'tab-search' ? 'search' : 'settings')) {
-          btn.click();
-        }
-      });
-    }
+
+    // Directly toggle tab classes (more reliable than simulating clicks)
+    var allTabs = document.querySelectorAll('.tab-content');
+    var allBtns = document.querySelectorAll('.sidebar-tabs .tab-btn');
+
+    allTabs.forEach(function(t) { t.classList.remove('active'); });
+    allBtns.forEach(function(b) {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+
+    var targetTab = document.getElementById(tabId);
+    if (targetTab) targetTab.classList.add('active');
+
+    allBtns.forEach(function(b) {
+      if (b.getAttribute('aria-controls') === tabId) {
+        b.classList.add('active');
+        b.setAttribute('aria-selected', 'true');
+      }
+    });
   }
 
   function openSettingsSection(sectionName) {
@@ -331,12 +361,25 @@
       var summary = details.querySelector('summary');
       if (summary && summary.textContent.includes(sectionName)) {
         if (!details.open) details.open = true;
-        // Scroll into view after a tick
+        // Scroll within the settings tab container
         setTimeout(function() {
-          details.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          var tabSettings = document.getElementById('tab-settings');
+          if (tabSettings) {
+            var offsetTop = details.offsetTop - tabSettings.offsetTop;
+            tabSettings.scrollTop = offsetTop - 10;
+          }
         }, 100);
       }
     });
+  }
+
+  function scrollPreviewTo(elementId) {
+    var el = document.getElementById(elementId);
+    var previewArea = document.getElementById('preview-area');
+    if (el && previewArea) {
+      var offsetTop = el.offsetTop - previewArea.offsetTop;
+      previewArea.scrollTo({ top: offsetTop - 20, behavior: 'smooth' });
+    }
   }
 
   function totalSteps() {
