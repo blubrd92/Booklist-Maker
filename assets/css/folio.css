@@ -21,9 +21,6 @@
   bottom: 0;
   left: 340px;
   z-index: 900;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
   pointer-events: none;
   transition: opacity 0.3s ease, left 0.3s ease;
 }
@@ -39,9 +36,9 @@ body:has(.sidebar.collapsed) .folio-container {
 }
 
 .folio-toggle {
-  align-self: flex-start;
-  margin-left: 12px;
-  margin-bottom: -4px;
+  position: absolute;
+  top: -40px;
+  left: 12px;
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -53,10 +50,9 @@ body:has(.sidebar.collapsed) .folio-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   z-index: 2;
-  position: relative;
 }
 
 .folio-toggle:hover {
@@ -64,32 +60,25 @@ body:has(.sidebar.collapsed) .folio-container {
   color: #f5f0e8;
 }
 
-.folio-toggle:active {
-  transform: scale(0.95);
-}
-
-/* Hidden state: scene collapses, toggle stays */
+/* Hidden state: scene fades, toggle stays fixed in place */
 .folio-container.folio-hidden #folio-scene {
-  height: 0;
-  aspect-ratio: auto;
-  overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transition: height 0.3s ease, opacity 0.2s ease;
+  transition: opacity 0.25s ease;
 }
 
 .folio-container:not(.folio-hidden) #folio-scene {
-  transition: height 0.3s ease, opacity 0.3s ease 0.1s;
+  transition: opacity 0.3s ease 0.05s;
 }
 
 /* Scene container - scales with viewport, capped so it never dominates the preview.
-   280/190 ≈ 1.474 aspect ratio preserved via aspect-ratio.
+   760/466 aspect ratio matches the cropped SVG viewBox (shelf flush with bottom).
    At 1920px: 280px (max). At 1280px: ~205px. At 1024px: ~164px. At 900px: 140px (min). */
 #folio-scene {
   position: relative;
   cursor: pointer;
   width: clamp(140px, 16vw, 280px);
-  aspect-ratio: 280 / 190;
+  aspect-ratio: 760 / 466;
 }
 
 #folio-scene svg {

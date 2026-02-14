@@ -1290,7 +1290,10 @@ const BooklistApp = (function() {
     renderBooklist();
     debouncedSave();
     // Folio: evaluating while fetching description
-    if (window.folio) window.folio.setState('evaluating', 'description-fetching');
+    if (window.folio) {
+      window.folio.react('perk');
+      window.folio.setState('evaluating', 'description-fetching');
+    }
     getAiDescription(bookItem.key);
   }
   
@@ -4629,7 +4632,10 @@ const BooklistApp = (function() {
         });
         // Folio: evaluating when hovering layouts
         option.addEventListener('mouseenter', function() {
-          if (window.folio) window.folio.setState('evaluating', 'comparing-layouts');
+          if (window.folio) {
+            if (window.folio.currentState() !== 'evaluating') window.folio.react('perk');
+            window.folio.setState('evaluating', 'comparing-layouts');
+          }
         });
       });
       // Folio: back to idle when leaving layout selector
@@ -5391,7 +5397,10 @@ const BooklistApp = (function() {
     // Folio: evaluating state when browsing font dropdowns
     document.addEventListener('mouseenter', function(e) {
       if (e.target.closest && e.target.closest('.custom-dropdown-list')) {
-        if (window.folio) window.folio.setState('evaluating', 'font-previewing');
+        if (window.folio) {
+          if (window.folio.currentState() !== 'evaluating') window.folio.react('perk');
+          window.folio.setState('evaluating', 'font-previewing');
+        }
       }
     }, true);
     document.addEventListener('mouseleave', function(e) {
@@ -5406,7 +5415,10 @@ const BooklistApp = (function() {
       document.addEventListener('click', function(e) {
         if (e.target.closest && e.target.closest('.carousel-button')) {
           clearTimeout(carouselSettleTimer);
-          if (window.folio) window.folio.setState('evaluating', 'browsing-covers');
+          if (window.folio) {
+            if (window.folio.currentState() !== 'evaluating') window.folio.react('perk');
+            window.folio.setState('evaluating', 'browsing-covers');
+          }
           carouselSettleTimer = setTimeout(function() {
             if (window.folio) window.folio.setState('idle');
           }, 3000);
