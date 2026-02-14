@@ -380,20 +380,16 @@
 
   function scrollPreviewTo(elementId) {
     var el = document.getElementById(elementId);
-    var previewArea = document.getElementById('preview-area');
-    if (el && previewArea) {
-      // First, make sure the preview area is visible in the viewport
-      previewArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      // Wait for viewport scroll to settle, then scroll within the container
-      setTimeout(function() {
-        var offset = 0;
-        var node = el;
-        while (node && node !== previewArea) {
-          offset += node.offsetTop;
-          node = node.offsetParent;
-        }
-        previewArea.scrollTo({ top: Math.max(0, offset - 20), behavior: 'smooth' });
-      }, 400);
+    var scrollContainer = document.querySelector('.main-content');
+    if (el && scrollContainer) {
+      // Calculate offset relative to the scroll container
+      var offset = 0;
+      var node = el;
+      while (node && node !== scrollContainer) {
+        offset += node.offsetTop;
+        node = node.offsetParent;
+      }
+      scrollContainer.scrollTo({ top: Math.max(0, offset - 20), behavior: 'smooth' });
     }
   }
 
@@ -636,7 +632,7 @@
         positionPanel(target);
         spotlight.classList.add('visible');
         panel.classList.add('visible');
-      }, 750);
+      }, 450);
     }, 150);
   }
 
