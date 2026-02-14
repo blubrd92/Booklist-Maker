@@ -338,6 +338,8 @@
   var fullTourSectionIndex = 0;
   var preTourFolioHidden = false;
   var isHoverable = false;
+  var preTourQrChecked = null;
+  var preTourBrandingChecked = null;
 
   // DOM refs (created once)
   var modalOverlay = null;
@@ -622,6 +624,24 @@
     var tabSettings = document.getElementById('tab-settings');
     if (tabSettings) tabSettings.scrollTop = 0;
 
+    // Force QR code and branding on for the tour (save original state)
+    var qrToggle = document.getElementById('toggle-qr-code');
+    var brandingToggle = document.getElementById('toggle-branding');
+    if (qrToggle) {
+      preTourQrChecked = qrToggle.checked;
+      if (!qrToggle.checked) {
+        qrToggle.checked = true;
+        qrToggle.dispatchEvent(new Event('change'));
+      }
+    }
+    if (brandingToggle) {
+      preTourBrandingChecked = brandingToggle.checked;
+      if (!brandingToggle.checked) {
+        brandingToggle.checked = true;
+        brandingToggle.dispatchEvent(new Event('change'));
+      }
+    }
+
     // Ensure Folio is visible
     var container = document.getElementById('folio-container');
     if (container) {
@@ -755,6 +775,20 @@
     // Hide spotlight and panel
     spotlight.classList.remove('visible');
     panel.classList.remove('visible');
+
+    // Restore QR code and branding toggle states
+    var qrToggle = document.getElementById('toggle-qr-code');
+    var brandingToggle = document.getElementById('toggle-branding');
+    if (qrToggle && preTourQrChecked !== null) {
+      qrToggle.checked = preTourQrChecked;
+      qrToggle.dispatchEvent(new Event('change'));
+      preTourQrChecked = null;
+    }
+    if (brandingToggle && preTourBrandingChecked !== null) {
+      brandingToggle.checked = preTourBrandingChecked;
+      brandingToggle.dispatchEvent(new Event('change'));
+      preTourBrandingChecked = null;
+    }
 
     // Return Folio to idle
     if (window.folio) window.folio.setState('idle');

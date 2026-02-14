@@ -508,9 +508,12 @@
   /* ----------------------------------------------------------------
      INACTIVITY TIMER
 
-     90s of no interaction: yawn (pre-sleep warning)
-     90s more: full sleep
+     45s of no interaction: yawn (pre-sleep warning)
+     45s more: full sleep
      Any interaction during sleep: startle > greeting > idle
+
+     On tab return: if Folio slept while hidden, re-snap the
+     sleeping pose so the CSS animation is visible before wake.
      ---------------------------------------------------------------- */
   let inactivityTimer = null;
   let yawnFired = false;
@@ -534,9 +537,23 @@
 
       inactivityTimer = setTimeout(() => {
         setState('sleeping', 'inactivity');
-      }, 90000); // Another 90s after yawn
-    }, 90000);   // First yawn at 90s
+      }, 45000);
+    }, 45000);
   }
+
+  // If Folio fell asleep while the tab was hidden, re-snap the
+  // sleeping pose so CSS animations are visible when the user returns
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && currentState === 'sleeping') {
+      const tail = document.getElementById('tail');
+      const booksLeft = document.getElementById('books-left');
+      if (tail && booksLeft) {
+        booksLeft.parentNode.insertBefore(tail, booksLeft);
+      }
+      folioSvg.className.baseVal = 'sleeping';
+      folioSvg.classList.add('tail-droop', 'tail-sleeping');
+    }
+  });
 
   ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function(evt) {
     document.addEventListener(evt, resetInactivity);
