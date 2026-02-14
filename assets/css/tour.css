@@ -356,6 +356,10 @@ body.tour-active .tour-blocker {
   pointer-events: none;
 }
 
+.tour-blocker.hoverable {
+  pointer-events: none;
+}
+
 
 /* --- FOLIO DURING TOUR --- */
 

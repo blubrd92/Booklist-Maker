@@ -199,6 +199,7 @@
           target: '#collage-layout-selector',
           text: "Pick a layout for your collage. Hover over each option to get a description of how it arranges the book covers.",
           state: 'evaluating',
+          hoverable: true,
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Cover Layout');
@@ -329,6 +330,7 @@
   var isFullTour = false;
   var fullTourSectionIndex = 0;
   var preTourFolioHidden = false;
+  var isHoverable = false;
 
   // DOM refs (created once)
   var modalOverlay = null;
@@ -670,8 +672,16 @@
       // Toggle interaction blocker
       if (step.interactive) {
         blocker.classList.add('interactive');
+        blocker.classList.remove('hoverable');
+        isHoverable = false;
+      } else if (step.hoverable) {
+        blocker.classList.add('hoverable');
+        blocker.classList.remove('interactive');
+        isHoverable = true;
       } else {
         blocker.classList.remove('interactive');
+        blocker.classList.remove('hoverable');
+        isHoverable = false;
       }
 
       // Wait for scroll to settle before positioning (needs time for sequenced scrolls)
@@ -723,6 +733,7 @@
     currentStepIndex = 0;
     isFullTour = false;
     fullTourSectionIndex = 0;
+    isHoverable = false;
 
     // Remove tour-active state
     document.body.classList.remove('tour-active');
@@ -834,6 +845,15 @@
       positionSpotlight(target, step.padding);
       positionPanel(target);
     });
+
+    // Block clicks (but not hovers) during hoverable steps
+    document.addEventListener('click', function(e) {
+      if (!isHoverable) return;
+      // Allow clicks on tour panel controls
+      if (panel && panel.contains(e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
   }
 
   // Run on DOM ready
