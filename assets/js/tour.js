@@ -106,6 +106,10 @@
           text: "Some results have arrow buttons to browse different cover editions. If there are multiple, pick the one that looks best for your display.",
           state: 'evaluating',
           interactive: true,
+          prepare: function() {
+            var results = document.getElementById('results-container');
+            if (results) results.scrollTop = 0;
+          },
         },
         {
           target: '#results-container',
@@ -618,6 +622,15 @@
 
     // Open sidebar on Search tab
     openSidebarTab('tab-search');
+
+    // Clear search field and results for a clean demo
+    var searchInput = document.getElementById('keywordInput');
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.classList.remove('tour-demo-filled');
+    }
+    var resultsContainer = document.getElementById('results-container');
+    if (resultsContainer) resultsContainer.innerHTML = '';
 
     // Collapse all settings sections, then open Text Styling
     var sections = document.querySelectorAll('.settings-section');
