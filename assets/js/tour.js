@@ -123,7 +123,7 @@
       steps: [
         {
           target: '#print-page-2',
-          text: "Your books appear on page two in order. Each entry shows the cover, title, author, and description.",
+          text: "Your books appear on page two in order. Each entry shows the cover, title, author, and description. You can also type directly into these fields to add a book manually if search didn't have it.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-2');
