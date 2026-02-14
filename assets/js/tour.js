@@ -105,11 +105,13 @@
           target: '#results-container',
           text: "Some results have arrow buttons to browse different cover editions. If there are multiple, pick the one that looks best for your display.",
           state: 'evaluating',
+          interactive: true,
         },
         {
           target: '#results-container',
           text: "Click 'Add to List' to drop a book into the next open slot. It'll appear in your preview right away.",
           state: 'excited',
+          interactive: true,
         },
       ]
     },
@@ -195,7 +197,7 @@
         },
         {
           target: '#collage-layout-selector',
-          text: "Pick a layout for your collage. Hover over each option to preview how the covers will arrange. There are several to choose from.",
+          text: "Pick a layout for your collage. Hover over each option to get a description of how it arranges the book covers.",
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');
@@ -332,6 +334,7 @@
   var modalOverlay = null;
   var spotlight = null;
   var panel = null;
+  var blocker = null;
 
 
   /* ----------------------------------------------------------------
@@ -506,6 +509,11 @@
     modalOverlay.appendChild(modal);
     document.body.appendChild(modalOverlay);
 
+    // --- Interaction Blocker ---
+    blocker = document.createElement('div');
+    blocker.className = 'tour-blocker';
+    document.body.appendChild(blocker);
+
     // --- Spotlight ---
     spotlight = document.createElement('div');
     spotlight.className = 'tour-spotlight';
@@ -586,6 +594,25 @@
     // Mark body as tour-active (elevates Folio, suppresses speech bubble)
     document.body.classList.add('tour-active');
 
+    // Reset UI to a known state
+    var mainContent = document.querySelector('.main-content');
+    if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Open sidebar on Search tab
+    openSidebarTab('tab-search');
+
+    // Collapse all settings sections, then open Text Styling
+    var sections = document.querySelectorAll('.settings-section');
+    sections.forEach(function(details) { details.open = false; });
+    sections.forEach(function(details) {
+      var summary = details.querySelector('summary');
+      if (summary && summary.textContent.includes('Text Styling')) details.open = true;
+    });
+
+    // Scroll settings tab to top
+    var tabSettings = document.getElementById('tab-settings');
+    if (tabSettings) tabSettings.scrollTop = 0;
+
     // Ensure Folio is visible
     var container = document.getElementById('folio-container');
     if (container) {
@@ -634,6 +661,17 @@
       // Scroll target into view only if step didn't handle its own scrolling via prepare
       if (target && !step.prepare) {
         target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+
+      // Hide spotlight/panel during transition to avoid stale positions
+      spotlight.classList.remove('visible');
+      panel.classList.remove('visible');
+
+      // Toggle interaction blocker
+      if (step.interactive) {
+        blocker.classList.add('interactive');
+      } else {
+        blocker.classList.remove('interactive');
       }
 
       // Wait for scroll to settle before positioning (needs time for sequenced scrolls)

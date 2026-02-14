@@ -337,6 +337,26 @@
 }
 
 
+/* --- INTERACTION BLOCKER --- */
+/* Prevents user from accidentally manipulating the UI during tour */
+
+.tour-blocker {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  cursor: default;
+  display: none;
+}
+
+body.tour-active .tour-blocker {
+  display: block;
+}
+
+.tour-blocker.interactive {
+  pointer-events: none;
+}
+
+
 /* --- FOLIO DURING TOUR --- */
 
 /* Bring Folio above the spotlight overlay so he's always visible */
