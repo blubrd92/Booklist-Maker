@@ -4930,7 +4930,7 @@ const BooklistApp = (function() {
         updateSaveIndicator();
         // Folio: greet on file load
         if (window.folio) {
-          window.folio.setState('greeting', 'draft-restored');
+          window.folio.setState('greeting', 'file-loaded');
           setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
         }
       } catch (err) {
