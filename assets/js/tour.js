@@ -45,7 +45,7 @@
         },
         {
           target: '#preview-area',
-          text: "This is your live preview. Page one is the front cover, with a collage of book covers and your title. Page two lists your books with descriptions.",
+          text: "This is your live preview. The first page shows the front cover and back page of your list. The second page shows the inner pages with your book entries.",
           state: 'evaluating',
           padding: 4,
         },
