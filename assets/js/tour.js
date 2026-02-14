@@ -123,14 +123,12 @@
           text: "Your books appear on page two in order. Each entry shows the cover, title, author, and description.",
           state: 'evaluating',
           prepare: function() {
-            var previewArea = document.getElementById('preview-area');
-            if (previewArea) previewArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             scrollPreviewTo('print-page-2');
           },
           padding: 4,
         },
         {
-          target: '.list-item:first-child .star-button',
+          target: '#inside-left-panel .list-item:first-child .star-button',
           text: "See the star icon? Click it to include that book's cover in the front page collage. You need at least 12 starred books for the standard layout.",
           state: 'evaluating',
           prepare: function() {
@@ -138,7 +136,7 @@
           },
         },
         {
-          target: '.list-item:first-child .drag-handle',
+          target: '#inside-left-panel .list-item:first-child .drag-handle',
           text: "Drag this handle to reorder books on your list. Or type a new number in the position field to jump a book to a specific spot.",
           state: 'idle',
           prepare: function() {
@@ -146,7 +144,7 @@
           },
         },
         {
-          target: '.list-item:first-child .magic-button',
+          target: '#inside-left-panel .list-item:first-child .magic-button',
           text: "The magic wand fetches a book description for you. If a slot is missing a blurb, one click fills it in.",
           state: 'evaluating',
           prepare: function() {
@@ -154,7 +152,7 @@
           },
         },
         {
-          target: '.list-item:first-child .cover-uploader',
+          target: '#inside-left-panel .list-item:first-child .cover-uploader',
           text: "Click the cover image to upload your own. Handy when the search didn't find the right edition or you want a custom look.",
           state: 'idle',
           prepare: function() {
@@ -162,7 +160,7 @@
           },
         },
         {
-          target: '.list-item:first-child .delete-button',
+          target: '#inside-left-panel .list-item:first-child .delete-button',
           text: "The X button removes a book and frees up that slot. Don't worry, you can always search and add another.",
           state: 'worried',
           prepare: function() {
@@ -384,8 +382,16 @@
     var el = document.getElementById(elementId);
     var previewArea = document.getElementById('preview-area');
     if (el && previewArea) {
-      var offsetTop = el.offsetTop - previewArea.offsetTop;
-      previewArea.scrollTo({ top: offsetTop - 20, behavior: 'smooth' });
+      // First, make sure the preview area is visible in the viewport
+      previewArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Then scroll within the preview container to the target element
+      var offset = 0;
+      var node = el;
+      while (node && node !== previewArea) {
+        offset += node.offsetTop;
+        node = node.offsetParent;
+      }
+      previewArea.scrollTo({ top: Math.max(0, offset - 20), behavior: 'smooth' });
     }
   }
 
