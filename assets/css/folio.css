@@ -62,7 +62,6 @@ body:has(.sidebar.collapsed) .folio-container {
 .folio-toggle:hover {
   background: #8a5a28;
   color: #f5f0e8;
-  transform: translateY(-1px);
 }
 
 .folio-toggle:active {

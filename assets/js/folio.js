@@ -100,9 +100,31 @@
     evaluating: {
       triggered: {
         'description-fetching': "Let's see what comes back...",
-        'browsing-covers':      "Take your time, covers matter.",
-        'comparing-layouts':    "They're all good... but which is best?",
-        'font-previewing':      "Ooh, try the next one too.",
+        'browsing-covers': [
+          "Take your time, covers matter.",
+          "Ooh, that one has good contrast.",
+          "The spine art says a lot about a book.",
+          "Keep going, the right cover is in here.",
+          "This one would pop on the collage.",
+          "I'm partial to bold colors, personally.",
+        ],
+        'comparing-layouts': [
+          "They're all good... but which is best?",
+          "Classic is safe. Tilted is fun. Your call.",
+          "Try them all. I'll wait.",
+          "*squints at the grid spacing*",
+          "A good layout can make or break the list.",
+          "Trust your gut on this one.",
+          "The right layout makes the covers sing.",
+        ],
+        'font-previewing': [
+          "Ooh, try the next one too.",
+          "Serif or sans? The eternal question.",
+          "That one's clean. Very readable.",
+          "Bold move. Literally.",
+          "I have opinions about kerning. Don't test me.",
+          "Fonts set the mood before a single word is read.",
+        ],
       },
       ambient: [
         "Hmm. Hmm. Hmmmmm.",
@@ -234,14 +256,45 @@
       });
     }
 
-    // Pick quip: triggered if event matches, otherwise ambient
+    // Pick quip: triggered if event matches, otherwise ambient.
+    // Triggered values can be a string (single line) or array (rotating pool).
     let line = null;
-    if (event && quips[state]?.triggered[event]) {
-      line = quips[state].triggered[event];
+    const triggered = event && quips[state]?.triggered[event];
+    if (triggered) {
+      if (Array.isArray(triggered)) {
+        line = pickTriggered(state, event);
+      } else {
+        line = triggered;
+      }
     } else {
       line = pickAmbient(state);
     }
     if (line) showBubble(line);
+  }
+
+  /* ----------------------------------------------------------------
+     TRIGGERED SHUFFLE BAG: Same anti-repeat logic as ambient,
+     for triggered events that have an array of rotating lines.
+     ---------------------------------------------------------------- */
+  const triggeredBags = {};
+
+  function pickTriggered(state, event) {
+    const pool = quips[state]?.triggered[event];
+    if (!pool || !Array.isArray(pool) || pool.length === 0) return null;
+
+    const key = state + ':' + event;
+    if (!triggeredBags[key] || triggeredBags[key].remaining.length === 0) {
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      if (triggeredBags[key] && shuffled[0] === triggeredBags[key].last) {
+        const swapIdx = 1 + Math.floor(Math.random() * (shuffled.length - 1));
+        [shuffled[0], shuffled[swapIdx]] = [shuffled[swapIdx], shuffled[0]];
+      }
+      triggeredBags[key] = { remaining: shuffled, last: null };
+    }
+
+    const quip = triggeredBags[key].remaining.shift();
+    triggeredBags[key].last = quip;
+    return quip;
   }
 
   /* ----------------------------------------------------------------
