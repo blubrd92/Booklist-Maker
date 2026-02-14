@@ -315,7 +315,7 @@
         },
         {
           target: '#export-pdf-button',
-          text: "When everything looks right, hit Generate PDF. Your two-page booklist downloads ready to print. For best results, set your print scale to Default or Fit to Paper.",
+          text: "When everything looks right, hit Generate PDF. For best results, print at Default or Fit to Paper scale, double-sided, and flip on short edge. Your booklist is going to look great!",
           state: 'excited',
           padding: 6,
         },
