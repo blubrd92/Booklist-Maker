@@ -485,8 +485,8 @@
   function initToggle() {
     if (!folioContainer || !folioToggle) return;
 
-    const hidden = localStorage.getItem('folio-hidden') === 'true';
-    if (hidden) folioContainer.classList.add('folio-hidden');
+    const shown = localStorage.getItem('folio-hidden') === 'false';
+    if (!shown) folioContainer.classList.add('folio-hidden');
 
     folioToggle.addEventListener('click', function(e) {
       e.stopPropagation();
