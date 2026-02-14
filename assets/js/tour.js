@@ -129,7 +129,7 @@
         },
         {
           target: '#inside-left-panel .list-item:first-child .star-button',
-          text: "See the star icon? Click it to include that book's cover in the front page collage. You need at least 12 starred books for the standard layout.",
+          text: "The star icon marks a book for the front cover collage. Star at least 12 books if you want to auto-generate one.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-2');
@@ -384,14 +384,16 @@
     if (el && previewArea) {
       // First, make sure the preview area is visible in the viewport
       previewArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      // Then scroll within the preview container to the target element
-      var offset = 0;
-      var node = el;
-      while (node && node !== previewArea) {
-        offset += node.offsetTop;
-        node = node.offsetParent;
-      }
-      previewArea.scrollTo({ top: Math.max(0, offset - 20), behavior: 'smooth' });
+      // Wait for viewport scroll to settle, then scroll within the container
+      setTimeout(function() {
+        var offset = 0;
+        var node = el;
+        while (node && node !== previewArea) {
+          offset += node.offsetTop;
+          node = node.offsetParent;
+        }
+        previewArea.scrollTo({ top: Math.max(0, offset - 20), behavior: 'smooth' });
+      }, 400);
     }
   }
 
@@ -628,13 +630,13 @@
         target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
 
-      // Wait for scroll to settle before positioning
+      // Wait for scroll to settle before positioning (needs time for sequenced scrolls)
       setTimeout(function() {
         positionSpotlight(target, step.padding);
         positionPanel(target);
         spotlight.classList.add('visible');
         panel.classList.add('visible');
-      }, 350);
+      }, 750);
     }, 150);
   }
 
