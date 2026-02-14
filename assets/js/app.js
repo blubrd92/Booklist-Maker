@@ -1992,6 +1992,12 @@ const BooklistApp = (function() {
     }).catch(err => {
       console.error('Cover generation failed:', err);
       showNotification('Could not generate cover. Please try again.');
+      // Folio: worried about collage failure
+      if (window.folio) {
+        window.folio.react('wince');
+        setTimeout(function() { if (window.folio) window.folio.setState('worried', 'network-error'); }, 500);
+        setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 5500);
+      }
     }).finally(() => {
       setLoading(button, false);
     });
@@ -4880,6 +4886,11 @@ const BooklistApp = (function() {
         debouncedSave(); // Sync browser draft with loaded file
         hasUnsavedFile = false; // File was just loaded from disk
         updateSaveIndicator();
+        // Folio: greet on file load
+        if (window.folio) {
+          window.folio.setState('greeting', 'draft-restored');
+          setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
+        }
       } catch (err) {
         console.error('Import failed:', err);
         showNotification('Could not load this file. Is it a valid .booklist?', 'error');
@@ -5388,6 +5399,20 @@ const BooklistApp = (function() {
         if (window.folio) window.folio.setState('idle');
       }
     }, true);
+    
+    // Folio: evaluating state when browsing cover carousels (debounced)
+    (function() {
+      var carouselSettleTimer = null;
+      document.addEventListener('click', function(e) {
+        if (e.target.closest && e.target.closest('.carousel-button')) {
+          clearTimeout(carouselSettleTimer);
+          if (window.folio) window.folio.setState('evaluating', 'browsing-covers');
+          carouselSettleTimer = setTimeout(function() {
+            if (window.folio) window.folio.setState('idle');
+          }, 3000);
+        }
+      });
+    })();
   }
   
   // Expose necessary functions for external access
