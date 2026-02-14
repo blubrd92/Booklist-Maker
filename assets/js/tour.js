@@ -38,9 +38,10 @@
       icon: 'fa-solid fa-rocket',
       steps: [
         {
-          target: null,
+          target: '#folio-scene',
           text: "Welcome to Booklist Maker! I'm Folio. This tool creates printable two-page booklists for library displays. Let me show you around.",
           state: 'greeting',
+          padding: 4,
         },
         {
           target: '#preview-area',
