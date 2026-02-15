@@ -849,8 +849,8 @@ input[type="color"]:hover {
   border-left: 1px dashed #ccc; transform: translateX(-0.5px);
 }
 
-.book-panel { display: flex; flex-direction: column; height: 100%; justify-content: space-between; box-sizing: border-box; padding-bottom: 3px; }
-#back-cover-panel.all-books { padding-bottom: 3px; }
+.book-panel { display: flex; flex-direction: column; height: 100%; justify-content: space-between; }
+#back-cover-panel.all-books { box-sizing: border-box; }
 #inside-left-panel { align-items: flex-start; }
 #inside-right-panel { align-items: flex-end; }
 #back-cover-panel { display: flex; flex-direction: column; justify-content: space-between; }
@@ -1359,6 +1359,8 @@ input[type="color"]:hover {
 /* --- PRINT MODE --- */
 .print-mode .page { box-shadow: none; margin: 0; border: none !important; outline: none; }
 .print-mode .panel { padding: 24px; border: none !important; }
+.print-mode .book-panel { padding-bottom: 27px; }
+.print-mode #back-cover-panel.all-books { padding-bottom: 27px; }
 .print-mode .list-item-controls, .print-mode .page-divider, .print-mode .placeholder-text { display: none !important; }
 .print-mode .cover-uploader, .print-mode .custom-uploader, .print-mode .editable-field, .print-mode #front-cover-uploader, .print-mode #qr-code-text, .print-mode .qr-code-container {
   border: none !important; outline: none !important; background: transparent !important;
