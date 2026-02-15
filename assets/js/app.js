@@ -1049,6 +1049,10 @@ const BooklistApp = (function() {
         item.style.display = 'none';
       }
     });
+
+    // When both QR and branding are off, all slots are books;
+    // add padding so descenders on the last entry aren't clipped
+    elements.backCoverPanel.classList.toggle('all-books', !showQr && !showBranding);
   }
   
   // ---------------------------------------------------------------------------
