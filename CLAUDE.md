@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Booklist Maker is a web-based application for creating, customizing, and exporting printable booklists. It targets libraries creating professional book displays with cover art, customizable typography, QR codes, and branding.
 
-**Tech Stack**: Vanilla HTML5/CSS3/JavaScript (ES6+) with no build tools or package manager.
+**Tech Stack**: Vanilla HTML5/CSS3/JavaScript (ES6+). Dev tooling: ESLint + Vitest (via npm).
 
 **Branch Note**: The `claude-code-trial` branch adds Extended Collage Mode (20 covers vs standard 12).
 
@@ -17,13 +17,26 @@ No build process. Open `index.html` directly in a browser, or use a local server
 python -m http.server 8000
 ```
 
+## Development Commands
+
+```bash
+npm run lint        # ESLint on assets/js/
+npm run test        # Vitest (one-shot)
+npm run test:watch  # Vitest (watch mode)
+```
+
 ## Architecture
 
 ### File Structure
 - `index.html` - Single-page UI markup with semantic HTML5 and ARIA accessibility
 - `assets/css/styles.css` - All styling, organized by component with CSS variables
-- `assets/js/app.js` - Core application logic (~4500 lines on this branch)
+- `assets/js/config.js` - `CONFIG` constants (extracted, loaded first)
+- `assets/js/book-utils.js` - `BookUtils` shared utility functions (pure, testable)
+- `assets/js/app.js` - Core application logic (IIFE, uses CONFIG + BookUtils globals)
+- `assets/js/folio.js` - Animated cat mascot companion
+- `assets/js/tour.js` - Guided tour system
 - `assets/img/branding-default.png` - Default library branding image
+- `tests/book-utils.test.js` - Unit tests for BookUtils
 
 ### Module Pattern
 The application uses an IIFE (Immediately Invoked Function Expression) encapsulated in `BooklistApp`:
@@ -39,12 +52,23 @@ const BooklistApp = (function() {
 ```
 
 ### Key Configuration
-All constants are in `CONFIG` object at the top of `app.js`:
+All constants are in the `CONFIG` object in `config.js` (loaded as a global before app.js):
 - Layout: `TOTAL_SLOTS`, `SLOTS_PER_INSIDE_PANEL`, cover dimensions
 - Collage: `MIN_COVERS_FOR_COLLAGE` (12), `MAX_COVERS_FOR_COLLAGE` (20)
 - PDF export: 300 DPI, 3x canvas scale, 11"x8.5" output
 - APIs: Open Library endpoints, Google Apps Script for AI descriptions
 - Timing: autosave debounce, notification duration
+
+### Shared Utilities (BookUtils)
+Pure functions in `book-utils.js` eliminate duplicated logic across app.js:
+- `BookUtils.hasValidCover(book)` - Checks if a book has a non-placeholder cover
+- `BookUtils.getStarredBooks(booklist)` - Filters non-blank, starred books
+- `BookUtils.getStarredBooksWithCovers(booklist)` - Starred books with valid covers
+- `BookUtils.isAtCoverLimit(booklist, extras, max)` - Checks cover count limit
+- `BookUtils.countTotalCovers(booklist, extras, extendedMode)` - Total valid covers
+- `BookUtils.getCoverUrl(coverId, size)` - Builds Open Library cover URL
+- `BookUtils.getBookCoverUrl(book, size)` - Best cover URL for a book
+- `BookUtils.hasEnoughCoversForCollage(booklist, extras, extendedMode)` - Collage readiness
 
 ### State Management
 - `myBooklist` array holds all book objects with metadata

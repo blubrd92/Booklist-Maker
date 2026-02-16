@@ -1,107 +1,11 @@
 /**
  * Booklist Maker Application
  * Refactored for maintainability, accessibility, and clarity
+ *
+ * Dependencies (loaded via <script> tags before this file):
+ *   - config.js    -> globalThis.CONFIG
+ *   - book-utils.js -> globalThis.BookUtils
  */
-
-// =============================================================================
-// CONFIGURATION
-// =============================================================================
-const CONFIG = {
-  // Layout
-  TOTAL_SLOTS: 15,
-  SLOTS_PER_INSIDE_PANEL: 5,
-  BACK_COVER_START_INDEX: 10,
-  
-  // Dynamic max books based on UI toggles
-  MAX_BOOKS_FULL: 15,
-  MAX_BOOKS_ONE_ELEMENT: 14,
-  MAX_BOOKS_BOTH_ELEMENTS: 13,
-  
-  // Cover dimensions (pixels at screen resolution)
-  COVER_THUMB_WIDTH: 110,
-  COVER_THUMB_HEIGHT: 132,
-  FRONT_COVER_WIDTH: 480,
-  FRONT_COVER_HEIGHT: 768,
-  
-  // Collage generation
-  MIN_COVERS_FOR_COLLAGE: 12,
-  MAX_COVERS_FOR_COLLAGE: 20,
-  COLLAGE_GRID_COLS: 3,
-  COLLAGE_TOP_ROW_COUNT: 3,
-  COLLAGE_BOTTOM_ROWS: 3,
-  
-  // QR Code
-  QR_SIZE_PX: 144,
-  QR_ERROR_CORRECTION: 'H',
-  
-  // PDF Export
-  PDF_DPI: 300,
-  PDF_CANVAS_SCALE: 3,
-  PDF_WIDTH_IN: 11,
-  PDF_HEIGHT_IN: 8.5,
-  
-  // Branding area
-  BRANDING_WIDTH: 480,
-  BRANDING_HEIGHT: 144,
-  
-  // Timing
-  NOTIFICATION_DURATION_MS: 3000,
-  AUTOSAVE_DEBOUNCE_MS: 400,
-  PDF_RENDER_DELAY_MS: 100,
-  
-  // API
-  OPEN_LIBRARY_SEARCH_URL: 'https://openlibrary.org/search.json',
-  OPEN_LIBRARY_COVERS_URL: 'https://covers.openlibrary.org/b/id/',
-  OPEN_LIBRARY_EDITIONS_LIMIT: 100,
-  
-  // Placeholders
-  PLACEHOLDER_COVER_URL: 'https://placehold.co/110x132/EAEAEA/333333?text=Upload%20Cover',
-  PLACEHOLDER_NO_COVER_URL: 'https://placehold.co/110x132/EAEAEA/333333?text=No%20Cover',
-  PLACEHOLDER_QR_URL: 'https://placehold.co/144x144/EAEAEA/333333?text=QR+Code',
-  PLACEHOLDER_COLLAGE_COVER_URL: 'https://placehold.co/300x450/EAEAEA/333333?text=No%20Cover',
-  
-  // Text placeholders
-  PLACEHOLDERS: {
-    title: '[Enter Title]',
-    author: '[Enter Author]',
-    callNumber: '[Call #]',
-    description: '[Enter a brief description here...]',
-    authorWithCall: '[Enter Author] - [Call #]',
-    qrText: "Enter your blurb here. To link to an online list (like Bibliocommons), go to Settings > Back Cover and paste the URL in the\n'QR Code URL' field and click update. Remember to test the code with your phone!",
-  },
-  
-  // Colors
-  PLACEHOLDER_COLOR: '#757575',
-  
-  // Available fonts (single source of truth for all font dropdowns)
-  FONTS: [
-    { value: "'Anton', sans-serif", label: 'Anton' },
-    { value: "'Arvo', serif", label: 'Arvo' },
-    { value: "'Bangers', system-ui", label: 'Bangers' },
-    { value: "'Bebas Neue', sans-serif", label: 'Bebas Neue' },
-    { value: "'Bungee', system-ui", label: 'Bungee' },
-    { value: "'Calibri', sans-serif", label: 'Calibri' },
-    { value: "'Cinzel', serif", label: 'Cinzel' },
-    { value: "'Crimson Text', serif", label: 'Crimson Text' },
-    { value: "'EB Garamond', serif", label: 'EB Garamond' },
-    { value: "'Georgia', serif", label: 'Georgia' },
-    { value: "'Helvetica', sans-serif", label: 'Helvetica' },
-    { value: "'Lato', sans-serif", label: 'Lato' },
-    { value: "'Libre Baskerville', serif", label: 'Libre Baskerville' },
-    { value: "'Merriweather', serif", label: 'Merriweather' },
-    { value: "'Montserrat', sans-serif", label: 'Montserrat' },
-    { value: "'Open Sans', sans-serif", label: 'Open Sans' },
-    { value: "'Oswald', sans-serif", label: 'Oswald' },
-    { value: "'Playfair Display', serif", label: 'Playfair Display' },
-    { value: "'Poppins', sans-serif", label: 'Poppins' },
-    { value: "'Raleway', sans-serif", label: 'Raleway' },
-    { value: "'Roboto', sans-serif", label: 'Roboto' },
-    { value: "'Roboto Slab', serif", label: 'Roboto Slab' },
-    { value: "'Source Sans 3', sans-serif", label: 'Source Sans 3' },
-    { value: "'Staatliches', system-ui", label: 'Staatliches' },
-    { value: "'Times New Roman', serif", label: 'Times New Roman' },
-  ],
-};
 
 // =============================================================================
 // MAIN APPLICATION MODULE
@@ -686,9 +590,7 @@ const BooklistApp = (function() {
     coverCarousel.className = 'cover-carousel';
     
     const coverElement = document.createElement('img');
-    coverElement.src = initialCoverId === 'placehold'
-      ? CONFIG.PLACEHOLDER_NO_COVER_URL
-      : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${initialCoverId}-M.jpg`;
+    coverElement.src = BookUtils.getCoverUrl(initialCoverId);
     coverElement.alt = `Cover for ${book.title}`;
     coverCarousel.appendChild(coverElement);
     
@@ -745,97 +647,109 @@ const BooklistApp = (function() {
     return bookElement;
   }
   
-  function createCarouselControls(coverElement, initialCoverId, bookKey) {
+  /**
+   * Creates carousel controls for browsing book cover editions.
+   * Unified version — used by both main search cards and extra cover modal cards.
+   * @param {HTMLElement} coverElement - The <img> to update
+   * @param {string} initialCoverId - First cover ID (or 'placehold')
+   * @param {string} bookKey - Open Library work key for fetching editions
+   * @param {Object} [options] - Optional overrides
+   * @param {boolean} [options.ariaLive=true] - Add aria-live to counter
+   * @param {boolean} [options.stopPropagation=false] - Stop click event propagation
+   */
+  function createCarouselControls(coverElement, initialCoverId, bookKey, options) {
+    const opts = options || {};
+    const ariaLive = opts.ariaLive !== false;
+    const stopPropagation = opts.stopPropagation || false;
+
     const carouselControls = document.createElement('div');
     carouselControls.className = 'carousel-controls';
-    
+
     const coverCounter = document.createElement('span');
     coverCounter.className = 'cover-counter';
     coverCounter.textContent = '1 of 1';
-    coverCounter.setAttribute('aria-live', 'polite');
-    
+    if (ariaLive) {
+      coverCounter.setAttribute('aria-live', 'polite');
+    }
+
     const buttonsContainer = document.createElement('div');
     buttonsContainer.className = 'carousel-buttons-container';
-    
+
     const prevButton = document.createElement('button');
     prevButton.className = 'carousel-button';
     prevButton.textContent = '◀';
     prevButton.setAttribute('aria-label', 'Previous cover');
     prevButton.disabled = true;
-    
+
     const nextButton = document.createElement('button');
     nextButton.className = 'carousel-button';
     nextButton.textContent = '▶';
     nextButton.setAttribute('aria-label', 'Next cover');
     nextButton.disabled = true;
-    
+
     buttonsContainer.appendChild(prevButton);
     buttonsContainer.appendChild(nextButton);
     carouselControls.appendChild(coverCounter);
     carouselControls.appendChild(buttonsContainer);
-    
+
     // Carousel state
     const state = {
       allCoverIds: [initialCoverId],
       currentCoverIndex: 0,
       coversLoaded: false
     };
-    
+
     const updateCarousel = () => {
       const currentId = state.allCoverIds[state.currentCoverIndex];
-      coverElement.src = currentId === 'placehold'
-        ? CONFIG.PLACEHOLDER_NO_COVER_URL
-        : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${currentId}-M.jpg`;
+      coverElement.src = BookUtils.getCoverUrl(currentId);
       coverCounter.textContent = `${state.currentCoverIndex + 1} of ${state.allCoverIds.length}`;
       prevButton.disabled = state.currentCoverIndex === 0;
       nextButton.disabled = state.currentCoverIndex === state.allCoverIds.length - 1;
     };
-    
+
     const loadAllCovers = async () => {
       if (state.coversLoaded || !bookKey) return;
-      
+
       const fetchedCovers = await fetchAllCoverIdsForWork(bookKey);
-      
+
       let finalCovers = [];
       if (initialCoverId !== 'placehold') {
         finalCovers.push(initialCoverId);
       }
       fetchedCovers.forEach(id => finalCovers.push(id));
-      
+
       state.allCoverIds = [...new Set(finalCovers)];
       if (state.allCoverIds.length === 0) {
         state.allCoverIds.push('placehold');
       }
-      
+
       state.coversLoaded = true;
       updateCarousel();
     };
-    
-    prevButton.addEventListener('click', async () => {
+
+    prevButton.addEventListener('click', async (e) => {
+      if (stopPropagation) e.stopPropagation();
       if (!state.coversLoaded) await loadAllCovers();
       if (state.currentCoverIndex > 0) {
         state.currentCoverIndex--;
         updateCarousel();
       }
     });
-    
-    nextButton.addEventListener('click', async () => {
+
+    nextButton.addEventListener('click', async (e) => {
+      if (stopPropagation) e.stopPropagation();
       if (!state.coversLoaded) await loadAllCovers();
       if (state.currentCoverIndex < state.allCoverIds.length - 1) {
         state.currentCoverIndex++;
         updateCarousel();
       }
     });
-    
+
     // Pre-load covers
     if (bookKey) {
-      loadAllCovers().then(() => {
-        if (state.allCoverIds.length > 1) {
-          updateCarousel();
-        }
-      });
+      loadAllCovers();
     }
-    
+
     return { carouselControls, state };
   }
   
@@ -846,7 +760,7 @@ const BooklistApp = (function() {
     if (!isAdded) {
       if (firstBlankIndex !== -1) {
         // Only auto-star if under 12 starred books
-        const currentStarredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+        const currentStarredCount = BookUtils.getStarredBooks(myBooklist).length;
         
         const newBook = {
           key: book.key,
@@ -891,20 +805,10 @@ const BooklistApp = (function() {
         const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
         if (frontCoverImg?.dataset.isAutoGenerated === 'true' && newBook.includeInCollage && carouselState.allCoverIds.length > 0) {
           const extendedMode = elements.extendedCollageToggle?.checked || false;
-          const requiredCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
-          
-          // Count starred books with covers after adding
-          const booksWithCovers = myBooklist.filter(b =>
-            !b.isBlank &&
-            b.includeInCollage &&
-            (b.cover_ids.length > 0 || (b.customCoverData && !b.customCoverData.includes('placehold.co')))
-          );
-          
-          const extraCoverCount = extendedMode 
-            ? extraCollageCovers.filter(ec => ec.coverData && !ec.coverData.includes('placehold.co')).length
-            : 0;
-          
-          if (booksWithCovers.length + extraCoverCount === requiredCovers) {
+          const totalCovers = BookUtils.countTotalCovers(myBooklist, extraCollageCovers, extendedMode);
+          const requiredCovers = BookUtils.getRequiredCovers(extendedMode);
+
+          if (totalCovers === requiredCovers) {
             generateCoverCollage();
           }
         }
@@ -1139,7 +1043,7 @@ const BooklistApp = (function() {
     starButton.className = 'star-button';
     
     // Count currently starred books + extra collage covers
-    const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+    const starredCount = BookUtils.getStarredBooks(myBooklist).length;
     const extendedMode = elements.extendedCollageToggle?.checked || false;
     const maxCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
     const totalCollageCovers = starredCount + (extendedMode ? extraCollageCovers.length : 0);
@@ -1172,23 +1076,7 @@ const BooklistApp = (function() {
       const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
       if (frontCoverImg?.dataset.isAutoGenerated === 'true') {
         const currentExtendedMode = elements.extendedCollageToggle?.checked || false;
-        const requiredCovers = currentExtendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
-        
-        // Count starred books with covers
-        const booksWithCovers = myBooklist.filter(book =>
-          !book.isBlank &&
-          book.includeInCollage &&
-          (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co')))
-        );
-        
-        // Count extra covers (only in extended mode)
-        const extraCoverCount = currentExtendedMode 
-          ? extraCollageCovers.filter(ec => ec.coverData && !ec.coverData.includes('placehold.co')).length
-          : 0;
-        
-        const totalCovers = booksWithCovers.length + extraCoverCount;
-        
-        if (totalCovers >= requiredCovers) {
+        if (BookUtils.hasEnoughCoversForCollage(myBooklist, extraCollageCovers, currentExtendedMode)) {
           generateCoverCollage();
         }
       }
@@ -1393,20 +1281,7 @@ const BooklistApp = (function() {
         const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
         if (frontCoverImg?.dataset.isAutoGenerated === 'true' && book.includeInCollage) {
           const extendedMode = elements.extendedCollageToggle?.checked || false;
-          const requiredCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
-          
-          // Count starred books with covers after this upload
-          const booksWithCovers = myBooklist.filter(b =>
-            !b.isBlank &&
-            b.includeInCollage &&
-            (b.cover_ids.length > 0 || (b.customCoverData && !b.customCoverData.includes('placehold.co')))
-          );
-          
-          const extraCoverCount = extendedMode 
-            ? extraCollageCovers.filter(ec => ec.coverData && !ec.coverData.includes('placehold.co')).length
-            : 0;
-          
-          if (booksWithCovers.length + extraCoverCount === requiredCovers) {
+          if (BookUtils.countTotalCovers(myBooklist, extraCollageCovers, extendedMode) === BookUtils.getRequiredCovers(extendedMode)) {
             generateCoverCollage();
           }
         }
@@ -1903,24 +1778,10 @@ const BooklistApp = (function() {
     const maxCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
     
     // Gather books with covers that are marked for inclusion
-    const booksWithCovers = myBooklist.filter(book =>
-      !book.isBlank &&
-      book.includeInCollage &&
-      (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co')))
-    );
-    
+    const booksWithCovers = BookUtils.getStarredBooksWithCovers(myBooklist);
+
     // Get URLs from starred book blocks
-    const bookBlockCoverUrls = booksWithCovers.map(book => {
-      if (book.customCoverData && !book.customCoverData.includes('placehold.co')) {
-        return book.customCoverData;
-      } else if (book.cover_ids.length > 0) {
-        const coverId = book.cover_ids[book.currentCoverIndex];
-        return coverId !== 'placehold'
-          ? `${CONFIG.OPEN_LIBRARY_COVERS_URL}${coverId}.jpg`
-          : CONFIG.PLACEHOLDER_COLLAGE_COVER_URL;
-      }
-      return CONFIG.PLACEHOLDER_COLLAGE_COVER_URL;
-    });
+    const bookBlockCoverUrls = booksWithCovers.map(book => BookUtils.getBookCoverUrl(book));
     
     // Get URLs from extra collage covers (only if extended mode)
     const extraCoverUrls = extendedMode 
@@ -1936,7 +1797,7 @@ const BooklistApp = (function() {
     const requiredCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
     
     if (allCoverUrls.length < requiredCovers) {
-      const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+      const starredCount = BookUtils.getStarredBooks(myBooklist).length;
       const totalWithCovers = booksWithCovers.length + extraCoverUrls.length;
       const totalSelected = starredCount + (extendedMode ? extraCollageCovers.length : 0);
       
@@ -3030,8 +2891,7 @@ const BooklistApp = (function() {
           const book = myBooklist[i];
           if (book.isBlank) continue;
 
-          const hasCover = book.cover_ids.length > 0 ||
-            (book.customCoverData && !book.customCoverData.includes('placehold.co'));
+          const hasCover = BookUtils.hasValidCover(book);
 
           if (hasCover && starredCount < 15) {
             book.includeInCollage = true;
@@ -3065,23 +2925,7 @@ const BooklistApp = (function() {
     
     // Auto-generate if we have enough covers (and not restoring from saved state)
     if (!isRestoring) {
-      const requiredCovers = enabled ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
-      
-      // Count covers from starred books
-      const booksWithCovers = myBooklist.filter(book =>
-        !book.isBlank &&
-        book.includeInCollage &&
-        (book.cover_ids.length > 0 || (book.customCoverData && !book.customCoverData.includes('placehold.co')))
-      );
-      
-      // Count extra covers (only in extended mode)
-      const extraCoverCount = enabled 
-        ? extraCollageCovers.filter(ec => ec.coverData && !ec.coverData.includes('placehold.co')).length
-        : 0;
-      
-      const totalCovers = booksWithCovers.length + extraCoverCount;
-      
-      if (totalCovers >= requiredCovers) {
+      if (BookUtils.hasEnoughCoversForCollage(myBooklist, extraCollageCovers, enabled)) {
         generateCoverCollage();
       }
     }
@@ -3136,10 +2980,7 @@ const BooklistApp = (function() {
    */
   function updateExtraCoversCount() {
     // Count starred books beyond 12
-    const starredBooks = myBooklist.filter(b => !b.isBlank && b.includeInCollage);
-    const booksWithCovers = starredBooks.filter(b => 
-      b.cover_ids.length > 0 || (b.customCoverData && !b.customCoverData.includes('placehold.co'))
-    );
+    const booksWithCovers = BookUtils.getStarredBooksWithCovers(myBooklist);
     const starredBeyond12 = Math.max(0, booksWithCovers.length - 12);
     const extraCount = extraCollageCovers.length;
     const totalExtra = starredBeyond12 + extraCount;
@@ -3167,10 +3008,7 @@ const BooklistApp = (function() {
     elements.extraCoversGrid.innerHTML = '';
     
     // Get starred books with covers, take those beyond position 12
-    const starredBooks = myBooklist.filter(b => !b.isBlank && b.includeInCollage);
-    const booksWithCovers = starredBooks.filter(b => 
-      b.cover_ids.length > 0 || (b.customCoverData && !b.customCoverData.includes('placehold.co'))
-    );
+    const booksWithCovers = BookUtils.getStarredBooksWithCovers(myBooklist);
     const starredBeyond12 = booksWithCovers.slice(12); // Books 13, 14, 15...
     
     let slotIndex = 0;
@@ -3184,14 +3022,7 @@ const BooklistApp = (function() {
       slot.title = `${book.title} (from your list)`;
       
       const img = document.createElement('img');
-      if (book.customCoverData && !book.customCoverData.includes('placehold.co')) {
-        img.src = book.customCoverData;
-      } else if (book.cover_ids.length > 0) {
-        const coverId = book.cover_ids[book.currentCoverIndex || 0];
-        img.src = coverId !== 'placehold' 
-          ? `${CONFIG.OPEN_LIBRARY_COVERS_URL}${coverId}-M.jpg`
-          : CONFIG.PLACEHOLDER_COLLAGE_COVER_URL;
-      }
+      img.src = BookUtils.getBookCoverUrl(book);
       img.alt = book.title;
       slot.appendChild(img);
       
@@ -3266,8 +3097,7 @@ const BooklistApp = (function() {
       // Shared handler for processing an image file (used by both file input and drag-drop)
       const processExtraCoverFile = (file) => {
         // Check if at max covers total
-        const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
-        if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+        if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, CONFIG.MAX_COVERS_FOR_COLLAGE)) {
           showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
           return;
         }
@@ -3309,8 +3139,7 @@ const BooklistApp = (function() {
     if (!file) return;
     
     // Check if at max covers total
-    const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
-    if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+    if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, CONFIG.MAX_COVERS_FOR_COLLAGE)) {
       showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
       event.target.value = ''; // Clear input
       return;
@@ -3331,8 +3160,7 @@ const BooklistApp = (function() {
    */
   function addExtraCover(coverData, preferredSlot = null) {
     // Check if at max
-    const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
-    if (starredCount + extraCollageCovers.length >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+    if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, CONFIG.MAX_COVERS_FOR_COLLAGE)) {
       showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
       return null;
     }
@@ -3376,7 +3204,7 @@ const BooklistApp = (function() {
     // Auto-generate cover when 20th cover is added (if auto-generated image exists)
     const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
     if (frontCoverImg?.dataset.isAutoGenerated === 'true') {
-      const starredAfterAdd = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
+      const starredAfterAdd = BookUtils.getStarredBooks(myBooklist).length;
       if (starredAfterAdd + extraCollageCovers.length === CONFIG.MAX_COVERS_FOR_COLLAGE) {
         generateCoverCollage();
       }
@@ -3533,9 +3361,7 @@ const BooklistApp = (function() {
     coverCarousel.className = 'cover-carousel';
     
     const coverImg = document.createElement('img');
-    coverImg.src = initialCoverId === 'placehold'
-      ? CONFIG.PLACEHOLDER_NO_COVER_URL
-      : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${initialCoverId}-M.jpg`;
+    coverImg.src = BookUtils.getCoverUrl(initialCoverId);
     coverImg.alt = `Cover for ${book.title}`;
     coverImg.loading = 'lazy';
     coverCarousel.appendChild(coverImg);
@@ -3557,10 +3383,11 @@ const BooklistApp = (function() {
     actionsGroup.className = 'card-actions-group';
     
     // Carousel controls
-    const { carouselControls, state: carouselState } = createExtraCoverCarouselControls(
-      coverImg, 
-      initialCoverId, 
-      book.key
+    const { carouselControls, state: carouselState } = createCarouselControls(
+      coverImg,
+      initialCoverId,
+      book.key,
+      { ariaLive: false, stopPropagation: true }
     );
     
     // Track added cover id for removal
@@ -3586,10 +3413,7 @@ const BooklistApp = (function() {
       }
       
       // Check if at limit
-      const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
-      const totalCovers = starredCount + extraCollageCovers.length;
-      
-      if (totalCovers >= CONFIG.MAX_COVERS_FOR_COLLAGE) {
+      if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, CONFIG.MAX_COVERS_FOR_COLLAGE)) {
         showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
         return;
       }
@@ -3600,12 +3424,8 @@ const BooklistApp = (function() {
       
       // Get current cover from carousel state
       const currentCoverId = carouselState.allCoverIds[carouselState.currentCoverIndex];
-      const largeCoverUrl = currentCoverId === 'placehold'
-        ? CONFIG.PLACEHOLDER_NO_COVER_URL
-        : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${currentCoverId}-L.jpg`;
-      const mediumCoverUrl = currentCoverId === 'placehold'
-        ? CONFIG.PLACEHOLDER_NO_COVER_URL
-        : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${currentCoverId}-M.jpg`;
+      const largeCoverUrl = BookUtils.getCoverUrl(currentCoverId, 'L');
+      const mediumCoverUrl = BookUtils.getCoverUrl(currentCoverId, 'M');
       
       try {
         // Try large first, fallback to medium
@@ -3643,100 +3463,6 @@ const BooklistApp = (function() {
     card.appendChild(actionsGroup);
     
     return card;
-  }
-  
-  /**
-   * Creates carousel controls for extra cover search cards
-   */
-  function createExtraCoverCarouselControls(coverElement, initialCoverId, bookKey) {
-    const carouselControls = document.createElement('div');
-    carouselControls.className = 'carousel-controls';
-    
-    const coverCounter = document.createElement('span');
-    coverCounter.className = 'cover-counter';
-    coverCounter.textContent = '1 of 1';
-    
-    const buttonsContainer = document.createElement('div');
-    buttonsContainer.className = 'carousel-buttons-container';
-    
-    const prevButton = document.createElement('button');
-    prevButton.className = 'carousel-button';
-    prevButton.textContent = '◀';
-    prevButton.setAttribute('aria-label', 'Previous cover');
-    prevButton.disabled = true;
-    
-    const nextButton = document.createElement('button');
-    nextButton.className = 'carousel-button';
-    nextButton.textContent = '▶';
-    nextButton.setAttribute('aria-label', 'Next cover');
-    nextButton.disabled = true;
-    
-    buttonsContainer.appendChild(prevButton);
-    buttonsContainer.appendChild(nextButton);
-    carouselControls.appendChild(coverCounter);
-    carouselControls.appendChild(buttonsContainer);
-    
-    // Carousel state
-    const state = {
-      allCoverIds: [initialCoverId],
-      currentCoverIndex: 0,
-      coversLoaded: false
-    };
-    
-    const updateCarousel = () => {
-      const currentId = state.allCoverIds[state.currentCoverIndex];
-      coverElement.src = currentId === 'placehold'
-        ? CONFIG.PLACEHOLDER_NO_COVER_URL
-        : `${CONFIG.OPEN_LIBRARY_COVERS_URL}${currentId}-M.jpg`;
-      coverCounter.textContent = `${state.currentCoverIndex + 1} of ${state.allCoverIds.length}`;
-      prevButton.disabled = state.currentCoverIndex === 0;
-      nextButton.disabled = state.currentCoverIndex === state.allCoverIds.length - 1;
-    };
-    
-    const loadAllCovers = async () => {
-      if (state.coversLoaded || !bookKey) return;
-      
-      const fetchedCovers = await fetchAllCoverIdsForWork(bookKey);
-      
-      let finalCovers = [];
-      if (initialCoverId !== 'placehold') {
-        finalCovers.push(initialCoverId);
-      }
-      fetchedCovers.forEach(id => finalCovers.push(id));
-      
-      state.allCoverIds = [...new Set(finalCovers)];
-      if (state.allCoverIds.length === 0) {
-        state.allCoverIds.push('placehold');
-      }
-      
-      state.coversLoaded = true;
-      updateCarousel();
-    };
-    
-    prevButton.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!state.coversLoaded) await loadAllCovers();
-      if (state.currentCoverIndex > 0) {
-        state.currentCoverIndex--;
-        updateCarousel();
-      }
-    });
-    
-    nextButton.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!state.coversLoaded) await loadAllCovers();
-      if (state.currentCoverIndex < state.allCoverIds.length - 1) {
-        state.currentCoverIndex++;
-        updateCarousel();
-      }
-    });
-    
-    // Pre-load covers
-    if (bookKey) {
-      loadAllCovers();
-    }
-    
-    return { carouselControls, state };
   }
   
   /**
@@ -4377,13 +4103,10 @@ const BooklistApp = (function() {
     // 2. Front cover is empty
     // 3. User previously had an auto-generated cover (flag explicitly true)
     // This respects user intent - if they never generated or uploaded custom, don't assume
-    const starredCount = myBooklist.filter(b => !b.isBlank && b.includeInCollage).length;
-    const totalCovers = starredCount + extraCollageCovers.length;
-    const requiredCovers = isExtendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
     const hasFrontCover = elements.frontCoverUploader?.classList.contains('has-image');
     const wasAutoGenerated = loaded.images?.frontCoverIsAutoGenerated === true;
-    
-    if (totalCovers >= requiredCovers && !hasFrontCover && wasAutoGenerated) {
+
+    if (BookUtils.hasEnoughCoversForCollage(myBooklist, extraCollageCovers, isExtendedMode) && !hasFrontCover && wasAutoGenerated) {
       // Small delay to ensure DOM is ready
       setTimeout(() => generateCoverCollage(), 150);
     }
