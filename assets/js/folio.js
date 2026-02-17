@@ -191,6 +191,14 @@
      SHUFFLE BAG: Cycles through all ambient quips before repeating.
      Prevents same line twice in a row, even across bag refills.
      ---------------------------------------------------------------- */
+  function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
   const bags = {};
 
   function pickAmbient(state) {
@@ -198,7 +206,7 @@
     if (!pool || pool.length === 0) return null;
 
     if (!bags[state] || bags[state].remaining.length === 0) {
-      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      const shuffled = shuffleArray([...pool]);
       if (bags[state] && shuffled[0] === bags[state].last) {
         const swapIdx = 1 + Math.floor(Math.random() * (shuffled.length - 1));
         [shuffled[0], shuffled[swapIdx]] = [shuffled[swapIdx], shuffled[0]];
@@ -219,7 +227,7 @@
     let last = null;
 
     function refill() {
-      remaining = [...pool].sort(() => Math.random() - 0.5);
+      remaining = shuffleArray([...pool]);
       if (last && remaining[0] === last) {
         const swapIdx = 1 + Math.floor(Math.random() * (remaining.length - 1));
         [remaining[0], remaining[swapIdx]] = [remaining[swapIdx], remaining[0]];
@@ -319,7 +327,7 @@
 
     const key = state + ':' + event;
     if (!triggeredBags[key] || triggeredBags[key].remaining.length === 0) {
-      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      const shuffled = shuffleArray([...pool]);
       if (triggeredBags[key] && shuffled[0] === triggeredBags[key].last) {
         const swapIdx = 1 + Math.floor(Math.random() * (shuffled.length - 1));
         [shuffled[0], shuffled[swapIdx]] = [shuffled[swapIdx], shuffled[0]];
@@ -492,11 +500,12 @@
     folioSvg.classList.add('react-watch');
     folioSvg.style.setProperty('--watch-x', '0');
 
-    const folioRect = folioSvg.getBoundingClientRect();
-    const centerX = folioRect.left + folioRect.width / 2;
-
     watchHandler = function(e) {
-      const dx = (e.clientX - centerX) / (folioRect.width / 2);
+      const folioRect = folioSvg.getBoundingClientRect();
+      const centerX = folioRect.left + folioRect.width / 2;
+      const halfWidth = folioRect.width / 2;
+      if (halfWidth === 0) return;
+      const dx = (e.clientX - centerX) / halfWidth;
       const clamped = Math.max(-3, Math.min(3, dx * 3));
       folioSvg.style.setProperty('--watch-x', clamped.toFixed(2));
     };

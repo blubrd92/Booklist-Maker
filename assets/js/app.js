@@ -1765,6 +1765,17 @@ const BooklistApp = (function() {
   }
   
   /**
+   * Waits for fonts with a timeout fallback (prevents indefinite blocking
+   * if a font fails to load).
+   */
+  function waitForFonts(timeoutMs = 5000) {
+    return Promise.race([
+      waitForFonts(),
+      new Promise(resolve => setTimeout(resolve, timeoutMs))
+    ]);
+  }
+
+  /**
    * Loads an image from a URL
    */
   function loadImage(src) {
@@ -1849,7 +1860,7 @@ const BooklistApp = (function() {
     };
     
     // Wait for fonts, then load images and draw
-    document.fonts.ready.then(() => {
+    waitForFonts().then(() => {
       return Promise.allSettled(coversToDraw.map(src => loadImage(src)));
     }).then(results => {
       const images = results
@@ -3159,31 +3170,6 @@ const BooklistApp = (function() {
   }
   
   /**
-   * Handles file upload for an extra cover slot
-   */
-  function handleExtraCoverUpload(event, slotIndex) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
-    // Check if at max covers total
-    if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, CONFIG.MAX_COVERS_FOR_COLLAGE)) {
-      showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
-      event.target.value = ''; // Clear input
-      return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const coverData = e.target.result;
-      addExtraCover(coverData, slotIndex);
-    };
-    reader.onerror = () => showNotification('Failed to read image file.', 'error');
-    reader.readAsDataURL(file);
-    // Clear input so same file can be re-selected
-    event.target.value = '';
-  }
-  
-  /**
    * Adds an extra cover at the specified slot (or next available)
    */
   function addExtraCover(coverData, preferredSlot = null) {
@@ -3673,7 +3659,7 @@ const BooklistApp = (function() {
     
     try {
       await new Promise(resolve => setTimeout(resolve, CONFIG.PDF_RENDER_DELAY_MS));
-      await document.fonts.ready;
+      await waitForFonts();
       
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({
@@ -4786,6 +4772,17 @@ const BooklistApp = (function() {
    * @param {string} options.type - 'cover-simple' | 'cover-advanced' | 'book-block'
    * @param {number} [options.lineIndex] - Line index for cover-advanced (0, 1, 2)
    */
+  // Shared registry of open font dropdowns so a single document click handler
+  // can close them all, instead of one document listener per dropdown.
+  const openFontDropdowns = new Set();
+  document.addEventListener('click', (e) => {
+    openFontDropdowns.forEach(dd => {
+      if (!dd.wrapper.contains(e.target)) {
+        dd.close();
+      }
+    });
+  });
+
   function createCustomFontDropdown(select, options = {}) {
     const { type, lineIndex } = options;
     
@@ -4898,25 +4895,29 @@ const BooklistApp = (function() {
       debouncedSave();
     }
     
+    // Entry for the shared registry (avoids closing self via the shared handler)
+    const dropdownRef = { wrapper, close: () => closeDropdown(true) };
+
     // Open dropdown
     function openDropdown() {
       if (isOpen) return;
       isOpen = true;
       wrapper.classList.add('open');
       trigger.setAttribute('aria-expanded', 'true');
-      
+      openFontDropdowns.add(dropdownRef);
+
       // Update highlighted index to current selection
       const currentIdx = Array.from(select.options).findIndex(o => o.value === committedValue);
       highlightedIndex = currentIdx >= 0 ? currentIdx : 0;
       updateHighlight();
-      
+
       // Scroll selected item into view
       const selectedLi = list.querySelector('.selected');
       if (selectedLi) {
         selectedLi.scrollIntoView({ block: 'nearest' });
       }
     }
-    
+
     // Close dropdown
     function closeDropdown(revert = true) {
       if (!isOpen) return;
@@ -4924,12 +4925,13 @@ const BooklistApp = (function() {
       wrapper.classList.remove('open');
       trigger.setAttribute('aria-expanded', 'false');
       highlightedIndex = -1;
-      
+      openFontDropdowns.delete(dropdownRef);
+
       // Remove highlight from all options
       list.querySelectorAll('.custom-font-dropdown-option').forEach(li => {
         li.classList.remove('highlighted');
       });
-      
+
       if (revert && select.value !== committedValue) {
         revertPreview();
       }
@@ -5065,20 +5067,12 @@ const BooklistApp = (function() {
       }
     });
     
-    // Close on outside click
-    document.addEventListener('click', (e) => {
-      if (isOpen && !wrapper.contains(e.target)) {
-        closeDropdown(true);
-      }
-    });
-    
     // Close on scroll (prevents visual detachment)
+    const scrollHandler = () => { if (isOpen) closeDropdown(true); };
     let scrollParent = wrapper.parentElement;
     while (scrollParent && scrollParent !== document.body) {
       if (scrollParent.scrollHeight > scrollParent.clientHeight) {
-        scrollParent.addEventListener('scroll', () => {
-          if (isOpen) closeDropdown(true);
-        }, { passive: true });
+        scrollParent.addEventListener('scroll', scrollHandler, { passive: true });
       }
       scrollParent = scrollParent.parentElement;
     }
