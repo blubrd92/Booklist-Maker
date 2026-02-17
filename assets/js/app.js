@@ -1637,7 +1637,7 @@ const BooklistApp = (function() {
    */
   function waitForFonts(timeoutMs = 5000) {
     return Promise.race([
-      waitForFonts(),
+      document.fonts.ready,
       new Promise(resolve => setTimeout(resolve, timeoutMs))
     ]);
   }
