@@ -972,9 +972,15 @@ const BooklistApp = (function() {
   // Booklist Rendering
   // ---------------------------------------------------------------------------
   function renderBooklist() {
+    // Preserve scroll position — removing and re-inserting list items in the
+    // back-cover panel (which keeps QR/branding elements) can trigger the
+    // browser's scroll-anchoring and snap .main-content to a new offset.
+    const scrollContainer = document.querySelector('.main-content');
+    const prevScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+
     elements.insideLeftPanel.innerHTML = '';
     elements.insideRightPanel.innerHTML = '';
-    
+
     elements.backCoverPanel.querySelectorAll('.list-item').forEach(item => item.remove());
     
     myBooklist.forEach((bookItem, index) => {
@@ -1002,7 +1008,10 @@ const BooklistApp = (function() {
     applyStyles();
     applyBlockCoverStyle();
     updateBackCoverVisibility();
-    
+
+    // Restore scroll position after DOM rebuild
+    if (scrollContainer) scrollContainer.scrollTop = prevScrollTop;
+
     // Trigger autosave after each render
     debouncedSave();
   }
