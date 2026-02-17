@@ -1,6 +1,6 @@
 /* ==========================================================================
    GUIDED TOUR - Folio narrates
-   
+
    Folio walks users through Booklist Maker in section-based mini-tours.
    A full tour chains all sections in sequence.
    ========================================================================== */
@@ -10,10 +10,10 @@
 
   /* ----------------------------------------------------------------
      SECTION & STEP DEFINITIONS
-     
+
      Each section has:
        title, description, icon (Font Awesome class), steps[]
-     
+
      Each step has:
        target   - CSS selector for spotlight (null for general/no-target)
        text     - Folio's narration
@@ -54,7 +54,7 @@
           text: "The sidebar is your workspace. The Search tab finds books, the Settings tab customizes everything. All your controls live here.",
           state: 'evaluating',
           prepare: function() {
-            var sidebar = document.querySelector('.sidebar');
+            const sidebar = document.querySelector('.sidebar');
             if (sidebar && sidebar.classList.contains('collapsed')) {
               document.getElementById('toggle-sidebar-btn')?.click();
             }
@@ -82,13 +82,13 @@
           prepare: function() {
             openSidebarTab('tab-search');
             // Pre-fill and submit a demo search
-            var input = document.getElementById('keywordInput');
+            const input = document.getElementById('keywordInput');
             if (input && !input.value) {
               input.value = 'Discworld';
               input.classList.add('tour-demo-filled');
               // Auto-click search after a beat
               setTimeout(function() {
-                var searchBtn = document.getElementById('fetchButton');
+                const searchBtn = document.getElementById('fetchButton');
                 if (searchBtn) searchBtn.click();
               }, 600);
             }
@@ -107,7 +107,7 @@
           state: 'evaluating',
           interactive: true,
           prepare: function() {
-            var results = document.getElementById('results-container');
+            const results = document.getElementById('results-container');
             if (results) results.scrollTop = 0;
           },
         },
@@ -118,10 +118,10 @@
           interactive: true,
           prepare: function() {
             openSidebarTab('tab-search');
-            var results = document.getElementById('results-container');
+            const results = document.getElementById('results-container');
             if (results) results.scrollTop = 0;
             setTimeout(function() {
-              var addBtn = document.querySelector('#results-container .add-to-list-button:not(.added)');
+              const addBtn = document.querySelector('#results-container .add-to-list-button:not(.added)');
               if (addBtn) addBtn.click();
             }, 600);
           },
@@ -252,7 +252,7 @@
           prepare: function() {
             openSidebarTab('tab-settings');
             // Scroll settings tab to the top so Text Styling is visible
-            var tabSettings = document.getElementById('tab-settings');
+            const tabSettings = document.getElementById('tab-settings');
             if (tabSettings) tabSettings.scrollTop = 0;
           },
           padding: 0,
@@ -262,7 +262,7 @@
           text: "Give your booklist a name. This shows up on the PDF filename when you export, so make it descriptive.",
           state: 'idle',
           prepare: function() {
-            var mainContent = document.querySelector('.main-content');
+            const mainContent = document.querySelector('.main-content');
             if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
           },
         },
@@ -283,8 +283,8 @@
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
-            var qr = document.getElementById('qr-code-area');
-            var mainContent = document.querySelector('.main-content');
+            const qr = document.getElementById('qr-code-area');
+            const mainContent = document.querySelector('.main-content');
             if (qr && mainContent) {
               qr.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
@@ -295,7 +295,7 @@
           text: "This text area is your back cover blurb, next to the QR code. Write a short description, reading prompt, or instructions for patrons.",
           state: 'idle',
           prepare: function() {
-            var qrText = document.getElementById('qr-code-text');
+            const qrText = document.getElementById('qr-code-text');
             if (qrText) qrText.scrollIntoView({ behavior: 'smooth', block: 'center' });
           },
         },
@@ -330,7 +330,7 @@
           text: "That's it! You're all set to make some great booklists. I'll be down here keeping an eye on things. Click the cat button to hide or show me anytime.",
           state: 'greeting',
           prepare: function() {
-            var mainContent = document.querySelector('.main-content');
+            const mainContent = document.querySelector('.main-content');
             if (mainContent) mainContent.scrollTop = 0;
             openSidebarTab('tab-search');
           },
@@ -343,20 +343,20 @@
   /* ----------------------------------------------------------------
      TOUR STATE
      ---------------------------------------------------------------- */
-  var currentSectionId = null;
-  var currentStepIndex = 0;
-  var isFullTour = false;
-  var fullTourSectionIndex = 0;
-  var preTourFolioHidden = false;
-  var isHoverable = false;
-  var preTourQrChecked = null;
-  var preTourBrandingChecked = null;
+  let currentSectionId = null;
+  let currentStepIndex = 0;
+  let isFullTour = false;
+  let fullTourSectionIndex = 0;
+  let preTourFolioHidden = false;
+  let isHoverable = false;
+  let preTourQrChecked = null;
+  let preTourBrandingChecked = null;
 
   // DOM refs (created once)
-  var modalOverlay = null;
-  var spotlight = null;
-  var panel = null;
-  var blocker = null;
+  let modalOverlay = null;
+  let spotlight = null;
+  let panel = null;
+  let blocker = null;
 
 
   /* ----------------------------------------------------------------
@@ -364,19 +364,19 @@
      ---------------------------------------------------------------- */
   function openSidebarTab(tabId) {
     // Ensure sidebar is expanded
-    var sidebar = document.querySelector('.sidebar');
+    const sidebar = document.querySelector('.sidebar');
     if (sidebar && sidebar.classList.contains('collapsed')) {
       sidebar.classList.remove('collapsed');
-      var toggleBtn = document.getElementById('toggle-sidebar-btn');
+      const toggleBtn = document.getElementById('toggle-sidebar-btn');
       if (toggleBtn) toggleBtn.classList.add('active');
       // Update Folio position
-      var fc = document.getElementById('folio-container');
+      const fc = document.getElementById('folio-container');
       if (fc) fc.style.left = '';
     }
 
     // Directly toggle tab classes (more reliable than simulating clicks)
-    var allTabs = document.querySelectorAll('.tab-content');
-    var allBtns = document.querySelectorAll('.sidebar-tabs .tab-btn');
+    const allTabs = document.querySelectorAll('.tab-content');
+    const allBtns = document.querySelectorAll('.sidebar-tabs .tab-btn');
 
     allTabs.forEach(function(t) { t.classList.remove('active'); });
     allBtns.forEach(function(b) {
@@ -384,7 +384,7 @@
       b.setAttribute('aria-selected', 'false');
     });
 
-    var targetTab = document.getElementById(tabId);
+    const targetTab = document.getElementById(tabId);
     if (targetTab) targetTab.classList.add('active');
 
     allBtns.forEach(function(b) {
@@ -396,16 +396,16 @@
   }
 
   function openSettingsSection(sectionName) {
-    var sections = document.querySelectorAll('.settings-section');
+    const sections = document.querySelectorAll('.settings-section');
     sections.forEach(function(details) {
-      var summary = details.querySelector('summary');
+      const summary = details.querySelector('summary');
       if (summary && summary.textContent.includes(sectionName)) {
         if (!details.open) details.open = true;
         // Scroll within the settings tab container
         setTimeout(function() {
-          var tabSettings = document.getElementById('tab-settings');
+          const tabSettings = document.getElementById('tab-settings');
           if (tabSettings) {
-            var offsetTop = details.offsetTop - tabSettings.offsetTop;
+            const offsetTop = details.offsetTop - tabSettings.offsetTop;
             tabSettings.scrollTop = offsetTop - 10;
           }
         }, 100);
@@ -414,12 +414,12 @@
   }
 
   function scrollPreviewTo(elementId) {
-    var el = document.getElementById(elementId);
-    var scrollContainer = document.querySelector('.main-content');
+    const el = document.getElementById(elementId);
+    const scrollContainer = document.querySelector('.main-content');
     if (el && scrollContainer) {
       // Calculate offset relative to the scroll container
-      var offset = 0;
-      var node = el;
+      let offset = 0;
+      let node = el;
       while (node && node !== scrollContainer) {
         offset += node.offsetTop;
         node = node.offsetParent;
@@ -431,7 +431,7 @@
   function totalSteps() {
     if (!currentSectionId) return 0;
     if (isFullTour) {
-      var total = 0;
+      let total = 0;
       SECTION_ORDER.forEach(function(id) { total += SECTIONS[id].steps.length; });
       return total;
     }
@@ -440,8 +440,8 @@
 
   function globalStepIndex() {
     if (!isFullTour) return currentStepIndex;
-    var idx = 0;
-    for (var i = 0; i < fullTourSectionIndex; i++) {
+    let idx = 0;
+    for (let i = 0; i < fullTourSectionIndex; i++) {
       idx += SECTIONS[SECTION_ORDER[i]].steps.length;
     }
     return idx + currentStepIndex;
@@ -461,11 +461,11 @@
       if (e.target === modalOverlay) closeModal();
     });
 
-    var modal = document.createElement('div');
+    const modal = document.createElement('div');
     modal.className = 'tour-modal';
 
     // Header
-    var header = document.createElement('div');
+    const header = document.createElement('div');
     header.className = 'tour-modal-header';
     header.innerHTML =
       '<div>' +
@@ -477,9 +477,9 @@
     modal.appendChild(header);
 
     // Full tour button
-    var fullBtn = document.createElement('button');
+    const fullBtn = document.createElement('button');
     fullBtn.className = 'tour-full-btn';
-    var fullStepCount = 0;
+    let fullStepCount = 0;
     SECTION_ORDER.forEach(function(id) { fullStepCount += SECTIONS[id].steps.length; });
     fullBtn.innerHTML =
       '<i class="fa-solid fa-play"></i>' +
@@ -492,17 +492,17 @@
     modal.appendChild(fullBtn);
 
     // Sections label
-    var label = document.createElement('div');
+    const label = document.createElement('div');
     label.className = 'tour-sections-label';
     label.textContent = 'Or pick a section';
     modal.appendChild(label);
 
     // Section cards
-    var list = document.createElement('div');
+    const list = document.createElement('div');
     list.className = 'tour-sections-list';
     SECTION_ORDER.forEach(function(id) {
-      var section = SECTIONS[id];
-      var card = document.createElement('div');
+      const section = SECTIONS[id];
+      const card = document.createElement('div');
       card.className = 'tour-section-card';
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
@@ -545,7 +545,7 @@
     panel = document.createElement('div');
     panel.className = 'tour-panel';
 
-    var panelBody = document.createElement('div');
+    const panelBody = document.createElement('div');
     panelBody.className = 'tour-panel-body';
     panelBody.innerHTML =
       '<div class="tour-panel-avatar"><i class="fa-solid fa-cat"></i></div>' +
@@ -555,7 +555,7 @@
       '</div>';
     panel.appendChild(panelBody);
 
-    var panelNav = document.createElement('div');
+    const panelNav = document.createElement('div');
     panelNav.className = 'tour-panel-nav';
     panelNav.innerHTML =
       '<button class="tour-nav-btn tour-prev-btn">Back</button>' +
@@ -617,36 +617,36 @@
     document.body.classList.add('tour-active');
 
     // Reset UI to a known state
-    var mainContent = document.querySelector('.main-content');
+    const mainContent = document.querySelector('.main-content');
     if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Open sidebar on Search tab
     openSidebarTab('tab-search');
 
     // Clear search field and results for a clean demo
-    var searchInput = document.getElementById('keywordInput');
+    const searchInput = document.getElementById('keywordInput');
     if (searchInput) {
       searchInput.value = '';
       searchInput.classList.remove('tour-demo-filled');
     }
-    var resultsContainer = document.getElementById('results-container');
+    const resultsContainer = document.getElementById('results-container');
     if (resultsContainer) resultsContainer.innerHTML = '';
 
     // Collapse all settings sections, then open Text Styling
-    var sections = document.querySelectorAll('.settings-section');
+    const sections = document.querySelectorAll('.settings-section');
     sections.forEach(function(details) { details.open = false; });
     sections.forEach(function(details) {
-      var summary = details.querySelector('summary');
+      const summary = details.querySelector('summary');
       if (summary && summary.textContent.includes('Text Styling')) details.open = true;
     });
 
     // Scroll settings tab to top
-    var tabSettings = document.getElementById('tab-settings');
+    const tabSettings = document.getElementById('tab-settings');
     if (tabSettings) tabSettings.scrollTop = 0;
 
     // Force QR code and branding on for the tour (save original state)
-    var qrToggle = document.getElementById('toggle-qr-code');
-    var brandingToggle = document.getElementById('toggle-branding');
+    const qrToggle = document.getElementById('toggle-qr-code');
+    const brandingToggle = document.getElementById('toggle-branding');
     if (qrToggle) {
       preTourQrChecked = qrToggle.checked;
       if (!qrToggle.checked) {
@@ -663,7 +663,7 @@
     }
 
     // Ensure Folio is visible
-    var container = document.getElementById('folio-container');
+    const container = document.getElementById('folio-container');
     if (container) {
       preTourFolioHidden = container.classList.contains('folio-hidden');
       if (preTourFolioHidden) {
@@ -675,15 +675,15 @@
   }
 
   function showCurrentStep() {
-    var section = SECTIONS[currentSectionId];
-    var step = section.steps[currentStepIndex];
+    const section = SECTIONS[currentSectionId];
+    const step = section.steps[currentStepIndex];
 
     // Run prepare if defined
     if (step.prepare) step.prepare();
 
     // Small delay for DOM to settle after prepare
     setTimeout(function() {
-      var target = step.target ? document.querySelector(step.target) : null;
+      const target = step.target ? document.querySelector(step.target) : null;
 
       // Folio state
       if (window.folio) {
@@ -691,17 +691,17 @@
       }
 
       // Panel content (update immediately, position after scroll)
-      var sectionLabel = panel.querySelector('.tour-panel-section');
-      var message = panel.querySelector('.tour-panel-message');
-      var counter = panel.querySelector('.tour-step-counter');
-      var prevBtn = panel.querySelector('.tour-prev-btn');
-      var nextBtn = panel.querySelector('.tour-next-btn');
+      const sectionLabel = panel.querySelector('.tour-panel-section');
+      const message = panel.querySelector('.tour-panel-message');
+      const counter = panel.querySelector('.tour-step-counter');
+      const prevBtn = panel.querySelector('.tour-prev-btn');
+      const nextBtn = panel.querySelector('.tour-next-btn');
 
       sectionLabel.textContent = section.title;
       message.textContent = step.text;
 
-      var gIdx = globalStepIndex();
-      var total = totalSteps();
+      const gIdx = globalStepIndex();
+      const total = totalSteps();
       counter.textContent = (gIdx + 1) + ' / ' + total;
 
       prevBtn.disabled = (gIdx === 0);
@@ -743,7 +743,7 @@
 
   function nextStep() {
     if (!currentSectionId) return;
-    var section = SECTIONS[currentSectionId];
+    const section = SECTIONS[currentSectionId];
 
     if (currentStepIndex < section.steps.length - 1) {
       currentStepIndex++;
@@ -786,11 +786,11 @@
     document.body.classList.remove('tour-active');
 
     // Clean up demo search text and results if we filled them
-    var input = document.getElementById('keywordInput');
+    const input = document.getElementById('keywordInput');
     if (input && input.classList.contains('tour-demo-filled')) {
       input.value = '';
       input.classList.remove('tour-demo-filled');
-      var results = document.getElementById('results-container');
+      const results = document.getElementById('results-container');
       if (results) results.innerHTML = '';
     }
 
@@ -799,8 +799,8 @@
     panel.classList.remove('visible');
 
     // Restore QR code and branding toggle states
-    var qrToggle = document.getElementById('toggle-qr-code');
-    var brandingToggle = document.getElementById('toggle-branding');
+    const qrToggle = document.getElementById('toggle-qr-code');
+    const brandingToggle = document.getElementById('toggle-branding');
     if (qrToggle && preTourQrChecked !== null) {
       qrToggle.checked = preTourQrChecked;
       qrToggle.dispatchEvent(new Event('change'));
@@ -821,7 +821,7 @@
      POSITIONING
      ---------------------------------------------------------------- */
   function positionSpotlight(target, extraPad) {
-    var pad = (extraPad !== undefined) ? extraPad : 8;
+    const pad = (extraPad !== undefined) ? extraPad : 8;
 
     if (!target) {
       spotlight.classList.add('no-target');
@@ -833,7 +833,7 @@
     }
 
     spotlight.classList.remove('no-target');
-    var rect = target.getBoundingClientRect();
+    const rect = target.getBoundingClientRect();
     spotlight.style.top = (rect.top - pad) + 'px';
     spotlight.style.left = (rect.left - pad) + 'px';
     spotlight.style.width = (rect.width + pad * 2) + 'px';
@@ -842,11 +842,11 @@
 
   function positionPanel(target) {
     // Determine best position for narration panel
-    var panelWidth = 340;
-    var panelHeight = panel.offsetHeight || 180;
-    var margin = 16;
-    var vw = window.innerWidth;
-    var vh = window.innerHeight;
+    const panelWidth = 340;
+    const panelHeight = panel.offsetHeight || 180;
+    const margin = 16;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
 
     if (!target) {
       // Center the panel
@@ -855,8 +855,8 @@
       return;
     }
 
-    var rect = target.getBoundingClientRect();
-    var top, left;
+    const rect = target.getBoundingClientRect();
+    let top, left;
 
     // Try below target
     if (rect.bottom + margin + panelHeight < vh) {
@@ -894,7 +894,7 @@
      ---------------------------------------------------------------- */
   function init() {
     // Wire the header tour button
-    var tourBtn = document.getElementById('tour-button');
+    const tourBtn = document.getElementById('tour-button');
     if (tourBtn) {
       tourBtn.addEventListener('click', openModal);
     }
@@ -902,9 +902,9 @@
     // Handle resize during tour
     window.addEventListener('resize', function() {
       if (!currentSectionId) return;
-      var section = SECTIONS[currentSectionId];
-      var step = section.steps[currentStepIndex];
-      var target = step.target ? document.querySelector(step.target) : null;
+      const section = SECTIONS[currentSectionId];
+      const step = section.steps[currentStepIndex];
+      const target = step.target ? document.querySelector(step.target) : null;
       positionSpotlight(target, step.padding);
       positionPanel(target);
     });
