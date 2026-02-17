@@ -4,6 +4,7 @@
    Folio walks users through Booklist Maker in section-based mini-tours.
    A full tour chains all sections in sequence.
    ========================================================================== */
+/* global BooklistApp */
 
 (function() {
   'use strict';
@@ -644,22 +645,29 @@
     const tabSettings = document.getElementById('tab-settings');
     if (tabSettings) tabSettings.scrollTop = 0;
 
-    // Force QR code and branding on for the tour (save original state)
+    // Force QR code and branding on for the tour (save original state).
+    // Use updateBackCoverVisibility() instead of dispatching 'change' events
+    // so that handleLayoutChange() doesn't permanently trim book data from
+    // slots that temporarily exceed the reduced MAX_BOOKS.
     const qrToggle = document.getElementById('toggle-qr-code');
     const brandingToggle = document.getElementById('toggle-branding');
+    let togglesChanged = false;
     if (qrToggle) {
       preTourQrChecked = qrToggle.checked;
       if (!qrToggle.checked) {
         qrToggle.checked = true;
-        qrToggle.dispatchEvent(new Event('change'));
+        togglesChanged = true;
       }
     }
     if (brandingToggle) {
       preTourBrandingChecked = brandingToggle.checked;
       if (!brandingToggle.checked) {
         brandingToggle.checked = true;
-        brandingToggle.dispatchEvent(new Event('change'));
+        togglesChanged = true;
       }
+    }
+    if (togglesChanged) {
+      BooklistApp.updateBackCoverVisibility();
     }
 
     // Ensure Folio is visible
@@ -798,18 +806,22 @@
     spotlight.classList.remove('visible');
     panel.classList.remove('visible');
 
-    // Restore QR code and branding toggle states
+    // Restore QR code and branding toggle states (visual-only, no data trim)
     const qrToggle = document.getElementById('toggle-qr-code');
     const brandingToggle = document.getElementById('toggle-branding');
+    let togglesRestored = false;
     if (qrToggle && preTourQrChecked !== null) {
       qrToggle.checked = preTourQrChecked;
-      qrToggle.dispatchEvent(new Event('change'));
       preTourQrChecked = null;
+      togglesRestored = true;
     }
     if (brandingToggle && preTourBrandingChecked !== null) {
       brandingToggle.checked = preTourBrandingChecked;
-      brandingToggle.dispatchEvent(new Event('change'));
       preTourBrandingChecked = null;
+      togglesRestored = true;
+    }
+    if (togglesRestored) {
+      BooklistApp.updateBackCoverVisibility();
     }
 
     // Return Folio to idle
