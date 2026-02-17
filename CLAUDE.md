@@ -165,7 +165,6 @@ Supports 20-cover collages instead of the standard 12.
 - `renderExtraCoversGrid()` - Renders 8 extra cover slots (from-list + added + empty)
 - `searchExtraCovers()` / `openExtraCoverSearchModal()` - Modal search for additional covers
 - `addExtraCover(coverData, preferredSlot)` / `removeExtraCover(index)` - Manage extra covers
-- `handleExtraCoverUpload()` - Upload custom image for an extra cover slot
 - `loadImageAsDataUrl(url)` - Converts remote URLs to base64 for localStorage persistence
 
 ### Dynamic Grid Sizing
@@ -217,3 +216,60 @@ Tests use **Vitest** with **jsdom** environment. The test setup (`tests/setup.js
 Currently only `BookUtils` has unit tests (31 test cases across all 9 functions). `app.js` is not tested due to its heavy DOM dependency and IIFE encapsulation.
 
 To add new utility functions, put them in `book-utils.js` and add corresponding tests in `tests/book-utils.test.js`.
+
+## Rules for Modifying This Codebase
+
+This project uses IIFEs with globals — there are no ES6 imports to signal cross-file dependencies. Read this section carefully before making changes.
+
+### Always Check Before Writing
+
+- **Before adding a utility function**, check `book-utils.js` — it may already exist. `BookUtils` has functions for cover validation, starred book filtering, cover counting, URL building, and collage readiness checks.
+- **Before adding or using a constant**, check `config.js` — it may already be in `CONFIG`. Layout dimensions, cover limits, timing values, API URLs, placeholder URLs, and font lists all live there.
+- **Before adding inline logic in `app.js`**, consider whether it belongs in `book-utils.js` as a shared, testable function instead.
+- **Before writing a new function**, search `app.js` for existing functions that do the same thing. At ~5000 lines, it's easy to miss what's already there.
+
+### Never Hardcode These Values
+
+The following values have constants in `CONFIG` — always use the constant, never the raw number or string:
+
+| Value | Use Instead | Why |
+|-------|-------------|-----|
+| `12` (min covers for collage) | `CONFIG.MIN_COVERS_FOR_COLLAGE` | Currently hardcoded as `12` in ~11 places in app.js layout functions. These are tech debt — do not add more. |
+| `20` (max covers for collage) | `CONFIG.MAX_COVERS_FOR_COLLAGE` | Same issue — use the constant. |
+| `15` (total book slots) | `CONFIG.TOTAL_SLOTS` | |
+| `5` (slots per inside panel) | `CONFIG.SLOTS_PER_INSIDE_PANEL` | |
+| `'placehold.co'` string checks | Check if `BookUtils.hasValidCover()` or a similar function covers your case | Placeholder detection is scattered — prefer using BookUtils. |
+| `'https://openlibrary.org/...'` | `CONFIG.OPEN_LIBRARY_SEARCH_URL` / `CONFIG.OPEN_LIBRARY_COVERS_URL` | |
+| Transparent 1x1 GIF data URL | `CONFIG.TRANSPARENT_GIF` | |
+| Placeholder text like `'[Enter Title]'` | `CONFIG.PLACEHOLDERS.title`, `.author`, etc. | |
+
+### Known Tech Debt (Do Not Make Worse)
+
+These patterns exist in the codebase but should not be replicated:
+
+1. **Hardcoded `12` in layout functions** — Lines 1912, 1913, 2044, 2045, 2174, 2428, 2438, 2552, 2855, 3156 in app.js all use raw `12` instead of `CONFIG.MIN_COVERS_FOR_COLLAGE`. If you touch these functions, replace with the constant.
+2. **Inline `placehold.co` checks** — The pattern `.includes('placehold.co')` appears in both `book-utils.js` and `app.js`. Prefer using `BookUtils.hasValidCover(book)` when checking book objects.
+3. **Folio state timeout pattern** — The pattern `setTimeout(() => folio.setState('excited', ...), 300); setTimeout(() => folio.setState('idle'), 4000);` is copy-pasted ~10 times in app.js. If adding a new folio reaction, follow the existing pattern but be aware this is a duplication hotspot.
+4. **`MAX_EXTRA_COVERS = 8`** is a local constant in app.js, not in CONFIG. If you need this value elsewhere, reference the app.js local for now.
+
+### Cross-File Dependencies
+
+When editing one file, check these related files:
+
+| If you change... | Also check... |
+|-------------------|---------------|
+| `config.js` constants | `book-utils.js` (uses CONFIG directly), `app.js` (uses CONFIG everywhere) |
+| `book-utils.js` functions | `app.js` (calls BookUtils), `tests/book-utils.test.js` (must update tests) |
+| Book object shape (fields) | `book-utils.js`, `app.js` serialization (`serializeState`/`applyState`), `app.js` `createBlankBook()` |
+| Collage cover count logic | `book-utils.js` counting functions, `app.js` layout drawing functions, `app.js` extended collage mode functions |
+| Font list | `config.js` FONTS array only — all dropdowns read from this single source |
+| CSS class names or IDs | `app.js` (DOM queries), `tour.js` (spotlight targets), `styles.css` |
+| Folio states or reactions | `folio.js` (definitions), `app.js` (triggers), `tour.js` (tour narration) |
+
+### Adding New Code
+
+- **New constants** go in `config.js` inside the `CONFIG` object.
+- **New pure/shared logic** goes in `book-utils.js` inside the `BookUtils` object, with tests in `tests/book-utils.test.js`.
+- **New DOM/UI logic** goes in `app.js` inside the main IIFE.
+- **Do not create new JS files** without good reason — the IIFE globals pattern means every new file adds a load-order dependency in `index.html`.
+- **Run `npm run lint` and `npm run test`** before committing. Both must pass.
