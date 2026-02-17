@@ -301,7 +301,7 @@
 
     // Pick quip: triggered if event matches, otherwise ambient.
     // Triggered values can be a string (single line) or array (rotating pool).
-    let line = null;
+    let line;
     const triggered = event && quips[state]?.triggered[event];
     if (triggered) {
       if (Array.isArray(triggered)) {
@@ -550,12 +550,10 @@
      sleeping pose so the CSS animation is visible before wake.
      ---------------------------------------------------------------- */
   let inactivityTimer = null;
-  let yawnFired = false;
   let isWaking = false;
 
   function resetInactivity() {
     clearTimeout(inactivityTimer);
-    yawnFired = false;
 
     // If waking from sleep, trigger the wake sequence (once)
     if (currentState === 'sleeping') {
@@ -573,7 +571,6 @@
     // Start the inactivity countdown
     inactivityTimer = setTimeout(() => {
       react('yawn');
-      yawnFired = true;
 
       inactivityTimer = setTimeout(() => {
         setState('sleeping', 'inactivity');

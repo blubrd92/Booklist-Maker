@@ -668,7 +668,7 @@
       preTourFolioHidden = container.classList.contains('folio-hidden');
       if (preTourFolioHidden) {
         container.classList.remove('folio-hidden');
-        try { localStorage.setItem('folio-hidden', 'false'); } catch(_) {}
+        try { localStorage.setItem('folio-hidden', 'false'); } catch {}
       }
     }
     showCurrentStep();

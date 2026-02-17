@@ -279,7 +279,7 @@ const BooklistApp = (function() {
         selection.removeAllRanges();
         selection.addRange(newRange);
       }
-    } catch (err) {
+    } catch {
       // If cursor restoration fails, just leave it
     }
   }
@@ -721,7 +721,7 @@ const BooklistApp = (function() {
 
       const fetchedCovers = await fetchAllCoverIdsForWork(bookKey);
 
-      let finalCovers = [];
+      const finalCovers = [];
       if (initialCoverId !== 'placehold') {
         finalCovers.push(initialCoverId);
       }
@@ -1166,17 +1166,17 @@ const BooklistApp = (function() {
     const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
     
     // Parse author from authorDisplay (lazy parsing for AI description)
-    let currentAuthor = '';
     const displayText = (bookItem.authorDisplay || '').replace(/\u00a0/g, " ");
-    
+
     // Remove "By " prefix if present
     let text = displayText;
     if (text.match(/^By\s/i)) {
       text = text.replace(/^By\s/i, '');
     }
-    
+
     // Extract author (everything before the last ' - ')
     const lastDashIndex = text.lastIndexOf(' - ');
+    let currentAuthor;
     if (lastDashIndex !== -1) {
       currentAuthor = text.substring(0, lastDashIndex).replace(/\n/g, ' ').trim();
     } else {
@@ -1609,22 +1609,6 @@ const BooklistApp = (function() {
   }
   
   /**
-   * Calculates layout dimensions for the collage
-   */
-  function calculateCollageLayout(canvasWidth, canvasHeight, titleBarHeight, outerMarginPx) {
-    const vGutterToHeightRatio = 0.15;
-    const bookAspectRatio = 0.75;
-    const rowsTotal = 4 + 2 * vGutterToHeightRatio;
-    const availableForCovers = canvasHeight - (titleBarHeight + 2 * outerMarginPx);
-    const slotHeight = Math.max(1, availableForCovers / rowsTotal);
-    const slotWidth = slotHeight * bookAspectRatio;
-    const hGutter = (canvasWidth - CONFIG.COLLAGE_GRID_COLS * slotWidth) / 4;
-    const vGutter = slotHeight * vGutterToHeightRatio;
-    
-    return { slotWidth, slotHeight, hGutter, vGutter };
-  }
-  
-  /**
    * Draws a single cover image, handling stretch vs. contain modes
    */
   function drawCoverImage(ctx, img, x, y, w, h, shouldStretch) {
@@ -1645,123 +1629,6 @@ const BooklistApp = (function() {
       const dw = dh * imgAR;
       ctx.drawImage(img, x + (w - dw) / 2, y, dw, dh);
     }
-  }
-  
-  /**
-   * Draws the title bar with text (handles both simple and advanced modes)
-   */
-  function drawTitleBar(ctx, styles, layout, canvasWidth) {
-    const { wrapTextMultiline } = createTextWrapper(ctx);
-    const availableTextWidth = Math.max(0, canvasWidth - 2 * styles.bgSideMarginPx - 2 * styles.padXPx);
-    
-    // Build processed lines array based on mode
-    const processedLines = [];
-    
-    if (!styles.isAdvancedMode) {
-      // Simple mode: single text block
-      if (!styles.text || styles.text.length === 0) {
-        const bgY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
-        return { bgY, bgH: 0 };
-      }
-      
-      ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
-      const wrappedLines = wrapTextMultiline(styles.text, availableTextWidth);
-      
-      // Default gap for simple mode
-      const defaultGapPx = 8 * (CONFIG.PDF_DPI / 72);
-      
-      wrappedLines.forEach(wrappedText => {
-        const m = ctx.measureText(wrappedText);
-        const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
-        const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
-        processedLines.push({
-          text: wrappedText,
-          font: styles.font,
-          fontStyle: styles.fontStyle,
-          sizePx: styles.fontSizePx,
-          color: styles.color,
-          ascent,
-          descent,
-          height: ascent + descent,
-          spacingPx: defaultGapPx, // Uniform spacing for simple mode
-        });
-      });
-    } else {
-      // Advanced mode: multiple lines with individual styling and spacing
-      if (!styles.lines || styles.lines.length === 0) {
-        const bgY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
-        return { bgY, bgH: 0 };
-      }
-      
-      styles.lines.forEach((lineData, lineIndex) => {
-        ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
-        const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
-        
-        wrappedLines.forEach((wrappedText, wrapIndex) => {
-          const m = ctx.measureText(wrappedText);
-          const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
-          const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
-          processedLines.push({
-            text: wrappedText,
-            font: lineData.font,
-            fontStyle: lineData.fontStyle,
-            sizePx: lineData.sizePx,
-            color: lineData.color,
-            ascent,
-            descent,
-            height: ascent + descent,
-            // Only apply spacing before the first wrapped segment of each line
-            spacingPx: wrapIndex === 0 ? lineData.spacingPx : 0,
-          });
-        });
-      });
-    }
-    
-    if (processedLines.length === 0) {
-      const bgY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
-      return { bgY, bgH: 0 };
-    }
-    
-    // Calculate total height with per-line spacing
-    let textBlockHeight = 0;
-    processedLines.forEach((line, i) => {
-      // Add spacing before this line (except for the first line)
-      if (i > 0) {
-        textBlockHeight += line.spacingPx;
-      }
-      textBlockHeight += line.height;
-    });
-    
-    const bgH = textBlockHeight + 2 * styles.padYPx;
-    
-    // Draw background
-    const bgX = styles.bgSideMarginPx;
-    const bgY = layout.topRowY + layout.slotHeight + styles.outerMarginPx;
-    const bgW = canvasWidth - 2 * styles.bgSideMarginPx;
-    
-    ctx.fillStyle = styles.bgColor;
-    ctx.fillRect(bgX, bgY, bgW, bgH);
-    
-    // Draw each line of text
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    
-    const centerX = bgX + bgW / 2;
-    let y = bgY + styles.padYPx;
-    
-    processedLines.forEach((line, i) => {
-      // Add spacing before this line (except for the first line)
-      if (i > 0) {
-        y += line.spacingPx;
-      }
-      ctx.font = `${line.fontStyle} ${line.sizePx}px ${line.font}, sans-serif`;
-      ctx.fillStyle = line.color;
-      const baselineY = y + line.ascent;
-      ctx.fillText(line.text.trim(), centerX, baselineY);
-      y += line.height;
-    });
-    
-    return { bgY, bgH };
   }
   
   /**
@@ -1922,67 +1789,6 @@ const BooklistApp = (function() {
   }
   
   /**
-   * Calculate title bar height for layouts that need it
-   */
-  function calculateTitleBarHeight(ctx, styles) {
-    const canvasWidth = 5 * CONFIG.PDF_DPI;
-    const { wrapTextMultiline } = createTextWrapper(ctx);
-    const availableTextWidth = Math.max(0, canvasWidth - 2 * styles.bgSideMarginPx - 2 * styles.padXPx);
-    
-    let titleBarHeight = 0;
-    const defaultGapPx = 8 * (CONFIG.PDF_DPI / 72);
-    
-    if (!styles.isAdvancedMode) {
-      if (styles.text && styles.text.length > 0) {
-        ctx.font = `${styles.fontStyle} ${styles.fontSizePx}px ${styles.font}, sans-serif`;
-        const wrappedLines = wrapTextMultiline(styles.text, availableTextWidth);
-        let textBlockHeight = 0;
-        
-        wrappedLines.forEach((wrappedText, i) => {
-          const m = ctx.measureText(wrappedText);
-          const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : styles.fontSizePx * 0.8;
-          const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : styles.fontSizePx * 0.2;
-          textBlockHeight += ascent + descent;
-          if (i < wrappedLines.length - 1) {
-            textBlockHeight += defaultGapPx; // Use consistent gap for simple mode
-          }
-        });
-        
-        titleBarHeight = textBlockHeight + 2 * styles.padYPx;
-      }
-    } else {
-      if (styles.lines && styles.lines.length > 0) {
-        let textBlockHeight = 0;
-        let isFirstProcessedLine = true;
-        
-        styles.lines.forEach((lineData, lineIndex) => {
-          ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
-          const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
-          
-          wrappedLines.forEach((wrappedText, wrapIndex) => {
-            const m = ctx.measureText(wrappedText);
-            const ascent = (m.actualBoundingBoxAscent !== undefined) ? m.actualBoundingBoxAscent : lineData.sizePx * 0.8;
-            const descent = (m.actualBoundingBoxDescent !== undefined) ? m.actualBoundingBoxDescent : lineData.sizePx * 0.2;
-            
-            // Add spacing before this line (except for the very first line)
-            if (!isFirstProcessedLine && wrapIndex === 0) {
-              textBlockHeight += lineData.spacingPx;
-            }
-            
-            textBlockHeight += ascent + descent;
-            isFirstProcessedLine = false;
-          });
-        });
-        
-        titleBarHeight = textBlockHeight + 2 * styles.padYPx;
-      }
-    }
-    
-    // Add safety buffer (5% extra) to prevent text cutoff
-    return Math.ceil(titleBarHeight * 1.05);
-  }
-  
-  /**
    * Draw title bar at a specific Y position
    */
   function drawTitleBarAt(ctx, styles, canvasWidth, yPosition) {
@@ -2021,7 +1827,7 @@ const BooklistApp = (function() {
         return { bgY: yPosition, bgH: 0 };
       }
       
-      styles.lines.forEach((lineData, lineIndex) => {
+      styles.lines.forEach((lineData) => {
         ctx.font = `${lineData.fontStyle} ${lineData.sizePx}px ${lineData.font}, sans-serif`;
         const wrappedLines = wrapTextMultiline(lineData.text, availableTextWidth);
         
@@ -3307,7 +3113,7 @@ const BooklistApp = (function() {
     const isbn = document.getElementById('extra-isbn-input')?.value?.trim() || '';
     
     // Build query string
-    let queryParts = [];
+    const queryParts = [];
     if (keyword) queryParts.push(keyword);
     if (title) queryParts.push(`title:${title}`);
     if (author) queryParts.push(`author:${author}`);
@@ -3461,7 +3267,7 @@ const BooklistApp = (function() {
           addButton.textContent = originalText;
           addButton.disabled = false;
         }
-      } catch (err) {
+      } catch {
         addButton.textContent = originalText;
         addButton.disabled = false;
         showNotification('Failed to load cover image', 'error');
@@ -4142,7 +3948,7 @@ const BooklistApp = (function() {
     try {
       localStorage.setItem('booklist-draft', JSON.stringify(serializeDraftForLocal()));
       isDirtyLocal = false; // localStorage now has current state
-    } catch (_) { /* ignore quota errors */ }
+    } catch { /* ignore quota errors */ }
   }
   
   function restoreDraftLocalIfPresent() {
@@ -4152,11 +3958,11 @@ const BooklistApp = (function() {
       const parsed = JSON.parse(raw);
       applyState(parsed);
       showNotification('Draft restored from this browser.', 'success');
-    } catch (_) { /* ignore */ }
+    } catch { /* ignore */ }
   }
   
   function resetToBlank() {
-    try { localStorage.removeItem('booklist-draft'); } catch (_) {}
+    try { localStorage.removeItem('booklist-draft'); } catch {}
     isDirtyLocal = false; // Prevent beforeunload after user already confirmed reset
     location.reload();
   }
@@ -4277,7 +4083,7 @@ const BooklistApp = (function() {
     // Add drag-and-drop support
     setupDragDropUpload(elements.frontCoverUploader, processImageFile);
     
-    elements.frontCoverUploader.addEventListener('click', (e) => {
+    elements.frontCoverUploader.addEventListener('click', () => {
       frontCoverFileInput.click();
     });
   }
@@ -4757,15 +4563,6 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   
   /**
-   * Extracts the font family name from a CSS font value
-   * e.g., "'Oswald', sans-serif" -> "Oswald"
-   */
-  function extractFontName(fontValue) {
-    const match = fontValue.match(/^'([^']+)'/);
-    return match ? match[1] : fontValue.split(',')[0].trim().replace(/'/g, '');
-  }
-  
-  /**
    * Creates a custom dropdown for a font select element
    * @param {HTMLSelectElement} select - The original select element
    * @param {Object} options - Configuration options
@@ -4784,7 +4581,7 @@ const BooklistApp = (function() {
   });
 
   function createCustomFontDropdown(select, options = {}) {
-    const { type, lineIndex } = options;
+    const { type } = options;
     
     // Mark original select as having custom dropdown
     select.classList.add('has-custom-dropdown');
@@ -5164,7 +4961,7 @@ const BooklistApp = (function() {
     if (window.folio) {
       window.folio.guard(3500);
       let hasDraft = false;
-      try { hasDraft = localStorage.getItem('booklist-draft'); } catch (_) { /* private browsing */ }
+      try { hasDraft = localStorage.getItem('booklist-draft'); } catch { /* private browsing */ }
       if (hasDraft) {
         window.folio.setState('greeting', 'draft-restored');
       } else {
@@ -5204,7 +5001,7 @@ const BooklistApp = (function() {
     
     // Folio: evaluating state when browsing cover carousels (debounced)
     (function() {
-      var carouselSettleTimer = null;
+      let carouselSettleTimer = null;
       document.addEventListener('click', function(e) {
         if (e.target.closest && e.target.closest('.carousel-button')) {
           clearTimeout(carouselSettleTimer);
