@@ -5031,6 +5031,7 @@ const BooklistApp = (function() {
     init,
     showNotification,
     getAiDescription, // For testing
+    updateBackCoverVisibility, // For tour: visual-only toggle update (no data trim)
     get isDirtyLocal() { return isDirtyLocal; },   // For debugging
     get hasUnsavedFile() { return hasUnsavedFile; }, // For debugging
   };
