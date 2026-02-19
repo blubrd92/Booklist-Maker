@@ -912,7 +912,7 @@ const BooklistApp = (function() {
   function handleLayoutChange() {
     const showQr = elements.toggleQrCode.checked;
     const showBranding = elements.toggleBranding.checked;
-    
+
     let newMaxBooks;
     if (showQr && showBranding) {
       newMaxBooks = CONFIG.MAX_BOOKS_BOTH_ELEMENTS;
@@ -921,25 +921,10 @@ const BooklistApp = (function() {
     } else {
       newMaxBooks = CONFIG.MAX_BOOKS_FULL;
     }
-    
-    let listWasTrimmed = false;
-    if (newMaxBooks < MAX_BOOKS) {
-      for (let i = newMaxBooks; i < CONFIG.TOTAL_SLOTS; i++) {
-        if (myBooklist[i] && !myBooklist[i].isBlank) {
-          myBooklist[i] = createBlankBook();
-          listWasTrimmed = true;
-        }
-      }
-    }
-    
+
     MAX_BOOKS = newMaxBooks;
-    
-    if (listWasTrimmed) {
-      renderBooklist();
-      debouncedSave();
-    } else {
-      updateBackCoverVisibility();
-    }
+    updateBackCoverVisibility();
+    debouncedSave();
   }
   
   function updateBackCoverVisibility() {
