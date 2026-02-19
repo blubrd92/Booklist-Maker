@@ -121,7 +121,8 @@ button.is-loading::after {
   opacity: 0.9;
 }
 .header-credit {
-  font-size: 0.75rem;
+  font-family: 'EB Garamond', serif;
+  font-size: 0.8rem;
   font-weight: 400;
   opacity: 0.6;
   white-space: nowrap;
