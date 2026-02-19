@@ -120,6 +120,12 @@ button.is-loading::after {
   font-size: 1.2rem;
   opacity: 0.9;
 }
+.header-credit {
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.6;
+  white-space: nowrap;
+}
 
 /* Panel Toggle Buttons in Header */
 .header-panel-toggles {
