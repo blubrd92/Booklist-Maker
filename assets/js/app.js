@@ -308,7 +308,7 @@ const BooklistApp = (function() {
     }
     
     element.addEventListener('focus', () => {
-      if (getText() === placeholderText) {
+      if (getText().trim() === placeholderText) {
         setText('');
         element.style.color = originalColor;
       }
@@ -3594,7 +3594,8 @@ const BooklistApp = (function() {
     const isAdvancedMode = elements.coverAdvancedToggle?.checked || false;
     const coverTitle = elements.coverTitleInput?.value || ''; // Simple mode text
     const coverLineTexts = elements.coverLines.map(line => line.input?.value || ''); // Advanced mode texts
-    
+    const qrTextContent = (elements.qrCodeTextArea?.innerText || '').trim();
+
     return {
       schema: 'booklist-v1',
       savedAt: new Date().toISOString(),
@@ -3621,9 +3622,7 @@ const BooklistApp = (function() {
         tiltOffsetDirection,
         extendedCollageMode: !!elements.extendedCollageToggle?.checked,
         qrCodeUrl: elements.qrUrlInput?.value || '',
-        qrCodeText: (elements.qrCodeTextArea?.innerText !== CONFIG.PLACEHOLDERS.qrText)
-          ? (elements.qrCodeTextArea?.innerText || '')
-          : '',
+        qrCodeText: (qrTextContent !== CONFIG.PLACEHOLDERS.qrText) ? qrTextContent : '',
       },
       styles: captureStyleGroups(),
       images: {
@@ -3834,7 +3833,7 @@ const BooklistApp = (function() {
     
     // QR Code Text
     if (elements.qrCodeTextArea) {
-      const loadedText = loaded.ui?.qrCodeText || '';
+      const loadedText = (loaded.ui?.qrCodeText || '').trim();
       if (loadedText && loadedText !== CONFIG.PLACEHOLDERS.qrText) {
         elements.qrCodeTextArea.innerText = loadedText;
         elements.qrCodeTextArea.style.color = '';
