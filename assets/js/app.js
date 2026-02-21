@@ -23,6 +23,13 @@ const BooklistApp = (function() {
   let hasUnsavedFile = false;  // True while edits haven't been downloaded as a .booklist file
   let isExportingPdf = false; // Guard against concurrent PDF exports
 
+  // Search pagination state
+  const searchPagination = {
+    lastQuery: '',      // The full query string from the last search
+    currentOffset: 0,   // Current offset into results
+    totalResults: 0,    // numFound from Open Library
+  };
+
   /** Toggles the visual "unsaved" indicator on the Save button */
   function updateSaveIndicator() {
     const btn = document.getElementById('save-list-button');
@@ -517,32 +524,43 @@ const BooklistApp = (function() {
     }
   }
   
-  function getBooks() {
+  function getBooks(offset) {
     const resultsContainer = elements.resultsContainer;
+    const perPage = CONFIG.SEARCH_RESULTS_PER_PAGE;
+    const isNewSearch = typeof offset === 'undefined';
+    const currentOffset = isNewSearch ? 0 : offset;
+
     resultsContainer.innerHTML = '<p>Searching...</p>';
     setLoading(elements.fetchButton, true, 'Searching...');
-    
-    const queryParams = [];
-    if (elements.keywordInput.value) queryParams.push(`q=${encodeURIComponent(elements.keywordInput.value)}`);
-    if (elements.titleInput.value) queryParams.push(`title=${encodeURIComponent(elements.titleInput.value)}`);
-    if (elements.authorInput.value) queryParams.push(`author=${encodeURIComponent(elements.authorInput.value)}`);
-    if (elements.subjectInput.value) queryParams.push(`subject=${encodeURIComponent(elements.subjectInput.value)}`);
-    if (elements.isbnInput.value) queryParams.push(`isbn=${encodeURIComponent(elements.isbnInput.value)}`);
-    if (elements.publisherInput.value) queryParams.push(`publisher=${encodeURIComponent(elements.publisherInput.value)}`);
-    if (elements.personInput.value) queryParams.push(`person=${encodeURIComponent(elements.personInput.value)}`);
-    
-    if (queryParams.length === 0) {
-      resultsContainer.innerHTML = '<p class="error-message">Please enter at least one search term.</p>';
-      setLoading(elements.fetchButton, false);
-      return;
+
+    let queryString;
+    if (isNewSearch) {
+      const queryParams = [];
+      if (elements.keywordInput.value) queryParams.push(`q=${encodeURIComponent(elements.keywordInput.value)}`);
+      if (elements.titleInput.value) queryParams.push(`title=${encodeURIComponent(elements.titleInput.value)}`);
+      if (elements.authorInput.value) queryParams.push(`author=${encodeURIComponent(elements.authorInput.value)}`);
+      if (elements.subjectInput.value) queryParams.push(`subject=${encodeURIComponent(elements.subjectInput.value)}`);
+      if (elements.isbnInput.value) queryParams.push(`isbn=${encodeURIComponent(elements.isbnInput.value)}`);
+      if (elements.publisherInput.value) queryParams.push(`publisher=${encodeURIComponent(elements.publisherInput.value)}`);
+      if (elements.personInput.value) queryParams.push(`person=${encodeURIComponent(elements.personInput.value)}`);
+
+      if (queryParams.length === 0) {
+        resultsContainer.innerHTML = '<p class="error-message">Please enter at least one search term.</p>';
+        setLoading(elements.fetchButton, false);
+        return;
+      }
+
+      queryString = queryParams.join('&');
+      searchPagination.lastQuery = queryString;
+    } else {
+      queryString = searchPagination.lastQuery;
     }
-    
-    const queryString = queryParams.join('&');
-    const apiUrl = `${CONFIG.OPEN_LIBRARY_SEARCH_URL}?${queryString}`;
-    
+
+    const apiUrl = `${CONFIG.OPEN_LIBRARY_SEARCH_URL}?${queryString}&limit=${perPage}&offset=${currentOffset}`;
+
     // Folio: searching
     if (window.folio) window.folio.setState('searching', 'search-started');
-    
+
     fetch(apiUrl)
       .then(response => {
         if (!response.ok) {
@@ -553,7 +571,12 @@ const BooklistApp = (function() {
       .then(data => {
         resultsContainer.innerHTML = '';
         const books = data.docs;
-        
+        const totalResults = data.numFound || 0;
+
+        // Update pagination state
+        searchPagination.currentOffset = currentOffset;
+        searchPagination.totalResults = totalResults;
+
         if (books.length === 0) {
           resultsContainer.innerHTML = '<p>No results found.</p>';
           // Folio: worried about empty results
@@ -563,14 +586,18 @@ const BooklistApp = (function() {
           }
           return;
         }
-        
+
         // Folio: results found, back to idle
         if (window.folio) window.folio.setState('idle');
-        
+
         books.forEach(book => {
           const bookCard = createSearchResultCard(book);
           resultsContainer.appendChild(bookCard);
         });
+
+        // Add pagination controls
+        const paginationEl = renderSearchPagination(currentOffset, totalResults, perPage);
+        resultsContainer.appendChild(paginationEl);
       })
       .catch(error => {
         console.error('There was a problem:', error);
@@ -587,6 +614,45 @@ const BooklistApp = (function() {
       });
   }
   
+  function renderSearchPagination(offset, totalResults, perPage) {
+    const container = document.createElement('div');
+    container.className = 'search-pagination';
+
+    const currentPage = Math.floor(offset / perPage) + 1;
+    const totalPages = Math.ceil(totalResults / perPage);
+
+    const prevButton = document.createElement('button');
+    prevButton.className = 'pagination-button';
+    prevButton.textContent = 'Previous';
+    prevButton.disabled = currentPage <= 1;
+    prevButton.setAttribute('aria-label', 'Previous page of results');
+    prevButton.addEventListener('click', () => {
+      getBooks(offset - perPage);
+      elements.resultsContainer.scrollTop = 0;
+    });
+
+    const pageInfo = document.createElement('span');
+    pageInfo.className = 'pagination-info';
+    pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+    pageInfo.setAttribute('aria-live', 'polite');
+
+    const nextButton = document.createElement('button');
+    nextButton.className = 'pagination-button';
+    nextButton.textContent = 'Next';
+    nextButton.disabled = currentPage >= totalPages;
+    nextButton.setAttribute('aria-label', 'Next page of results');
+    nextButton.addEventListener('click', () => {
+      getBooks(offset + perPage);
+      elements.resultsContainer.scrollTop = 0;
+    });
+
+    container.appendChild(prevButton);
+    container.appendChild(pageInfo);
+    container.appendChild(nextButton);
+
+    return container;
+  }
+
   function createSearchResultCard(book) {
     const initialCoverId = book.cover_i || 'placehold';
     
