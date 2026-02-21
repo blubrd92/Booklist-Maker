@@ -1415,7 +1415,7 @@ input[type="color"]:hover {
 }
 
 /* --- ACCESSIBILITY: Focus Indicators --- */
-.tab-btn:focus,
+.tab-btn:focus-visible,
 .btn:focus,
 .btn-header:focus,
 .btn-header-primary:focus,
