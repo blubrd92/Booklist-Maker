@@ -621,11 +621,21 @@ const BooklistApp = (function() {
     const currentPage = Math.floor(offset / perPage) + 1;
     const totalPages = Math.ceil(totalResults / perPage);
 
+    const firstButton = document.createElement('button');
+    firstButton.className = 'pagination-button';
+    firstButton.innerHTML = '<i class="fa-solid fa-angles-left"></i>';
+    firstButton.disabled = currentPage <= 1;
+    firstButton.setAttribute('aria-label', 'First page');
+    firstButton.addEventListener('click', () => {
+      getBooks(0);
+      elements.resultsContainer.scrollTop = 0;
+    });
+
     const prevButton = document.createElement('button');
     prevButton.className = 'pagination-button';
-    prevButton.textContent = 'Previous';
+    prevButton.innerHTML = '<i class="fa-solid fa-angle-left"></i>';
     prevButton.disabled = currentPage <= 1;
-    prevButton.setAttribute('aria-label', 'Previous page of results');
+    prevButton.setAttribute('aria-label', 'Previous page');
     prevButton.addEventListener('click', () => {
       getBooks(offset - perPage);
       elements.resultsContainer.scrollTop = 0;
@@ -638,17 +648,29 @@ const BooklistApp = (function() {
 
     const nextButton = document.createElement('button');
     nextButton.className = 'pagination-button';
-    nextButton.textContent = 'Next';
+    nextButton.innerHTML = '<i class="fa-solid fa-angle-right"></i>';
     nextButton.disabled = currentPage >= totalPages;
-    nextButton.setAttribute('aria-label', 'Next page of results');
+    nextButton.setAttribute('aria-label', 'Next page');
     nextButton.addEventListener('click', () => {
       getBooks(offset + perPage);
       elements.resultsContainer.scrollTop = 0;
     });
 
+    const lastButton = document.createElement('button');
+    lastButton.className = 'pagination-button';
+    lastButton.innerHTML = '<i class="fa-solid fa-angles-right"></i>';
+    lastButton.disabled = currentPage >= totalPages;
+    lastButton.setAttribute('aria-label', 'Last page');
+    lastButton.addEventListener('click', () => {
+      getBooks((totalPages - 1) * perPage);
+      elements.resultsContainer.scrollTop = 0;
+    });
+
+    container.appendChild(firstButton);
     container.appendChild(prevButton);
     container.appendChild(pageInfo);
     container.appendChild(nextButton);
+    container.appendChild(lastButton);
 
     return container;
   }
