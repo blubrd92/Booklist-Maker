@@ -1,0 +1,20 @@
+{
+  "name": "booklist-maker",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Web-based application for creating, customizing, and exporting printable booklists",
+  "scripts": {
+    "lint": "eslint assets/js/",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.0",
+    "jsdom": "^28.1.0",
+    "vitest": "^4.0.18"
+  }
+}
