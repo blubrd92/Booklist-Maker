@@ -604,6 +604,44 @@ input[type="color"]:hover {
   background: var(--success-color);
 }
 
+/* Search Pagination */
+.search-pagination {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 0 4px;
+}
+.pagination-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 0.85rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.pagination-button:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+.pagination-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.pagination-info {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  white-space: nowrap;
+  margin: 0 6px;
+}
+
 /* --- SETTINGS GROUPS --- */
 .form-group {
   margin-bottom: 12px;

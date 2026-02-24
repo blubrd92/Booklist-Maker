@@ -48,6 +48,9 @@
     AUTOSAVE_DEBOUNCE_MS: 400,
     PDF_RENDER_DELAY_MS: 100,
 
+    // Search
+    SEARCH_RESULTS_PER_PAGE: 20,
+
     // API
     OPEN_LIBRARY_SEARCH_URL: 'https://openlibrary.org/search.json',
     OPEN_LIBRARY_COVERS_URL: 'https://covers.openlibrary.org/b/id/',
