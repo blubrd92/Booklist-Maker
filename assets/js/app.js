@@ -223,6 +223,11 @@ const BooklistApp = (function() {
       range.collapse(false);
       selection.removeAllRanges();
       selection.addRange(range);
+      // Manually fire input event so oninput handlers sync the data model.
+      // range.insertNode() is a programmatic DOM change that does not trigger
+      // the browser's input event, so without this the book data (title,
+      // authorDisplay, description) stays stale after a paste.
+      e.target.dispatchEvent(new Event('input', { bubbles: true }));
     }
   }
   
