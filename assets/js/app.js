@@ -408,7 +408,7 @@ const BooklistApp = (function() {
       } else if (bookItem) {
         bookItem.description = '[Description unavailable]';
         showNotification(`Could not fetch description: ${errorMsg}`, 'error');
-        renderBooklist();
+        updateDescriptionInPlace(bookKey);
         debouncedSave();
       }
       return;
@@ -440,7 +440,7 @@ const BooklistApp = (function() {
           showNotification(successMsg, "success");
         } else {
           bookItem.description = data.description;
-          renderBooklist();
+          updateDescriptionInPlace(bookKey);
           debouncedSave();
           // Folio: description received, back to idle
           if (window.folio) window.folio.setState('idle');
@@ -460,7 +460,7 @@ const BooklistApp = (function() {
       } else if (bookItem) {
         bookItem.description = '[Description unavailable]';
         showNotification(`Could not fetch description for "${bookItem.title}": ${errorMessage}`, 'error');
-        renderBooklist();
+        updateDescriptionInPlace(bookKey);
         debouncedSave();
         // Folio: worried about fetch failure
         if (window.folio) {
@@ -1249,6 +1249,39 @@ const BooklistApp = (function() {
     return controlsDiv;
   }
   
+  /**
+   * Updates a book's description field in the DOM without re-rendering the
+   * entire booklist.  This avoids the white flash caused by tearing down and
+   * recreating every cover image element.
+   * @param {string} bookKey - The key of the book whose description changed.
+   * @returns {boolean} true if the in-place update succeeded.
+   */
+  function updateDescriptionInPlace(bookKey) {
+    const bookItem = myBooklist.find(b => b.key === bookKey);
+    if (!bookItem) return false;
+
+    const listItem = document.querySelector('.list-item[data-id="' + bookKey + '"]');
+    if (!listItem) return false;
+
+    const descField = listItem.querySelector('.description-field');
+    if (!descField) return false;
+
+    descField.innerText = bookItem.description;
+
+    const isLoadingOrError = bookItem.description.includes('Fetching') ||
+                             bookItem.description.includes('Description unavailable') ||
+                             bookItem.description.startsWith('error:');
+
+    if (isLoadingOrError) {
+      descField.style.color = CONFIG.PLACEHOLDER_COLOR;
+    } else {
+      // Clear inline color override so CSS variable from applyStyles() takes effect
+      descField.style.color = '';
+    }
+
+    return true;
+  }
+
   function handleMagicButtonClick(bookItem) {
     const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
     
@@ -1287,7 +1320,7 @@ const BooklistApp = (function() {
     bookItem.author = currentAuthor;
     
     bookItem.description = "Fetching title description... May take a few minutes.";
-    renderBooklist();
+    updateDescriptionInPlace(bookItem.key);
     debouncedSave();
     // Folio: evaluating while fetching description
     if (window.folio) {
