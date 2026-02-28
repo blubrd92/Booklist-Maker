@@ -1401,7 +1401,7 @@ input[type="color"]:hover {
 }
 
 /* --- PRINT MODE --- */
-.print-mode .page { box-shadow: none; margin: 0; border: none !important; outline: none; }
+.print-mode .page { box-shadow: none; border: none !important; outline: none; }
 .print-mode .panel { padding: 24px; border: none !important; }
 .print-mode .book-panel { padding-bottom: 27px; }
 .print-mode #back-cover-panel.all-books { padding-bottom: 27px; }
