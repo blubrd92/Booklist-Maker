@@ -2103,5 +2103,69 @@ input[type="color"]:hover {
 
 .modal-footer .btn {
   min-width: 80px;
+}
 
+/* =========================================================================
+   Zoom & Undo/Redo Controls (floating bottom-right toolbar)
+   ========================================================================= */
+
+.zoom-controls {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+  padding: 4px;
+}
+
+.zoom-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-color);
+  font-size: 0.85rem;
+  transition: background var(--transition-fast);
+}
+
+.zoom-btn:hover:not(:disabled) {
+  background: var(--border-light);
+}
+
+.zoom-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.zoom-label {
+  min-width: 54px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+  font-family: inherit;
+}
+
+.zoom-label:hover {
+  background: var(--border-light);
+  color: var(--text-color);
 }

@@ -23,6 +23,12 @@ const BooklistApp = (function() {
   let hasUnsavedFile = false;  // True while edits haven't been downloaded as a .booklist file
   let isExportingPdf = false; // Guard against concurrent PDF exports
 
+  // Zoom state
+  const ZOOM_MIN = 0.25;
+  const ZOOM_MAX = 3.0;
+  const ZOOM_STEP = 0.25;
+  let currentZoom = 1.0;
+
   // Search pagination state
   const searchPagination = {
     lastQuery: '',      // The full query string from the last search
@@ -5053,6 +5059,72 @@ const BooklistApp = (function() {
   }
   
   // ---------------------------------------------------------------------------
+  // Zoom Controls
+  // ---------------------------------------------------------------------------
+  function applyZoom() {
+    const target = elements.previewArea;
+    if (!target) return;
+    target.style.zoom = currentZoom;
+    const resetBtn = document.getElementById('btn-zoom-reset');
+    if (resetBtn) resetBtn.textContent = Math.round(currentZoom * 100) + '%';
+  }
+
+  function computeFitToScreenZoom() {
+    const container = document.querySelector('.main-content');
+    if (!container || !elements.previewArea) return 1.0;
+    const containerW = container.clientWidth;
+    const containerH = container.clientHeight;
+    // Page is 11in wide; at 96 DPI that's 1056px, plus some padding
+    const contentW = 11 * 96 + 40;
+    const contentH = elements.previewArea.scrollHeight || (8.5 * 96 + 40);
+    const fitW = containerW / contentW;
+    const fitH = containerH / contentH;
+    return Math.min(fitW, fitH) * 0.98;
+  }
+
+  function initZoomControls() {
+    const btnIn = document.getElementById('btn-zoom-in');
+    const btnOut = document.getElementById('btn-zoom-out');
+    const btnReset = document.getElementById('btn-zoom-reset');
+    const btnFit = document.getElementById('btn-zoom-fit');
+
+    if (btnIn) btnIn.addEventListener('click', function() {
+      currentZoom = Math.min(ZOOM_MAX, currentZoom + ZOOM_STEP);
+      applyZoom();
+    });
+    if (btnOut) btnOut.addEventListener('click', function() {
+      currentZoom = Math.max(ZOOM_MIN, currentZoom - ZOOM_STEP);
+      applyZoom();
+    });
+    if (btnReset) btnReset.addEventListener('click', function() {
+      currentZoom = 1.0;
+      applyZoom();
+      // Reset scroll position
+      const container = document.querySelector('.main-content');
+      if (container) { container.scrollTop = 0; container.scrollLeft = 0; }
+    });
+    if (btnFit) btnFit.addEventListener('click', function() {
+      currentZoom = computeFitToScreenZoom();
+      // Clamp to valid range
+      currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
+      applyZoom();
+    });
+
+    // Ctrl+scroll wheel zoom
+    const scrollContainer = document.querySelector('.main-content');
+    if (scrollContainer) {
+      scrollContainer.addEventListener('wheel', function(e) {
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        currentZoom = e.deltaY < 0
+          ? Math.min(ZOOM_MAX, currentZoom + ZOOM_STEP)
+          : Math.max(ZOOM_MIN, currentZoom - ZOOM_STEP);
+        applyZoom();
+      }, { passive: false });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Public API / Initialization
   // ---------------------------------------------------------------------------
   function init() {
@@ -5067,6 +5139,9 @@ const BooklistApp = (function() {
     initializeCustomFontDropdowns();
     renderExtraCoversGrid();
     
+    // Initialize zoom controls
+    initZoomControls();
+
     // Set default cover mode (simple)
     toggleCoverMode(false);
     
