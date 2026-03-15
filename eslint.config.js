@@ -42,6 +42,7 @@ export default [
         DragEvent: "readonly",
         NodeFilter: "readonly",
         crypto: "readonly",
+        indexedDB: "readonly",
         globalThis: "readonly",
         // CDN library globals
         Sortable: "readonly",
