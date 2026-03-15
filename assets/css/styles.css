@@ -2110,9 +2110,11 @@ input[type="color"]:hover {
    ========================================================================= */
 
 .zoom-controls {
-  position: absolute;
+  position: sticky;
   bottom: 16px;
-  right: 16px;
+  align-self: flex-end;
+  margin-top: auto;
+  margin-right: 16px;
   display: flex;
   align-items: center;
   gap: 2px;
