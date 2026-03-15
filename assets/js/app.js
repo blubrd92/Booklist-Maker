@@ -1441,6 +1441,7 @@ const BooklistApp = (function() {
   }
 
   function handleMagicButtonClick(bookItem) {
+    pushUndo('ai-description');
     const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
     
     // Parse author from authorDisplay (lazy parsing for AI description)
