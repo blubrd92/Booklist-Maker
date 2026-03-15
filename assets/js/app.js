@@ -5469,7 +5469,10 @@ const BooklistApp = (function() {
     const container = document.querySelector('.main-content');
     if (!container || !elements.previewArea) return 1.0;
     const containerW = container.clientWidth;
-    const containerH = container.clientHeight;
+    // Subtract toolbar height (list name row + hint) from available vertical space
+    const toolbar = container.querySelector('.toolbar');
+    const toolbarH = toolbar ? toolbar.offsetHeight : 0;
+    const containerH = container.clientHeight - toolbarH;
     // Page is 11in wide; at 96 DPI that's 1056px, plus some padding
     const contentW = 11 * 96 + 40;
     const contentH = elements.previewArea.scrollHeight || (8.5 * 96 + 40);
