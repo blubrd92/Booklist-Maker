@@ -3765,21 +3765,29 @@ const BooklistApp = (function() {
         unit: 'in',
         format: 'letter'
       });
-      
+
+      // PDF metadata
+      pdf.setProperties({
+        title: safeBase,
+        creator: 'Booklist Maker',
+        subject: 'Printable Booklist',
+      });
+
+      const scale = CONFIG.PDF_CANVAS_SCALE;
       const options = {
-        scale: CONFIG.PDF_CANVAS_SCALE,
+        scale,
         useCORS: true,
         backgroundColor: null,
-        windowWidth: 3300,
-        windowHeight: 2550
+        windowWidth: Math.round(CONFIG.PDF_WIDTH_IN * CONFIG.PDF_DPI),
+        windowHeight: Math.round(CONFIG.PDF_HEIGHT_IN * CONFIG.PDF_DPI)
       };
-      
+
       const canvas1 = await html2canvas(document.getElementById('print-page-1'), options);
-      pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
+      pdf.addImage(canvas1.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
       pdf.addPage();
-      
+
       const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
-      pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
+      pdf.addImage(canvas2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
       
       pdf.save(suggestedName);
       showNotification('PDF download started.', 'success');
@@ -4231,29 +4239,55 @@ const BooklistApp = (function() {
   // Local draft storage
   function serializeDraftForLocal() {
     const s = serializeState();
+    // Front cover is too large for localStorage — store it in IndexedDB instead
+    const frontCoverData = s.images?.frontCover || null;
     if (s.images) s.images.frontCover = null;
+    // Fire-and-forget: persist front cover to IndexedDB
+    _openImageDB().then(db => {
+      const tx = db.transaction('images', 'readwrite');
+      const store = tx.objectStore('images');
+      if (frontCoverData) {
+        store.put(frontCoverData, 'draft-front-cover');
+      } else {
+        store.delete('draft-front-cover');
+      }
+    }).catch(() => { /* IndexedDB unavailable — front cover won't persist */ });
     return s;
   }
-  
+
   function saveDraftLocal() {
     try {
       localStorage.setItem('booklist-draft', JSON.stringify(serializeDraftForLocal()));
       isDirtyLocal = false; // localStorage now has current state
     } catch { /* ignore quota errors */ }
   }
-  
-  function restoreDraftLocalIfPresent() {
+
+  async function restoreDraftLocalIfPresent() {
     try {
       const raw = localStorage.getItem('booklist-draft');
       if (!raw) return;
       const parsed = JSON.parse(raw);
+
+      // Restore front cover from IndexedDB if available
+      try {
+        const frontCover = await _getImageIDB('draft-front-cover');
+        if (frontCover && parsed.images) {
+          parsed.images.frontCover = frontCover;
+        }
+      } catch { /* IndexedDB unavailable — proceed without front cover */ }
+
       applyState(parsed);
       showNotification('Draft restored from this browser.', 'success');
     } catch { /* ignore */ }
   }
-  
+
   function resetToBlank() {
     try { localStorage.removeItem('booklist-draft'); } catch {}
+    // Clear front cover from IndexedDB
+    _openImageDB().then(db => {
+      const tx = db.transaction('images', 'readwrite');
+      tx.objectStore('images').delete('draft-front-cover');
+    }).catch(() => {});
     isDirtyLocal = false; // Prevent beforeunload after user already confirmed reset
     location.reload();
   }
@@ -5575,11 +5609,18 @@ const BooklistApp = (function() {
   }
   
   // Expose necessary functions for external access
+  /** Reset zoom to 100% (called by tour system and on page load) */
+  function resetZoom() {
+    currentZoom = 1.0;
+    applyZoom();
+  }
+
   return {
     init,
     showNotification,
     getAiDescription, // For testing
     updateBackCoverVisibility, // For tour: visual-only toggle update (no data trim)
+    resetZoom, // For tour: reset zoom before spotlight positioning
     get isDirtyLocal() { return isDirtyLocal; },   // For debugging
     get hasUnsavedFile() { return hasUnsavedFile; }, // For debugging
   };

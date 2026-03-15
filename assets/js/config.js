@@ -35,7 +35,7 @@
 
     // PDF Export
     PDF_DPI: 300,
-    PDF_CANVAS_SCALE: 3,
+    PDF_CANVAS_SCALE: 300 / 96, // True 300 DPI (3.125x scale at 96 DPI base)
     PDF_WIDTH_IN: 11,
     PDF_HEIGHT_IN: 8.5,
 
