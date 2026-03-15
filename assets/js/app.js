@@ -3754,7 +3754,11 @@ const BooklistApp = (function() {
     }
     
     elements.previewArea.classList.add('print-mode');
-    
+
+    // Reset zoom to 1.0 for accurate html2canvas capture
+    const savedZoom = elements.previewArea.style.zoom;
+    elements.previewArea.style.zoom = 1;
+
     try {
       await new Promise(resolve => setTimeout(resolve, CONFIG.PDF_RENDER_DELAY_MS));
       await waitForFonts();
@@ -3805,6 +3809,7 @@ const BooklistApp = (function() {
     } finally {
       isExportingPdf = false;
       elements.previewArea.classList.remove('print-mode');
+      elements.previewArea.style.zoom = savedZoom;
       elementsToRestore.forEach(item => item.el.style.display = item.display || '');
       setLoading(elements.exportPdfButton, false);
     }
