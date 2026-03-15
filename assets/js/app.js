@@ -3787,11 +3787,11 @@ const BooklistApp = (function() {
       };
 
       const canvas1 = await html2canvas(document.getElementById('print-page-1'), options);
-      pdf.addImage(canvas1.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
+      pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
       pdf.addPage();
 
       const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
-      pdf.addImage(canvas2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
+      pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
       
       pdf.save(suggestedName);
       showNotification('PDF download started.', 'success');
