@@ -5511,6 +5511,9 @@ const BooklistApp = (function() {
       // Clamp to valid range
       currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
       applyZoom();
+      // Reset scroll position
+      const container = document.querySelector('.main-content');
+      if (container) { container.scrollTop = 0; container.scrollLeft = 0; }
     });
 
     // Ctrl+scroll wheel zoom
