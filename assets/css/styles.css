@@ -862,6 +862,7 @@ input[type="color"]:hover {
 
 /* --- PREVIEW AREA --- */
 #preview-area {
+  position: relative;
   margin-left: auto;
   margin-right: auto;
   padding: 10px 0;
@@ -2110,11 +2111,9 @@ input[type="color"]:hover {
    ========================================================================= */
 
 .zoom-controls {
-  position: sticky;
+  position: absolute;
   bottom: 16px;
-  align-self: flex-end;
-  margin-top: auto;
-  margin-right: 16px;
+  right: 16px;
   display: flex;
   align-items: center;
   gap: 2px;
