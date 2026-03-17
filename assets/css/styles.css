@@ -2111,7 +2111,7 @@ input[type="color"]:hover {
    ========================================================================= */
 
 .zoom-controls {
-  position: absolute;
+  position: fixed;
   bottom: 16px;
   right: 16px;
   display: flex;
