@@ -617,6 +617,11 @@
     // Mark body as tour-active (elevates Folio, suppresses speech bubble)
     document.body.classList.add('tour-active');
 
+    // Reset zoom to 100% so spotlight positioning is accurate
+    if (BooklistApp.resetZoom) {
+      BooklistApp.resetZoom();
+    }
+
     // Reset UI to a known state
     const mainContent = document.querySelector('.main-content');
     if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });

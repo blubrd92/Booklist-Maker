@@ -23,6 +23,155 @@ const BooklistApp = (function() {
   let hasUnsavedFile = false;  // True while edits haven't been downloaded as a .booklist file
   let isExportingPdf = false; // Guard against concurrent PDF exports
 
+  // Undo/Redo state
+  const UNDO_MAX = 50;
+  const UNDO_COALESCE_MS = 1000;
+  let _undoStack = [];       // Array of snapshot objects (with image refs)
+  let _redoStack = [];       // Array of snapshot objects (with image refs)
+  let _lastUndoGroup = null;
+  let _lastUndoTime = 0;
+  let _isRestoring = false;  // Guard flag to prevent side effects during undo/redo restore
+  let _collageGenId = 0;     // Generation counter to discard stale async collage results
+
+  // ---------------------------------------------------------------------------
+  // IndexedDB Image Cache (deduplicates base64 images across undo snapshots)
+  // ---------------------------------------------------------------------------
+  const _imageRefPrefix = '__idbimg:';
+  let _imageIdCounter = 0;
+  const _imageDataToId = new Map(); // dataURL → refId (dedup lookup)
+  const _imageCache = new Map();    // refId → dataURL (in-memory fast cache)
+  let _idb = null;                  // IndexedDB database handle
+
+  function _openImageDB() {
+    if (_idb) return Promise.resolve(_idb);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('booklist-undo-images', 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore('images');
+      };
+      req.onsuccess = () => { _idb = req.result; resolve(_idb); };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function _storeImageIDB(refId, dataUrl) {
+    _openImageDB().then(db => {
+      const tx = db.transaction('images', 'readwrite');
+      tx.objectStore('images').put(dataUrl, refId);
+    }).catch(() => { /* IndexedDB unavailable — in-memory cache still works */ });
+  }
+
+  function _getImageIDB(refId) {
+    return _openImageDB().then(db => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('images', 'readonly');
+        const req = tx.objectStore('images').get(refId);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    });
+  }
+
+  function _clearImageDB() {
+    _openImageDB().then(db => {
+      const tx = db.transaction('images', 'readwrite');
+      tx.objectStore('images').clear();
+    }).catch(() => {});
+  }
+
+  /** Get or create a reference ID for a data URL, storing it in cache + IDB */
+  function _getImageRef(dataUrl) {
+    if (!dataUrl || typeof dataUrl !== 'string') return dataUrl;
+    // Only deduplicate base64 data URLs (not regular URLs like placehold.co)
+    if (!dataUrl.startsWith('data:')) return dataUrl;
+
+    let refId = _imageDataToId.get(dataUrl);
+    if (!refId) {
+      refId = _imageRefPrefix + (++_imageIdCounter);
+      _imageDataToId.set(dataUrl, refId);
+      _imageCache.set(refId, dataUrl);
+      _storeImageIDB(refId, dataUrl);
+    }
+    return refId;
+  }
+
+  /** Resolve a reference ID back to a data URL (sync from cache, async from IDB fallback) */
+  function _resolveImageRef(value) {
+    if (!value || typeof value !== 'string' || !value.startsWith(_imageRefPrefix)) {
+      return Promise.resolve(value);
+    }
+    const cached = _imageCache.get(value);
+    if (cached) return Promise.resolve(cached);
+    return _getImageIDB(value).then(data => {
+      if (data) _imageCache.set(value, data);
+      return data || null;
+    });
+  }
+
+  /** Replace all base64 data URLs in a state object with image refs */
+  function _extractImages(state) {
+    // Books — customCoverData
+    if (state.books) {
+      state.books = state.books.map(b => ({
+        ...b,
+        customCoverData: b.customCoverData ? _getImageRef(b.customCoverData) : null
+      }));
+    }
+    // Extra collage covers
+    if (state.extraCollageCovers) {
+      state.extraCollageCovers = state.extraCollageCovers.map(ec => ({
+        ...ec,
+        coverData: ec.coverData ? _getImageRef(ec.coverData) : null
+      }));
+    }
+    // Front cover and branding images
+    if (state.images) {
+      if (state.images.frontCover) {
+        state.images.frontCover = _getImageRef(state.images.frontCover);
+      }
+      if (state.images.branding) {
+        state.images.branding = _getImageRef(state.images.branding);
+      }
+    }
+    return state;
+  }
+
+  /** Resolve all image refs in a state object back to data URLs */
+  function _restoreImages(state) {
+    const promises = [];
+
+    if (state.books) {
+      state.books.forEach((b, i) => {
+        if (b.customCoverData && typeof b.customCoverData === 'string' && b.customCoverData.startsWith(_imageRefPrefix)) {
+          promises.push(_resolveImageRef(b.customCoverData).then(url => { state.books[i].customCoverData = url; }));
+        }
+      });
+    }
+    if (state.extraCollageCovers) {
+      state.extraCollageCovers.forEach((ec, i) => {
+        if (ec.coverData && typeof ec.coverData === 'string' && ec.coverData.startsWith(_imageRefPrefix)) {
+          promises.push(_resolveImageRef(ec.coverData).then(url => { state.extraCollageCovers[i].coverData = url; }));
+        }
+      });
+    }
+    if (state.images) {
+      if (state.images.frontCover && typeof state.images.frontCover === 'string' && state.images.frontCover.startsWith(_imageRefPrefix)) {
+        promises.push(_resolveImageRef(state.images.frontCover).then(url => { state.images.frontCover = url; }));
+      }
+      if (state.images.branding && typeof state.images.branding === 'string' && state.images.branding.startsWith(_imageRefPrefix)) {
+        promises.push(_resolveImageRef(state.images.branding).then(url => { state.images.branding = url; }));
+      }
+    }
+
+    return Promise.all(promises).then(() => state);
+  }
+
+  // Zoom state
+  const ZOOM_MIN = 0.25;
+  const ZOOM_MAX = 3.0;
+  const ZOOM_STEP = 0.25;
+  let currentZoom = 1.0;
+
   // Search pagination state
   const searchPagination = {
     lastQuery: '',      // The full query string from the last search
@@ -43,7 +192,8 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   const debouncedSave = (() => {
     let t;
-    return () => {
+    function trigger() {
+      if (_isRestoring) return; // Don't autosave during undo/redo restore
       isDirtyLocal = true;    // Edits not yet in localStorage
       hasUnsavedFile = true;  // Edits not yet in a .booklist file
       updateSaveIndicator();
@@ -51,20 +201,25 @@ const BooklistApp = (function() {
       t = setTimeout(() => {
         saveDraftLocal();
       }, CONFIG.AUTOSAVE_DEBOUNCE_MS);
-    };
+    }
+    trigger.cancel = () => { clearTimeout(t); };
+    return trigger;
   })();
-  
+
   // Debounced cover regeneration to prevent lag on rapid changes
   const debouncedCoverRegen = (() => {
     let t;
-    return () => {
+    function trigger() {
+      if (_isRestoring) return;
       clearTimeout(t);
       t = setTimeout(() => {
         if (elements.frontCoverUploader?.classList.contains('has-image')) {
           generateCoverCollage();
         }
       }, 350); // Slightly longer delay for cover regeneration
-    };
+    }
+    trigger.cancel = () => { clearTimeout(t); };
+    return trigger;
   })();
   
   // ---------------------------------------------------------------------------
@@ -876,6 +1031,7 @@ const BooklistApp = (function() {
           currentCoverIndex: carouselState.currentCoverIndex,
           includeInCollage: currentStarredCount < CONFIG.MIN_COVERS_FOR_COLLAGE
         };
+        pushUndo('add-book');
         myBooklist[firstBlankIndex] = newBook;
         addButton.innerHTML = '&#10003;';
         addButton.classList.add('added');
@@ -920,6 +1076,7 @@ const BooklistApp = (function() {
     } else {
       const indexToRemove = myBooklist.findIndex(item => item.key === book.key);
       if (indexToRemove !== -1) {
+        pushUndo('remove-book');
         myBooklist[indexToRemove] = createBlankBook();
       }
       addButton.textContent = 'Add to List';
@@ -1168,7 +1325,8 @@ const BooklistApp = (function() {
     starButton.setAttribute('aria-pressed', isStarred ? 'true' : 'false');
     starButton.onclick = () => {
       if (!isStarred && atLimit) return; // Can't add more if at limit
-      
+
+      pushUndo('toggle-star');
       bookItem.includeInCollage = !bookItem.includeInCollage;
       debouncedSave();
       renderBooklist(); // Re-render to update all star states
@@ -1283,6 +1441,7 @@ const BooklistApp = (function() {
   }
 
   function handleMagicButtonClick(bookItem) {
+    pushUndo('ai-description');
     const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
     
     // Parse author from authorDisplay (lazy parsing for AI description)
@@ -1331,6 +1490,7 @@ const BooklistApp = (function() {
   }
   
   function handleDeleteBook(bookItem, index) {
+    pushUndo('delete-book');
     const originalKey = myBooklist[index].key;
     myBooklist[index] = createBlankBook();
     renderBooklist();
@@ -1355,7 +1515,8 @@ const BooklistApp = (function() {
     if (fromIndex === toIndex) return;
     if (fromIndex < 0 || fromIndex >= MAX_BOOKS) return;
     if (toIndex < 0 || toIndex >= MAX_BOOKS) return;
-    
+
+    pushUndo('reorder');
     // Remove the book from its current position
     const [movedBook] = myBooklist.splice(fromIndex, 1);
     
@@ -1401,6 +1562,7 @@ const BooklistApp = (function() {
     const processImageFile = (file) => {
       const reader = new FileReader();
       reader.onload = (event) => {
+        pushUndo('upload-cover');
         const book = myBooklist.find(b => b.key === bookItem.key);
         book.customCoverData = event.target.result;
         book.cover_ids = [];
@@ -1460,6 +1622,7 @@ const BooklistApp = (function() {
     titleField.addEventListener('paste', handlePastePlainText);
     titleField.oninput = (e) => {
       sanitizeContentEditable(e.target);
+      pushUndo('edit-text');
       bookItem.title = e.target.innerText;
       if (bookItem.isBlank && bookItem.title !== CONFIG.PLACEHOLDERS.title) {
         bookItem.isBlank = false;
@@ -1484,6 +1647,7 @@ const BooklistApp = (function() {
     authorField.addEventListener('paste', handlePastePlainText);
     authorField.oninput = (e) => {
       sanitizeContentEditable(e.target);
+      pushUndo('edit-text');
       // Store the raw display text exactly as typed
       bookItem.authorDisplay = e.target.innerText;
       debouncedSave();
@@ -1499,6 +1663,7 @@ const BooklistApp = (function() {
     descriptionField.addEventListener('paste', handlePastePlainText);
     descriptionField.oninput = (e) => {
       sanitizeContentEditable(e.target);
+      pushUndo('edit-text');
       bookItem.description = e.target.innerText;
       debouncedSave();
     };
@@ -1779,6 +1944,7 @@ const BooklistApp = (function() {
    * Main collage generation function
    */
   function generateCoverCollage() {
+    const thisGenId = ++_collageGenId;
     const button = elements.generateCoverButton;
     setLoading(button, true, 'Generating...');
     
@@ -1850,6 +2016,9 @@ const BooklistApp = (function() {
     waitForFonts().then(() => {
       return Promise.allSettled(coversToDraw.map(src => loadImage(src)));
     }).then(results => {
+      // Discard stale result if a newer generation was started (e.g. undo/redo cancelled this one)
+      if (thisGenId !== _collageGenId) return;
+
       const images = results
         .filter(r => r.status === 'fulfilled')
         .map(r => r.value);
@@ -3099,6 +3268,7 @@ const BooklistApp = (function() {
    * Adds an extra cover at the specified slot (or next available)
    */
   function addExtraCover(coverData, preferredSlot = null) {
+    pushUndo('add-extra-cover');
     // Check if at max
     if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, CONFIG.MAX_COVERS_FOR_COLLAGE)) {
       showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
@@ -3159,6 +3329,7 @@ const BooklistApp = (function() {
   function removeExtraCoverById(coverId) {
     const index = extraCollageCovers.findIndex(c => c.id === coverId);
     if (index !== -1) {
+      pushUndo('remove-extra-cover');
       extraCollageCovers.splice(index, 1);
       renderExtraCoversGrid();
       renderBooklist();
@@ -3173,6 +3344,7 @@ const BooklistApp = (function() {
    */
   function removeExtraCover(index) {
     if (index >= 0 && index < extraCollageCovers.length) {
+      pushUndo('remove-extra-cover');
       extraCollageCovers.splice(index, 1);
       renderExtraCoversGrid();
       renderBooklist(); // Update star states
@@ -3436,6 +3608,7 @@ const BooklistApp = (function() {
     // Extended mode toggle
     if (elements.extendedCollageToggle) {
       elements.extendedCollageToggle.addEventListener('change', () => {
+        pushUndo('toggle-extended');
         toggleExtendedCollageMode(elements.extendedCollageToggle.checked);
         // Folio: perk at the mode switch
         if (window.folio) window.folio.react('perk');
@@ -3582,7 +3755,11 @@ const BooklistApp = (function() {
     }
     
     elements.previewArea.classList.add('print-mode');
-    
+
+    // Reset zoom to 1.0 for accurate html2canvas capture
+    const savedZoom = elements.previewArea.style.zoom;
+    elements.previewArea.style.zoom = 1;
+
     try {
       await new Promise(resolve => setTimeout(resolve, CONFIG.PDF_RENDER_DELAY_MS));
       await waitForFonts();
@@ -3593,19 +3770,27 @@ const BooklistApp = (function() {
         unit: 'in',
         format: 'letter'
       });
-      
+
+      // PDF metadata
+      pdf.setProperties({
+        title: safeBase,
+        creator: 'Booklist Maker',
+        subject: 'Printable Booklist',
+      });
+
+      const scale = CONFIG.PDF_CANVAS_SCALE;
       const options = {
-        scale: CONFIG.PDF_CANVAS_SCALE,
+        scale,
         useCORS: true,
         backgroundColor: null,
-        windowWidth: 3300,
-        windowHeight: 2550
+        windowWidth: Math.round(CONFIG.PDF_WIDTH_IN * CONFIG.PDF_DPI),
+        windowHeight: Math.round(CONFIG.PDF_HEIGHT_IN * CONFIG.PDF_DPI)
       };
-      
+
       const canvas1 = await html2canvas(document.getElementById('print-page-1'), options);
       pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
       pdf.addPage();
-      
+
       const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
       pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
       
@@ -3625,6 +3810,7 @@ const BooklistApp = (function() {
     } finally {
       isExportingPdf = false;
       elements.previewArea.classList.remove('print-mode');
+      elements.previewArea.style.zoom = savedZoom;
       elementsToRestore.forEach(item => item.el.style.display = item.display || '');
       setLoading(elements.exportPdfButton, false);
     }
@@ -3752,9 +3938,7 @@ const BooklistApp = (function() {
       },
       styles: captureStyleGroups(),
       images: {
-        frontCover: (elements.frontCoverUploader?.querySelector('img')?.dataset.isAutoGenerated === 'true')
-          ? null
-          : getUploaderImageSrc(elements.frontCoverUploader),
+        frontCover: getUploaderImageSrc(elements.frontCoverUploader),
         frontCoverIsAutoGenerated: elements.frontCoverUploader?.querySelector('img')?.dataset.isAutoGenerated === 'true',
         branding: getUploaderImageSrc(elements.brandingUploader),
       },
@@ -3873,9 +4057,9 @@ const BooklistApp = (function() {
     }
   }
   
-  function applyState(loaded) {
+  function applyState(loaded, { silent = false } = {}) {
     if (!loaded || loaded.schema !== 'booklist-v1') {
-      showNotification('Invalid or unsupported booklist file.', 'error');
+      if (!silent) showNotification('Invalid or unsupported booklist file.', 'error');
       return;
     }
     
@@ -4048,40 +4232,66 @@ const BooklistApp = (function() {
     const hasFrontCover = elements.frontCoverUploader?.classList.contains('has-image');
     const wasAutoGenerated = loaded.images?.frontCoverIsAutoGenerated === true;
 
-    if (BookUtils.hasEnoughCoversForCollage(myBooklist, extraCollageCovers, isExtendedMode) && !hasFrontCover && wasAutoGenerated) {
+    if (!silent && BookUtils.hasEnoughCoversForCollage(myBooklist, extraCollageCovers, isExtendedMode) && !hasFrontCover && wasAutoGenerated) {
       // Small delay to ensure DOM is ready
       setTimeout(() => generateCoverCollage(), 150);
     }
 
-    showNotification('Booklist loaded.', 'success');
+    if (!silent) showNotification('Booklist loaded.', 'success');
   }
   
   // Local draft storage
   function serializeDraftForLocal() {
     const s = serializeState();
+    // Front cover is too large for localStorage — store it in IndexedDB instead
+    const frontCoverData = s.images?.frontCover || null;
     if (s.images) s.images.frontCover = null;
+    // Fire-and-forget: persist front cover to IndexedDB
+    _openImageDB().then(db => {
+      const tx = db.transaction('images', 'readwrite');
+      const store = tx.objectStore('images');
+      if (frontCoverData) {
+        store.put(frontCoverData, 'draft-front-cover');
+      } else {
+        store.delete('draft-front-cover');
+      }
+    }).catch(() => { /* IndexedDB unavailable — front cover won't persist */ });
     return s;
   }
-  
+
   function saveDraftLocal() {
     try {
       localStorage.setItem('booklist-draft', JSON.stringify(serializeDraftForLocal()));
       isDirtyLocal = false; // localStorage now has current state
     } catch { /* ignore quota errors */ }
   }
-  
-  function restoreDraftLocalIfPresent() {
+
+  async function restoreDraftLocalIfPresent() {
     try {
       const raw = localStorage.getItem('booklist-draft');
       if (!raw) return;
       const parsed = JSON.parse(raw);
+
+      // Restore front cover from IndexedDB if available
+      try {
+        const frontCover = await _getImageIDB('draft-front-cover');
+        if (frontCover && parsed.images) {
+          parsed.images.frontCover = frontCover;
+        }
+      } catch { /* IndexedDB unavailable — proceed without front cover */ }
+
       applyState(parsed);
       showNotification('Draft restored from this browser.', 'success');
     } catch { /* ignore */ }
   }
-  
+
   function resetToBlank() {
     try { localStorage.removeItem('booklist-draft'); } catch {}
+    // Clear front cover from IndexedDB
+    _openImageDB().then(db => {
+      const tx = db.transaction('images', 'readwrite');
+      tx.objectStore('images').delete('draft-front-cover');
+    }).catch(() => {});
     isDirtyLocal = false; // Prevent beforeunload after user already confirmed reset
     location.reload();
   }
@@ -4139,6 +4349,7 @@ const BooklistApp = (function() {
 
     // Shared handler for processing an image file
     const processImageFile = (file) => {
+      pushUndo('upload-branding');
       const reader = new FileReader();
       reader.onload = (event) => {
         imgElement.src = event.target.result;
@@ -4166,11 +4377,12 @@ const BooklistApp = (function() {
   function setupFrontCoverHandler() {
     const frontCoverFileInput = elements.frontCoverUploader.querySelector('input[type="file"]');
     const frontCoverImgElement = elements.frontCoverUploader.querySelector('img');
-    
+
     // Shared handler for processing an image file
     const processImageFile = (file) => {
+      pushUndo('upload-front-cover');
       elements.frontCoverUploader.dataset.fileName = file.name;
-      
+
       const reader = new FileReader();
       reader.onload = (event) => {
         frontCoverImgElement.src = event.target.result;
@@ -4221,6 +4433,7 @@ const BooklistApp = (function() {
         if (window.folio) window.folio.react('watch');
       },
       onEnd: function() {
+        pushUndo('drag-reorder');
         // Folio: acknowledge the reorder
         if (window.folio) {
           window.folio.stopWatch();
@@ -4269,6 +4482,7 @@ const BooklistApp = (function() {
         filter: '.from-list, .slot-placeholder',
         draggable: '.draggable-extra',
         onEnd: function() {
+          pushUndo('reorder-extra');
           // Rebuild extraCollageCovers array based on new order
           const draggableItems = elements.extraCoversGrid.querySelectorAll('.draggable-extra');
           const newOrder = [];
@@ -4309,16 +4523,24 @@ const BooklistApp = (function() {
     
     // List name input (triggers autosave)
     if (elements.listNameInput) {
-      elements.listNameInput.addEventListener('input', debouncedSave);
+      elements.listNameInput.addEventListener('input', () => {
+        pushUndo('edit-list-name');
+        debouncedSave();
+      });
     }
     
     // Cover generation
-    elements.generateCoverButton.addEventListener('click', generateCoverCollage);
+    elements.generateCoverButton.addEventListener('click', () => {
+      pushUndo('generate-collage');
+      generateCoverCollage();
+    });
     elements.stretchCoversToggle.addEventListener('change', () => {
+      pushUndo('change-style');
       autoRegenerateCoverIfAble();
       debouncedSave();
     });
     elements.stretchBlockCoversToggle.addEventListener('change', () => {
+      pushUndo('change-style');
       applyBlockCoverStyle();
       debouncedSave();
     });
@@ -4327,6 +4549,7 @@ const BooklistApp = (function() {
     if (elements.collageLayoutSelector) {
       elements.collageLayoutSelector.querySelectorAll('.layout-option').forEach(option => {
         option.addEventListener('click', () => {
+          pushUndo('change-layout');
           elements.collageLayoutSelector.querySelectorAll('.layout-option').forEach(opt => {
             opt.classList.remove('selected');
           });
@@ -4353,6 +4576,7 @@ const BooklistApp = (function() {
     // Show shelves toggle for classic layout
     if (elements.showShelvesToggle) {
       elements.showShelvesToggle.addEventListener('change', () => {
+        pushUndo('change-style');
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
@@ -4361,6 +4585,7 @@ const BooklistApp = (function() {
     // Title bar position dropdown
     if (elements.titleBarPosition) {
       elements.titleBarPosition.addEventListener('change', () => {
+        pushUndo('change-style');
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
@@ -4369,16 +4594,19 @@ const BooklistApp = (function() {
     // Tilted layout settings
     if (elements.tiltDegree) {
       elements.tiltDegree.addEventListener('input', () => {
+        pushUndo('change-style');
         debouncedSave();
         debouncedCoverRegen();
       });
       elements.tiltDegree.addEventListener('change', () => {
+        pushUndo('change-style');
         debouncedSave();
         debouncedCoverRegen();
       });
     }
     if (elements.tiltOffsetDirection) {
       elements.tiltOffsetDirection.addEventListener('change', () => {
+        pushUndo('change-style');
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
@@ -4388,21 +4616,28 @@ const BooklistApp = (function() {
     ['cover-title-outer-margin', 'cover-title-side-margin', 'cover-title-pad-x', 'cover-title-pad-y'].forEach(id => {
       const input = document.getElementById(id);
       if (input) {
-        input.addEventListener('input', debouncedSave);
+        input.addEventListener('input', () => {
+          pushUndo('change-cover-style');
+          debouncedSave();
+        });
         input.addEventListener('change', autoRegenerateCoverIfAble);
       }
     });
-    
+
     // BG Color picker
     const bgColorPicker = document.getElementById('cover-title-bg-color');
     if (bgColorPicker) {
-      bgColorPicker.addEventListener('input', debouncedSave);
+      bgColorPicker.addEventListener('input', () => {
+        pushUndo('change-cover-style');
+        debouncedSave();
+      });
       bgColorPicker.addEventListener('change', autoRegenerateCoverIfAble);
     }
     
     // Cover mode toggle
     if (elements.coverAdvancedToggle) {
       elements.coverAdvancedToggle.addEventListener('change', (e) => {
+        pushUndo('change-style');
         toggleCoverMode(e.target.checked);
         debouncedSave();
         autoRegenerateCoverIfAble();
@@ -4412,6 +4647,7 @@ const BooklistApp = (function() {
     // Simple mode: textarea and style controls
     if (elements.coverTitleInput) {
       elements.coverTitleInput.addEventListener('input', () => {
+        pushUndo('edit-cover-text');
         debouncedSave();
         debouncedCoverRegen();
       });
@@ -4426,19 +4662,22 @@ const BooklistApp = (function() {
     simpleStyleElements.forEach(el => {
       if (el) {
         el.addEventListener('input', () => {
+          pushUndo('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
         el.addEventListener('change', () => {
+          pushUndo('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
       }
     });
-    
+
     // Simple mode bold/italic toggles
     if (elements.coverBoldToggle) {
       elements.coverBoldToggle.addEventListener('click', () => {
+        pushUndo('change-cover-style');
         elements.coverBoldToggle.classList.toggle('active');
         debouncedSave();
         autoRegenerateCoverIfAble();
@@ -4446,6 +4685,7 @@ const BooklistApp = (function() {
     }
     if (elements.coverItalicToggle) {
       elements.coverItalicToggle.addEventListener('click', () => {
+        pushUndo('change-cover-style');
         elements.coverItalicToggle.classList.toggle('active');
         debouncedSave();
         autoRegenerateCoverIfAble();
@@ -4457,6 +4697,7 @@ const BooklistApp = (function() {
       // Text input (debounced for rapid typing)
       if (line.input) {
         line.input.addEventListener('input', () => {
+          pushUndo('edit-cover-text');
           debouncedSave();
           debouncedCoverRegen();
         });
@@ -4464,6 +4705,7 @@ const BooklistApp = (function() {
       // Font select (instant - discrete change)
       if (line.font) {
         line.font.addEventListener('change', () => {
+          pushUndo('change-cover-style');
           debouncedSave();
           autoRegenerateCoverIfAble();
         });
@@ -4471,6 +4713,7 @@ const BooklistApp = (function() {
       // Size input (debounced for rapid changes)
       if (line.size) {
         line.size.addEventListener('input', () => {
+          pushUndo('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
@@ -4478,6 +4721,7 @@ const BooklistApp = (function() {
       // Color picker (debounced for dragging)
       if (line.color) {
         line.color.addEventListener('input', () => {
+          pushUndo('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
@@ -4485,10 +4729,12 @@ const BooklistApp = (function() {
       // Spacing input (debounced for rapid changes)
       if (line.spacing) {
         line.spacing.addEventListener('input', () => {
+          pushUndo('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
         line.spacing.addEventListener('change', () => {
+          pushUndo('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
@@ -4496,6 +4742,7 @@ const BooklistApp = (function() {
       // Bold toggle (instant - discrete change)
       if (line.bold) {
         line.bold.addEventListener('click', () => {
+          pushUndo('change-cover-style');
           line.bold.classList.toggle('active');
           debouncedSave();
           autoRegenerateCoverIfAble();
@@ -4504,6 +4751,7 @@ const BooklistApp = (function() {
       // Italic toggle (instant - discrete change)
       if (line.italic) {
         line.italic.addEventListener('click', () => {
+          pushUndo('change-cover-style');
           line.italic.classList.toggle('active');
           debouncedSave();
           autoRegenerateCoverIfAble();
@@ -4512,11 +4760,20 @@ const BooklistApp = (function() {
     });
     
     // Layout toggles
-    elements.toggleQrCode.addEventListener('change', handleLayoutChange);
-    elements.toggleBranding.addEventListener('change', handleLayoutChange);
+    elements.toggleQrCode.addEventListener('change', () => {
+      pushUndo('toggle-ui');
+      handleLayoutChange();
+    });
+    elements.toggleBranding.addEventListener('change', () => {
+      pushUndo('toggle-ui');
+      handleLayoutChange();
+    });
     
     // QR code
-    elements.generateQrButton.addEventListener('click', generateQrCode);
+    elements.generateQrButton.addEventListener('click', () => {
+      pushUndo('change-qr');
+      generateQrCode();
+    });
     
     // Spacing inputs and background color for cover auto-regen
     const coverLayoutInputIds = ['cover-title-outer-margin', 'cover-title-pad-x', 'cover-title-pad-y', 'cover-title-side-margin', 'cover-title-bg-color'];
@@ -4524,6 +4781,7 @@ const BooklistApp = (function() {
       const el = document.getElementById(id);
       if (el) {
         ['input', 'change'].forEach(evt => el.addEventListener(evt, () => {
+          pushUndo('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         }));
@@ -4534,25 +4792,28 @@ const BooklistApp = (function() {
     document.querySelectorAll('.export-controls .form-group[data-style-group], #cover-title-style-group').forEach(group => {
       group.querySelectorAll('select, input').forEach(input => {
         input.addEventListener('change', () => {
+          pushUndo('change-style');
           applyStyles();
           if (group.id === 'cover-title-style-group') {
             debouncedCoverRegen();
           }
         });
         input.addEventListener('input', () => {
+          pushUndo('change-style');
           applyStyles();
           if (group.id === 'cover-title-style-group') {
             debouncedCoverRegen();
           }
         });
       });
-      
+
       group.querySelectorAll('button').forEach(button => {
         // Skip line-specific bold/italic buttons (they have their own handlers)
         if (button.classList.contains('line-bold') || button.classList.contains('line-italic')) {
           return;
         }
         button.addEventListener('click', (e) => {
+          pushUndo('change-style');
           if (e.target.classList.contains('bold-toggle') || e.target.classList.contains('italic-toggle')) {
             e.target.classList.toggle('active');
           }
@@ -4595,6 +4856,7 @@ const BooklistApp = (function() {
       try {
         const text = await file.text();
         const parsed = JSON.parse(text);
+        clearUndoHistory();
         applyState(parsed);
         debouncedSave(); // Sync browser draft with loaded file
         hasUnsavedFile = false; // File was just loaded from disk
@@ -4629,6 +4891,7 @@ const BooklistApp = (function() {
       brandingDeleteBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        pushUndo('upload-branding');
         const imgElement = elements.brandingUploader.querySelector('img');
         imgElement.src = CONFIG.TRANSPARENT_GIF;
         imgElement.dataset.isPlaceholder = 'true';
@@ -4643,6 +4906,7 @@ const BooklistApp = (function() {
       brandingDefaultBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        pushUndo('upload-branding');
         const imgElement = elements.brandingUploader.querySelector('img');
         imgElement.src = 'assets/img/branding-default.png';
         imgElement.dataset.isPlaceholder = 'false';
@@ -4669,11 +4933,17 @@ const BooklistApp = (function() {
     });
     
     // Save on blur
-    elements.qrCodeTextArea.addEventListener('blur', debouncedSave);
+    elements.qrCodeTextArea.addEventListener('blur', () => {
+      pushUndo('edit-qr-text');
+      debouncedSave();
+    });
     
     // Save QR URL input on change
     if (elements.qrUrlInput) {
-      elements.qrUrlInput.addEventListener('input', debouncedSave);
+      elements.qrUrlInput.addEventListener('input', () => {
+        pushUndo('edit-qr');
+        debouncedSave();
+      });
     }
   }
   
@@ -5053,6 +5323,214 @@ const BooklistApp = (function() {
   }
   
   // ---------------------------------------------------------------------------
+  // Undo/Redo Core API
+  // ---------------------------------------------------------------------------
+
+  /** Update the enabled/disabled state of undo/redo buttons */
+  function updateUndoRedoButtons() {
+    const btnUndo = document.getElementById('btn-undo');
+    const btnRedo = document.getElementById('btn-redo');
+    if (btnUndo) btnUndo.disabled = _undoStack.length === 0;
+    if (btnRedo) btnRedo.disabled = _redoStack.length === 0;
+  }
+
+  /**
+   * Capture a snapshot of the current state before a mutation.
+   * @param {string} group - A label for coalescing (e.g. 'edit-text', 'add-book')
+   */
+  function pushUndo(group) {
+    if (_isRestoring) return;
+
+    const now = Date.now();
+    const state = serializeState();
+    const snapshot = _extractImages(state);
+
+    // Coalesce: if same group within the coalescing window, replace top instead of pushing
+    if (group && group === _lastUndoGroup && (now - _lastUndoTime) < UNDO_COALESCE_MS && _undoStack.length > 0) {
+      // Don't replace — keep the original pre-mutation snapshot on top
+      _lastUndoTime = now;
+      return;
+    }
+
+    _undoStack.push(JSON.stringify(snapshot));
+    _lastUndoGroup = group;
+    _lastUndoTime = now;
+
+    // Clear redo stack on new action
+    _redoStack = [];
+
+    // Cap stack size
+    if (_undoStack.length > UNDO_MAX) {
+      _undoStack.shift();
+    }
+
+    updateUndoRedoButtons();
+  }
+
+  /**
+   * Restore a snapshot, handling async image resolution and side-effect guards.
+   * @param {string} jsonString - JSON-stringified snapshot with image refs
+   * @returns {Promise<void>}
+   */
+  function restoreSnapshot(jsonString) {
+    _isRestoring = true;
+
+    // Cancel pending async operations
+    debouncedSave.cancel();
+    debouncedCoverRegen.cancel();
+    _collageGenId++; // Invalidate any in-flight collage generation
+
+    const state = JSON.parse(jsonString);
+    return _restoreImages(state).then(resolved => {
+      applyState(resolved, { silent: true });
+    }).finally(() => {
+      _isRestoring = false;
+      // Single clean save of the restored state
+      saveDraftLocal();
+      isDirtyLocal = false;
+      hasUnsavedFile = true;
+      updateSaveIndicator();
+      updateUndoRedoButtons();
+    });
+  }
+
+  function undo() {
+    if (_undoStack.length === 0) return;
+
+    // Push current state onto redo stack
+    const currentState = serializeState();
+    const currentSnapshot = _extractImages(currentState);
+    _redoStack.push(JSON.stringify(currentSnapshot));
+
+    // Pop from undo stack and restore
+    const snapshot = _undoStack.pop();
+    restoreSnapshot(snapshot);
+  }
+
+  function redo() {
+    if (_redoStack.length === 0) return;
+
+    // Push current state onto undo stack
+    const currentState = serializeState();
+    const currentSnapshot = _extractImages(currentState);
+    _undoStack.push(JSON.stringify(currentSnapshot));
+
+    // Pop from redo stack and restore
+    const snapshot = _redoStack.pop();
+    restoreSnapshot(snapshot);
+  }
+
+  function clearUndoHistory() {
+    _undoStack = [];
+    _redoStack = [];
+    _lastUndoGroup = null;
+    _lastUndoTime = 0;
+    _imageDataToId.clear();
+    _imageCache.clear();
+    _clearImageDB();
+    updateUndoRedoButtons();
+  }
+
+  function initUndoRedoControls() {
+    const btnUndo = document.getElementById('btn-undo');
+    const btnRedo = document.getElementById('btn-redo');
+    if (btnUndo) btnUndo.addEventListener('click', undo);
+    if (btnRedo) btnRedo.addEventListener('click', redo);
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      const tag = document.activeElement?.tagName;
+      // Skip when focus is in INPUT, TEXTAREA, or SELECT
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      // Also skip contenteditable — let browser handle its own undo
+      if (document.activeElement?.isContentEditable) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'Z' && e.shiftKey) || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+      }
+    });
+
+    updateUndoRedoButtons();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Zoom Controls
+  // ---------------------------------------------------------------------------
+  function applyZoom() {
+    const target = elements.previewArea;
+    if (!target) return;
+    target.style.zoom = currentZoom;
+    const resetBtn = document.getElementById('btn-zoom-reset');
+    if (resetBtn) resetBtn.textContent = Math.round(currentZoom * 100) + '%';
+  }
+
+  function computeFitToScreenZoom() {
+    const container = document.querySelector('.main-content');
+    if (!container || !elements.previewArea) return 1.0;
+    const containerW = container.clientWidth;
+    // Subtract toolbar height (list name row + hint) from available vertical space
+    const toolbar = container.querySelector('.toolbar');
+    const toolbarH = toolbar ? toolbar.offsetHeight : 0;
+    const containerH = container.clientHeight - toolbarH;
+    // Page is 11in wide; at 96 DPI that's 1056px, plus some padding
+    const contentW = 11 * 96 + 40;
+    const contentH = elements.previewArea.scrollHeight || (8.5 * 96 + 40);
+    const fitW = containerW / contentW;
+    const fitH = containerH / contentH;
+    return Math.min(fitW, fitH) * 0.98;
+  }
+
+  function initZoomControls() {
+    const btnIn = document.getElementById('btn-zoom-in');
+    const btnOut = document.getElementById('btn-zoom-out');
+    const btnReset = document.getElementById('btn-zoom-reset');
+    const btnFit = document.getElementById('btn-zoom-fit');
+
+    if (btnIn) btnIn.addEventListener('click', function() {
+      currentZoom = Math.min(ZOOM_MAX, currentZoom + ZOOM_STEP);
+      applyZoom();
+    });
+    if (btnOut) btnOut.addEventListener('click', function() {
+      currentZoom = Math.max(ZOOM_MIN, currentZoom - ZOOM_STEP);
+      applyZoom();
+    });
+    if (btnReset) btnReset.addEventListener('click', function() {
+      currentZoom = 1.0;
+      applyZoom();
+      // Reset scroll position
+      const container = document.querySelector('.main-content');
+      if (container) { container.scrollTop = 0; container.scrollLeft = 0; }
+    });
+    if (btnFit) btnFit.addEventListener('click', function() {
+      currentZoom = computeFitToScreenZoom();
+      // Clamp to valid range
+      currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
+      applyZoom();
+      // Reset scroll position
+      const container = document.querySelector('.main-content');
+      if (container) { container.scrollTop = 0; container.scrollLeft = 0; }
+    });
+
+    // Ctrl+scroll wheel zoom
+    const scrollContainer = document.querySelector('.main-content');
+    if (scrollContainer) {
+      scrollContainer.addEventListener('wheel', function(e) {
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        currentZoom = e.deltaY < 0
+          ? Math.min(ZOOM_MAX, currentZoom + ZOOM_STEP)
+          : Math.max(ZOOM_MIN, currentZoom - ZOOM_STEP);
+        applyZoom();
+      }, { passive: false });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Public API / Initialization
   // ---------------------------------------------------------------------------
   function init() {
@@ -5067,6 +5545,10 @@ const BooklistApp = (function() {
     initializeCustomFontDropdowns();
     renderExtraCoversGrid();
     
+    // Initialize zoom and undo/redo controls
+    initZoomControls();
+    initUndoRedoControls();
+
     // Set default cover mode (simple)
     toggleCoverMode(false);
     
@@ -5137,11 +5619,18 @@ const BooklistApp = (function() {
   }
   
   // Expose necessary functions for external access
+  /** Reset zoom to 100% (called by tour system and on page load) */
+  function resetZoom() {
+    currentZoom = 1.0;
+    applyZoom();
+  }
+
   return {
     init,
     showNotification,
     getAiDescription, // For testing
     updateBackCoverVisibility, // For tour: visual-only toggle update (no data trim)
+    resetZoom, // For tour: reset zoom before spotlight positioning
     get isDirtyLocal() { return isDirtyLocal; },   // For debugging
     get hasUnsavedFile() { return hasUnsavedFile; }, // For debugging
   };
