@@ -3839,7 +3839,7 @@ const BooklistApp = (function() {
       const options = {
         scale,
         useCORS: true,
-        backgroundColor: null
+        backgroundColor: '#FFFFFF'
       };
 
       const canvas1 = await html2canvas(document.getElementById('print-page-1'), options);
