@@ -1970,7 +1970,7 @@ const BooklistApp = (function() {
     const booksWithCovers = BookUtils.getStarredBooksWithCovers(myBooklist);
 
     // Get URLs from starred book blocks
-    const bookBlockCoverUrls = booksWithCovers.map(book => BookUtils.getBookCoverUrl(book));
+    const bookBlockCoverUrls = booksWithCovers.map(book => BookUtils.getBookCoverUrl(book, 'L'));
     
     // Get URLs from extra collage covers (only if extended mode)
     const extraCoverUrls = extendedMode 
@@ -3781,7 +3781,8 @@ const BooklistApp = (function() {
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'in',
-        format: 'letter'
+        format: 'letter',
+        compress: true
       });
 
       // PDF metadata
@@ -3795,17 +3796,15 @@ const BooklistApp = (function() {
       const options = {
         scale,
         useCORS: true,
-        backgroundColor: null,
-        windowWidth: Math.round(CONFIG.PDF_WIDTH_IN * CONFIG.PDF_DPI),
-        windowHeight: Math.round(CONFIG.PDF_HEIGHT_IN * CONFIG.PDF_DPI)
+        backgroundColor: null
       };
 
       const canvas1 = await html2canvas(document.getElementById('print-page-1'), options);
-      pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
+      pdf.addImage(canvas1.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
       pdf.addPage();
 
       const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
-      pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
+      pdf.addImage(canvas2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
       
       pdf.save(suggestedName);
       showNotification('PDF download started.', 'success');
