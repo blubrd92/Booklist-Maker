@@ -1945,6 +1945,13 @@ const BooklistApp = (function() {
       img.src = src;
     });
   }
+
+  /**
+   * Loads an image, trying the primary URL first and falling back to a secondary URL on failure.
+   */
+  function loadImageWithFallback(primarySrc, fallbackSrc) {
+    return loadImage(primarySrc).catch(() => loadImage(fallbackSrc));
+  }
   
   /**
    * Main collage generation function
@@ -1969,23 +1976,29 @@ const BooklistApp = (function() {
     // Gather books with covers that are marked for inclusion
     const booksWithCovers = BookUtils.getStarredBooksWithCovers(myBooklist);
 
-    // Get URLs from starred book blocks
-    const bookBlockCoverUrls = booksWithCovers.map(book => BookUtils.getBookCoverUrl(book, 'L'));
-    
+    // Get cover entries from starred book blocks (large URL with medium fallback)
+    const bookBlockCovers = booksWithCovers.map(book => ({
+      large: BookUtils.getBookCoverUrl(book, 'L'),
+      medium: BookUtils.getBookCoverUrl(book, 'M')
+    }));
+
     // Get URLs from extra collage covers (only if extended mode)
-    const extraCoverUrls = extendedMode 
+    const extraCoverUrls = extendedMode
       ? extraCollageCovers
           .filter(ec => ec.coverData && !ec.coverData.includes('placehold.co'))
           .map(ec => ec.coverData)
       : [];
-    
-    // Combine all cover URLs (up to max for current mode)
-    const allCoverUrls = [...bookBlockCoverUrls, ...extraCoverUrls].slice(0, maxCovers);
+
+    // Combine all covers (up to max for current mode)
+    const allCovers = [
+      ...bookBlockCovers.map(c => ({ large: c.large, medium: c.medium })),
+      ...extraCoverUrls.map(url => ({ large: url, medium: url }))
+    ].slice(0, maxCovers);
     
     // In extended mode, require exactly 20 covers; otherwise require 12
     const requiredCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
     
-    if (allCoverUrls.length < requiredCovers) {
+    if (allCovers.length < requiredCovers) {
       const starredCount = BookUtils.getStarredBooks(myBooklist).length;
       const totalWithCovers = booksWithCovers.length + extraCoverUrls.length;
       const totalSelected = starredCount + (extendedMode ? extraCollageCovers.length : 0);
@@ -2005,7 +2018,7 @@ const BooklistApp = (function() {
     }
     
     // Use all gathered covers
-    const coversToDraw = allCoverUrls;
+    const coversToDraw = allCovers;
     
     const { canvas, ctx } = createCollageCanvas();
     const styles = getCoverTitleStyles();
@@ -2020,7 +2033,7 @@ const BooklistApp = (function() {
     
     // Wait for fonts, then load images and draw
     waitForFonts().then(() => {
-      return Promise.allSettled(coversToDraw.map(src => loadImage(src)));
+      return Promise.allSettled(coversToDraw.map(c => loadImageWithFallback(c.large, c.medium)));
     }).then(results => {
       // Discard stale result if a newer generation was started (e.g. undo/redo cancelled this one)
       if (thisGenId !== _collageGenId) return;
