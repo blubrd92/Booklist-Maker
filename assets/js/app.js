@@ -349,7 +349,7 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   function populateFontSelects() {
     const selects = document.querySelectorAll(
-      '.font-select:not(#title-bar-position):not(#tilt-offset-direction):not(#cover-title-bg-type):not(#cover-title-gradient-dir)'
+      '.font-select:not(#title-bar-position):not(#tilt-offset-direction)'
     );
     selects.forEach(select => {
       const defaultValue = select.dataset.default || '';
@@ -1756,16 +1756,14 @@ const BooklistApp = (function() {
     const pxPerPt = CONFIG.PDF_DPI / 72;
     const isAdvancedMode = elements.coverAdvancedToggle?.checked || false;
     const bgColor = document.getElementById('cover-title-bg-color')?.value || '#000000';
-    const bgType = document.getElementById('cover-title-bg-type')?.value || 'solid';
+    const bgGradient = document.getElementById('cover-title-gradient-toggle')?.checked || false;
     const bgColor2 = document.getElementById('cover-title-bg-color2')?.value || '#333333';
-    const gradientDir = document.getElementById('cover-title-gradient-dir')?.value || 'vertical';
 
     // Shared layout settings
     const layoutSettings = {
       bgColor,
-      bgType,
+      bgGradient,
       bgColor2,
-      gradientDir,
       outerMarginPx: parseFloat(document.getElementById('cover-title-outer-margin')?.value || '10') * pxPerPt,
       padXPx: parseFloat(document.getElementById('cover-title-pad-x')?.value || '0') * pxPerPt,
       padYPx: parseFloat(document.getElementById('cover-title-pad-y')?.value || '10') * pxPerPt,
@@ -2164,23 +2162,8 @@ const BooklistApp = (function() {
     const bgY = yPosition;
     const bgW = canvasWidth - 2 * styles.bgSideMarginPx;
     
-    if (styles.bgType === 'gradient') {
-      let grad;
-      switch (styles.gradientDir) {
-        case 'horizontal':
-          grad = ctx.createLinearGradient(bgX, bgY, bgX + bgW, bgY);
-          break;
-        case 'diagonal-tl':
-          grad = ctx.createLinearGradient(bgX, bgY, bgX + bgW, bgY + bgH);
-          break;
-        case 'diagonal-tr':
-          grad = ctx.createLinearGradient(bgX + bgW, bgY, bgX, bgY + bgH);
-          break;
-        case 'vertical':
-        default:
-          grad = ctx.createLinearGradient(bgX, bgY, bgX, bgY + bgH);
-          break;
-      }
+    if (styles.bgGradient) {
+      const grad = ctx.createLinearGradient(bgX, bgY, bgX, bgY + bgH);
       grad.addColorStop(0, styles.bgColor);
       grad.addColorStop(1, styles.bgColor2);
       ctx.fillStyle = grad;
@@ -3880,9 +3863,8 @@ const BooklistApp = (function() {
       padYPt: parseFloat(document.getElementById('cover-title-pad-y')?.value ?? '10'),
       sideMarginPt: parseFloat(document.getElementById('cover-title-side-margin')?.value ?? '0'),
       bgColor: document.getElementById('cover-title-bg-color')?.value ?? '#000000',
-      bgType: document.getElementById('cover-title-bg-type')?.value ?? 'solid',
+      bgGradient: document.getElementById('cover-title-gradient-toggle')?.checked ?? false,
       bgColor2: document.getElementById('cover-title-bg-color2')?.value ?? '#333333',
-      gradientDir: document.getElementById('cover-title-gradient-dir')?.value ?? 'vertical',
       // Simple mode styling
       simple: {
         font: elements.coverFontSelect?.value ?? "'Oswald', sans-serif",
@@ -4028,13 +4010,11 @@ const BooklistApp = (function() {
     setNum('cover-title-pad-y', ct.padYPt);
     setNum('cover-title-side-margin', ct.sideMarginPt);
     setStr('cover-title-bg-color', ct.bgColor);
-    setStr('cover-title-bg-type', ct.bgType || 'solid');
+    const gradToggle = document.getElementById('cover-title-gradient-toggle');
+    if (gradToggle) gradToggle.checked = !!ct.bgGradient;
     setStr('cover-title-bg-color2', ct.bgColor2 || '#333333');
-    setStr('cover-title-gradient-dir', ct.gradientDir || 'vertical');
-    const gradOpts = document.getElementById('cover-title-gradient-options');
-    if (gradOpts) {
-      gradOpts.style.display = (ct.bgType === 'gradient') ? 'flex' : 'none';
-    }
+    const bgColor2El = document.getElementById('cover-title-bg-color2');
+    if (bgColor2El) bgColor2El.style.display = ct.bgGradient ? '' : 'none';
 
     // Simple mode styling
     const simple = ct.simple || {};
@@ -4672,14 +4652,12 @@ const BooklistApp = (function() {
       bgColorPicker.addEventListener('change', autoRegenerateCoverIfAble);
     }
 
-    // BG type selector (solid/gradient toggle)
-    const bgTypeSelect = document.getElementById('cover-title-bg-type');
-    if (bgTypeSelect) {
-      bgTypeSelect.addEventListener('change', () => {
-        const gradOpts = document.getElementById('cover-title-gradient-options');
-        if (gradOpts) {
-          gradOpts.style.display = bgTypeSelect.value === 'gradient' ? 'flex' : 'none';
-        }
+    // Gradient toggle checkbox
+    const gradToggle = document.getElementById('cover-title-gradient-toggle');
+    if (gradToggle) {
+      gradToggle.addEventListener('change', () => {
+        const bgColor2El = document.getElementById('cover-title-bg-color2');
+        if (bgColor2El) bgColor2El.style.display = gradToggle.checked ? '' : 'none';
         pushUndo('change-cover-style');
         debouncedSave();
         autoRegenerateCoverIfAble();
@@ -4694,16 +4672,6 @@ const BooklistApp = (function() {
         debouncedSave();
       });
       bgColor2Picker.addEventListener('change', autoRegenerateCoverIfAble);
-    }
-
-    // Gradient direction selector
-    const gradDirSelect = document.getElementById('cover-title-gradient-dir');
-    if (gradDirSelect) {
-      gradDirSelect.addEventListener('change', () => {
-        pushUndo('change-cover-style');
-        debouncedSave();
-        autoRegenerateCoverIfAble();
-      });
     }
 
     // Cover mode toggle
@@ -4848,7 +4816,7 @@ const BooklistApp = (function() {
     });
     
     // Spacing inputs and background color for cover auto-regen
-    const coverLayoutInputIds = ['cover-title-outer-margin', 'cover-title-pad-x', 'cover-title-pad-y', 'cover-title-side-margin', 'cover-title-bg-color', 'cover-title-bg-color2', 'cover-title-bg-type', 'cover-title-gradient-dir'];
+    const coverLayoutInputIds = ['cover-title-outer-margin', 'cover-title-pad-x', 'cover-title-pad-y', 'cover-title-side-margin', 'cover-title-bg-color', 'cover-title-bg-color2'];
     coverLayoutInputIds.forEach(id => {
       const el = document.getElementById(id);
       if (el) {
