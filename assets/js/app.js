@@ -475,13 +475,15 @@ const BooklistApp = (function() {
     }
     
     element.addEventListener('focus', () => {
+      if (_isRestoring) return;
       if (getText().trim() === placeholderText) {
         setText('');
         element.style.color = originalColor;
       }
     });
-    
+
     element.addEventListener('blur', () => {
+      if (_isRestoring) return;
       if (getText().trim() === '') {
         setText(placeholderText);
         element.style.color = placeholderColor;
@@ -4970,6 +4972,8 @@ const BooklistApp = (function() {
     // Safety net: sanitize any formatting that sneaks through on input
     elements.qrCodeTextArea.addEventListener('input', () => {
       sanitizeContentEditable(elements.qrCodeTextArea);
+      pushUndo('edit-qr-text');
+      debouncedSave();
     });
     
     // Save on blur
