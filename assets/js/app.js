@@ -849,10 +849,14 @@ const BooklistApp = (function() {
     coverCarousel.className = 'cover-carousel';
     
     const coverElement = document.createElement('img');
-    coverElement.src = BookUtils.getCoverUrl(initialCoverId);
+    coverElement.src = BookUtils.getCoverUrl(initialCoverId, 'L');
     coverElement.alt = `Cover for ${book.title}`;
+    coverElement.onerror = function() {
+      this.onerror = null;
+      this.src = BookUtils.getCoverUrl(initialCoverId, 'M');
+    };
     coverCarousel.appendChild(coverElement);
-    
+
     // Title
     const titleElement = document.createElement('p');
     titleElement.className = 'book-title';
@@ -960,7 +964,11 @@ const BooklistApp = (function() {
 
     const updateCarousel = () => {
       const currentId = state.allCoverIds[state.currentCoverIndex];
-      coverElement.src = BookUtils.getCoverUrl(currentId);
+      coverElement.src = BookUtils.getCoverUrl(currentId, 'L');
+      coverElement.onerror = function() {
+        this.onerror = null;
+        this.src = BookUtils.getCoverUrl(currentId, 'M');
+      };
       coverCounter.textContent = `${state.currentCoverIndex + 1} of ${state.allCoverIds.length}`;
       prevButton.disabled = state.currentCoverIndex === 0;
       nextButton.disabled = state.currentCoverIndex === state.allCoverIds.length - 1;
@@ -1549,9 +1557,15 @@ const BooklistApp = (function() {
       ? bookItem.cover_ids[bookItem.currentCoverIndex]
       : null;
     
-    coverImg.src = selectedCoverId && selectedCoverId !== 'placehold'
-      ? `${CONFIG.OPEN_LIBRARY_COVERS_URL}${selectedCoverId}-M.jpg`
-      : bookItem.customCoverData || CONFIG.PLACEHOLDER_COVER_URL;
+    if (selectedCoverId && selectedCoverId !== 'placehold') {
+      coverImg.src = `${CONFIG.OPEN_LIBRARY_COVERS_URL}${selectedCoverId}-L.jpg`;
+      coverImg.onerror = function() {
+        this.onerror = null;
+        this.src = `${CONFIG.OPEN_LIBRARY_COVERS_URL}${selectedCoverId}-M.jpg`;
+      };
+    } else {
+      coverImg.src = bookItem.customCoverData || CONFIG.PLACEHOLDER_COVER_URL;
+    }
     
     coverImg.alt = `Cover for ${bookItem.title}`;
     
@@ -1976,11 +1990,16 @@ const BooklistApp = (function() {
     // Gather books with covers that are marked for inclusion
     const booksWithCovers = BookUtils.getStarredBooksWithCovers(myBooklist);
 
-    // Get cover entries from starred book blocks (large URL with medium fallback)
-    const bookBlockCovers = booksWithCovers.map(book => ({
-      large: BookUtils.getBookCoverUrl(book, 'L'),
-      medium: BookUtils.getBookCoverUrl(book, 'M')
-    }));
+    // Get cover sources from book block DOM elements (already loaded at large size)
+    const bookBlockCovers = booksWithCovers.map(book => {
+      const listItem = document.querySelector('.list-item[data-id="' + book.key + '"]');
+      const img = listItem?.querySelector('.cover-uploader img');
+      if (img && img.naturalWidth > 0) {
+        return { domImg: img };
+      }
+      // Fallback: load from URL if DOM image not available
+      return { large: BookUtils.getBookCoverUrl(book, 'L'), medium: BookUtils.getBookCoverUrl(book, 'M') };
+    });
 
     // Get URLs from extra collage covers (only if extended mode)
     const extraCoverUrls = extendedMode
@@ -1991,7 +2010,7 @@ const BooklistApp = (function() {
 
     // Combine all covers (up to max for current mode)
     const allCovers = [
-      ...bookBlockCovers.map(c => ({ large: c.large, medium: c.medium })),
+      ...bookBlockCovers,
       ...extraCoverUrls.map(url => ({ large: url, medium: url }))
     ].slice(0, maxCovers);
     
@@ -2033,7 +2052,10 @@ const BooklistApp = (function() {
     
     // Wait for fonts, then load images and draw
     waitForFonts().then(() => {
-      return Promise.allSettled(coversToDraw.map(c => loadImageWithFallback(c.large, c.medium)));
+      return Promise.allSettled(coversToDraw.map(c => {
+        if (c.domImg) return Promise.resolve(c.domImg);
+        return loadImageWithFallback(c.large, c.medium);
+      }));
     }).then(results => {
       // Discard stale result if a newer generation was started (e.g. undo/redo cancelled this one)
       if (thisGenId !== _collageGenId) return;
@@ -3180,8 +3202,12 @@ const BooklistApp = (function() {
       slot.title = `${book.title} (from your list)`;
       
       const img = document.createElement('img');
-      img.src = BookUtils.getBookCoverUrl(book);
+      img.src = BookUtils.getBookCoverUrl(book, 'L');
       img.alt = book.title;
+      img.onerror = function() {
+        this.onerror = null;
+        this.src = BookUtils.getBookCoverUrl(book, 'M');
+      };
       slot.appendChild(img);
       
       // Label to indicate it's from the list
@@ -3499,9 +3525,13 @@ const BooklistApp = (function() {
     coverCarousel.className = 'cover-carousel';
     
     const coverImg = document.createElement('img');
-    coverImg.src = BookUtils.getCoverUrl(initialCoverId);
+    coverImg.src = BookUtils.getCoverUrl(initialCoverId, 'L');
     coverImg.alt = `Cover for ${book.title}`;
     coverImg.loading = 'lazy';
+    coverImg.onerror = function() {
+      this.onerror = null;
+      this.src = BookUtils.getCoverUrl(initialCoverId, 'M');
+    };
     coverCarousel.appendChild(coverImg);
     
     // Title
