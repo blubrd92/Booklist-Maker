@@ -5482,8 +5482,6 @@ const BooklistApp = (function() {
       const tag = document.activeElement?.tagName;
       // Skip when focus is in INPUT, TEXTAREA, or SELECT
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      // Also skip contenteditable — let browser handle its own undo
-      if (document.activeElement?.isContentEditable) return;
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
