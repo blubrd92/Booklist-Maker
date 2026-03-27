@@ -259,7 +259,22 @@
           <!-- Shared settings for both modes -->
           <div class="control-row" style="margin-top: 10px;">
             <div class="mini-label">Background:</div>
+            <select id="cover-title-bg-type" class="font-select" aria-label="Background type" style="flex-grow: 0; min-width: 90px;">
+              <option value="solid" selected>Solid</option>
+              <option value="gradient">Gradient</option>
+            </select>
             <input id="cover-title-bg-color" class="color-picker" type="color" value="#000000" aria-label="Cover title background color"/>
+          </div>
+          <div id="cover-title-gradient-options" class="control-row" style="display: none; margin-top: 4px; padding-left: 28px;">
+            <div class="mini-label">End:</div>
+            <input id="cover-title-bg-color2" class="color-picker" type="color" value="#333333" aria-label="Gradient end color"/>
+            <div class="mini-label" style="margin-left: 8px;">Direction:</div>
+            <select id="cover-title-gradient-dir" class="font-select" aria-label="Gradient direction" style="flex-grow: 0; min-width: 110px;">
+              <option value="horizontal">Horizontal</option>
+              <option value="vertical" selected>Vertical</option>
+              <option value="diagonal-tl">Diagonal &#8600;</option>
+              <option value="diagonal-tr">Diagonal &#8601;</option>
+            </select>
           </div>
           
           <details class="advanced-settings">
