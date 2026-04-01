@@ -34,8 +34,8 @@
     QR_ERROR_CORRECTION: 'H',
 
     // PDF Export
-    PDF_DPI: 300,
-    PDF_CANVAS_SCALE: 300 / 96, // True 300 DPI (3.125x scale at 96 DPI base)
+    PDF_DPI: 600,
+    PDF_CANVAS_SCALE: 600 / 96, // True 600 DPI (6.25x scale at 96 DPI base)
     PDF_WIDTH_IN: 11,
     PDF_HEIGHT_IN: 8.5,
 

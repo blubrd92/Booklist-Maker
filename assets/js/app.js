@@ -475,13 +475,15 @@ const BooklistApp = (function() {
     }
     
     element.addEventListener('focus', () => {
+      if (_isRestoring) return;
       if (getText().trim() === placeholderText) {
         setText('');
         element.style.color = originalColor;
       }
     });
-    
+
     element.addEventListener('blur', () => {
+      if (_isRestoring) return;
       if (getText().trim() === '') {
         setText(placeholderText);
         element.style.color = placeholderColor;
@@ -847,10 +849,14 @@ const BooklistApp = (function() {
     coverCarousel.className = 'cover-carousel';
     
     const coverElement = document.createElement('img');
-    coverElement.src = BookUtils.getCoverUrl(initialCoverId);
+    coverElement.src = BookUtils.getCoverUrl(initialCoverId, 'L');
     coverElement.alt = `Cover for ${book.title}`;
+    coverElement.onerror = function() {
+      this.onerror = null;
+      this.src = BookUtils.getCoverUrl(initialCoverId, 'M');
+    };
     coverCarousel.appendChild(coverElement);
-    
+
     // Title
     const titleElement = document.createElement('p');
     titleElement.className = 'book-title';
@@ -958,7 +964,11 @@ const BooklistApp = (function() {
 
     const updateCarousel = () => {
       const currentId = state.allCoverIds[state.currentCoverIndex];
-      coverElement.src = BookUtils.getCoverUrl(currentId);
+      coverElement.src = BookUtils.getCoverUrl(currentId, 'L');
+      coverElement.onerror = function() {
+        this.onerror = null;
+        this.src = BookUtils.getCoverUrl(currentId, 'M');
+      };
       coverCounter.textContent = `${state.currentCoverIndex + 1} of ${state.allCoverIds.length}`;
       prevButton.disabled = state.currentCoverIndex === 0;
       nextButton.disabled = state.currentCoverIndex === state.allCoverIds.length - 1;
@@ -1547,9 +1557,15 @@ const BooklistApp = (function() {
       ? bookItem.cover_ids[bookItem.currentCoverIndex]
       : null;
     
-    coverImg.src = selectedCoverId && selectedCoverId !== 'placehold'
-      ? `${CONFIG.OPEN_LIBRARY_COVERS_URL}${selectedCoverId}-M.jpg`
-      : bookItem.customCoverData || CONFIG.PLACEHOLDER_COVER_URL;
+    if (selectedCoverId && selectedCoverId !== 'placehold') {
+      coverImg.src = `${CONFIG.OPEN_LIBRARY_COVERS_URL}${selectedCoverId}-L.jpg`;
+      coverImg.onerror = function() {
+        this.onerror = null;
+        this.src = `${CONFIG.OPEN_LIBRARY_COVERS_URL}${selectedCoverId}-M.jpg`;
+      };
+    } else {
+      coverImg.src = bookItem.customCoverData || CONFIG.PLACEHOLDER_COVER_URL;
+    }
     
     coverImg.alt = `Cover for ${bookItem.title}`;
     
@@ -1756,10 +1772,14 @@ const BooklistApp = (function() {
     const pxPerPt = CONFIG.PDF_DPI / 72;
     const isAdvancedMode = elements.coverAdvancedToggle?.checked || false;
     const bgColor = document.getElementById('cover-title-bg-color')?.value || '#000000';
-    
+    const bgGradient = document.getElementById('cover-title-gradient-toggle')?.checked || false;
+    const bgColor2 = document.getElementById('cover-title-bg-color2')?.value || '#333333';
+
     // Shared layout settings
     const layoutSettings = {
       bgColor,
+      bgGradient,
+      bgColor2,
       outerMarginPx: parseFloat(document.getElementById('cover-title-outer-margin')?.value || '10') * pxPerPt,
       padXPx: parseFloat(document.getElementById('cover-title-pad-x')?.value || '0') * pxPerPt,
       padYPx: parseFloat(document.getElementById('cover-title-pad-y')?.value || '10') * pxPerPt,
@@ -1939,6 +1959,13 @@ const BooklistApp = (function() {
       img.src = src;
     });
   }
+
+  /**
+   * Loads an image, trying the primary URL first and falling back to a secondary URL on failure.
+   */
+  function loadImageWithFallback(primarySrc, fallbackSrc) {
+    return loadImage(primarySrc).catch(() => loadImage(fallbackSrc));
+  }
   
   /**
    * Main collage generation function
@@ -1963,23 +1990,34 @@ const BooklistApp = (function() {
     // Gather books with covers that are marked for inclusion
     const booksWithCovers = BookUtils.getStarredBooksWithCovers(myBooklist);
 
-    // Get URLs from starred book blocks
-    const bookBlockCoverUrls = booksWithCovers.map(book => BookUtils.getBookCoverUrl(book));
-    
+    // Get cover sources from book block DOM elements (already loaded at large size)
+    const bookBlockCovers = booksWithCovers.map(book => {
+      const listItem = document.querySelector('.list-item[data-id="' + book.key + '"]');
+      const img = listItem?.querySelector('.cover-uploader img');
+      if (img && img.naturalWidth > 0) {
+        return { domImg: img };
+      }
+      // Fallback: load from URL if DOM image not available
+      return { large: BookUtils.getBookCoverUrl(book, 'L'), medium: BookUtils.getBookCoverUrl(book, 'M') };
+    });
+
     // Get URLs from extra collage covers (only if extended mode)
-    const extraCoverUrls = extendedMode 
+    const extraCoverUrls = extendedMode
       ? extraCollageCovers
           .filter(ec => ec.coverData && !ec.coverData.includes('placehold.co'))
           .map(ec => ec.coverData)
       : [];
-    
-    // Combine all cover URLs (up to max for current mode)
-    const allCoverUrls = [...bookBlockCoverUrls, ...extraCoverUrls].slice(0, maxCovers);
+
+    // Combine all covers (up to max for current mode)
+    const allCovers = [
+      ...bookBlockCovers,
+      ...extraCoverUrls.map(url => ({ large: url, medium: url }))
+    ].slice(0, maxCovers);
     
     // In extended mode, require exactly 20 covers; otherwise require 12
     const requiredCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
     
-    if (allCoverUrls.length < requiredCovers) {
+    if (allCovers.length < requiredCovers) {
       const starredCount = BookUtils.getStarredBooks(myBooklist).length;
       const totalWithCovers = booksWithCovers.length + extraCoverUrls.length;
       const totalSelected = starredCount + (extendedMode ? extraCollageCovers.length : 0);
@@ -1999,7 +2037,7 @@ const BooklistApp = (function() {
     }
     
     // Use all gathered covers
-    const coversToDraw = allCoverUrls;
+    const coversToDraw = allCovers;
     
     const { canvas, ctx } = createCollageCanvas();
     const styles = getCoverTitleStyles();
@@ -2014,7 +2052,10 @@ const BooklistApp = (function() {
     
     // Wait for fonts, then load images and draw
     waitForFonts().then(() => {
-      return Promise.allSettled(coversToDraw.map(src => loadImage(src)));
+      return Promise.allSettled(coversToDraw.map(c => {
+        if (c.domImg) return Promise.resolve(c.domImg);
+        return loadImageWithFallback(c.large, c.medium);
+      }));
     }).then(results => {
       // Discard stale result if a newer generation was started (e.g. undo/redo cancelled this one)
       if (thisGenId !== _collageGenId) return;
@@ -2158,12 +2199,19 @@ const BooklistApp = (function() {
     const bgY = yPosition;
     const bgW = canvasWidth - 2 * styles.bgSideMarginPx;
     
-    ctx.fillStyle = styles.bgColor;
+    if (styles.bgGradient) {
+      const grad = ctx.createLinearGradient(bgX, bgY, bgX, bgY + bgH);
+      grad.addColorStop(0, styles.bgColor);
+      grad.addColorStop(1, styles.bgColor2);
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = styles.bgColor;
+    }
     ctx.fillRect(bgX, bgY, bgW, bgH);
-    
+
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    
+
     const centerX = bgX + bgW / 2;
     let y = bgY + styles.padYPx;
     
@@ -3154,8 +3202,12 @@ const BooklistApp = (function() {
       slot.title = `${book.title} (from your list)`;
       
       const img = document.createElement('img');
-      img.src = BookUtils.getBookCoverUrl(book);
+      img.src = BookUtils.getBookCoverUrl(book, 'L');
       img.alt = book.title;
+      img.onerror = function() {
+        this.onerror = null;
+        this.src = BookUtils.getBookCoverUrl(book, 'M');
+      };
       slot.appendChild(img);
       
       // Label to indicate it's from the list
@@ -3473,9 +3525,13 @@ const BooklistApp = (function() {
     coverCarousel.className = 'cover-carousel';
     
     const coverImg = document.createElement('img');
-    coverImg.src = BookUtils.getCoverUrl(initialCoverId);
+    coverImg.src = BookUtils.getCoverUrl(initialCoverId, 'L');
     coverImg.alt = `Cover for ${book.title}`;
     coverImg.loading = 'lazy';
+    coverImg.onerror = function() {
+      this.onerror = null;
+      this.src = BookUtils.getCoverUrl(initialCoverId, 'M');
+    };
     coverCarousel.appendChild(coverImg);
     
     // Title
@@ -3768,7 +3824,8 @@ const BooklistApp = (function() {
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'in',
-        format: 'letter'
+        format: 'letter',
+        compress: true
       });
 
       // PDF metadata
@@ -3782,17 +3839,15 @@ const BooklistApp = (function() {
       const options = {
         scale,
         useCORS: true,
-        backgroundColor: null,
-        windowWidth: Math.round(CONFIG.PDF_WIDTH_IN * CONFIG.PDF_DPI),
-        windowHeight: Math.round(CONFIG.PDF_HEIGHT_IN * CONFIG.PDF_DPI)
+        backgroundColor: '#FFFFFF'
       };
 
       const canvas1 = await html2canvas(document.getElementById('print-page-1'), options);
-      pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
+      pdf.addImage(canvas1.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
       pdf.addPage();
 
       const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
-      pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN, undefined, 'SLOW');
+      pdf.addImage(canvas2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
       
       pdf.save(suggestedName);
       showNotification('PDF download started.', 'success');
@@ -3852,6 +3907,8 @@ const BooklistApp = (function() {
       padYPt: parseFloat(document.getElementById('cover-title-pad-y')?.value ?? '10'),
       sideMarginPt: parseFloat(document.getElementById('cover-title-side-margin')?.value ?? '0'),
       bgColor: document.getElementById('cover-title-bg-color')?.value ?? '#000000',
+      bgGradient: document.getElementById('cover-title-gradient-toggle')?.checked ?? false,
+      bgColor2: document.getElementById('cover-title-bg-color2')?.value ?? '#333333',
       // Simple mode styling
       simple: {
         font: elements.coverFontSelect?.value ?? "'Oswald', sans-serif",
@@ -3997,7 +4054,12 @@ const BooklistApp = (function() {
     setNum('cover-title-pad-y', ct.padYPt);
     setNum('cover-title-side-margin', ct.sideMarginPt);
     setStr('cover-title-bg-color', ct.bgColor);
-    
+    const gradToggle = document.getElementById('cover-title-gradient-toggle');
+    if (gradToggle) gradToggle.checked = !!ct.bgGradient;
+    setStr('cover-title-bg-color2', ct.bgColor2 || '#333333');
+    const bgColor2El = document.getElementById('cover-title-bg-color2');
+    if (bgColor2El) bgColor2El.style.display = ct.bgGradient ? '' : 'none';
+
     // Simple mode styling
     const simple = ct.simple || {};
     if (elements.coverFontSelect) elements.coverFontSelect.value = simple.font ?? elements.coverFontSelect.value;
@@ -4633,7 +4695,29 @@ const BooklistApp = (function() {
       });
       bgColorPicker.addEventListener('change', autoRegenerateCoverIfAble);
     }
-    
+
+    // Gradient toggle checkbox
+    const gradToggle = document.getElementById('cover-title-gradient-toggle');
+    if (gradToggle) {
+      gradToggle.addEventListener('change', () => {
+        const bgColor2El = document.getElementById('cover-title-bg-color2');
+        if (bgColor2El) bgColor2El.style.display = gradToggle.checked ? '' : 'none';
+        pushUndo('change-cover-style');
+        debouncedSave();
+        autoRegenerateCoverIfAble();
+      });
+    }
+
+    // Gradient end color picker
+    const bgColor2Picker = document.getElementById('cover-title-bg-color2');
+    if (bgColor2Picker) {
+      bgColor2Picker.addEventListener('input', () => {
+        pushUndo('change-cover-style');
+        debouncedSave();
+      });
+      bgColor2Picker.addEventListener('change', autoRegenerateCoverIfAble);
+    }
+
     // Cover mode toggle
     if (elements.coverAdvancedToggle) {
       elements.coverAdvancedToggle.addEventListener('change', (e) => {
@@ -4776,7 +4860,7 @@ const BooklistApp = (function() {
     });
     
     // Spacing inputs and background color for cover auto-regen
-    const coverLayoutInputIds = ['cover-title-outer-margin', 'cover-title-pad-x', 'cover-title-pad-y', 'cover-title-side-margin', 'cover-title-bg-color'];
+    const coverLayoutInputIds = ['cover-title-outer-margin', 'cover-title-pad-x', 'cover-title-pad-y', 'cover-title-side-margin', 'cover-title-bg-color', 'cover-title-bg-color2'];
     coverLayoutInputIds.forEach(id => {
       const el = document.getElementById(id);
       if (el) {
@@ -4930,6 +5014,8 @@ const BooklistApp = (function() {
     // Safety net: sanitize any formatting that sneaks through on input
     elements.qrCodeTextArea.addEventListener('input', () => {
       sanitizeContentEditable(elements.qrCodeTextArea);
+      pushUndo('edit-qr-text');
+      debouncedSave();
     });
     
     // Save on blur
@@ -5442,8 +5528,6 @@ const BooklistApp = (function() {
       const tag = document.activeElement?.tagName;
       // Skip when focus is in INPUT, TEXTAREA, or SELECT
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      // Also skip contenteditable — let browser handle its own undo
-      if (document.activeElement?.isContentEditable) return;
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
