@@ -703,31 +703,14 @@
         window.folio.setState(step.state || 'idle');
       }
 
-      // Panel content (update immediately, position after scroll)
-      const sectionLabel = panel.querySelector('.tour-panel-section');
-      const message = panel.querySelector('.tour-panel-message');
-      const counter = panel.querySelector('.tour-step-counter');
-      const prevBtn = panel.querySelector('.tour-prev-btn');
-      const nextBtn = panel.querySelector('.tour-next-btn');
-
-      sectionLabel.textContent = section.title;
-      message.textContent = step.text;
-
-      const gIdx = globalStepIndex();
-      const total = totalSteps();
-      counter.textContent = (gIdx + 1) + ' / ' + total;
-
-      prevBtn.disabled = (gIdx === 0);
-      nextBtn.textContent = (gIdx === total - 1) ? 'Finish' : 'Next';
+      // Hide spotlight/panel first so text doesn't change visibly mid-fade
+      spotlight.classList.remove('visible');
+      panel.classList.remove('visible');
 
       // Scroll target into view only if step didn't handle its own scrolling via prepare
       if (target && !step.prepare) {
         target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
-
-      // Hide spotlight/panel during transition to avoid stale positions
-      spotlight.classList.remove('visible');
-      panel.classList.remove('visible');
 
       // Toggle interaction blocker
       if (step.interactive) {
@@ -744,8 +727,25 @@
         isHoverable = false;
       }
 
-      // Wait for scroll to settle before positioning (needs time for sequenced scrolls)
+      // Wait for fade-out + scroll to settle, then update text and show
       setTimeout(function() {
+        // Update panel content now that it's fully hidden
+        const sectionLabel = panel.querySelector('.tour-panel-section');
+        const message = panel.querySelector('.tour-panel-message');
+        const counter = panel.querySelector('.tour-step-counter');
+        const prevBtn = panel.querySelector('.tour-prev-btn');
+        const nextBtn = panel.querySelector('.tour-next-btn');
+
+        sectionLabel.textContent = section.title;
+        message.textContent = step.text;
+
+        const gIdx = globalStepIndex();
+        const total = totalSteps();
+        counter.textContent = (gIdx + 1) + ' / ' + total;
+
+        prevBtn.disabled = (gIdx === 0);
+        nextBtn.textContent = (gIdx === total - 1) ? 'Finish' : 'Next';
+
         positionSpotlight(target, step.padding);
         positionPanel(target);
         spotlight.classList.add('visible');
