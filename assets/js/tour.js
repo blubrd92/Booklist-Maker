@@ -199,7 +199,7 @@
         },
         {
           target: '#generate-cover-button',
-          text: "This button generates the collage. You need at least 12 starred books with covers. Let me set a title, pick a layout, and generate one now.",
+          text: "This button generates the collage. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
           state: 'excited',
           prepare: function() {
             openSidebarTab('tab-settings');
@@ -225,9 +225,6 @@
             }
             const stretchToggle = document.getElementById('stretch-covers-toggle');
             if (stretchToggle) stretchToggle.checked = true;
-
-            // Generate the collage
-            BooklistApp.generateCoverCollage();
           },
         },
         {
@@ -236,6 +233,7 @@
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-1');
+            BooklistApp.generateCoverCollage();
           },
         },
         {
