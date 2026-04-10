@@ -80,6 +80,26 @@ const BooklistApp = (function() {
     }).catch(() => {});
   }
 
+  /** Store a value in IDB and wait for the transaction to complete */
+  function _putImageIDB(key, value) {
+    return _openImageDB().then(db => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('images', 'readwrite');
+        tx.objectStore('images').put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    });
+  }
+
+  /** Delete a key from IDB (fire-and-forget) */
+  function _deleteImageIDB(key) {
+    _openImageDB().then(db => {
+      const tx = db.transaction('images', 'readwrite');
+      tx.objectStore('images').delete(key);
+    }).catch(() => {});
+  }
+
   /** Get or create a reference ID for a data URL, storing it in cache + IDB */
   function _getImageRef(dataUrl) {
     if (!dataUrl || typeof dataUrl !== 'string') return dataUrl;
@@ -4347,59 +4367,61 @@ const BooklistApp = (function() {
     if (!silent) showNotification('Booklist loaded.', 'success');
   }
   
-  // Local draft storage
+  // Local draft storage (IndexedDB — no localStorage size limits)
+  let _draftSaveGenId = 0; // Generation counter to handle concurrent saves
+
   function saveDraftLocal() {
+    const thisGenId = ++_draftSaveGenId;
     const s = serializeState();
-    // Front cover is too large for localStorage — store it in IndexedDB instead
-    const frontCoverData = s.images?.frontCover || null;
-    if (s.images) s.images.frontCover = null;
-
-    try {
-      localStorage.setItem('booklist-draft', JSON.stringify(s));
-      isDirtyLocal = false; // localStorage now has current state
-
-      // Only update IndexedDB front cover after localStorage succeeds
-      _openImageDB().then(db => {
-        const tx = db.transaction('images', 'readwrite');
-        const store = tx.objectStore('images');
-        if (frontCoverData) {
-          store.put(frontCoverData, 'draft-front-cover');
-        } else {
-          store.delete('draft-front-cover');
-        }
-      }).catch(() => { /* IndexedDB unavailable — front cover won't persist */ });
-    } catch {
-      // localStorage quota exceeded — notify the user
-      showNotification('Draft too large to auto-save. Use Save to download a .booklist file.', 'error');
-    }
+    _putImageIDB('draft', JSON.stringify(s)).then(() => {
+      // Only update flags if this is still the latest save
+      if (thisGenId === _draftSaveGenId) {
+        isDirtyLocal = false;
+      }
+      try { localStorage.setItem('has-draft', 'true'); } catch {}
+    }).catch(() => {
+      showNotification('Failed to save draft. Use Save to download a .booklist file.', 'error');
+    });
   }
 
   async function restoreDraftLocalIfPresent() {
     try {
-      const raw = localStorage.getItem('booklist-draft');
+      // Check for legacy localStorage draft and migrate to IndexedDB
+      try {
+        const legacyRaw = localStorage.getItem('booklist-draft');
+        if (legacyRaw) {
+          const parsed = JSON.parse(legacyRaw);
+          // Restore front cover from old IDB key
+          try {
+            const frontCover = await _getImageIDB('draft-front-cover');
+            if (frontCover && parsed.images) parsed.images.frontCover = frontCover;
+          } catch {}
+          // Migrate to new IDB key
+          await _putImageIDB('draft', JSON.stringify(parsed));
+          // Clean up old storage
+          localStorage.removeItem('booklist-draft');
+          _deleteImageIDB('draft-front-cover');
+          try { localStorage.setItem('has-draft', 'true'); } catch {}
+          applyState(parsed);
+          showNotification('Draft restored from this browser.', 'success');
+          return;
+        }
+      } catch { /* legacy migration failed — try new IDB path */ }
+
+      // Read from IndexedDB
+      const raw = await _getImageIDB('draft');
       if (!raw) return;
       const parsed = JSON.parse(raw);
-
-      // Restore front cover from IndexedDB if available
-      try {
-        const frontCover = await _getImageIDB('draft-front-cover');
-        if (frontCover && parsed.images) {
-          parsed.images.frontCover = frontCover;
-        }
-      } catch { /* IndexedDB unavailable — proceed without front cover */ }
-
       applyState(parsed);
       showNotification('Draft restored from this browser.', 'success');
-    } catch { /* ignore */ }
+    } catch { /* ignore corrupt data */ }
   }
 
   function resetToBlank() {
-    try { localStorage.removeItem('booklist-draft'); } catch {}
-    // Clear front cover from IndexedDB
-    _openImageDB().then(db => {
-      const tx = db.transaction('images', 'readwrite');
-      tx.objectStore('images').delete('draft-front-cover');
-    }).catch(() => {});
+    try { localStorage.removeItem('has-draft'); } catch {}
+    // Clear draft and legacy keys from IndexedDB
+    _deleteImageIDB('draft');
+    _deleteImageIDB('draft-front-cover');
     isDirtyLocal = false; // Prevent beforeunload after user already confirmed reset
     location.reload();
   }
@@ -5611,14 +5633,15 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   // Tour Mode: save/restore full app state so the tour starts from blank
   // ---------------------------------------------------------------------------
-  const TOUR_BACKUP_KEY = 'booklist-tour-backup';
+  const TOUR_BACKUP_IDB_KEY = 'tour-backup';
 
   /**
-   * Enter tour mode: snapshot current state + undo history to localStorage,
+   * Enter tour mode: snapshot current state + undo history to IndexedDB,
    * then reset the app to a blank slate.  Suppresses undo/autosave while active.
+   * Returns a Promise<boolean> — false if backup failed (tour should not start).
    */
-  function enterTourMode() {
-    if (_tourActive) return;
+  async function enterTourMode() {
+    if (_tourActive) return false;
 
     // 1. Capture current state (full serialization, images inline)
     const snapshot = serializeState();
@@ -5632,12 +5655,12 @@ const BooklistApp = (function() {
       lastUndoTime: _lastUndoTime,
     };
 
-    // 3. Persist to localStorage so an accidental refresh can recover
+    // 3. Persist to IndexedDB so an accidental refresh can recover
     try {
-      localStorage.setItem(TOUR_BACKUP_KEY, JSON.stringify(backup));
+      await _putImageIDB(TOUR_BACKUP_IDB_KEY, JSON.stringify(backup));
     } catch {
       showNotification('Could not back up your current work. Save as a .booklist file before starting the tour.', 'error');
-      return; // Don't proceed with tour if backup failed
+      return false;
     }
 
     // 4. Activate tour guard (suppresses pushUndo + autosave)
@@ -5693,13 +5716,14 @@ const BooklistApp = (function() {
     updateUndoRedoButtons();
 
     _isRestoring = false;
+    return true;
   }
 
   /**
    * Exit tour mode: restore the user's original state + undo history from the
-   * localStorage backup.
+   * IndexedDB backup.
    */
-  function exitTourMode() {
+  async function exitTourMode() {
     if (!_tourActive) return;
 
     // Invalidate any in-flight collage generation and cancel debounced ops
@@ -5711,7 +5735,7 @@ const BooklistApp = (function() {
     _isRestoring = true;
 
     try {
-      const raw = localStorage.getItem(TOUR_BACKUP_KEY);
+      const raw = await _getImageIDB(TOUR_BACKUP_IDB_KEY);
       if (raw) {
         const backup = JSON.parse(raw);
 
@@ -5729,45 +5753,38 @@ const BooklistApp = (function() {
     } catch { /* corrupted backup — user keeps blank state */ }
 
     // Clean up
-    try { localStorage.removeItem(TOUR_BACKUP_KEY); } catch {}
+    _deleteImageIDB(TOUR_BACKUP_IDB_KEY);
     _tourActive = false;
     _isRestoring = false;
 
-    // Re-sync localStorage draft with restored state
+    // Re-sync draft with restored state
     saveDraftLocal();
     updateUndoRedoButtons();
     updateSaveIndicator();
   }
 
   /**
-   * Check if a tour backup exists (called on startup for crash recovery).
-   * If found, restore the pre-tour draft to localStorage so the normal
-   * restore path picks it up, then remove the tour backup.
+   * Check if a tour backup exists in IndexedDB (called on startup for crash
+   * recovery). If found, move the pre-tour state into the draft slot so
+   * the normal restore path picks it up, then remove the tour backup.
    */
-  function recoverTourBackupIfPresent() {
+  async function recoverTourBackupIfPresent() {
+    // Clean up legacy localStorage tour backup if present (from pre-IDB versions)
+    try { localStorage.removeItem('booklist-tour-backup'); } catch {}
+
     try {
-      const raw = localStorage.getItem(TOUR_BACKUP_KEY);
+      const raw = await _getImageIDB(TOUR_BACKUP_IDB_KEY);
       if (!raw) return false;
       const backup = JSON.parse(raw);
-      // Overwrite the draft with the pre-tour state so restoreDraftLocalIfPresent
-      // restores the user's real work, not the blank tour state.
       if (backup.state) {
-        // Separate front cover for localStorage (same pattern as serializeDraftForLocal)
-        const frontCoverData = backup.state.images?.frontCover || null;
-        if (backup.state.images) backup.state.images.frontCover = null;
-        localStorage.setItem('booklist-draft', JSON.stringify(backup.state));
-        // Persist front cover to IndexedDB
-        if (frontCoverData) {
-          _openImageDB().then(db => {
-            const tx = db.transaction('images', 'readwrite');
-            tx.objectStore('images').put(frontCoverData, 'draft-front-cover');
-          }).catch(() => {});
-        }
+        // Write the pre-tour state directly into the draft IDB slot
+        await _putImageIDB('draft', JSON.stringify(backup.state));
+        try { localStorage.setItem('has-draft', 'true'); } catch {}
       }
-      localStorage.removeItem(TOUR_BACKUP_KEY);
+      _deleteImageIDB(TOUR_BACKUP_IDB_KEY);
       return true;
     } catch {
-      try { localStorage.removeItem(TOUR_BACKUP_KEY); } catch {}
+      _deleteImageIDB(TOUR_BACKUP_IDB_KEY);
       return false;
     }
   }
@@ -5869,18 +5886,15 @@ const BooklistApp = (function() {
     // Set initial tilted settings visibility
     updateTiltedSettingsVisibility();
     
-    // If the page was refreshed mid-tour, recover the pre-tour state into the
-    // draft slot so the normal restore path picks it up seamlessly.
-    recoverTourBackupIfPresent();
+    // Recover tour backup (if page was refreshed mid-tour), then restore draft.
+    // Both are async (IndexedDB), chained to ensure correct ordering.
+    recoverTourBackupIfPresent().then(() => restoreDraftLocalIfPresent());
 
-    // Try restoring draft
-    restoreDraftLocalIfPresent();
-    
-    // Folio: greet based on whether a draft was restored (guard suppresses cascading hooks)
+    // Folio: greet based on whether a draft exists (has-draft flag is sync)
     if (window.folio) {
       window.folio.guard(3500);
       let hasDraft = false;
-      try { hasDraft = localStorage.getItem('booklist-draft'); } catch { /* private browsing */ }
+      try { hasDraft = !!localStorage.getItem('has-draft'); } catch { /* private browsing */ }
       if (hasDraft) {
         window.folio.setState('greeting', 'draft-restored');
       } else {

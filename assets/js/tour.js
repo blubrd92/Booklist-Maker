@@ -727,12 +727,17 @@
     beginTour();
   }
 
-  function beginTour() {
+  async function beginTour() {
     // Mark body as tour-active (elevates Folio, suppresses speech bubble)
     document.body.classList.add('tour-active');
 
     // Save the user's full state and reset to blank (undo/autosave suppressed)
-    BooklistApp.enterTourMode();
+    const success = await BooklistApp.enterTourMode();
+    if (!success) {
+      document.body.classList.remove('tour-active');
+      currentSectionId = null;
+      return;
+    }
 
     // Reset zoom to 100% so spotlight positioning is accurate
     if (BooklistApp.resetZoom) {
@@ -887,7 +892,7 @@
     }
   }
 
-  function exitTour() {
+  async function exitTour() {
     currentSectionId = null;
     currentStepIndex = 0;
     isFullTour = false;
@@ -902,7 +907,7 @@
     panel.classList.remove('visible');
 
     // Restore the user's full pre-tour state (books, settings, undo history)
-    BooklistApp.exitTourMode();
+    await BooklistApp.exitTourMode();
 
     // Clean up demo search artifacts
     const input = document.getElementById('keywordInput');
