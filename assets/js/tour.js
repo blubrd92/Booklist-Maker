@@ -40,7 +40,7 @@
       steps: [
         {
           target: '#folio-scene',
-          text: "Welcome to Booklist Maker! I'm Folio. This tool creates printable two-page booklists for library displays. Let me show you around. If you have a design loaded, don't worry, it will be saved and restored when the tour ends.",
+          text: "Welcome to Booklist Maker! I'm Folio. This tool creates printable two-page booklists for library displays. Let me show you around. If you have a booklist loaded, don't worry, it will be saved and restored when the tour ends.",
           state: 'greeting',
           padding: 4,
         },
