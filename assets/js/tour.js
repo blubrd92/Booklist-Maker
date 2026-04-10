@@ -114,17 +114,13 @@
         },
         {
           target: '#results-container',
-          text: "Click 'Add to List' to drop a book into the next open slot. It'll appear in your preview right away. Let me add one for you.",
+          text: "Click 'Add to List' to drop a book into the next open slot. It'll appear in your preview right away.",
           state: 'excited',
           interactive: true,
           prepare: function() {
             openSidebarTab('tab-search');
             const results = document.getElementById('results-container');
             if (results) results.scrollTop = 0;
-            setTimeout(function() {
-              const addBtn = document.querySelector('#results-container .add-to-list-button:not(.added)');
-              if (addBtn) addBtn.click();
-            }, 600);
           },
         },
       ]
@@ -195,20 +191,43 @@
       steps: [
         {
           target: '#front-cover-uploader',
-          text: "This is your front cover. You can upload a custom image here, or auto-generate a collage from your starred books. Let me generate one now.",
+          text: "This is your front cover. You can upload a custom image here, or auto-generate a collage from your starred books.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-1');
-            BooklistApp.generateCoverCollage();
           },
         },
         {
           target: '#generate-cover-button',
-          text: "This is the button that generates the collage. You'll need at least 12 starred books with cover images loaded. You can regenerate anytime after making changes.",
+          text: "This button generates the collage. You need at least 12 starred books with covers. Let me set a title, pick a layout, and generate one now.",
           state: 'excited',
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Cover Header');
+
+            // Switch to advanced cover mode and set title lines
+            const advToggle = document.getElementById('cover-advanced-toggle');
+            if (advToggle && !advToggle.checked) {
+              advToggle.checked = true;
+              advToggle.dispatchEvent(new Event('change'));
+            }
+            const line1 = document.getElementById('cover-line-1');
+            const line2 = document.getElementById('cover-line-2');
+            if (line1) line1.value = 'The Disc & Beyond';
+            if (line2) line2.value = 'A Terry Pratchett Reader';
+
+            // Set layout to tilted and enable stretch covers
+            const selector = document.getElementById('collage-layout-selector');
+            if (selector) {
+              selector.querySelectorAll('.layout-option').forEach(function(opt) {
+                opt.classList.toggle('selected', opt.dataset.layout === 'tilted');
+              });
+            }
+            const stretchToggle = document.getElementById('stretch-covers-toggle');
+            if (stretchToggle) stretchToggle.checked = true;
+
+            // Generate the collage
+            BooklistApp.generateCoverCollage();
           },
         },
         {
@@ -250,7 +269,7 @@
       steps: [
         {
           target: '#tab-settings',
-          text: "The Settings tab is where you dial in the look. Fonts, colors, text sizes, spacing... it's all here. The sample list has some custom styling applied.",
+          text: "The Settings tab is where you dial in the look. Fonts, colors, text sizes, spacing... it's all here.",
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');
@@ -267,6 +286,9 @@
           prepare: function() {
             const mainContent = document.querySelector('.main-content');
             if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+            // Set the sample list name
+            const nameInput = document.getElementById('list-name-input');
+            if (nameInput) nameInput.value = 'The Disc and Beyond';
           },
         },
         {
@@ -281,12 +303,19 @@
         },
         {
           target: '#qr-code-area',
-          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. Paste a URL and click Generate. The sample list links to Terry Pratchett's Wikipedia page.",
+          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. Let me add one linking to Terry Pratchett's Wikipedia page.",
           state: 'idle',
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
             scrollPreviewTo('print-page-1');
+            // Set QR URL and generate
+            const qrInput = document.getElementById('qr-url-input');
+            if (qrInput) qrInput.value = 'https://en.wikipedia.org/wiki/Terry_Pratchett';
+            setTimeout(function() {
+              const qrBtn = document.getElementById('generate-qr-button');
+              if (qrBtn) qrBtn.click();
+            }, 300);
             const qr = document.getElementById('qr-code-area');
             if (qr) {
               qr.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -298,8 +327,13 @@
           text: "This text area is your back cover blurb, next to the QR code. Write a short description, reading prompt, or instructions for patrons.",
           state: 'idle',
           prepare: function() {
+            // Set the sample QR text
             const qrText = document.getElementById('qr-code-text');
-            if (qrText) qrText.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (qrText) {
+              qrText.innerText = "Come explore a fantasy world carried through space on the back of a giant turtle, where Pratchett does the oldest trick in literature: making you laugh until you notice he's broken your heart. Scan the code to learn more about him, then come find his books on the shelf.";
+              qrText.style.color = '';
+              qrText.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
           },
         },
       ]
@@ -370,31 +404,15 @@
     ],
     extraCollageCovers: [],
     ui: {
-      stretchCovers: true, stretchBlockCovers: false,
+      stretchCovers: false, stretchBlockCovers: false,
       showQr: true, showBranding: true,
-      coverAdvancedMode: true, coverTitle: '',
-      coverLineTexts: ['The Disc & Beyond', 'A Terry Pratchett Reader', ''],
-      collageLayout: 'tilted', showShelves: false,
+      coverAdvancedMode: false, coverTitle: '',
+      coverLineTexts: ['', '', ''],
+      collageLayout: 'classic', showShelves: false,
       titleBarPosition: 'classic', tiltDegree: -25, tiltOffsetDirection: 'vertical',
       extendedCollageMode: false,
-      qrCodeUrl: 'https://en.wikipedia.org/wiki/Terry_Pratchett',
-      qrCodeText: "Come explore a fantasy world carried through space on the back of a giant turtle, where Pratchett does the oldest trick in literature: making you laugh until you notice he's broken your heart. Scan the code to learn more about him, then come find his books on the shelf.",
-    },
-    styles: {
-      title: { font: "'Georgia', serif", sizePt: 14, color: '#000000', bold: false, italic: false, lineSpacing: null },
-      author: { font: "'Calibri', sans-serif", sizePt: 12, color: '#000000', bold: true, italic: false, lineSpacing: null },
-      desc: { font: "'Calibri', sans-serif", sizePt: 11, color: '#000000', bold: false, italic: false, lineSpacing: null },
-      qr: { font: "'Calibri', sans-serif", sizePt: 12, color: '#000000', bold: true, italic: false, lineSpacing: 1.3 },
-      coverTitle: {
-        outerMarginPt: 10, padXPt: 0, padYPt: 10, sideMarginPt: 0,
-        bgColor: '#6b46c1', bgGradient: true, bgColor2: '#63b3ed',
-        simple: { font: "'Oswald', sans-serif", sizePt: 40, color: '#ffffff', bold: true, italic: false },
-        lines: [
-          { font: "'Oswald', sans-serif", sizePt: 35, color: '#ffffff', bold: true, italic: false, spacingPt: 0 },
-          { font: "'Oswald', sans-serif", sizePt: 25, color: '#ffffff', bold: false, italic: false, spacingPt: 5 },
-          { font: "'Oswald', sans-serif", sizePt: 20, color: '#ffffff', bold: false, italic: false, spacingPt: 5 },
-        ],
-      },
+      qrCodeUrl: '',
+      qrCodeText: '',
     },
     images: { frontCover: null, frontCoverIsAutoGenerated: false, branding: null },
   };
