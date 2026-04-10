@@ -232,12 +232,43 @@
         },
         {
           target: '#collage-layout-selector',
-          text: "Pick a layout for your collage. Hover over each option to get a description of how it arranges the book covers.",
+          text: "Pick a layout for your collage. There are several to choose from. Hover over each option to see a description.",
           state: 'evaluating',
           hoverable: true,
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Cover Layout');
+          },
+        },
+        {
+          target: '#front-cover-uploader',
+          text: "Watch how the cover changes with each layout. I'll cycle through them so you can see the difference.",
+          state: 'excited',
+          prepare: function() {
+            scrollPreviewTo('print-page-1');
+            const layouts = ['classic', 'staggered', 'masonry', 'tilted'];
+            let layoutIndex = 0;
+
+            function selectLayout(name) {
+              const selector = document.getElementById('collage-layout-selector');
+              if (selector) {
+                selector.querySelectorAll('.layout-option').forEach(function(opt) {
+                  opt.classList.toggle('selected', opt.dataset.layout === name);
+                });
+              }
+            }
+
+            function cycleNext() {
+              selectLayout(layouts[layoutIndex]);
+              BooklistApp.generateCoverCollage();
+              layoutIndex++;
+              if (layoutIndex < layouts.length) {
+                _layoutCycleTimer = setTimeout(cycleNext, 2500);
+              }
+            }
+
+            // Start cycling after a short delay for the spotlight to settle
+            _layoutCycleTimer = setTimeout(cycleNext, 800);
           },
         },
         {
@@ -427,6 +458,7 @@
   let fullTourSectionIndex = 0;
   let preTourFolioHidden = false;
   let isHoverable = false;
+  let _layoutCycleTimer = null; // Timer for layout cycling demo; cleared on step change
 
   // DOM refs (created once)
   let modalOverlay = null;
@@ -748,6 +780,9 @@
   }
 
   function showCurrentStep() {
+    // Cancel any running layout cycle from the previous step
+    if (_layoutCycleTimer) { clearTimeout(_layoutCycleTimer); _layoutCycleTimer = null; }
+
     const section = SECTIONS[currentSectionId];
     const step = section.steps[currentStepIndex];
 
