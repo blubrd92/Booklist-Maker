@@ -52,7 +52,7 @@
         },
         {
           target: '.sidebar',
-          text: "The sidebar is your workspace. The Search tab finds books, the Settings tab customizes everything. All your controls live here.",
+          text: "The sidebar is your workspace. The Search tab finds books, the Settings tab customizes everything.",
           state: 'evaluating',
           prepare: function() {
             const sidebar = document.querySelector('.sidebar');
@@ -64,7 +64,7 @@
         },
         {
           target: '.header-actions',
-          text: "These are your main controls. Load a saved list, Save your work, Reset to start fresh, and Generate PDF when everything looks right.",
+          text: "Up here you can Load a saved list, Save your work, Reset to start fresh, and Generate PDF when everything looks right.",
           state: 'idle',
           padding: 6,
         },
