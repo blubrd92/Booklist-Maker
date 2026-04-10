@@ -263,12 +263,12 @@
               BooklistApp.generateCoverCollage();
               layoutIndex++;
               if (layoutIndex < layouts.length) {
-                _layoutCycleTimer = setTimeout(cycleNext, 2500);
+                _layoutCycleTimer = setTimeout(cycleNext, 4500);
               }
             }
 
-            // Start cycling after a short delay for the spotlight to settle
-            _layoutCycleTimer = setTimeout(cycleNext, 800);
+            // Start cycling after the spotlight settles
+            _layoutCycleTimer = setTimeout(cycleNext, 1500);
           },
         },
         {
