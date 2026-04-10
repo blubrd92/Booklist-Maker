@@ -216,11 +216,11 @@
             if (line1) line1.value = 'The Disc & Beyond';
             if (line2) line2.value = 'A Terry Pratchett Reader';
 
-            // Set layout to tilted and enable stretch covers
+            // Set layout to classic and enable stretch covers
             const selector = document.getElementById('collage-layout-selector');
             if (selector) {
               selector.querySelectorAll('.layout-option').forEach(function(opt) {
-                opt.classList.toggle('selected', opt.dataset.layout === 'tilted');
+                opt.classList.toggle('selected', opt.dataset.layout === 'classic');
               });
             }
             const stretchToggle = document.getElementById('stretch-covers-toggle');
@@ -236,14 +236,6 @@
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-1');
-            // Set layout to classic and regenerate
-            const selector = document.getElementById('collage-layout-selector');
-            if (selector) {
-              selector.querySelectorAll('.layout-option').forEach(function(opt) {
-                opt.classList.toggle('selected', opt.dataset.layout === 'classic');
-              });
-            }
-            BooklistApp.generateCoverCollage();
           },
         },
         {
