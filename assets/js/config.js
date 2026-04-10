@@ -30,7 +30,7 @@
     COLLAGE_BOTTOM_ROWS: 3,
 
     // QR Code
-    QR_SIZE_PX: 144,
+    QR_SIZE_PX: 900,
     QR_ERROR_CORRECTION: 'H',
 
     // PDF Export
