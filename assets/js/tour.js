@@ -78,7 +78,7 @@
       steps: [
         {
           target: '#search-form',
-          text: "Start here. Type a keyword, title, or author into the search field and hit the Search button. Let me run a quick demo search for you.",
+          text: "Start here. Type a keyword, title, or author into the search field and hit the Search button. Let me run a demo search for Discworld, a fantasy series by Terry Pratchett.",
           state: 'searching',
           prepare: function() {
             openSidebarTab('tab-search');
