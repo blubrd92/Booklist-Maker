@@ -4112,7 +4112,7 @@ const BooklistApp = (function() {
     
     // Advanced mode per-line styling with individual spacing
     const savedLines = ct.lines || [];
-    const defaultSizes = [48, 28, 20];
+    const defaultSizes = [35, 25, 20];
     elements.coverLines.forEach((line, i) => {
       const saved = savedLines[i] || {};
       if (line.font) line.font.value = saved.font ?? "'Oswald', sans-serif";
