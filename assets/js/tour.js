@@ -272,12 +272,22 @@
         },
         {
           target: '#branding-uploader',
-          text: "Add your library's logo or branding here. It appears on the back cover, giving the list a polished, official look.",
+          text: "Add your library's logo or branding here. It appears on the back cover, giving the list a polished, official look. I'll add the default one for now.",
           state: 'idle',
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
             scrollPreviewTo('print-page-1');
+            // Apply the default branding image
+            const uploader = document.getElementById('branding-uploader');
+            if (uploader) {
+              const img = uploader.querySelector('img');
+              if (img) {
+                img.src = 'assets/img/branding-default.png';
+                img.dataset.isPlaceholder = 'false';
+              }
+              uploader.classList.add('has-image');
+            }
           },
         },
       ]
