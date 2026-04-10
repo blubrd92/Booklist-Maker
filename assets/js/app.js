@@ -5922,6 +5922,8 @@ const BooklistApp = (function() {
     resetZoom, // For tour: reset zoom before spotlight positioning
     enterTourMode, // For tour: save state + blank the app
     exitTourMode,  // For tour: restore pre-tour state
+    applyState,    // For tour: load sample booklist during tour
+    generateCoverCollage, // For tour: generate collage during tour
     get isDirtyLocal() { return isDirtyLocal; },   // For debugging
     get hasUnsavedFile() { return hasUnsavedFile; }, // For debugging
   };
