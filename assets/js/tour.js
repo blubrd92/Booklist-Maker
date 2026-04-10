@@ -199,7 +199,7 @@
         },
         {
           target: '#generate-cover-button',
-          text: "This button generates the collage. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
+          text: "This button generates the collage. You need at least 12 starred books with covers. Let me set a title and pick a layout first. For this example, we're using a gradient for a nice title background.",
           state: 'excited',
           prepare: function() {
             openSidebarTab('tab-settings');
@@ -215,6 +215,14 @@
             const line2 = document.getElementById('cover-line-2');
             if (line1) line1.value = 'Mind How You Go';
             if (line2) line2.value = 'Reading Terry Pratchett';
+
+            // Set title bar gradient background
+            const bgColor = document.getElementById('cover-title-bg-color');
+            const gradToggle = document.getElementById('cover-title-gradient-toggle');
+            const bgColor2 = document.getElementById('cover-title-bg-color2');
+            if (bgColor) bgColor.value = '#6b46c1';
+            if (gradToggle) gradToggle.checked = true;
+            if (bgColor2) { bgColor2.value = '#63b3ed'; bgColor2.style.display = ''; }
 
             // Set layout to classic and enable stretch covers
             const selector = document.getElementById('collage-layout-selector');
