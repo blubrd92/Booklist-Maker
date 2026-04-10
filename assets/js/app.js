@@ -31,6 +31,7 @@ const BooklistApp = (function() {
   let _lastUndoGroup = null;
   let _lastUndoTime = 0;
   let _isRestoring = false;  // Guard flag to prevent side effects during undo/redo restore
+  let _tourActive = false;   // Guard flag: suppresses pushUndo and autosave during guided tour
   let _collageGenId = 0;     // Generation counter to discard stale async collage results
 
   // ---------------------------------------------------------------------------
@@ -193,7 +194,7 @@ const BooklistApp = (function() {
   const debouncedSave = (() => {
     let t;
     function trigger() {
-      if (_isRestoring) return; // Don't autosave during undo/redo restore
+      if (_isRestoring || _tourActive) return; // Don't autosave during undo/redo restore or tour
       isDirtyLocal = true;    // Edits not yet in localStorage
       hasUnsavedFile = true;  // Edits not yet in a .booklist file
       updateSaveIndicator();
@@ -5425,7 +5426,7 @@ const BooklistApp = (function() {
    * @param {string} group - A label for coalescing (e.g. 'edit-text', 'add-book')
    */
   function pushUndo(group) {
-    if (_isRestoring) return;
+    if (_isRestoring || _tourActive) return;
 
     const now = Date.now();
     const state = serializeState();
@@ -5543,6 +5544,161 @@ const BooklistApp = (function() {
   }
 
   // ---------------------------------------------------------------------------
+  // Tour Mode: save/restore full app state so the tour starts from blank
+  // ---------------------------------------------------------------------------
+  const TOUR_BACKUP_KEY = 'booklist-tour-backup';
+
+  /**
+   * Enter tour mode: snapshot current state + undo history to localStorage,
+   * then reset the app to a blank slate.  Suppresses undo/autosave while active.
+   */
+  function enterTourMode() {
+    if (_tourActive) return;
+
+    // 1. Capture current state (full serialization, images inline)
+    const snapshot = serializeState();
+
+    // 2. Capture undo/redo stacks (already JSON strings with image refs)
+    const backup = {
+      state: snapshot,
+      undoStack: _undoStack.slice(),
+      redoStack: _redoStack.slice(),
+      lastUndoGroup: _lastUndoGroup,
+      lastUndoTime: _lastUndoTime,
+    };
+
+    // 3. Persist to localStorage so an accidental refresh can recover
+    try {
+      localStorage.setItem(TOUR_BACKUP_KEY, JSON.stringify(backup));
+    } catch { /* quota — proceed anyway, tour still works */ }
+
+    // 4. Activate tour guard (suppresses pushUndo + autosave)
+    _tourActive = true;
+    _isRestoring = true; // Also suppress side-effects during the blank reset
+
+    // 5. Reset to blank
+    initializeBooklist();
+
+    // Reset UI controls to defaults
+    if (elements.listNameInput) elements.listNameInput.value = '';
+    if (elements.coverTitleInput) elements.coverTitleInput.value = '';
+    elements.coverLines.forEach(line => { if (line.input) line.input.value = ''; });
+    if (elements.stretchCoversToggle) elements.stretchCoversToggle.checked = false;
+    if (elements.stretchBlockCoversToggle) elements.stretchBlockCoversToggle.checked = false;
+    if (elements.coverAdvancedToggle) {
+      elements.coverAdvancedToggle.checked = false;
+      toggleCoverMode(false);
+    }
+    if (elements.extendedCollageToggle) {
+      elements.extendedCollageToggle.checked = false;
+      toggleExtendedCollageMode(false, true);
+    }
+    extraCollageCovers = [];
+
+    // Reset collage layout to classic
+    if (elements.collageLayoutSelector) {
+      elements.collageLayoutSelector.querySelectorAll('.layout-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.layout === 'classic');
+      });
+    }
+    if (elements.showShelvesToggle) elements.showShelvesToggle.checked = false;
+    if (elements.titleBarPosition) elements.titleBarPosition.value = 'classic';
+    if (elements.tiltDegree) elements.tiltDegree.value = -25;
+    if (elements.tiltOffsetDirection) elements.tiltOffsetDirection.value = 'vertical';
+    updateTiltedSettingsVisibility();
+
+    // Clear front cover and branding images
+    applyUploaderImage(elements.frontCoverUploader, null);
+    applyUploaderImage(elements.brandingUploader, null);
+
+    // Reset QR
+    if (elements.qrUrlInput) elements.qrUrlInput.value = '';
+    if (elements.qrCodeCanvas) {
+      elements.qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="' + CONFIG.PLACEHOLDER_QR_URL + '"/>';
+    }
+    if (elements.qrCodeTextArea) {
+      elements.qrCodeTextArea.innerText = CONFIG.PLACEHOLDERS.qrText;
+      elements.qrCodeTextArea.style.color = CONFIG.PLACEHOLDER_COLOR;
+    }
+
+    // Disable undo/redo buttons
+    updateUndoRedoButtons();
+
+    _isRestoring = false;
+  }
+
+  /**
+   * Exit tour mode: restore the user's original state + undo history from the
+   * localStorage backup.
+   */
+  function exitTourMode() {
+    if (!_tourActive) return;
+
+    _isRestoring = true;
+
+    try {
+      const raw = localStorage.getItem(TOUR_BACKUP_KEY);
+      if (raw) {
+        const backup = JSON.parse(raw);
+
+        // Restore the user's state
+        if (backup.state) {
+          applyState(backup.state, { silent: true });
+        }
+
+        // Restore undo/redo stacks
+        _undoStack = Array.isArray(backup.undoStack) ? backup.undoStack : [];
+        _redoStack = Array.isArray(backup.redoStack) ? backup.redoStack : [];
+        _lastUndoGroup = backup.lastUndoGroup || null;
+        _lastUndoTime = backup.lastUndoTime || 0;
+      }
+    } catch { /* corrupted backup — user keeps blank state */ }
+
+    // Clean up
+    try { localStorage.removeItem(TOUR_BACKUP_KEY); } catch {}
+    _tourActive = false;
+    _isRestoring = false;
+
+    // Re-sync localStorage draft with restored state
+    saveDraftLocal();
+    updateUndoRedoButtons();
+    updateSaveIndicator();
+  }
+
+  /**
+   * Check if a tour backup exists (called on startup for crash recovery).
+   * If found, restore the pre-tour draft to localStorage so the normal
+   * restore path picks it up, then remove the tour backup.
+   */
+  function recoverTourBackupIfPresent() {
+    try {
+      const raw = localStorage.getItem(TOUR_BACKUP_KEY);
+      if (!raw) return false;
+      const backup = JSON.parse(raw);
+      // Overwrite the draft with the pre-tour state so restoreDraftLocalIfPresent
+      // restores the user's real work, not the blank tour state.
+      if (backup.state) {
+        // Separate front cover for localStorage (same pattern as serializeDraftForLocal)
+        const frontCoverData = backup.state.images?.frontCover || null;
+        if (backup.state.images) backup.state.images.frontCover = null;
+        localStorage.setItem('booklist-draft', JSON.stringify(backup.state));
+        // Persist front cover to IndexedDB
+        if (frontCoverData) {
+          _openImageDB().then(db => {
+            const tx = db.transaction('images', 'readwrite');
+            tx.objectStore('images').put(frontCoverData, 'draft-front-cover');
+          }).catch(() => {});
+        }
+      }
+      localStorage.removeItem(TOUR_BACKUP_KEY);
+      return true;
+    } catch {
+      try { localStorage.removeItem(TOUR_BACKUP_KEY); } catch {}
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Zoom Controls
   // ---------------------------------------------------------------------------
   function applyZoom() {
@@ -5639,6 +5795,10 @@ const BooklistApp = (function() {
     // Set initial tilted settings visibility
     updateTiltedSettingsVisibility();
     
+    // If the page was refreshed mid-tour, recover the pre-tour state into the
+    // draft slot so the normal restore path picks it up seamlessly.
+    recoverTourBackupIfPresent();
+
     // Try restoring draft
     restoreDraftLocalIfPresent();
     
@@ -5715,6 +5875,8 @@ const BooklistApp = (function() {
     getAiDescription, // For testing
     updateBackCoverVisibility, // For tour: visual-only toggle update (no data trim)
     resetZoom, // For tour: reset zoom before spotlight positioning
+    enterTourMode, // For tour: save state + blank the app
+    exitTourMode,  // For tour: restore pre-tour state
     get isDirtyLocal() { return isDirtyLocal; },   // For debugging
     get hasUnsavedFile() { return hasUnsavedFile; }, // For debugging
   };

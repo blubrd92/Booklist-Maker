@@ -350,8 +350,6 @@
   let fullTourSectionIndex = 0;
   let preTourFolioHidden = false;
   let isHoverable = false;
-  let preTourQrChecked = null;
-  let preTourBrandingChecked = null;
 
   // DOM refs (created once)
   let modalOverlay = null;
@@ -617,6 +615,9 @@
     // Mark body as tour-active (elevates Folio, suppresses speech bubble)
     document.body.classList.add('tour-active');
 
+    // Save the user's full state and reset to blank (undo/autosave suppressed)
+    BooklistApp.enterTourMode();
+
     // Reset zoom to 100% so spotlight positioning is accurate
     if (BooklistApp.resetZoom) {
       BooklistApp.resetZoom();
@@ -650,30 +651,12 @@
     const tabSettings = document.getElementById('tab-settings');
     if (tabSettings) tabSettings.scrollTop = 0;
 
-    // Force QR code and branding on for the tour (save original state).
-    // Use updateBackCoverVisibility() instead of dispatching 'change' events
-    // so that handleLayoutChange() doesn't permanently trim book data from
-    // slots that temporarily exceed the reduced MAX_BOOKS.
+    // Force QR code and branding on for the tour so all UI areas are visible
     const qrToggle = document.getElementById('toggle-qr-code');
     const brandingToggle = document.getElementById('toggle-branding');
-    let togglesChanged = false;
-    if (qrToggle) {
-      preTourQrChecked = qrToggle.checked;
-      if (!qrToggle.checked) {
-        qrToggle.checked = true;
-        togglesChanged = true;
-      }
-    }
-    if (brandingToggle) {
-      preTourBrandingChecked = brandingToggle.checked;
-      if (!brandingToggle.checked) {
-        brandingToggle.checked = true;
-        togglesChanged = true;
-      }
-    }
-    if (togglesChanged) {
-      BooklistApp.updateBackCoverVisibility();
-    }
+    if (qrToggle) qrToggle.checked = true;
+    if (brandingToggle) brandingToggle.checked = true;
+    BooklistApp.updateBackCoverVisibility();
 
     // Ensure Folio is visible
     const container = document.getElementById('folio-container');
@@ -798,36 +781,21 @@
     // Remove tour-active state
     document.body.classList.remove('tour-active');
 
-    // Clean up demo search text and results if we filled them
-    const input = document.getElementById('keywordInput');
-    if (input && input.classList.contains('tour-demo-filled')) {
-      input.value = '';
-      input.classList.remove('tour-demo-filled');
-      const results = document.getElementById('results-container');
-      if (results) results.innerHTML = '';
-    }
-
     // Hide spotlight and panel
     spotlight.classList.remove('visible');
     panel.classList.remove('visible');
 
-    // Restore QR code and branding toggle states (visual-only, no data trim)
-    const qrToggle = document.getElementById('toggle-qr-code');
-    const brandingToggle = document.getElementById('toggle-branding');
-    let togglesRestored = false;
-    if (qrToggle && preTourQrChecked !== null) {
-      qrToggle.checked = preTourQrChecked;
-      preTourQrChecked = null;
-      togglesRestored = true;
+    // Restore the user's full pre-tour state (books, settings, undo history)
+    BooklistApp.exitTourMode();
+
+    // Clean up demo search artifacts
+    const input = document.getElementById('keywordInput');
+    if (input) {
+      input.value = '';
+      input.classList.remove('tour-demo-filled');
     }
-    if (brandingToggle && preTourBrandingChecked !== null) {
-      brandingToggle.checked = preTourBrandingChecked;
-      preTourBrandingChecked = null;
-      togglesRestored = true;
-    }
-    if (togglesRestored) {
-      BooklistApp.updateBackCoverVisibility();
-    }
+    const results = document.getElementById('results-container');
+    if (results) results.innerHTML = '';
 
     // Return Folio to idle
     if (window.folio) window.folio.setState('idle');
