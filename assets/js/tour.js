@@ -237,6 +237,15 @@
           },
         },
         {
+          target: '#collage-layout-selector',
+          text: "This is where you switch between layouts. Pick one and regenerate to see the change. Let me switch to Tilted.",
+          state: 'evaluating',
+          prepare: function() {
+            openSidebarTab('tab-settings');
+            openSettingsSection('Cover Layout');
+          },
+        },
+        {
           target: '#front-cover-uploader',
           text: "And here's Tilted. It gives the cover a more dynamic, eye-catching feel. There are other layouts to try too, like Staggered and Masonry. Experiment with them later to find your favorite!",
           state: 'excited',
@@ -356,16 +365,6 @@
       description: 'Save your work and generate the final PDF.',
       icon: 'fa-solid fa-file-pdf',
       steps: [
-        {
-          target: '#print-page-1',
-          text: "Here's what we've built — a front cover collage, a QR code, and a back cover blurb all on one page. Now let's talk about saving and exporting your finished list.",
-          state: 'excited',
-          prepare: function() {
-            scrollPreviewTo('print-page-1');
-            openSidebarTab('tab-search');
-          },
-          padding: 4,
-        },
         {
           target: '#save-list-button',
           text: "Save your work anytime as a .booklist file. It captures everything: books, covers, settings, styling. You can pick it back up later. If you see a blinking white dot on this button, that means you have unsaved changes, so make sure to save often!",
