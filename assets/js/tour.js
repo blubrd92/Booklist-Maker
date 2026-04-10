@@ -913,6 +913,15 @@
     const results = document.getElementById('results-container');
     if (results) results.innerHTML = '';
 
+    // Restore Folio visibility state
+    if (preTourFolioHidden) {
+      const container = document.getElementById('folio-container');
+      if (container) {
+        container.classList.add('folio-hidden');
+        try { localStorage.setItem('folio-hidden', 'true'); } catch {}
+      }
+    }
+
     // Return Folio to idle
     if (window.folio) window.folio.setState('idle');
   }

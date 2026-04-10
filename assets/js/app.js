@@ -200,6 +200,7 @@ const BooklistApp = (function() {
       updateSaveIndicator();
       clearTimeout(t);
       t = setTimeout(() => {
+        if (_isRestoring || _tourActive) return; // Re-check at execution time
         saveDraftLocal();
       }, CONFIG.AUTOSAVE_DEBOUNCE_MS);
     }
@@ -211,9 +212,10 @@ const BooklistApp = (function() {
   const debouncedCoverRegen = (() => {
     let t;
     function trigger() {
-      if (_isRestoring) return;
+      if (_isRestoring || _tourActive) return;
       clearTimeout(t);
       t = setTimeout(() => {
+        if (_isRestoring || _tourActive) return; // Re-check at execution time
         if (elements.frontCoverUploader?.classList.contains('has-image')) {
           generateCoverCollage();
         }
@@ -1618,8 +1620,9 @@ const BooklistApp = (function() {
       const reader = new FileReader();
       reader.onload = (event) => {
         compressImage(event.target.result, { maxDimension: 1600 }).then(compressed => {
-          pushUndo('upload-cover');
           const book = myBooklist.find(b => b.key === bookItem.key);
+          if (!book) return; // Book was deleted while image was compressing
+          pushUndo('upload-cover');
           book.customCoverData = compressed;
           book.cover_ids = [];
           book.currentCoverIndex = 0;
@@ -5544,7 +5547,7 @@ const BooklistApp = (function() {
   }
 
   function undo() {
-    if (_undoStack.length === 0) return;
+    if (_undoStack.length === 0 || _tourActive) return;
 
     // Push current state onto redo stack
     const currentState = serializeState();
@@ -5557,7 +5560,7 @@ const BooklistApp = (function() {
   }
 
   function redo() {
-    if (_redoStack.length === 0) return;
+    if (_redoStack.length === 0 || _tourActive) return;
 
     // Push current state onto undo stack
     const currentState = serializeState();
@@ -5632,7 +5635,10 @@ const BooklistApp = (function() {
     // 3. Persist to localStorage so an accidental refresh can recover
     try {
       localStorage.setItem(TOUR_BACKUP_KEY, JSON.stringify(backup));
-    } catch { /* quota — proceed anyway, tour still works */ }
+    } catch {
+      showNotification('Could not back up your current work. Save as a .booklist file before starting the tour.', 'error');
+      return; // Don't proceed with tour if backup failed
+    }
 
     // 4. Activate tour guard (suppresses pushUndo + autosave)
     _tourActive = true;
@@ -5695,6 +5701,12 @@ const BooklistApp = (function() {
    */
   function exitTourMode() {
     if (!_tourActive) return;
+
+    // Invalidate any in-flight collage generation and cancel debounced ops
+    // so tour callbacks don't fire after state is restored
+    _collageGenId++;
+    debouncedSave.cancel();
+    debouncedCoverRegen.cancel();
 
     _isRestoring = true;
 
