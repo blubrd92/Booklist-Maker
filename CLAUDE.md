@@ -128,11 +128,11 @@ Pure functions that eliminate duplicated logic. All are tested:
 - `myBooklist` array: all book objects (max 13-15 depending on UI toggles)
 - `extraCollageCovers` array: additional covers for extended mode (up to 8)
 - `MAX_BOOKS`: dynamically adjusted based on QR code and branding toggles
-- **localStorage autosave**: debounced via `saveDraftLocal()`, restored by `restoreDraftLocalIfPresent()`
+- **IndexedDB autosave**: debounced via `saveDraftLocal()`, restored by `restoreDraftLocalIfPresent()`. Full state stored in IndexedDB under `'draft'` key (no localStorage size limits). A lightweight `'has-draft'` flag in localStorage enables sync checks.
 - **File export/import**: `.booklist` JSON files via `serializeState()` / `applyState()`
 - **Dirty tracking**: `isDirtyLocal` (crash guard), `hasUnsavedFile` (download guard with unsaved indicator on save button)
 - `beforeunload` warning when there are unsaved local changes
-- **Tour backup**: `localStorage['booklist-tour-backup']` holds pre-tour state during guided tour; recovered on startup if page was refreshed mid-tour
+- **Tour backup**: IndexedDB `'tour-backup'` key holds pre-tour state during guided tour; recovered on startup if page was refreshed mid-tour
 
 ### Image Compression
 Uploaded images are compressed on capture to reduce `.booklist` file size:
