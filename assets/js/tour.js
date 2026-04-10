@@ -191,7 +191,7 @@
       steps: [
         {
           target: '#front-cover-uploader',
-          text: "This is your front cover. You can upload a custom image here, or auto-generate a collage from your starred books.",
+          text: "This is your front cover. You can upload a custom image here, or auto-generate a collage from your starred books. For generated covers, you can customize the title font, size, and background color, even add a gradient.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-1');
@@ -199,7 +199,7 @@
         },
         {
           target: '#generate-cover-button',
-          text: "This button generates the collage. You need at least 12 starred books with covers. Let me set a title and pick a layout first. For this example, we're using a gradient for a nice title background.",
+          text: "This button generates the collage. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
           state: 'excited',
           prepare: function() {
             openSidebarTab('tab-settings');
