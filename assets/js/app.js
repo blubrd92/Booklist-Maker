@@ -4345,29 +4345,30 @@ const BooklistApp = (function() {
   }
   
   // Local draft storage
-  function serializeDraftForLocal() {
+  function saveDraftLocal() {
     const s = serializeState();
     // Front cover is too large for localStorage — store it in IndexedDB instead
     const frontCoverData = s.images?.frontCover || null;
     if (s.images) s.images.frontCover = null;
-    // Fire-and-forget: persist front cover to IndexedDB
-    _openImageDB().then(db => {
-      const tx = db.transaction('images', 'readwrite');
-      const store = tx.objectStore('images');
-      if (frontCoverData) {
-        store.put(frontCoverData, 'draft-front-cover');
-      } else {
-        store.delete('draft-front-cover');
-      }
-    }).catch(() => { /* IndexedDB unavailable — front cover won't persist */ });
-    return s;
-  }
 
-  function saveDraftLocal() {
     try {
-      localStorage.setItem('booklist-draft', JSON.stringify(serializeDraftForLocal()));
+      localStorage.setItem('booklist-draft', JSON.stringify(s));
       isDirtyLocal = false; // localStorage now has current state
-    } catch { /* ignore quota errors */ }
+
+      // Only update IndexedDB front cover after localStorage succeeds
+      _openImageDB().then(db => {
+        const tx = db.transaction('images', 'readwrite');
+        const store = tx.objectStore('images');
+        if (frontCoverData) {
+          store.put(frontCoverData, 'draft-front-cover');
+        } else {
+          store.delete('draft-front-cover');
+        }
+      }).catch(() => { /* IndexedDB unavailable — front cover won't persist */ });
+    } catch {
+      // localStorage quota exceeded — notify the user
+      showNotification('Draft too large to auto-save. Use Save to download a .booklist file.', 'error');
+    }
   }
 
   async function restoreDraftLocalIfPresent() {
