@@ -213,8 +213,8 @@
             }
             const line1 = document.getElementById('cover-line-1');
             const line2 = document.getElementById('cover-line-2');
-            if (line1) line1.value = 'The Disc & Beyond';
-            if (line2) line2.value = 'A Terry Pratchett Reader';
+            if (line1) line1.value = 'Mind How You Go';
+            if (line2) line2.value = 'Reading Terry Pratchett';
 
             // Set layout to classic and enable stretch covers
             const selector = document.getElementById('collage-layout-selector');
@@ -361,7 +361,7 @@
             // Set the sample QR text
             const qrText = document.getElementById('qr-code-text');
             if (qrText) {
-              qrText.innerText = "Come explore a fantasy world carried through space on the back of a giant turtle, where Pratchett does the oldest trick in literature: making you laugh until you notice he's broken your heart. Scan the code to learn more about him, then come find his books on the shelf.";
+              qrText.innerText = "Welcome to the Discworld, a fantasy world carried through space on the back of a giant turtle, where Pratchett will make you laugh, and then make you think, and then quietly break your heart. Scan the code to meet the man, then come find the books waiting for you on the shelf.";
               qrText.style.color = '';
               qrText.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
