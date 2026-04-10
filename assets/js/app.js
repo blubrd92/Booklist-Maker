@@ -5559,9 +5559,9 @@ const BooklistApp = (function() {
       applyState(resolved, { silent: true });
     }).finally(() => {
       _isRestoring = false;
-      // Single clean save of the restored state
+      // Single clean save of the restored state (isDirtyLocal cleared by
+      // saveDraftLocal's async completion, not here — avoids premature flag)
       saveDraftLocal();
-      isDirtyLocal = false;
       hasUnsavedFile = true;
       updateSaveIndicator();
       updateUndoRedoButtons();
