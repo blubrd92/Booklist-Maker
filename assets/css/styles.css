@@ -128,47 +128,37 @@ button.is-loading::after {
   white-space: nowrap;
 }
 
-/* Site Navigation Footer (About / For Libraries / Contact) */
-.site-footer {
-  position: fixed;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
+/* Site Navigation row inside zoom-controls (About / For Libraries / Contact) */
+.site-nav-row {
+  border-top: 1px solid var(--border-color);
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 8px;
   font-family: 'EB Garamond', serif;
-  font-size: 0.85rem;
-  padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  z-index: 15;
-  pointer-events: auto;
+  font-size: 0.8rem;
 }
-.site-footer a {
+.site-nav-row a {
   color: var(--text-light);
   text-decoration: none;
   transition: color var(--transition-fast);
   white-space: nowrap;
 }
-.site-footer a:hover {
+.site-nav-row a:hover {
   color: var(--primary-color);
 }
-.site-footer a[aria-current="page"] {
+.site-nav-row a[aria-current="page"] {
   color: var(--text-color);
   font-weight: 600;
   pointer-events: none;
 }
-.site-footer-sep {
+.site-nav-row span {
   color: var(--text-muted);
   user-select: none;
 }
 /* Hide in print mode */
-.print-mode .site-footer {
+.print-mode .site-nav-row {
   display: none !important;
 }
 
