@@ -200,14 +200,15 @@ body.content-page .site-footer {
 /* Site Footer (About / For Libraries / Contact) */
 .site-footer {
   height: 32px;
-  background: var(--sidebar-bg);
-  border-top: 1px solid var(--border-color);
+  background: var(--secondary-color);
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   font-family: 'EB Garamond', serif;
   font-size: 0.95rem;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
 }
 .site-footer-nav {
   display: flex;
@@ -215,21 +216,21 @@ body.content-page .site-footer {
   gap: 10px;
 }
 .site-footer-nav a {
-  color: var(--text-light);
+  color: rgba(255,255,255,0.7);
   text-decoration: none;
   transition: color var(--transition-fast);
   white-space: nowrap;
 }
 .site-footer-nav a:hover {
-  color: var(--primary-color);
+  color: white;
 }
 .site-footer-nav a[aria-current="page"] {
-  color: var(--text-color);
+  color: white;
   font-weight: 600;
   pointer-events: none;
 }
 .site-footer-nav span {
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.35);
   user-select: none;
 }
 /* Hide in print mode */
