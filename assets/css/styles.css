@@ -128,6 +128,64 @@ button.is-loading::after {
   white-space: nowrap;
 }
 
+/* =========================================================================
+   CONTENT PAGES (about, for-libraries, contact)
+   Reuses .app-header, .logo, .header-credit from the tool. Adds scrollable
+   body layout and article typography for reading pages.
+   ========================================================================= */
+body.content-page {
+  height: auto;
+  min-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.app-header a.logo {
+  color: white;
+  text-decoration: none;
+  transition: opacity var(--transition-fast);
+}
+.app-header a.logo:hover {
+  opacity: 0.85;
+}
+.content-main {
+  flex: 1;
+  padding: 56px 24px 72px;
+  display: flex;
+  justify-content: center;
+}
+.content-article {
+  max-width: 680px;
+  width: 100%;
+  color: var(--text-color);
+  font-size: 16px;
+  line-height: 1.65;
+}
+.content-article h1 {
+  font-family: 'EB Garamond', serif;
+  font-size: 2.4rem;
+  font-weight: 700;
+  margin: 0 0 24px;
+  line-height: 1.2;
+  color: var(--text-color);
+}
+.content-article h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 36px 0 10px;
+  color: var(--text-color);
+}
+.content-article p {
+  margin: 0 0 16px;
+}
+.content-article a {
+  color: var(--primary-color);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.content-article a:hover {
+  color: var(--primary-hover);
+}
+
 /* Site Footer (About / For Libraries / Contact) */
 .site-footer {
   height: 32px;
