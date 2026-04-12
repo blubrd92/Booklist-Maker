@@ -40,7 +40,7 @@
       steps: [
         {
           target: '#folio-scene',
-          text: "Welcome to Booklister! I'm Folio. This tool creates printable two-page booklists for library displays. Let me show you around. If you have a booklist loaded, don't worry, it will be saved and restored when the tour ends.\n\nTip: You can use your keyboard's arrow keys to move through the tour instead of clicking the buttons.",
+          text: "Welcome to Booklister! I'm Folio. Let me show you around. Don't worry if you have a booklist loaded, it'll be saved and restored when the tour ends.\n\nTip: Use your arrow keys to navigate.",
           state: 'greeting',
           padding: 4,
           prepare: function() {
@@ -977,6 +977,11 @@
     }
     const results = document.getElementById('results-container');
     if (results) results.innerHTML = '';
+
+    // Reset the settings tab scroll so the next time the user opens
+    // Settings they start at the top
+    const tabSettings = document.getElementById('tab-settings');
+    if (tabSettings) tabSettings.scrollTop = 0;
 
     // Restore Folio visibility state (class-only; the user's saved
     // preference in localStorage was never touched during the tour)
