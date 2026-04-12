@@ -1,6 +1,6 @@
 /* =============================================================================
    FOLIO MASCOT — CSS
-   Animated SVG cat companion for the Booklist Maker.
+   Animated SVG cat companion for Booklister.
    
    Structure:
    1. Container & toggle button (positioning, visibility)
@@ -18,7 +18,7 @@
 
 .folio-container {
   position: fixed;
-  bottom: 0;
+  bottom: 32px; /* sit above the site footer */
   left: 340px;
   z-index: 900;
   pointer-events: none;

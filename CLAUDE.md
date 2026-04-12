@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Booklist Maker is a web-based application for creating, customizing, and exporting printable booklists. It targets libraries creating professional book displays with cover art, customizable typography, QR codes, and branding.
+Booklister (repo name: Booklist-Maker) is a web-based application for creating, customizing, and exporting printable booklists. It targets libraries creating professional book displays with cover art, customizable typography, QR codes, and branding. Deployed at https://booklister.org.
+
+**Naming note (intentional mismatch)**: The user-facing brand is "Booklister" (in the browser tab title, header logo, content pages, canonical URLs, and meta tags). Internal code identifiers (`BooklistApp` namespace, `book-utils.js`, repo name `Booklist-Maker`, npm package `booklist-maker`, CSS class names, comments) still use "Booklist Maker" or "booklist". These were intentionally left unchanged during the rebrand to avoid breaking references, and should stay as-is unless a full code-wide rename is the task. When writing user-facing strings (page copy, titles, notifications, meta tags) use "Booklister". When referencing code identifiers, keep "BooklistApp" etc.
 
 **Tech Stack**: Vanilla HTML5/CSS3/JavaScript (ES6+), no build process. Dev tooling: ESLint + Vitest (via npm).
 
@@ -29,21 +31,24 @@ Lint and test should both pass before committing changes to JavaScript files.
 
 ### File Structure
 ```
-index.html                      Single-page UI (semantic HTML5, ARIA)
+index.html                      Single-page tool UI (semantic HTML5, ARIA)
+about.html                      Static "about" content page
+for-libraries.html              Static institutional offer content page
+contact.html                    Static contact content page
+CNAME                           Custom domain (booklister.org)
 assets/
   css/
-    styles.css                  Main UI styles, CSS variables, responsive layout
+    styles.css                  Main UI + content page styles, CSS variables
     folio.css                   Folio cat mascot animations and styling
     tour.css                    Guided tour modal and spotlight styling
   js/
     config.js                   CONFIG constants (loaded first as global)
     book-utils.js               BookUtils shared pure functions (loaded second)
-    app.js                      Core application logic (IIFE, ~5900 lines)
+    app.js                      Core application logic (IIFE, ~6000 lines)
     folio.js                    Animated cat mascot companion
     tour.js                     Guided tour system
   img/
     branding-default.png        Default library branding image
-The Disc and Beyond.booklist    Sample booklist file (Discworld theme, used as tour reference)
 tests/
   setup.js                      Loads config.js + book-utils.js into jsdom via eval
   book-utils.test.js            Unit tests for all BookUtils functions
@@ -178,7 +183,7 @@ Supports 20-cover collages instead of the standard 12.
 - `renderExtraCoversGrid()` - Renders 8 extra cover slots (from-list + added + empty)
 - `searchExtraCovers()` / `openExtraCoverSearchModal()` - Modal search for additional covers
 - `addExtraCover(coverData, preferredSlot)` / `removeExtraCover(index)` - Manage extra covers
-- `loadImageAsDataUrl(url)` - Converts remote URLs to base64 for localStorage persistence
+- `loadImageAsDataUrl(url)` - Converts remote URLs to base64 so they persist in the IndexedDB draft
 
 ### Dynamic Grid Sizing
 - 12 covers: 3x4 grid layout
@@ -186,7 +191,7 @@ Supports 20-cover collages instead of the standard 12.
 - Layout drawing functions dynamically calculate rows/columns based on cover count
 
 ### UI Components
-- `#extended-collage-toggle` - Checkbox in Cover Layout settings
+- `#extended-collage-toggle` - Checkbox in the Front Cover settings section (merged Cover Header + Cover Layout)
 - `#extra-covers-section` - Hidden section showing 8 extra cover slots
 - Extra Cover Search Modal - Search form with results grid and "Add to Collage" buttons
 
@@ -209,10 +214,28 @@ Guided tour with 6 sections (30 steps total): Getting Started, Search & Add, You
 - Folio narrates each step with contextual animation states
 - `prepare()` hooks auto-open tabs, scroll, and click buttons for demos
 - Demo search auto-runs a Discworld search
-- **Tour state isolation**: `BooklistApp.enterTourMode()` saves the user's full state (books, settings, undo history) to localStorage, then resets to blank. `exitTourMode()` restores everything. Crash recovery via `recoverTourBackupIfPresent()` on startup.
+- **Tour state isolation**: `BooklistApp.enterTourMode()` (async) saves the user's full state (books, settings, undo history) to IndexedDB under the `'tour-backup'` key, then resets to blank. `exitTourMode()` (async) restores everything. Crash recovery via `recoverTourBackupIfPresent()` on startup.
 - **Progressive sample list**: The tour loads a sample Terry Pratchett booklist (`TOUR_SAMPLE_STATE` embedded in tour.js, ~12 KB, no base64 images) and builds it up section by section — books at section 3, collage at section 4, QR/styling at section 5.
 - **Undo/autosave suppressed**: `_tourActive` flag makes `pushUndo()` and `debouncedSave()` no-ops during the tour so tour actions don't pollute user state.
 - **API**: `window.tour.open()` (opens section picker modal)
+
+## Static Content Pages
+
+Three plain HTML pages live at the repo root alongside `index.html`:
+
+- **`about.html`** — first-person page explaining the tool, why it was built, the Folio mascot, and how the AI description feature works (vendor-neutral language)
+- **`for-libraries.html`** — institutional offer page with per-library pricing (not fixed), branded instance, subdomain, ongoing support, and catalog integrations as separate scoped projects
+- **`contact.html`** — minimal contact page with mailto link and response-time expectations
+
+**Shared structure**: All three reuse the same `.app-header` (with logo as an anchor link back to `index.html`), CSS variables, and `.site-footer` nav. They opt into scrollable behavior via `<body class="content-page">` which overrides the tool's fixed `overflow: hidden` layout. Both header and footer are sticky on content pages only.
+
+**Site-wide footer nav**: A 32px dark slate footer at the bottom of every page (including `index.html`) contains the shared nav: Home · About · For Libraries · Contact. The tool page's `app-container` height is `calc(100vh - 52px - 32px)` to make room for this footer. Folio and the zoom controls are positioned `bottom: 32px` to sit above it. The footer is hidden in `print-mode` so it doesn't leak into PDF exports (which html2canvas captures from `#print-page-1`/`#print-page-2` directly anyway).
+
+**Content page CSS**: A dedicated block in `styles.css` labeled `CONTENT PAGES` defines `body.content-page` overrides, `.content-main`, `.content-article` typography (EB Garamond `h1`, Inter body), and the anchor variant `.app-header a.logo`. All other styles are reused from the tool.
+
+**Typography accent**: Content page `<h1>` uses EB Garamond serif to match the existing header-credit font, giving content pages a slightly literary feel while the tool body stays Inter.
+
+**Meta tags**: Each content page and `index.html` include `<link rel="canonical">`, Open Graph, and Twitter card tags. Canonical URLs all point at `https://booklister.org/...`.
 
 ## Code Patterns
 
@@ -223,7 +246,7 @@ Guided tour with 6 sections (30 steps total): Getting Started, Search & Add, You
 - **Canvas-based rendering** for precise PDF/collage output
 - **Custom font dropdowns** with live preview styling
 - **Content-editable fields** with paste sanitization (`handlePastePlainText`)
-- **Two-tier save system**: localStorage for crash recovery + `.booklist` download for explicit saves
+- **Two-tier save system**: IndexedDB autosave for crash recovery + `.booklist` download for explicit saves
 
 ## Testing
 
@@ -242,7 +265,7 @@ This project uses IIFEs with globals — there are no ES6 imports to signal cros
 - **Before adding a utility function**, check `book-utils.js` — it may already exist. `BookUtils` has functions for cover validation, starred book filtering, cover counting, URL building, and collage readiness checks.
 - **Before adding or using a constant**, check `config.js` — it may already be in `CONFIG`. Layout dimensions, cover limits, timing values, API URLs, placeholder URLs, and font lists all live there.
 - **Before adding inline logic in `app.js`**, consider whether it belongs in `book-utils.js` as a shared, testable function instead.
-- **Before writing a new function**, search `app.js` for existing functions that do the same thing. At ~5900 lines, it's easy to miss what's already there.
+- **Before writing a new function**, search `app.js` for existing functions that do the same thing. At ~6000 lines, it's easy to miss what's already there.
 
 ### Never Hardcode These Values
 

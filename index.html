@@ -4,7 +4,17 @@
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPCEtLSBEb2N1bWVudCBib2R5IC0tPgogIDxyZWN0IHg9IjQiIHk9IjIiIHdpZHRoPSIyNCIgaGVpZ2h0PSIyOCIgcng9IjIiIGZpbGw9IiNmZmYiIHN0cm9rZT0iIzE5NzZkMiIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPCEtLSBUb3Agcm93IG9mIGJvb2sgY292ZXJzIC0tPgogIDxyZWN0IHg9IjciIHk9IjYuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiMxOTc2ZDIiLz4KICA8cmVjdCB4PSIxMy41IiB5PSI2LjUiIHdpZHRoPSI1IiBoZWlnaHQ9IjYiIHJ4PSIxIiBmaWxsPSIjMTk3NmQyIi8+CiAgPHJlY3QgeD0iMjAiIHk9IjYuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiMxOTc2ZDIiLz4KICA8IS0tIEhvcml6b250YWwgYmFyIGJldHdlZW4gcm93cyAtIHJlZCAtLT4KICA8cmVjdCB4PSI3IiB5PSIxNC41IiB3aWR0aD0iMTgiIGhlaWdodD0iMyIgcng9IjEiIGZpbGw9IiNlNTM5MzUiLz4KICA8IS0tIEJvdHRvbSByb3cgb2YgYm9vayBjb3ZlcnMgLS0+CiAgPHJlY3QgeD0iNyIgeT0iMTkuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiMxOTc2ZDIiLz4KICA8cmVjdCB4PSIxMy41IiB5PSIxOS41IiB3aWR0aD0iNSIgaGVpZ2h0PSI2IiByeD0iMSIgZmlsbD0iIzE5NzZkMiIvPgogIDxyZWN0IHg9IjIwIiB5PSIxOS41IiB3aWR0aD0iNSIgaGVpZ2h0PSI2IiByeD0iMSIgZmlsbD0iIzE5NzZkMiIvPgo8L3N2Zz4K">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Booklist Maker</title>
+  <meta name="description" content="Booklister is a free browser tool for making printable booklists for library displays. Auto-pulls book info, generates cover collages, and exports a print-ready bifold PDF.">
+  <link rel="canonical" href="https://booklister.org/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Booklister">
+  <meta property="og:url" content="https://booklister.org/">
+  <meta property="og:title" content="Booklister">
+  <meta property="og:description" content="A free browser tool for making printable booklists for library displays. Built by a Bay Area librarian.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Booklister">
+  <meta name="twitter:description" content="A free browser tool for making printable booklists for library displays. Built by a Bay Area librarian.">
+  <title>Booklister</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -34,7 +44,7 @@
         </button>
       </div>
       <div class="logo">
-        <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklist Maker
+        <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklister
       </div>
       <span class="header-credit">Designed by Javier Morales</span>
     </div>
@@ -161,38 +171,38 @@
           </div>
         </details>
 
-        <!-- Cover Header Section -->
+        <!-- Front Cover Section (Cover Header + Cover Layout merged) -->
         <details class="settings-section">
-          <summary title="Edit the front cover title text and styling options"><i class="fa-solid fa-heading" aria-hidden="true"></i> Cover Header</summary>
+          <summary title="Configure the front cover title, styling, and collage layout"><i class="fa-solid fa-image" aria-hidden="true"></i> Front Cover</summary>
           <div class="settings-section-content">
 
         <div class="form-group" id="cover-header-text-group">
           <label>Cover Header Text</label>
-          
+
           <div class="control-row checkbox-row">
             <input id="cover-advanced-toggle" type="checkbox"/>
             <label for="cover-advanced-toggle">Multi-line mode (customize each line)</label>
           </div>
-          
+
           <!-- Simple mode: single textarea -->
           <div id="cover-simple-mode">
             <label for="cover-title-input" class="sr-only">Cover title text</label>
             <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
           </div>
-          
+
           <!-- Advanced mode: 3 line inputs -->
           <div id="cover-advanced-mode">
             <input type="text" class="cover-line-input" id="cover-line-1" placeholder="Line 1" aria-label="Cover line 1 text"/>
             <input type="text" class="cover-line-input" id="cover-line-2" placeholder="Line 2" aria-label="Cover line 2 text"/>
             <input type="text" class="cover-line-input" id="cover-line-3" placeholder="Line 3" aria-label="Cover line 3 text"/>
           </div>
-          
+
           <button id="generate-cover-button" class="btn btn-primary" style="margin-top: 10px; width: 100%;">Auto-Generate Cover</button>
         </div>
 
         <div class="form-group" id="cover-title-style-group">
           <label>Cover Header Style</label>
-          
+
           <!-- Simple mode styling (shared for all text) -->
           <div id="cover-simple-style">
             <div class="control-row">
@@ -206,7 +216,7 @@
               <input class="color-picker" id="cover-text-color" type="color" value="#FFFFFF" aria-label="Cover title text color"/>
             </div>
           </div>
-          
+
           <!-- Advanced mode: per-line styling -->
           <div id="cover-advanced-style">
             <div class="line-style-group">
@@ -222,7 +232,7 @@
                 <input class="color-picker line-color" id="line-1-color" type="color" value="#FFFFFF" aria-label="Line 1 color"/>
               </div>
             </div>
-            
+
             <div class="line-style-group">
               <div class="line-style-label">Line 2</div>
               <div class="control-row">
@@ -238,7 +248,7 @@
                 <input class="font-size-input line-spacing" id="line-2-spacing" type="number" min="0" max="50" value="5" title="Space above this line (pt)" aria-label="Line 2 spacing"/>
               </div>
             </div>
-            
+
             <div class="line-style-group">
               <div class="line-style-label">Line 3</div>
               <div class="control-row">
@@ -255,7 +265,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- Shared settings for both modes -->
           <div class="control-row" style="margin-top: 10px;">
             <div class="mini-label">Background:</div>
@@ -264,7 +274,7 @@
             <label for="cover-title-gradient-toggle" class="mini-label">Gradient</label>
             <input id="cover-title-bg-color2" class="color-picker" type="color" value="#333333" aria-label="Gradient end color" style="display: none;"/>
           </div>
-          
+
           <details class="advanced-settings">
             <summary>Margins & Padding</summary>
             <div class="grid-2">
@@ -284,14 +294,7 @@
             <label for="stretch-covers-toggle">Stretch Header Covers</label>
           </div>
           <p id="masonry-stretch-hint" class="masonry-hint" style="display: none; font-size: 0.7rem; color: #888; margin: 4px 0 0 22px; font-style: italic; font-weight: bold;">Masonry uses actual cover proportions</p>
-
-          </div>
-        </details>
-
-        <!-- Cover Layout Section -->
-        <details class="settings-section">
-          <summary title="Choose collage layout style (Classic, Masonry, Staggered, Tilted) and configure cover arrangement"><i class="fa-solid fa-grip" aria-hidden="true"></i> Cover Layout</summary>
-          <div class="settings-section-content">
+        </div>
 
           <div class="layout-settings" id="collage-layout-details">
             <label style="font-weight: 600; font-size: 0.85rem;">Collage Layout Options</label>
@@ -440,7 +443,7 @@
                 <span class="layout-option-label">Tilted</span>
               </div>
             </div>
-            
+
             <div class="control-row" style="margin-top: 10px;">
               <label for="title-bar-position" class="mini-label" style="white-space: nowrap;">Title Bar Position:</label>
               <select id="title-bar-position" class="font-select" aria-label="Title bar position">
@@ -451,7 +454,7 @@
                 <option value="bottom">Bottom</option>
               </select>
             </div>
-            
+
             <!-- Classic-specific settings -->
             <div id="classic-settings" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
               <div class="line-style-label" style="margin-bottom: 8px;">Classic Layout Settings</div>
@@ -460,7 +463,7 @@
                 <label for="show-shelves-toggle">Show Shelves</label>
               </div>
             </div>
-            
+
             <!-- Tilted-specific settings -->
             <div id="tilted-settings" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
               <div class="line-style-label" style="margin-bottom: 8px;">Tilted Layout Settings</div>
@@ -476,13 +479,13 @@
                 </select>
               </div>
             </div>
-            
+
             <!-- Extended collage mode toggle -->
             <div class="control-row checkbox-row" style="margin-top: 12px;">
               <input id="extended-collage-toggle" type="checkbox"/>
               <label for="extended-collage-toggle">Extended collage (20 covers)</label>
             </div>
-            
+
             <!-- Extra Collage Covers Section (shown when extended mode enabled) -->
             <div id="extra-covers-section" class="extra-covers-section" style="display: none;">
               <div class="extra-covers-header">
@@ -599,7 +602,7 @@
             <div class="qr-code-container" id="qr-code-area">
               <div id="qr-code-text" class="editable-field" contenteditable="true" role="textbox" aria-label="QR code description text">Enter your blurb here. To link to an online list (like Bibliocommons), go to Settings > Back Cover and paste the URL in the 'QR Code URL' field and click update. Remember to test the code with your phone!</div>
               <div id="qr-code-canvas" aria-label="QR code image">
-                <img alt="QR Code Placeholder" src="https://placehold.co/144x144/EAEAEA/333333?text=QR+Code"/>
+                <img alt="QR Code Placeholder" src="https://placehold.co/900x900/EAEAEA/333333?text=QR+Code"/>
               </div>
             </div>
             <label class="custom-uploader has-image" id="branding-uploader" role="button" aria-label="Upload library branding image">
@@ -615,7 +618,7 @@
             <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or generate front cover image">
               <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
-                Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)
+                Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)
               </div>
               <input type="file" accept="image/*" aria-hidden="true"/>
               <button type="button" class="cover-delete-btn" title="Remove cover image"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
@@ -921,7 +924,19 @@
     <!-- Staatliches (all-caps display) -->
     <span style="font-family: 'Staatliches', system-ui; font-weight: 400;">.</span>
   </div>
-  
+
+  <footer class="site-footer" role="contentinfo">
+    <nav class="site-footer-nav" aria-label="Site navigation">
+      <a href="index.html" aria-current="page">Home</a>
+      <span aria-hidden="true">·</span>
+      <a href="about.html">About</a>
+      <span aria-hidden="true">·</span>
+      <a href="for-libraries.html">For Libraries</a>
+      <span aria-hidden="true">·</span>
+      <a href="contact.html">Contact</a>
+    </nav>
+  </footer>
+
 </body>
 
 

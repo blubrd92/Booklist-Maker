@@ -243,3 +243,297 @@ describe('BookUtils.hasEnoughCoversForCollage', () => {
     expect(globalThis.BookUtils.hasEnoughCoversForCollage(books, extras, true)).toBe(false);
   });
 });
+
+// =============================================================================
+// EDGE CASE TESTS (added per audit)
+// =============================================================================
+
+describe('BookUtils.hasValidCover edge cases', () => {
+  it('returns false for empty cover_ids array AND empty-string customCoverData', () => {
+    const book = makeBook({ cover_ids: [], customCoverData: '' });
+    expect(globalThis.BookUtils.hasValidCover(book)).toBe(false);
+  });
+
+  it('returns false when cover_ids is null (nullish array)', () => {
+    const book = makeBook({ cover_ids: null, customCoverData: null });
+    expect(globalThis.BookUtils.hasValidCover(book)).toBe(false);
+  });
+
+  it('returns false for custom cover URL containing PLACEHOLD.CO in uppercase', () => {
+    // Placeholder detection is now case-insensitive.
+    const book = makeBook({ customCoverData: 'https://PLACEHOLD.CO/110x132' });
+    expect(globalThis.BookUtils.hasValidCover(book)).toBe(false);
+  });
+
+  it('returns false for whitespace-only customCoverData', () => {
+    // Whitespace-only strings are treated the same as empty.
+    const book = makeBook({ customCoverData: '   ' });
+    expect(globalThis.BookUtils.hasValidCover(book)).toBe(false);
+  });
+
+  it('returns false for cover_ids: [0] (no truthy IDs)', () => {
+    // hasValidCover now requires at least one truthy cover ID.
+    const book = makeBook({ cover_ids: [0] });
+    expect(globalThis.BookUtils.hasValidCover(book)).toBe(false);
+  });
+
+  it('returns true for cover_ids containing at least one truthy ID alongside 0', () => {
+    const book = makeBook({ cover_ids: [0, 12345] });
+    expect(globalThis.BookUtils.hasValidCover(book)).toBe(true);
+  });
+});
+
+describe('BookUtils.getStarredBooks edge cases', () => {
+  it('returns empty array for empty booklist', () => {
+    expect(globalThis.BookUtils.getStarredBooks([])).toEqual([]);
+  });
+
+  it('treats missing isBlank (undefined) as not blank', () => {
+    const book = { includeInCollage: true, title: 'No isBlank prop' };
+    expect(globalThis.BookUtils.getStarredBooks([book])).toHaveLength(1);
+  });
+
+  it('treats missing includeInCollage (undefined) as unstarred', () => {
+    const book = { isBlank: false, title: 'No starred prop' };
+    expect(globalThis.BookUtils.getStarredBooks([book])).toHaveLength(0);
+  });
+
+  it('handles mixed truthy/falsy includeInCollage values', () => {
+    const books = [
+      { isBlank: false, includeInCollage: 1, title: 'truthy 1' },
+      { isBlank: false, includeInCollage: 0, title: 'falsy 0' },
+      { isBlank: false, includeInCollage: 'yes', title: 'truthy str' },
+      { isBlank: false, includeInCollage: '', title: 'falsy str' },
+      { isBlank: false, includeInCollage: null, title: 'null' },
+      { isBlank: false, includeInCollage: true, title: 'true' },
+    ];
+    const result = globalThis.BookUtils.getStarredBooks(books);
+    expect(result).toHaveLength(3);
+    expect(result.map((b) => b.title)).toEqual(['truthy 1', 'truthy str', 'true']);
+  });
+});
+
+describe('BookUtils.getStarredBooksWithCovers edge cases', () => {
+  it('excludes starred books with neither cover_ids nor customCoverData', () => {
+    const books = [
+      makeBook({ includeInCollage: true, cover_ids: [], customCoverData: null, title: 'bare' }),
+    ];
+    expect(globalThis.BookUtils.getStarredBooksWithCovers(books)).toEqual([]);
+  });
+
+  it('handles mix of starred-with-covers, starred-without, and unstarred-with', () => {
+    const books = [
+      makeBook({ includeInCollage: true, cover_ids: [1], title: 'A' }),
+      makeBook({ includeInCollage: true, cover_ids: [], title: 'B' }),
+      makeBook({ includeInCollage: false, cover_ids: [2], title: 'C' }),
+      makeBook({ includeInCollage: true, customCoverData: 'data:image/png;base64,xx', title: 'D' }),
+      makeBook({ includeInCollage: true, isBlank: true, cover_ids: [3], title: 'E' }),
+    ];
+    const result = globalThis.BookUtils.getStarredBooksWithCovers(books);
+    expect(result.map((b) => b.title)).toEqual(['A', 'D']);
+  });
+});
+
+describe('BookUtils.isAtCoverLimit edge cases', () => {
+  it('returns true exactly at the limit (boundary equality)', () => {
+    const books = Array(10).fill(null).map(() => makeBook());
+    const extras = [{ coverData: 'a' }, { coverData: 'b' }];
+    expect(globalThis.BookUtils.isAtCoverLimit(books, extras, 12)).toBe(true);
+  });
+
+  it('returns false one below the limit', () => {
+    const books = Array(10).fill(null).map(() => makeBook());
+    const extras = [{ coverData: 'a' }];
+    expect(globalThis.BookUtils.isAtCoverLimit(books, extras, 12)).toBe(false);
+  });
+
+  it('returns true one above the limit', () => {
+    const books = Array(11).fill(null).map(() => makeBook());
+    const extras = [{ coverData: 'a' }, { coverData: 'b' }];
+    expect(globalThis.BookUtils.isAtCoverLimit(books, extras, 12)).toBe(true);
+  });
+
+  it('returns false when both arrays empty and max > 0', () => {
+    expect(globalThis.BookUtils.isAtCoverLimit([], [], 12)).toBe(false);
+  });
+});
+
+describe('BookUtils.countTotalCovers edge cases', () => {
+  it('does not count starred books that lack a valid cover', () => {
+    const books = [
+      makeBook({ cover_ids: [1] }),
+      makeBook({ cover_ids: [] }),
+      makeBook({ cover_ids: [], customCoverData: null }),
+    ];
+    expect(globalThis.BookUtils.countTotalCovers(books, [], false)).toBe(1);
+  });
+
+  it('ignores extras in non-extended mode even when they have valid coverData', () => {
+    const books = [makeBook({ cover_ids: [1] })];
+    const extras = [
+      { coverData: 'data:image/jpeg;base64,abc' },
+      { coverData: 'data:image/jpeg;base64,def' },
+    ];
+    expect(globalThis.BookUtils.countTotalCovers(books, extras, false)).toBe(1);
+  });
+
+  it('does not count extras whose coverData contains placehold.co (extended mode)', () => {
+    const books = [];
+    const extras = [
+      { coverData: 'https://placehold.co/300x450' },
+      { coverData: 'https://placehold.co/110x132/EAEAEA/333333?text=Upload%20Cover' },
+    ];
+    expect(globalThis.BookUtils.countTotalCovers(books, extras, true)).toBe(0);
+  });
+
+  it('does not count extras with empty or null coverData (extended mode)', () => {
+    const books = [];
+    const extras = [
+      { coverData: '' },
+      { coverData: null },
+      { coverData: undefined },
+    ];
+    expect(globalThis.BookUtils.countTotalCovers(books, extras, true)).toBe(0);
+  });
+});
+
+describe('BookUtils.getRequiredCovers edge cases', () => {
+  it('returns MAX for truthy non-boolean extendedMode values', () => {
+    expect(globalThis.BookUtils.getRequiredCovers(1)).toBe(20);
+    expect(globalThis.BookUtils.getRequiredCovers('yes')).toBe(20);
+    expect(globalThis.BookUtils.getRequiredCovers({})).toBe(20);
+    expect(globalThis.BookUtils.getRequiredCovers([])).toBe(20);
+  });
+
+  it('returns MIN for falsy non-boolean extendedMode values', () => {
+    expect(globalThis.BookUtils.getRequiredCovers(0)).toBe(12);
+    expect(globalThis.BookUtils.getRequiredCovers('')).toBe(12);
+    expect(globalThis.BookUtils.getRequiredCovers(null)).toBe(12);
+    expect(globalThis.BookUtils.getRequiredCovers(undefined)).toBe(12);
+  });
+});
+
+describe('BookUtils.getCoverUrl edge cases', () => {
+  it('returns placeholder for coverId === 0 (falsy number, by design)', () => {
+    // 0 is falsy so the !coverId branch returns the placeholder.
+    // Open Library cover IDs are positive, so this is unlikely in practice.
+    expect(globalThis.BookUtils.getCoverUrl(0)).toBe(CONFIG.PLACEHOLDER_NO_COVER_URL);
+  });
+
+  it('builds URL when coverId is a numeric string', () => {
+    expect(globalThis.BookUtils.getCoverUrl('12345')).toBe(
+      'https://covers.openlibrary.org/b/id/12345-M.jpg'
+    );
+  });
+
+  it('returns placeholder for null coverId', () => {
+    expect(globalThis.BookUtils.getCoverUrl(null)).toBe(CONFIG.PLACEHOLDER_NO_COVER_URL);
+  });
+
+  it('returns placeholder for undefined coverId', () => {
+    expect(globalThis.BookUtils.getCoverUrl(undefined)).toBe(CONFIG.PLACEHOLDER_NO_COVER_URL);
+  });
+
+  it('falls back to M for invalid size parameters', () => {
+    // Only 'S', 'M', 'L' are valid Open Library cover sizes; anything else
+    // defaults to 'M'.
+    expect(globalThis.BookUtils.getCoverUrl(12345, 'X')).toBe(
+      'https://covers.openlibrary.org/b/id/12345-M.jpg'
+    );
+    expect(globalThis.BookUtils.getCoverUrl(12345, 's')).toBe(
+      'https://covers.openlibrary.org/b/id/12345-M.jpg'
+    );
+    expect(globalThis.BookUtils.getCoverUrl(12345, null)).toBe(
+      'https://covers.openlibrary.org/b/id/12345-M.jpg'
+    );
+    expect(globalThis.BookUtils.getCoverUrl(12345, 123)).toBe(
+      'https://covers.openlibrary.org/b/id/12345-M.jpg'
+    );
+  });
+});
+
+describe('BookUtils.getBookCoverUrl edge cases', () => {
+  it('clamps currentCoverIndex beyond cover_ids length to 0', () => {
+    // Out-of-range index now falls back to the first cover.
+    const book = makeBook({ cover_ids: [42], currentCoverIndex: 5 });
+    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe(
+      'https://covers.openlibrary.org/b/id/42-M.jpg'
+    );
+  });
+
+  it('clamps negative currentCoverIndex to 0', () => {
+    // Negative index now falls back to the first cover.
+    const book = makeBook({ cover_ids: [42], currentCoverIndex: -1 });
+    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe(
+      'https://covers.openlibrary.org/b/id/42-M.jpg'
+    );
+  });
+
+  it('uses index 0 when currentCoverIndex is undefined', () => {
+    const book = makeBook({ cover_ids: [42], currentCoverIndex: undefined });
+    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe(
+      'https://covers.openlibrary.org/b/id/42-M.jpg'
+    );
+  });
+
+  it('falls back to Open Library when custom cover is an uppercase PLACEHOLD.CO URL', () => {
+    // Placeholder detection is case-insensitive, so uppercase placeholder URLs
+    // are correctly ignored and the Open Library fallback is used.
+    const book = makeBook({
+      cover_ids: [42],
+      customCoverData: 'https://PLACEHOLD.CO/110x132',
+    });
+    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe(
+      'https://covers.openlibrary.org/b/id/42-M.jpg'
+    );
+  });
+
+  it('falls back to Open Library when custom cover is whitespace only', () => {
+    const book = makeBook({
+      cover_ids: [42],
+      customCoverData: '   ',
+    });
+    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe(
+      'https://covers.openlibrary.org/b/id/42-M.jpg'
+    );
+  });
+});
+
+describe('BookUtils.hasEnoughCoversForCollage edge cases', () => {
+  it('standard mode: exactly 12 starred books with covers is enough', () => {
+    const books = Array(12).fill(null).map(() => makeBook({ cover_ids: [1] }));
+    expect(globalThis.BookUtils.hasEnoughCoversForCollage(books, [], false)).toBe(true);
+  });
+
+  it('standard mode: 11 starred-with-covers + 1 unstarred-with-cover is not enough', () => {
+    const books = [
+      ...Array(11).fill(null).map(() => makeBook({ cover_ids: [1] })),
+      makeBook({ includeInCollage: false, cover_ids: [2] }),
+    ];
+    expect(globalThis.BookUtils.hasEnoughCoversForCollage(books, [], false)).toBe(false);
+  });
+
+  it('extended mode: exactly 20 covers via 12 starred + 8 extras is enough', () => {
+    const books = Array(12).fill(null).map(() => makeBook({ cover_ids: [1] }));
+    const extras = Array(8).fill(null).map((_, i) => ({
+      coverData: 'data:image/jpeg;base64,extra' + i,
+    }));
+    expect(globalThis.BookUtils.hasEnoughCoversForCollage(books, extras, true)).toBe(true);
+  });
+
+  it('extended mode: 12 starred + 7 extras (total 19) is not enough', () => {
+    const books = Array(12).fill(null).map(() => makeBook({ cover_ids: [1] }));
+    const extras = Array(7).fill(null).map((_, i) => ({
+      coverData: 'data:image/jpeg;base64,extra' + i,
+    }));
+    expect(globalThis.BookUtils.hasEnoughCoversForCollage(books, extras, true)).toBe(false);
+  });
+
+  it('zero books and zero extras is not enough in standard mode', () => {
+    expect(globalThis.BookUtils.hasEnoughCoversForCollage([], [], false)).toBe(false);
+  });
+
+  it('zero books and zero extras is not enough in extended mode', () => {
+    expect(globalThis.BookUtils.hasEnoughCoversForCollage([], [], true)).toBe(false);
+  });
+});

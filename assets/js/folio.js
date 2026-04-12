@@ -1,6 +1,6 @@
 /* =============================================================================
    FOLIO MASCOT — INTEGRATION SCRIPT
-   Animated SVG cat companion for the Booklist Maker.
+   Animated SVG cat companion for Booklister.
 
    Public API (available after DOM ready):
      window.folio.setState(state, event?)

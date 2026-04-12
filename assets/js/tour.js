@@ -1,7 +1,7 @@
 /* ==========================================================================
    GUIDED TOUR - Folio narrates
 
-   Folio walks users through Booklist Maker in section-based mini-tours.
+   Folio walks users through Booklister in section-based mini-tours.
    A full tour chains all sections in sequence.
    ========================================================================== */
 /* global BooklistApp */
@@ -40,9 +40,14 @@
       steps: [
         {
           target: '#folio-scene',
-          text: "Welcome to Booklist Maker! I'm Folio. This tool creates printable two-page booklists for library displays. Let me show you around. If you have a booklist loaded, don't worry, it will be saved and restored when the tour ends.",
+          text: "Welcome to Booklister! I'm Folio. Let me show you around. Don't worry if you have a booklist loaded, it'll be saved and restored when the tour ends.\n\nTip: Use your arrow keys to navigate.",
           state: 'greeting',
           padding: 4,
+          prepare: function() {
+            openSidebarTab('tab-search');
+            const mainContent = document.querySelector('.main-content');
+            if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+          },
         },
         {
           target: '#preview-area',
@@ -159,7 +164,7 @@
         },
         {
           target: '#inside-left-panel .list-item:first-child .magic-button',
-          text: "The magic wand fetches a book description for you. If a slot is missing a blurb, one click fills it in.",
+          text: "The magic wand fetches a description for you. If a slot is missing a blurb, one click fills it in. You can also edit what it gives you or write your own from scratch.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-2');
@@ -194,16 +199,22 @@
           text: "This is your front cover. You can upload a custom image here, or auto-generate a collage from your starred books. For generated covers, you can customize the title font, size, and background color, even add a gradient.",
           state: 'evaluating',
           prepare: function() {
+            // Reset to "no cover yet" state so the narration matches
+            // even when the user navigates backward into this step
+            clearTourFrontCover();
             scrollPreviewTo('print-page-1');
           },
         },
         {
           target: '#generate-cover-button',
-          text: "This button generates the collage. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
+          text: "This button generates the collage. You can find it in the Front Cover section in the Settings tab, right under the title text inputs. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
           state: 'excited',
           prepare: function() {
+            // Keep the "not yet generated" state so back-navigation is clean
+            clearTourFrontCover();
+
             openSidebarTab('tab-settings');
-            openSettingsSection('Cover Header');
+            openSettingsSection('Front Cover', '#generate-cover-button');
 
             // Switch to advanced cover mode and set title lines
             const advToggle = document.getElementById('cover-advanced-toggle');
@@ -241,6 +252,14 @@
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-1');
+            // Explicitly set layout to classic so navigating back from
+            // the Tilted demo step shows classic again
+            const selector = document.getElementById('collage-layout-selector');
+            if (selector) {
+              selector.querySelectorAll('.layout-option').forEach(function(opt) {
+                opt.classList.toggle('selected', opt.dataset.layout === 'classic');
+              });
+            }
             BooklistApp.generateCoverCollage();
           },
         },
@@ -250,7 +269,7 @@
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');
-            openSettingsSection('Cover Layout');
+            openSettingsSection('Front Cover', '#collage-layout-selector');
           },
         },
         {
@@ -275,7 +294,7 @@
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');
-            openSettingsSection('Cover Layout');
+            openSettingsSection('Front Cover', '#extended-collage-toggle');
           },
         },
         {
@@ -356,8 +375,9 @@
               if (qrBtn) qrBtn.click();
             }, 300);
             const qr = document.getElementById('qr-code-area');
-            if (qr) {
-              qr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const mainContent = document.querySelector('.main-content');
+            if (qr && mainContent) {
+              scrollWithin(mainContent, qr, { center: true });
             }
           },
         },
@@ -368,10 +388,11 @@
           prepare: function() {
             // Set the sample QR text
             const qrText = document.getElementById('qr-code-text');
+            const mainContent = document.querySelector('.main-content');
             if (qrText) {
               qrText.innerText = "Welcome to the Discworld, a fantasy world carried through space on the back of a giant turtle, where Pratchett will make you laugh, and then make you think, and then quietly break your heart. Scan the code to meet the man, then come find the books waiting for you on the shelf.";
               qrText.style.color = '';
-              qrText.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              if (mainContent) scrollWithin(mainContent, qrText, { center: true });
             }
           },
         },
@@ -510,19 +531,44 @@
     });
   }
 
-  function openSettingsSection(sectionName) {
+  // Direct offsetTop-based scroll (avoids scrollIntoView which cascades
+  // up ancestor scroll containers and can cause layout shifts when
+  // scrolling inside a nested scroll parent like .tab-content).
+  // Uses getBoundingClientRect so it works regardless of the
+  // offsetParent chain.
+  function scrollWithin(scrollContainer, target, { center = false } = {}) {
+    if (!scrollContainer || !target) return;
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    // Target's absolute offset within the scroll container
+    const currentOffset = (targetRect.top - containerRect.top) + scrollContainer.scrollTop;
+    let top;
+    if (center) {
+      top = currentOffset - (scrollContainer.clientHeight / 2) + (target.clientHeight / 2);
+    } else {
+      top = currentOffset - 10;
+    }
+    scrollContainer.scrollTop = Math.max(0, top);
+  }
+
+  function openSettingsSection(sectionName, subTargetSelector) {
     const sections = document.querySelectorAll('.settings-section');
     sections.forEach(function(details) {
       const summary = details.querySelector('summary');
       if (summary && summary.textContent.includes(sectionName)) {
         if (!details.open) details.open = true;
-        // Scroll within the settings tab container
+        // Scroll within .tab-content directly (no scrollIntoView)
         setTimeout(function() {
           const tabSettings = document.getElementById('tab-settings');
-          if (tabSettings) {
-            const offsetTop = details.offsetTop - tabSettings.offsetTop;
-            tabSettings.scrollTop = offsetTop - 10;
+          if (!tabSettings) return;
+          if (subTargetSelector) {
+            const sub = details.querySelector(subTargetSelector);
+            if (sub) {
+              scrollWithin(tabSettings, sub, { center: true });
+              return;
+            }
           }
+          scrollWithin(tabSettings, details);
         }, 100);
       }
     });
@@ -541,6 +587,20 @@
       }
       scrollContainer.scrollTo({ top: Math.max(0, offset - 20), behavior: 'smooth' });
     }
+  }
+
+  // Clear the front cover uploader back to the empty placeholder state
+  // (used when navigating backward to "pre-collage" tour steps)
+  function clearTourFrontCover() {
+    const uploader = document.getElementById('front-cover-uploader');
+    if (!uploader) return;
+    const img = uploader.querySelector('img');
+    if (img) {
+      img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+      img.dataset.isPlaceholder = 'true';
+      img.dataset.isAutoGenerated = 'false';
+    }
+    uploader.classList.remove('has-image');
   }
 
   function totalSteps() {
@@ -779,13 +839,13 @@
     if (brandingToggle) brandingToggle.checked = true;
     BooklistApp.updateBackCoverVisibility();
 
-    // Ensure Folio is visible
+    // Ensure Folio is visible (class-only; don't touch localStorage
+    // so the user's saved preference survives the tour)
     const container = document.getElementById('folio-container');
     if (container) {
       preTourFolioHidden = container.classList.contains('folio-hidden');
       if (preTourFolioHidden) {
         container.classList.remove('folio-hidden');
-        try { localStorage.setItem('folio-hidden', 'false'); } catch {}
       }
     }
     showCurrentStep();
@@ -918,12 +978,17 @@
     const results = document.getElementById('results-container');
     if (results) results.innerHTML = '';
 
-    // Restore Folio visibility state
+    // Reset the settings tab scroll so the next time the user opens
+    // Settings they start at the top
+    const tabSettings = document.getElementById('tab-settings');
+    if (tabSettings) tabSettings.scrollTop = 0;
+
+    // Restore Folio visibility state (class-only; the user's saved
+    // preference in localStorage was never touched during the tour)
     if (preTourFolioHidden) {
       const container = document.getElementById('folio-container');
       if (container) {
         container.classList.add('folio-hidden');
-        try { localStorage.setItem('folio-hidden', 'true'); } catch {}
       }
     }
 

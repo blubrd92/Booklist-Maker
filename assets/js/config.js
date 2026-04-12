@@ -1,5 +1,5 @@
 /**
- * Booklist Maker - Configuration
+ * Booklister - Configuration
  * All application constants in one place.
  */
 (function() {
@@ -45,6 +45,7 @@
 
     // Timing
     NOTIFICATION_DURATION_MS: 3000,
+    NOTIFICATION_DURATION_SUCCESS_MS: 1500,
     AUTOSAVE_DEBOUNCE_MS: 400,
     PDF_RENDER_DELAY_MS: 100,
 
@@ -59,7 +60,7 @@
     // Placeholders
     PLACEHOLDER_COVER_URL: 'https://placehold.co/110x132/EAEAEA/333333?text=Upload%20Cover',
     PLACEHOLDER_NO_COVER_URL: 'https://placehold.co/110x132/EAEAEA/333333?text=No%20Cover',
-    PLACEHOLDER_QR_URL: 'https://placehold.co/144x144/EAEAEA/333333?text=QR+Code',
+    PLACEHOLDER_QR_URL: 'https://placehold.co/900x900/EAEAEA/333333?text=QR+Code',
     PLACEHOLDER_COLLAGE_COVER_URL: 'https://placehold.co/300x450/EAEAEA/333333?text=No%20Cover',
 
     // Text placeholders

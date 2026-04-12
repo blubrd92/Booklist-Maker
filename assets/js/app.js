@@ -1,5 +1,5 @@
 /**
- * Booklist Maker Application
+ * Booklister Application
  * Refactored for maintainability, accessibility, and clarity
  *
  * Dependencies (loaded via <script> tags before this file):
@@ -594,9 +594,14 @@ const BooklistApp = (function() {
     elements.notificationArea.classList.add('show');
     
     if (autoHide) {
+      // Success notifications auto-hide faster since they're just confirmations;
+      // errors get the full duration so users have time to read them.
+      const duration = type === 'success'
+        ? CONFIG.NOTIFICATION_DURATION_SUCCESS_MS
+        : CONFIG.NOTIFICATION_DURATION_MS;
       notificationTimeout = setTimeout(() => {
         hideNotification();
-      }, CONFIG.NOTIFICATION_DURATION_MS);
+      }, duration);
     }
   }
   
@@ -693,27 +698,10 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   // Book Data Management
   // ---------------------------------------------------------------------------
-  function createBlankBook() {
-    return {
-      key: `blank-${crypto.randomUUID()}`,
-      isBlank: true,
-      title: CONFIG.PLACEHOLDERS.title,
-      author: CONFIG.PLACEHOLDERS.author,
-      callNumber: CONFIG.PLACEHOLDERS.callNumber,
-      authorDisplay: CONFIG.PLACEHOLDERS.authorWithCall,
-      description: CONFIG.PLACEHOLDERS.description,
-      cover_i: null,
-      customCoverData: CONFIG.PLACEHOLDER_COVER_URL,
-      cover_ids: [],
-      currentCoverIndex: 0,
-      includeInCollage: false // Blank books don't count toward collage
-    };
-  }
-  
   function initializeBooklist() {
     myBooklist = [];
     for (let i = 0; i < CONFIG.TOTAL_SLOTS; i++) {
-      myBooklist.push(createBlankBook());
+      myBooklist.push(BookUtils.createBlankBook());
     }
     handleLayoutChange();
     renderBooklist();
@@ -1148,7 +1136,7 @@ const BooklistApp = (function() {
       const indexToRemove = myBooklist.findIndex(item => item.key === book.key);
       if (indexToRemove !== -1) {
         pushUndo('remove-book');
-        myBooklist[indexToRemove] = createBlankBook();
+        myBooklist[indexToRemove] = BookUtils.createBlankBook();
       }
       addButton.textContent = 'Add to List';
       addButton.classList.remove('added');
@@ -1563,7 +1551,7 @@ const BooklistApp = (function() {
   function handleDeleteBook(bookItem, index) {
     pushUndo('delete-book');
     const originalKey = myBooklist[index].key;
-    myBooklist[index] = createBlankBook();
+    myBooklist[index] = BookUtils.createBlankBook();
     renderBooklist();
     debouncedSave();
     
@@ -3193,7 +3181,7 @@ const BooklistApp = (function() {
     }
     
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-20 using the Additional Covers section)';
     }
     
     elements.frontCoverUploader?.classList.remove('has-image');
@@ -3205,7 +3193,7 @@ const BooklistApp = (function() {
   function restoreFrontCoverPlaceholderText() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)';
     }
   }
 
@@ -3215,7 +3203,7 @@ const BooklistApp = (function() {
   function updateExtendedModePlaceholderText() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-20 using the Additional Covers section)';
     }
   }
   
@@ -3896,7 +3884,7 @@ const BooklistApp = (function() {
       // PDF metadata
       pdf.setProperties({
         title: safeBase,
-        creator: 'Booklist Maker',
+        creator: 'Booklister',
         subject: 'Printable Booklist',
       });
 
@@ -4339,7 +4327,7 @@ const BooklistApp = (function() {
     });
     
     while (myBooklist.length < CONFIG.TOTAL_SLOTS) {
-      myBooklist.push(createBlankBook());
+      myBooklist.push(BookUtils.createBlankBook());
     }
     
     handleLayoutChange();
@@ -5795,7 +5783,14 @@ const BooklistApp = (function() {
   function applyZoom() {
     const target = elements.previewArea;
     if (!target) return;
-    target.style.zoom = currentZoom;
+    // Clear the inline zoom style at 100% so the browser treats the
+    // element as unzoomed (avoids containing-block / layout quirks
+    // from the CSS `zoom` property at value 1.0)
+    if (currentZoom === 1.0) {
+      target.style.zoom = '';
+    } else {
+      target.style.zoom = currentZoom;
+    }
     const resetBtn = document.getElementById('btn-zoom-reset');
     if (resetBtn) resetBtn.textContent = Math.round(currentZoom * 100) + '%';
   }
