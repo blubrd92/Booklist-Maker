@@ -128,30 +128,48 @@ button.is-loading::after {
   white-space: nowrap;
 }
 
-/* Site Navigation (About / For Libraries / Contact) */
-.site-nav {
+/* Site Navigation Footer (About / For Libraries / Contact) */
+.site-footer {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   font-family: 'EB Garamond', serif;
   font-size: 0.85rem;
-  margin-left: 4px;
-  padding-left: 16px;
-  border-left: 1px solid rgba(255,255,255,0.2);
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 15;
+  pointer-events: auto;
 }
-.site-nav a {
-  color: rgba(255,255,255,0.7);
+.site-footer a {
+  color: var(--text-light);
   text-decoration: none;
   transition: color var(--transition-fast);
   white-space: nowrap;
 }
-.site-nav a:hover {
-  color: white;
+.site-footer a:hover {
+  color: var(--primary-color);
 }
-.site-nav a[aria-current="page"] {
-  color: white;
+.site-footer a[aria-current="page"] {
+  color: var(--text-color);
   font-weight: 600;
   pointer-events: none;
+}
+.site-footer-sep {
+  color: var(--text-muted);
+  user-select: none;
+}
+/* Hide in print mode */
+.print-mode .site-footer {
+  display: none !important;
 }
 
 /* Panel Toggle Buttons in Header */
