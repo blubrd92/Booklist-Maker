@@ -1,7 +1,7 @@
 /* ==========================================================================
    GUIDED TOUR - Folio narrates
 
-   Folio walks users through Booklist Maker in section-based mini-tours.
+   Folio walks users through Booklister in section-based mini-tours.
    A full tour chains all sections in sequence.
    ========================================================================== */
 /* global BooklistApp */
@@ -40,7 +40,7 @@
       steps: [
         {
           target: '#folio-scene',
-          text: "Welcome to Booklist Maker! I'm Folio. This tool creates printable two-page booklists for library displays. Let me show you around. If you have a booklist loaded, don't worry, it will be saved and restored when the tour ends.",
+          text: "Welcome to Booklister! I'm Folio. This tool creates printable two-page booklists for library displays. Let me show you around. If you have a booklist loaded, don't worry, it will be saved and restored when the tour ends.\n\nTip: You can use your keyboard's arrow keys to move through the tour instead of clicking the buttons.",
           state: 'greeting',
           padding: 4,
         },
@@ -159,7 +159,7 @@
         },
         {
           target: '#inside-left-panel .list-item:first-child .magic-button',
-          text: "The magic wand fetches a book description for you. If a slot is missing a blurb, one click fills it in.",
+          text: "The magic wand fetches a description for you. If a slot is missing a blurb, one click fills it in. You can also edit what it gives you or write your own from scratch.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-2');
