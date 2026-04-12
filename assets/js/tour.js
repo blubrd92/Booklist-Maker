@@ -375,8 +375,9 @@
               if (qrBtn) qrBtn.click();
             }, 300);
             const qr = document.getElementById('qr-code-area');
-            if (qr) {
-              qr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const mainContent = document.querySelector('.main-content');
+            if (qr && mainContent) {
+              scrollWithin(mainContent, qr, { center: true });
             }
           },
         },
@@ -387,10 +388,11 @@
           prepare: function() {
             // Set the sample QR text
             const qrText = document.getElementById('qr-code-text');
+            const mainContent = document.querySelector('.main-content');
             if (qrText) {
               qrText.innerText = "Welcome to the Discworld, a fantasy world carried through space on the back of a giant turtle, where Pratchett will make you laugh, and then make you think, and then quietly break your heart. Scan the code to meet the man, then come find the books waiting for you on the shelf.";
               qrText.style.color = '';
-              qrText.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              if (mainContent) scrollWithin(mainContent, qrText, { center: true });
             }
           },
         },
@@ -529,26 +531,44 @@
     });
   }
 
+  // Direct offsetTop-based scroll (avoids scrollIntoView which cascades
+  // up ancestor scroll containers and can cause layout shifts when
+  // scrolling inside a nested scroll parent like .tab-content).
+  function scrollWithin(scrollContainer, target, { center = false } = {}) {
+    if (!scrollContainer || !target) return;
+    let offset = 0;
+    let node = target;
+    while (node && node !== scrollContainer) {
+      offset += node.offsetTop;
+      node = node.offsetParent;
+    }
+    let top;
+    if (center) {
+      top = offset - (scrollContainer.clientHeight / 2) + (target.clientHeight / 2);
+    } else {
+      top = offset - 10;
+    }
+    scrollContainer.scrollTop = Math.max(0, top);
+  }
+
   function openSettingsSection(sectionName, subTargetSelector) {
     const sections = document.querySelectorAll('.settings-section');
     sections.forEach(function(details) {
       const summary = details.querySelector('summary');
       if (summary && summary.textContent.includes(sectionName)) {
         if (!details.open) details.open = true;
-        // Scroll to the requested sub-target if provided, otherwise to the
-        // top of the section
+        // Scroll within .tab-content directly (no scrollIntoView)
         setTimeout(function() {
           const tabSettings = document.getElementById('tab-settings');
           if (!tabSettings) return;
           if (subTargetSelector) {
             const sub = details.querySelector(subTargetSelector);
             if (sub) {
-              sub.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              scrollWithin(tabSettings, sub, { center: true });
               return;
             }
           }
-          const offsetTop = details.offsetTop - tabSettings.offsetTop;
-          tabSettings.scrollTop = offsetTop - 10;
+          scrollWithin(tabSettings, details);
         }, 100);
       }
     });

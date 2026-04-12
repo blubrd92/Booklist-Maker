@@ -32,6 +32,11 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100vh;
+  overflow: hidden;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg-color);
@@ -343,6 +348,7 @@ body.content-page .site-footer {
 .app-container {
   display: flex;
   flex: 1;
+  height: calc(100vh - 52px - 32px); /* viewport - header - footer */
   min-height: 0; /* allow flex child to shrink properly */
   overflow: hidden;
   background: var(--bg-color);
@@ -901,6 +907,8 @@ input[type="color"]:hover {
 /* --- MAIN CONTENT --- */
 .main-content {
   flex: 1;
+  min-width: 0; /* allow flex child to shrink in row */
+  min-height: 0; /* allow clip at container height, prevent growth */
   background-color: var(--bg-color);
   overflow: auto;
   padding: 20px;
