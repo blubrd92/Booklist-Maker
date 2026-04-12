@@ -127,6 +127,35 @@
       const required = BookUtils.getRequiredCovers(extendedMode);
       return total >= required;
     },
+
+    /**
+     * Create a blank book object with placeholder fields.
+     * Used for empty slots in a new booklist or after deletion.
+     * @returns {Object} A blank book object
+     */
+    createBlankBook: function() {
+      const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+      return {
+        key: `blank-${uuid}`,
+        isBlank: true,
+        title: CONFIG.PLACEHOLDERS.title,
+        author: CONFIG.PLACEHOLDERS.author,
+        callNumber: CONFIG.PLACEHOLDERS.callNumber,
+        authorDisplay: CONFIG.PLACEHOLDERS.authorWithCall,
+        description: CONFIG.PLACEHOLDERS.description,
+        cover_i: null,
+        customCoverData: CONFIG.PLACEHOLDER_COVER_URL,
+        cover_ids: [],
+        currentCoverIndex: 0,
+        includeInCollage: false // Blank books don't count toward collage
+      };
+    },
   };
 
   // Expose globally

@@ -698,27 +698,10 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   // Book Data Management
   // ---------------------------------------------------------------------------
-  function createBlankBook() {
-    return {
-      key: `blank-${crypto.randomUUID()}`,
-      isBlank: true,
-      title: CONFIG.PLACEHOLDERS.title,
-      author: CONFIG.PLACEHOLDERS.author,
-      callNumber: CONFIG.PLACEHOLDERS.callNumber,
-      authorDisplay: CONFIG.PLACEHOLDERS.authorWithCall,
-      description: CONFIG.PLACEHOLDERS.description,
-      cover_i: null,
-      customCoverData: CONFIG.PLACEHOLDER_COVER_URL,
-      cover_ids: [],
-      currentCoverIndex: 0,
-      includeInCollage: false // Blank books don't count toward collage
-    };
-  }
-  
   function initializeBooklist() {
     myBooklist = [];
     for (let i = 0; i < CONFIG.TOTAL_SLOTS; i++) {
-      myBooklist.push(createBlankBook());
+      myBooklist.push(BookUtils.createBlankBook());
     }
     handleLayoutChange();
     renderBooklist();
@@ -1153,7 +1136,7 @@ const BooklistApp = (function() {
       const indexToRemove = myBooklist.findIndex(item => item.key === book.key);
       if (indexToRemove !== -1) {
         pushUndo('remove-book');
-        myBooklist[indexToRemove] = createBlankBook();
+        myBooklist[indexToRemove] = BookUtils.createBlankBook();
       }
       addButton.textContent = 'Add to List';
       addButton.classList.remove('added');
@@ -1568,7 +1551,7 @@ const BooklistApp = (function() {
   function handleDeleteBook(bookItem, index) {
     pushUndo('delete-book');
     const originalKey = myBooklist[index].key;
-    myBooklist[index] = createBlankBook();
+    myBooklist[index] = BookUtils.createBlankBook();
     renderBooklist();
     debouncedSave();
     
@@ -4344,7 +4327,7 @@ const BooklistApp = (function() {
     });
     
     while (myBooklist.length < CONFIG.TOTAL_SLOTS) {
-      myBooklist.push(createBlankBook());
+      myBooklist.push(BookUtils.createBlankBook());
     }
     
     handleLayoutChange();
