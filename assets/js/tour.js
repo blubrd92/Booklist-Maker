@@ -199,7 +199,7 @@
         },
         {
           target: '#generate-cover-button',
-          text: "This button generates the collage. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
+          text: "This button generates the collage. You can find it at the bottom of the Front Cover section in the Settings tab. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
           state: 'excited',
           prepare: function() {
             openSidebarTab('tab-settings');
