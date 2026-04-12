@@ -139,10 +139,15 @@ body.content-page {
   overflow-y: auto;
   overflow-x: hidden;
 }
-/* Sticky header on content pages only (tool page is already fixed-height) */
+/* Sticky header and footer on content pages only (tool page is fixed-height) */
 body.content-page .app-header {
   position: sticky;
   top: 0;
+  z-index: 20;
+}
+body.content-page .site-footer {
+  position: sticky;
+  bottom: 0;
   z-index: 20;
 }
 .app-header a.logo {
