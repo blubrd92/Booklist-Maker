@@ -139,6 +139,12 @@ body.content-page {
   overflow-y: auto;
   overflow-x: hidden;
 }
+/* Sticky header on content pages only (tool page is already fixed-height) */
+body.content-page .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
 .app-header a.logo {
   color: white;
   text-decoration: none;
