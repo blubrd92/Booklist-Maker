@@ -5800,7 +5800,14 @@ const BooklistApp = (function() {
   function applyZoom() {
     const target = elements.previewArea;
     if (!target) return;
-    target.style.zoom = currentZoom;
+    // Clear the inline zoom style at 100% so the browser treats the
+    // element as unzoomed (avoids containing-block / layout quirks
+    // from the CSS `zoom` property at value 1.0)
+    if (currentZoom === 1.0) {
+      target.style.zoom = '';
+    } else {
+      target.style.zoom = currentZoom;
+    }
     const resetBtn = document.getElementById('btn-zoom-reset');
     if (resetBtn) resetBtn.textContent = Math.round(currentZoom * 100) + '%';
   }

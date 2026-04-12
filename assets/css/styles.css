@@ -343,7 +343,7 @@ body.content-page .site-footer {
 .app-container {
   display: flex;
   flex: 1;
-  height: calc(100vh - 52px - 32px); /* viewport - header - footer */
+  min-height: 0; /* allow flex child to shrink properly */
   overflow: hidden;
   background: var(--bg-color);
 }
