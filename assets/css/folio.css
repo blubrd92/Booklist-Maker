@@ -18,7 +18,7 @@
 
 .folio-container {
   position: fixed;
-  bottom: 0;
+  bottom: 32px; /* sit above the site footer */
   left: 340px;
   z-index: 900;
   pointer-events: none;

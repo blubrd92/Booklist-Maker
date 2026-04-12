@@ -128,37 +128,43 @@ button.is-loading::after {
   white-space: nowrap;
 }
 
-/* Site Navigation row inside zoom-controls (About / For Libraries / Contact) */
-.site-nav-row {
+/* Site Footer (About / For Libraries / Contact) */
+.site-footer {
+  height: 32px;
+  background: var(--sidebar-bg);
   border-top: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 6px 8px;
+  flex-shrink: 0;
   font-family: 'EB Garamond', serif;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
 }
-.site-nav-row a {
+.site-footer-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.site-footer-nav a {
   color: var(--text-light);
   text-decoration: none;
   transition: color var(--transition-fast);
   white-space: nowrap;
 }
-.site-nav-row a:hover {
+.site-footer-nav a:hover {
   color: var(--primary-color);
 }
-.site-nav-row a[aria-current="page"] {
+.site-footer-nav a[aria-current="page"] {
   color: var(--text-color);
   font-weight: 600;
   pointer-events: none;
 }
-.site-nav-row span {
+.site-footer-nav span {
   color: var(--text-muted);
   user-select: none;
 }
 /* Hide in print mode */
-.print-mode .site-nav-row {
+.print-mode .site-footer {
   display: none !important;
 }
 
@@ -266,7 +272,7 @@ button.is-loading::after {
 .app-container {
   display: flex;
   flex: 1;
-  height: calc(100vh - 52px);
+  height: calc(100vh - 52px - 32px); /* viewport - header - footer */
   overflow: hidden;
   background: var(--bg-color);
 }
@@ -2179,7 +2185,7 @@ input[type="color"]:hover {
 
 .zoom-controls {
   position: fixed;
-  bottom: 16px;
+  bottom: 48px; /* 32px footer + 16px gap */
   right: 16px;
   display: flex;
   align-items: center;
