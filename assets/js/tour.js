@@ -839,13 +839,13 @@
     if (brandingToggle) brandingToggle.checked = true;
     BooklistApp.updateBackCoverVisibility();
 
-    // Ensure Folio is visible
+    // Ensure Folio is visible (class-only; don't touch localStorage
+    // so the user's saved preference survives the tour)
     const container = document.getElementById('folio-container');
     if (container) {
       preTourFolioHidden = container.classList.contains('folio-hidden');
       if (preTourFolioHidden) {
         container.classList.remove('folio-hidden');
-        try { localStorage.setItem('folio-hidden', 'false'); } catch {}
       }
     }
     showCurrentStep();
@@ -978,12 +978,12 @@
     const results = document.getElementById('results-container');
     if (results) results.innerHTML = '';
 
-    // Restore Folio visibility state
+    // Restore Folio visibility state (class-only; the user's saved
+    // preference in localStorage was never touched during the tour)
     if (preTourFolioHidden) {
       const container = document.getElementById('folio-container');
       if (container) {
         container.classList.add('folio-hidden');
-        try { localStorage.setItem('folio-hidden', 'true'); } catch {}
       }
     }
 
