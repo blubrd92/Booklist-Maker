@@ -138,7 +138,7 @@ button.is-loading::after {
   justify-content: center;
   flex-shrink: 0;
   font-family: 'EB Garamond', serif;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
 }
 .site-footer-nav {
   display: flex;
