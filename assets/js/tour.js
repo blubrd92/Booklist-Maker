@@ -534,19 +534,19 @@
   // Direct offsetTop-based scroll (avoids scrollIntoView which cascades
   // up ancestor scroll containers and can cause layout shifts when
   // scrolling inside a nested scroll parent like .tab-content).
+  // Uses getBoundingClientRect so it works regardless of the
+  // offsetParent chain.
   function scrollWithin(scrollContainer, target, { center = false } = {}) {
     if (!scrollContainer || !target) return;
-    let offset = 0;
-    let node = target;
-    while (node && node !== scrollContainer) {
-      offset += node.offsetTop;
-      node = node.offsetParent;
-    }
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    // Target's absolute offset within the scroll container
+    const currentOffset = (targetRect.top - containerRect.top) + scrollContainer.scrollTop;
     let top;
     if (center) {
-      top = offset - (scrollContainer.clientHeight / 2) + (target.clientHeight / 2);
+      top = currentOffset - (scrollContainer.clientHeight / 2) + (target.clientHeight / 2);
     } else {
-      top = offset - 10;
+      top = currentOffset - 10;
     }
     scrollContainer.scrollTop = Math.max(0, top);
   }
