@@ -1,29 +1,42 @@
 /**
- * Booklist Maker - Shared Utility Functions
+ * Booklister - Shared Utility Functions
  * Pure functions extracted from app.js to eliminate duplication and enable testing.
  */
 (function() {
   'use strict';
 
+  // Common cover sizes recognized by the Open Library covers API
+  const VALID_COVER_SIZES = ['S', 'M', 'L'];
+
+  // Returns true if the given string looks like a placeholder image URL.
+  // Case-insensitive and whitespace-tolerant.
+  function isPlaceholderUrl(value) {
+    if (!value || typeof value !== 'string') return true;
+    const trimmed = value.trim();
+    if (!trimmed) return true;
+    return trimmed.toLowerCase().includes('placehold.co');
+  }
+
   const BookUtils = {
 
     /**
      * Checks if a book has a valid (non-placeholder) cover image.
-     * Replaces ~10 inline checks scattered across app.js.
      * @param {Object} book - A book object from the booklist
      * @returns {boolean}
      */
     hasValidCover: function(book) {
       if (!book) return false;
-      const hasOpenLibraryCover = book.cover_ids && book.cover_ids.length > 0;
-      const hasCustomCover = book.customCoverData &&
-        !book.customCoverData.includes('placehold.co');
+      const hasOpenLibraryCover =
+        Array.isArray(book.cover_ids) &&
+        book.cover_ids.some(function(id) { return !!id; });
+      const hasCustomCover =
+        typeof book.customCoverData === 'string' &&
+        !isPlaceholderUrl(book.customCoverData);
       return !!(hasOpenLibraryCover || hasCustomCover);
     },
 
     /**
      * Returns all non-blank, starred (includeInCollage) books.
-     * Replaces ~11 identical filter expressions.
      * @param {Array} booklist - The myBooklist array
      * @returns {Array}
      */
@@ -44,7 +57,6 @@
 
     /**
      * Checks whether the total cover count has reached the limit.
-     * Replaces ~4 duplicated limit-check blocks.
      * @param {Array} booklist - The myBooklist array
      * @param {Array} extraCovers - The extraCollageCovers array
      * @param {number} maxCovers - CONFIG.MAX_COVERS_FOR_COLLAGE
@@ -66,7 +78,7 @@
       const booksWithCovers = BookUtils.getStarredBooksWithCovers(booklist);
       const extraCount = extendedMode
         ? extraCovers.filter(function(ec) {
-            return ec.coverData && !ec.coverData.includes('placehold.co');
+            return ec.coverData && !isPlaceholderUrl(ec.coverData);
           }).length
         : 0;
       return booksWithCovers.length + extraCount;
@@ -86,11 +98,11 @@
     /**
      * Builds an Open Library cover image URL.
      * @param {string|number} coverId - The Open Library cover ID
-     * @param {string} [size='M'] - Size suffix: 'S', 'M', or 'L'
+     * @param {string} [size='M'] - Size suffix: 'S', 'M', or 'L'. Invalid sizes fall back to 'M'.
      * @returns {string} Full URL or placeholder
      */
     getCoverUrl: function(coverId, size) {
-      if (!size) size = 'M';
+      if (!VALID_COVER_SIZES.includes(size)) size = 'M';
       if (!coverId || coverId === 'placehold') {
         return CONFIG.PLACEHOLDER_NO_COVER_URL;
       }
@@ -104,13 +116,19 @@
      * @returns {string}
      */
     getBookCoverUrl: function(book, size) {
-      if (!size) size = 'M';
-      if (book.customCoverData && !book.customCoverData.includes('placehold.co')) {
+      if (!VALID_COVER_SIZES.includes(size)) size = 'M';
+      if (typeof book.customCoverData === 'string' && !isPlaceholderUrl(book.customCoverData)) {
         return book.customCoverData;
       }
-      if (book.cover_ids && book.cover_ids.length > 0) {
-        const coverId = book.cover_ids[book.currentCoverIndex || 0];
-        return BookUtils.getCoverUrl(coverId, size);
+      if (Array.isArray(book.cover_ids) && book.cover_ids.length > 0) {
+        // Clamp currentCoverIndex to a valid range so a corrupted or
+        // out-of-bounds index falls back to the first cover instead of
+        // silently returning the placeholder.
+        let idx = book.currentCoverIndex;
+        if (typeof idx !== 'number' || idx < 0 || idx >= book.cover_ids.length) {
+          idx = 0;
+        }
+        return BookUtils.getCoverUrl(book.cover_ids[idx], size);
       }
       return CONFIG.PLACEHOLDER_COLLAGE_COVER_URL;
     },

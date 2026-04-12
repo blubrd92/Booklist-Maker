@@ -259,23 +259,26 @@ describe('BookUtils.hasValidCover edge cases', () => {
     expect(globalThis.BookUtils.hasValidCover(book)).toBe(false);
   });
 
-  it('returns true for custom cover URL containing PLACEHOLD.CO in uppercase (case-sensitive check, by design)', () => {
-    // Current implementation uses .includes('placehold.co') which is case-sensitive.
-    // Uppercase URLs slip past the placeholder filter — worth revisiting if this matters.
+  it('returns false for custom cover URL containing PLACEHOLD.CO in uppercase', () => {
+    // Placeholder detection is now case-insensitive.
     const book = makeBook({ customCoverData: 'https://PLACEHOLD.CO/110x132' });
-    expect(globalThis.BookUtils.hasValidCover(book)).toBe(true);
+    expect(globalThis.BookUtils.hasValidCover(book)).toBe(false);
   });
 
-  it('returns true for whitespace-only customCoverData (not detected as placeholder, by design)', () => {
-    // Whitespace strings are truthy and don't include 'placehold.co', so they pass.
-    // Worth revisiting — whitespace is unlikely to be a real cover.
+  it('returns false for whitespace-only customCoverData', () => {
+    // Whitespace-only strings are treated the same as empty.
     const book = makeBook({ customCoverData: '   ' });
-    expect(globalThis.BookUtils.hasValidCover(book)).toBe(true);
+    expect(globalThis.BookUtils.hasValidCover(book)).toBe(false);
   });
 
-  it('returns true for cover_ids: [0] (length > 0 even though id is falsy)', () => {
-    // hasValidCover only checks length, not the truthiness of individual IDs.
+  it('returns false for cover_ids: [0] (no truthy IDs)', () => {
+    // hasValidCover now requires at least one truthy cover ID.
     const book = makeBook({ cover_ids: [0] });
+    expect(globalThis.BookUtils.hasValidCover(book)).toBe(false);
+  });
+
+  it('returns true for cover_ids containing at least one truthy ID alongside 0', () => {
+    const book = makeBook({ cover_ids: [0, 12345] });
     expect(globalThis.BookUtils.hasValidCover(book)).toBe(true);
   });
 });
@@ -431,29 +434,39 @@ describe('BookUtils.getCoverUrl edge cases', () => {
     expect(globalThis.BookUtils.getCoverUrl(undefined)).toBe(CONFIG.PLACEHOLDER_NO_COVER_URL);
   });
 
-  it('passes through unusual size parameters verbatim (no validation, by design)', () => {
-    // The function does not validate size — any truthy string is interpolated as-is.
+  it('falls back to M for invalid size parameters', () => {
+    // Only 'S', 'M', 'L' are valid Open Library cover sizes; anything else
+    // defaults to 'M'.
     expect(globalThis.BookUtils.getCoverUrl(12345, 'X')).toBe(
-      'https://covers.openlibrary.org/b/id/12345-X.jpg'
+      'https://covers.openlibrary.org/b/id/12345-M.jpg'
     );
     expect(globalThis.BookUtils.getCoverUrl(12345, 's')).toBe(
-      'https://covers.openlibrary.org/b/id/12345-s.jpg'
+      'https://covers.openlibrary.org/b/id/12345-M.jpg'
+    );
+    expect(globalThis.BookUtils.getCoverUrl(12345, null)).toBe(
+      'https://covers.openlibrary.org/b/id/12345-M.jpg'
+    );
+    expect(globalThis.BookUtils.getCoverUrl(12345, 123)).toBe(
+      'https://covers.openlibrary.org/b/id/12345-M.jpg'
     );
   });
 });
 
 describe('BookUtils.getBookCoverUrl edge cases', () => {
-  it('does not crash when currentCoverIndex is beyond cover_ids length (returns -M.jpg with undefined id, by design)', () => {
-    // The function reads cover_ids[currentCoverIndex] which is undefined when out of range,
-    // then passes it to getCoverUrl which treats undefined as falsy and returns the placeholder.
+  it('clamps currentCoverIndex beyond cover_ids length to 0', () => {
+    // Out-of-range index now falls back to the first cover.
     const book = makeBook({ cover_ids: [42], currentCoverIndex: 5 });
-    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe(CONFIG.PLACEHOLDER_NO_COVER_URL);
+    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe(
+      'https://covers.openlibrary.org/b/id/42-M.jpg'
+    );
   });
 
-  it('handles negative currentCoverIndex (returns placeholder, by design)', () => {
-    // cover_ids[-1] is undefined in JS arrays, so getCoverUrl returns the placeholder.
+  it('clamps negative currentCoverIndex to 0', () => {
+    // Negative index now falls back to the first cover.
     const book = makeBook({ cover_ids: [42], currentCoverIndex: -1 });
-    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe(CONFIG.PLACEHOLDER_NO_COVER_URL);
+    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe(
+      'https://covers.openlibrary.org/b/id/42-M.jpg'
+    );
   });
 
   it('uses index 0 when currentCoverIndex is undefined', () => {
@@ -463,14 +476,26 @@ describe('BookUtils.getBookCoverUrl edge cases', () => {
     );
   });
 
-  it('returns uppercase PLACEHOLD.CO custom cover as-is (case-sensitive check, by design)', () => {
-    // Same case-sensitivity issue as hasValidCover — uppercase placeholder URLs are
-    // treated as legitimate custom covers and returned directly.
+  it('falls back to Open Library when custom cover is an uppercase PLACEHOLD.CO URL', () => {
+    // Placeholder detection is case-insensitive, so uppercase placeholder URLs
+    // are correctly ignored and the Open Library fallback is used.
     const book = makeBook({
       cover_ids: [42],
       customCoverData: 'https://PLACEHOLD.CO/110x132',
     });
-    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe('https://PLACEHOLD.CO/110x132');
+    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe(
+      'https://covers.openlibrary.org/b/id/42-M.jpg'
+    );
+  });
+
+  it('falls back to Open Library when custom cover is whitespace only', () => {
+    const book = makeBook({
+      cover_ids: [42],
+      customCoverData: '   ',
+    });
+    expect(globalThis.BookUtils.getBookCoverUrl(book)).toBe(
+      'https://covers.openlibrary.org/b/id/42-M.jpg'
+    );
   });
 });
 

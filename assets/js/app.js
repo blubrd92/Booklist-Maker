@@ -1,5 +1,5 @@
 /**
- * Booklist Maker Application
+ * Booklister Application
  * Refactored for maintainability, accessibility, and clarity
  *
  * Dependencies (loaded via <script> tags before this file):
@@ -3884,7 +3884,7 @@ const BooklistApp = (function() {
       // PDF metadata
       pdf.setProperties({
         title: safeBase,
-        creator: 'Booklist Maker',
+        creator: 'Booklister',
         subject: 'Printable Booklist',
       });
 

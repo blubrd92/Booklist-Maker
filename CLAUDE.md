@@ -44,7 +44,7 @@ assets/
   js/
     config.js                   CONFIG constants (loaded first as global)
     book-utils.js               BookUtils shared pure functions (loaded second)
-    app.js                      Core application logic (IIFE, ~5900 lines)
+    app.js                      Core application logic (IIFE, ~6000 lines)
     folio.js                    Animated cat mascot companion
     tour.js                     Guided tour system
   img/
@@ -265,7 +265,7 @@ This project uses IIFEs with globals — there are no ES6 imports to signal cros
 - **Before adding a utility function**, check `book-utils.js` — it may already exist. `BookUtils` has functions for cover validation, starred book filtering, cover counting, URL building, and collage readiness checks.
 - **Before adding or using a constant**, check `config.js` — it may already be in `CONFIG`. Layout dimensions, cover limits, timing values, API URLs, placeholder URLs, and font lists all live there.
 - **Before adding inline logic in `app.js`**, consider whether it belongs in `book-utils.js` as a shared, testable function instead.
-- **Before writing a new function**, search `app.js` for existing functions that do the same thing. At ~5900 lines, it's easy to miss what's already there.
+- **Before writing a new function**, search `app.js` for existing functions that do the same thing. At ~6000 lines, it's easy to miss what's already there.
 
 ### Never Hardcode These Values
 
