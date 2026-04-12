@@ -128,6 +128,32 @@ button.is-loading::after {
   white-space: nowrap;
 }
 
+/* Site Navigation (About / For Libraries / Contact) */
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: 'EB Garamond', serif;
+  font-size: 0.85rem;
+  margin-left: 4px;
+  padding-left: 16px;
+  border-left: 1px solid rgba(255,255,255,0.2);
+}
+.site-nav a {
+  color: rgba(255,255,255,0.7);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+  white-space: nowrap;
+}
+.site-nav a:hover {
+  color: white;
+}
+.site-nav a[aria-current="page"] {
+  color: white;
+  font-weight: 600;
+  pointer-events: none;
+}
+
 /* Panel Toggle Buttons in Header */
 .header-panel-toggles {
   display: flex;
