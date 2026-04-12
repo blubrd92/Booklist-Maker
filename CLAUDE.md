@@ -191,7 +191,7 @@ Supports 20-cover collages instead of the standard 12.
 - Layout drawing functions dynamically calculate rows/columns based on cover count
 
 ### UI Components
-- `#extended-collage-toggle` - Checkbox in Cover Layout settings
+- `#extended-collage-toggle` - Checkbox in the Front Cover settings section (merged Cover Header + Cover Layout)
 - `#extra-covers-section` - Hidden section showing 8 extra cover slots
 - Extra Cover Search Modal - Search form with results grid and "Add to Collage" buttons
 

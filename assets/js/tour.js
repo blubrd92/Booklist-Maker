@@ -203,7 +203,7 @@
           state: 'excited',
           prepare: function() {
             openSidebarTab('tab-settings');
-            openSettingsSection('Cover Header');
+            openSettingsSection('Front Cover', '#generate-cover-button');
 
             // Switch to advanced cover mode and set title lines
             const advToggle = document.getElementById('cover-advanced-toggle');
@@ -250,7 +250,7 @@
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');
-            openSettingsSection('Cover Layout');
+            openSettingsSection('Front Cover', '#collage-layout-selector');
           },
         },
         {
@@ -275,7 +275,7 @@
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');
-            openSettingsSection('Cover Layout');
+            openSettingsSection('Front Cover', '#extended-collage-toggle');
           },
         },
         {
@@ -510,19 +510,26 @@
     });
   }
 
-  function openSettingsSection(sectionName) {
+  function openSettingsSection(sectionName, subTargetSelector) {
     const sections = document.querySelectorAll('.settings-section');
     sections.forEach(function(details) {
       const summary = details.querySelector('summary');
       if (summary && summary.textContent.includes(sectionName)) {
         if (!details.open) details.open = true;
-        // Scroll within the settings tab container
+        // Scroll to the requested sub-target if provided, otherwise to the
+        // top of the section
         setTimeout(function() {
           const tabSettings = document.getElementById('tab-settings');
-          if (tabSettings) {
-            const offsetTop = details.offsetTop - tabSettings.offsetTop;
-            tabSettings.scrollTop = offsetTop - 10;
+          if (!tabSettings) return;
+          if (subTargetSelector) {
+            const sub = details.querySelector(subTargetSelector);
+            if (sub) {
+              sub.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              return;
+            }
           }
+          const offsetTop = details.offsetTop - tabSettings.offsetTop;
+          tabSettings.scrollTop = offsetTop - 10;
         }, 100);
       }
     });

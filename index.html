@@ -171,38 +171,36 @@
           </div>
         </details>
 
-        <!-- Cover Header Section -->
+        <!-- Front Cover Section (Cover Header + Cover Layout merged) -->
         <details class="settings-section">
-          <summary title="Edit the front cover title text and styling options"><i class="fa-solid fa-heading" aria-hidden="true"></i> Cover Header</summary>
+          <summary title="Configure the front cover title, styling, and collage layout"><i class="fa-solid fa-image" aria-hidden="true"></i> Front Cover</summary>
           <div class="settings-section-content">
 
         <div class="form-group" id="cover-header-text-group">
           <label>Cover Header Text</label>
-          
+
           <div class="control-row checkbox-row">
             <input id="cover-advanced-toggle" type="checkbox"/>
             <label for="cover-advanced-toggle">Multi-line mode (customize each line)</label>
           </div>
-          
+
           <!-- Simple mode: single textarea -->
           <div id="cover-simple-mode">
             <label for="cover-title-input" class="sr-only">Cover title text</label>
             <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
           </div>
-          
+
           <!-- Advanced mode: 3 line inputs -->
           <div id="cover-advanced-mode">
             <input type="text" class="cover-line-input" id="cover-line-1" placeholder="Line 1" aria-label="Cover line 1 text"/>
             <input type="text" class="cover-line-input" id="cover-line-2" placeholder="Line 2" aria-label="Cover line 2 text"/>
             <input type="text" class="cover-line-input" id="cover-line-3" placeholder="Line 3" aria-label="Cover line 3 text"/>
           </div>
-          
-          <button id="generate-cover-button" class="btn btn-primary" style="margin-top: 10px; width: 100%;">Auto-Generate Cover</button>
         </div>
 
         <div class="form-group" id="cover-title-style-group">
           <label>Cover Header Style</label>
-          
+
           <!-- Simple mode styling (shared for all text) -->
           <div id="cover-simple-style">
             <div class="control-row">
@@ -216,7 +214,7 @@
               <input class="color-picker" id="cover-text-color" type="color" value="#FFFFFF" aria-label="Cover title text color"/>
             </div>
           </div>
-          
+
           <!-- Advanced mode: per-line styling -->
           <div id="cover-advanced-style">
             <div class="line-style-group">
@@ -232,7 +230,7 @@
                 <input class="color-picker line-color" id="line-1-color" type="color" value="#FFFFFF" aria-label="Line 1 color"/>
               </div>
             </div>
-            
+
             <div class="line-style-group">
               <div class="line-style-label">Line 2</div>
               <div class="control-row">
@@ -248,7 +246,7 @@
                 <input class="font-size-input line-spacing" id="line-2-spacing" type="number" min="0" max="50" value="5" title="Space above this line (pt)" aria-label="Line 2 spacing"/>
               </div>
             </div>
-            
+
             <div class="line-style-group">
               <div class="line-style-label">Line 3</div>
               <div class="control-row">
@@ -265,7 +263,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- Shared settings for both modes -->
           <div class="control-row" style="margin-top: 10px;">
             <div class="mini-label">Background:</div>
@@ -274,7 +272,7 @@
             <label for="cover-title-gradient-toggle" class="mini-label">Gradient</label>
             <input id="cover-title-bg-color2" class="color-picker" type="color" value="#333333" aria-label="Gradient end color" style="display: none;"/>
           </div>
-          
+
           <details class="advanced-settings">
             <summary>Margins & Padding</summary>
             <div class="grid-2">
@@ -294,14 +292,7 @@
             <label for="stretch-covers-toggle">Stretch Header Covers</label>
           </div>
           <p id="masonry-stretch-hint" class="masonry-hint" style="display: none; font-size: 0.7rem; color: #888; margin: 4px 0 0 22px; font-style: italic; font-weight: bold;">Masonry uses actual cover proportions</p>
-
-          </div>
-        </details>
-
-        <!-- Cover Layout Section -->
-        <details class="settings-section">
-          <summary title="Choose collage layout style (Classic, Masonry, Staggered, Tilted) and configure cover arrangement"><i class="fa-solid fa-grip" aria-hidden="true"></i> Cover Layout</summary>
-          <div class="settings-section-content">
+        </div>
 
           <div class="layout-settings" id="collage-layout-details">
             <label style="font-weight: 600; font-size: 0.85rem;">Collage Layout Options</label>
@@ -450,7 +441,7 @@
                 <span class="layout-option-label">Tilted</span>
               </div>
             </div>
-            
+
             <div class="control-row" style="margin-top: 10px;">
               <label for="title-bar-position" class="mini-label" style="white-space: nowrap;">Title Bar Position:</label>
               <select id="title-bar-position" class="font-select" aria-label="Title bar position">
@@ -461,7 +452,7 @@
                 <option value="bottom">Bottom</option>
               </select>
             </div>
-            
+
             <!-- Classic-specific settings -->
             <div id="classic-settings" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
               <div class="line-style-label" style="margin-bottom: 8px;">Classic Layout Settings</div>
@@ -470,7 +461,7 @@
                 <label for="show-shelves-toggle">Show Shelves</label>
               </div>
             </div>
-            
+
             <!-- Tilted-specific settings -->
             <div id="tilted-settings" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
               <div class="line-style-label" style="margin-bottom: 8px;">Tilted Layout Settings</div>
@@ -486,13 +477,13 @@
                 </select>
               </div>
             </div>
-            
+
             <!-- Extended collage mode toggle -->
             <div class="control-row checkbox-row" style="margin-top: 12px;">
               <input id="extended-collage-toggle" type="checkbox"/>
               <label for="extended-collage-toggle">Extended collage (20 covers)</label>
             </div>
-            
+
             <!-- Extra Collage Covers Section (shown when extended mode enabled) -->
             <div id="extra-covers-section" class="extra-covers-section" style="display: none;">
               <div class="extra-covers-header">
@@ -507,6 +498,8 @@
               </div>
             </div>
           </div>
+
+          <button id="generate-cover-button" class="btn btn-primary" style="margin-top: 14px; width: 100%;">Auto-Generate Cover</button>
 
           </div>
         </details>
@@ -625,7 +618,7 @@
             <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or generate front cover image">
               <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
-                Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)
+                Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)
               </div>
               <input type="file" accept="image/*" aria-hidden="true"/>
               <button type="button" class="cover-delete-btn" title="Remove cover image"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>

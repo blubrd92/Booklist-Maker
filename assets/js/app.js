@@ -3198,7 +3198,7 @@ const BooklistApp = (function() {
     }
     
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-20 using the Additional Covers section)';
     }
     
     elements.frontCoverUploader?.classList.remove('has-image');
@@ -3210,7 +3210,7 @@ const BooklistApp = (function() {
   function restoreFrontCoverPlaceholderText() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)';
     }
   }
 
@@ -3220,7 +3220,7 @@ const BooklistApp = (function() {
   function updateExtendedModePlaceholderText() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-20 using the Additional Covers section)';
     }
   }
   
