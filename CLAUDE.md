@@ -38,11 +38,12 @@ assets/
   js/
     config.js                   CONFIG constants (loaded first as global)
     book-utils.js               BookUtils shared pure functions (loaded second)
-    app.js                      Core application logic (IIFE, ~5200 lines)
+    app.js                      Core application logic (IIFE, ~5900 lines)
     folio.js                    Animated cat mascot companion
     tour.js                     Guided tour system
   img/
     branding-default.png        Default library branding image
+The Disc and Beyond.booklist    Sample booklist file (Discworld theme, used as tour reference)
 tests/
   setup.js                      Loads config.js + book-utils.js into jsdom via eval
   book-utils.test.js            Unit tests for all BookUtils functions
@@ -67,7 +68,8 @@ const BooklistApp = (function() {
   // Private state: myBooklist[], extraCollageCovers[], DOM element refs
   // Private functions for all business logic
   // Public API:
-  return { init, showNotification, getAiDescription };
+  return { init, showNotification, getAiDescription, updateBackCoverVisibility,
+           resetZoom, enterTourMode, exitTourMode, applyState, generateCoverCollage };
 })();
 ```
 
@@ -78,7 +80,8 @@ All constants live in the `CONFIG` object:
 - **Layout**: `TOTAL_SLOTS` (15), `SLOTS_PER_INSIDE_PANEL` (5), cover dimensions
 - **Dynamic max books**: `MAX_BOOKS_FULL` (15), `MAX_BOOKS_ONE_ELEMENT` (14), `MAX_BOOKS_BOTH_ELEMENTS` (13)
 - **Collage**: `MIN_COVERS_FOR_COLLAGE` (12), `MAX_COVERS_FOR_COLLAGE` (20), grid config
-- **PDF export**: 300 DPI, 3x canvas scale, 11"x8.5" output
+- **PDF export**: 600 DPI, 6.25x canvas scale (600/96), 11"x8.5" output
+- **QR code**: `QR_SIZE_PX` (900) — renders at 600 DPI equivalent, CSS constrains display to 144px
 - **APIs**: Open Library search + covers endpoints
 - **Fonts**: Array of 25 font objects `{ value, label }` (single source of truth for all dropdowns)
 - **Timing**: `AUTOSAVE_DEBOUNCE_MS` (400), `NOTIFICATION_DURATION_MS` (3000)
@@ -125,14 +128,24 @@ Pure functions that eliminate duplicated logic. All are tested:
 - `myBooklist` array: all book objects (max 13-15 depending on UI toggles)
 - `extraCollageCovers` array: additional covers for extended mode (up to 8)
 - `MAX_BOOKS`: dynamically adjusted based on QR code and branding toggles
-- **localStorage autosave**: debounced via `saveDraftLocal()`, restored by `restoreDraftLocalIfPresent()`
+- **IndexedDB autosave**: debounced via `saveDraftLocal()`, restored by `restoreDraftLocalIfPresent()`. Full state stored in IndexedDB under `'draft'` key (no localStorage size limits). A lightweight `'has-draft'` flag in localStorage enables sync checks.
 - **File export/import**: `.booklist` JSON files via `serializeState()` / `applyState()`
 - **Dirty tracking**: `isDirtyLocal` (crash guard), `hasUnsavedFile` (download guard with unsaved indicator on save button)
 - `beforeunload` warning when there are unsaved local changes
+- **Tour backup**: IndexedDB `'tour-backup'` key holds pre-tour state during guided tour; recovered on startup if page was refreshed mid-tour
+
+### Image Compression
+Uploaded images are compressed on capture to reduce `.booklist` file size:
+- **Book covers**: downscaled to max 1600px, JPEG 0.92 (`compressImage()`)
+- **Front cover uploads**: max 4800px, JPEG 0.92
+- **Branding uploads**: max 3000px, JPEG 0.92
+- **Extra cover uploads**: max 1600px, JPEG 0.92
+- **Auto-generated collage**: rendered at 3000x4800 (600 DPI), stored as JPEG 0.92 (was PNG)
+- All thresholds are at or above the maximum rendered size at 600 DPI — no loss in print quality
 
 ### External Dependencies (CDN)
 - **Sortable.js** - Drag-and-drop reordering (books + extra covers)
-- **jsPDF + html2canvas** - PDF generation (3x canvas scale for print quality)
+- **jsPDF + html2canvas** - PDF generation (6.25x canvas scale for 600 DPI print quality)
 - **QRCode.js** - QR code generation
 - **Font Awesome 6.4.0** - Icons
 - **Google Fonts** - 25 typography options (preloaded via hidden divs)
@@ -146,9 +159,9 @@ Pure functions that eliminate duplicated logic. All are tested:
 1. **Search**: `getBooks()` queries Open Library; supports keyword, title, author, ISBN, subject, publisher filters
 2. **Book Management**: Add/delete/edit entries, drag-and-drop reorder, star books for collage, cover carousel for alternate editions
 3. **Cover Collage**: `generateCoverCollage()` renders starred books in 4 layouts: Classic, Masonry (Bookshelf), Staggered, Tilted. Title bar with 5 position options.
-4. **PDF Export**: `exportPdf()` pipeline: html2canvas captures at 3x scale, jsPDF outputs 11"x8.5" at 300 DPI
+4. **PDF Export**: `exportPdf()` pipeline: html2canvas captures at 6.25x scale, jsPDF outputs 11"x8.5" at 600 DPI
 5. **Styling**: Per-element font/size/weight/color/line-spacing controls for title, author, description. Cover header has simple (unified) and advanced (per-line) modes.
-6. **QR/Branding**: QR code generation from URL, custom branding image upload, both toggleable
+6. **QR/Branding**: QR code generation from URL (900px for 600 DPI), custom branding image upload, both toggleable. Front cover and branding uploaders have delete buttons (`.cover-delete-btn`, `.branding-delete-btn`) hidden in print mode.
 7. **AI Descriptions**: "Magic button" on each book calls Google Apps Script with title+author, receives generated description
 
 ## Extended Collage Mode
@@ -189,14 +202,17 @@ Animated SVG cat companion with state-based animations and contextual quips.
 
 ## Tour System
 
-Guided tour with 6 sections: Getting Started, Search & Add, Your Booklist, Covers & Collage, Customize & Style, Export & Finish.
+Guided tour with 6 sections (30 steps total): Getting Started, Search & Add, Your Booklist, Covers & Collage, Customize & Style, Export & Finish.
 
 - Section picker modal at start, or launch specific section
 - Spotlight overlay highlighting target elements
 - Folio narrates each step with contextual animation states
 - `prepare()` hooks auto-open tabs, scroll, and click buttons for demos
-- Demo search auto-runs a Discworld search and adds a book
-- **API**: `window.startTour()`, `window.startTourSection(sectionName)`
+- Demo search auto-runs a Discworld search
+- **Tour state isolation**: `BooklistApp.enterTourMode()` saves the user's full state (books, settings, undo history) to localStorage, then resets to blank. `exitTourMode()` restores everything. Crash recovery via `recoverTourBackupIfPresent()` on startup.
+- **Progressive sample list**: The tour loads a sample Terry Pratchett booklist (`TOUR_SAMPLE_STATE` embedded in tour.js, ~12 KB, no base64 images) and builds it up section by section — books at section 3, collage at section 4, QR/styling at section 5.
+- **Undo/autosave suppressed**: `_tourActive` flag makes `pushUndo()` and `debouncedSave()` no-ops during the tour so tour actions don't pollute user state.
+- **API**: `window.tour.open()` (opens section picker modal)
 
 ## Code Patterns
 
@@ -226,7 +242,7 @@ This project uses IIFEs with globals — there are no ES6 imports to signal cros
 - **Before adding a utility function**, check `book-utils.js` — it may already exist. `BookUtils` has functions for cover validation, starred book filtering, cover counting, URL building, and collage readiness checks.
 - **Before adding or using a constant**, check `config.js` — it may already be in `CONFIG`. Layout dimensions, cover limits, timing values, API URLs, placeholder URLs, and font lists all live there.
 - **Before adding inline logic in `app.js`**, consider whether it belongs in `book-utils.js` as a shared, testable function instead.
-- **Before writing a new function**, search `app.js` for existing functions that do the same thing. At ~5000 lines, it's easy to miss what's already there.
+- **Before writing a new function**, search `app.js` for existing functions that do the same thing. At ~5900 lines, it's easy to miss what's already there.
 
 ### Never Hardcode These Values
 
@@ -265,6 +281,8 @@ When editing one file, check these related files:
 | Font list | `config.js` FONTS array only — all dropdowns read from this single source |
 | CSS class names or IDs | `app.js` (DOM queries), `tour.js` (spotlight targets), `styles.css` |
 | Folio states or reactions | `folio.js` (definitions), `app.js` (triggers), `tour.js` (tour narration) |
+| BooklistApp public API | `tour.js` (calls `enterTourMode`, `exitTourMode`, `applyState`, `generateCoverCollage`, `updateBackCoverVisibility`, `resetZoom`) |
+| Tour sample state (`TOUR_SAMPLE_STATE`) | `tour.js` (embedded constant), must match `serializeState()` schema in `app.js` |
 
 ### Adding New Code
 

@@ -31,6 +31,7 @@ const BooklistApp = (function() {
   let _lastUndoGroup = null;
   let _lastUndoTime = 0;
   let _isRestoring = false;  // Guard flag to prevent side effects during undo/redo restore
+  let _tourActive = false;   // Guard flag: suppresses pushUndo and autosave during guided tour
   let _collageGenId = 0;     // Generation counter to discard stale async collage results
 
   // ---------------------------------------------------------------------------
@@ -76,6 +77,26 @@ const BooklistApp = (function() {
     _openImageDB().then(db => {
       const tx = db.transaction('images', 'readwrite');
       tx.objectStore('images').clear();
+    }).catch(() => {});
+  }
+
+  /** Store a value in IDB and wait for the transaction to complete */
+  function _putImageIDB(key, value) {
+    return _openImageDB().then(db => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('images', 'readwrite');
+        tx.objectStore('images').put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    });
+  }
+
+  /** Delete a key from IDB (fire-and-forget) */
+  function _deleteImageIDB(key) {
+    _openImageDB().then(db => {
+      const tx = db.transaction('images', 'readwrite');
+      tx.objectStore('images').delete(key);
     }).catch(() => {});
   }
 
@@ -193,12 +214,13 @@ const BooklistApp = (function() {
   const debouncedSave = (() => {
     let t;
     function trigger() {
-      if (_isRestoring) return; // Don't autosave during undo/redo restore
+      if (_isRestoring || _tourActive) return; // Don't autosave during undo/redo restore or tour
       isDirtyLocal = true;    // Edits not yet in localStorage
       hasUnsavedFile = true;  // Edits not yet in a .booklist file
       updateSaveIndicator();
       clearTimeout(t);
       t = setTimeout(() => {
+        if (_isRestoring || _tourActive) return; // Re-check at execution time
         saveDraftLocal();
       }, CONFIG.AUTOSAVE_DEBOUNCE_MS);
     }
@@ -210,9 +232,10 @@ const BooklistApp = (function() {
   const debouncedCoverRegen = (() => {
     let t;
     function trigger() {
-      if (_isRestoring) return;
+      if (_isRestoring || _tourActive) return;
       clearTimeout(t);
       t = setTimeout(() => {
+        if (_isRestoring || _tourActive) return; // Re-check at execution time
         if (elements.frontCoverUploader?.classList.contains('has-image')) {
           generateCoverCollage();
         }
@@ -490,7 +513,45 @@ const BooklistApp = (function() {
       }
     });
   }
-  
+
+  // ---------------------------------------------------------------------------
+  // Utility: Image Compression
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Downscale an image data URL if it exceeds maxDimension on either axis,
+   * and convert to JPEG.  Returns a Promise<string> with the compressed data URL.
+   * Non-data-URL strings (e.g. placeholder URLs) pass through unchanged.
+   */
+  function compressImage(dataUrl, { maxDimension = 1600, quality = 0.92 } = {}) {
+    return new Promise(resolve => {
+      if (!dataUrl || !dataUrl.startsWith('data:')) {
+        resolve(dataUrl);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        // Calculate new dimensions (only shrink, never enlarge)
+        let nw = w, nh = h;
+        if (w > maxDimension || h > maxDimension) {
+          const ratio = Math.min(maxDimension / w, maxDimension / h);
+          nw = Math.round(w * ratio);
+          nh = Math.round(h * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = nw;
+        canvas.height = nh;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, nw, nh);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Utility: Loading State Management
   // ---------------------------------------------------------------------------
@@ -1578,29 +1639,32 @@ const BooklistApp = (function() {
     const processImageFile = (file) => {
       const reader = new FileReader();
       reader.onload = (event) => {
-        pushUndo('upload-cover');
-        const book = myBooklist.find(b => b.key === bookItem.key);
-        book.customCoverData = event.target.result;
-        book.cover_ids = [];
-        book.currentCoverIndex = 0;
-        coverImg.src = event.target.result;
-        debouncedSave();
+        compressImage(event.target.result, { maxDimension: 1600 }).then(compressed => {
+          const book = myBooklist.find(b => b.key === bookItem.key);
+          if (!book) return; // Book was deleted while image was compressing
+          pushUndo('upload-cover');
+          book.customCoverData = compressed;
+          book.cover_ids = [];
+          book.currentCoverIndex = 0;
+          coverImg.src = compressed;
+          debouncedSave();
 
-        // Folio: acknowledge cover upload
-        if (window.folio) {
-          window.folio.react('nod');
-          setTimeout(function() { if (window.folio) window.folio.setState('excited', 'cover-uploaded'); }, 300);
-          setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
-        }
-
-        // Auto-generate if this book is starred and completes the required count
-        const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
-        if (frontCoverImg?.dataset.isAutoGenerated === 'true' && book.includeInCollage) {
-          const extendedMode = elements.extendedCollageToggle?.checked || false;
-          if (BookUtils.countTotalCovers(myBooklist, extraCollageCovers, extendedMode) === BookUtils.getRequiredCovers(extendedMode)) {
-            generateCoverCollage();
+          // Folio: acknowledge cover upload
+          if (window.folio) {
+            window.folio.react('nod');
+            setTimeout(function() { if (window.folio) window.folio.setState('excited', 'cover-uploaded'); }, 300);
+            setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
           }
-        }
+
+          // Auto-generate if this book is starred and completes the required count
+          const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
+          if (frontCoverImg?.dataset.isAutoGenerated === 'true' && book.includeInCollage) {
+            const extendedMode = elements.extendedCollageToggle?.checked || false;
+            if (BookUtils.countTotalCovers(myBooklist, extraCollageCovers, extendedMode) === BookUtils.getRequiredCovers(extendedMode)) {
+              generateCoverCollage();
+            }
+          }
+        });
       };
       reader.onerror = () => showNotification('Failed to read image file.', 'error');
       reader.readAsDataURL(file);
@@ -2090,7 +2154,7 @@ const BooklistApp = (function() {
       }
       
       // Apply to front cover
-      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
       const frontCoverImg = elements.frontCoverUploader.querySelector('img');
       frontCoverImg.src = dataUrl;
       frontCoverImg.dataset.isPlaceholder = "false";
@@ -3129,7 +3193,7 @@ const BooklistApp = (function() {
     }
     
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(5 x 8 inches recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
     }
     
     elements.frontCoverUploader?.classList.remove('has-image');
@@ -3141,7 +3205,7 @@ const BooklistApp = (function() {
   function restoreFrontCoverPlaceholderText() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(5 x 8 inches recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)';
     }
   }
 
@@ -3151,7 +3215,7 @@ const BooklistApp = (function() {
   function updateExtendedModePlaceholderText() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(5 x 8 inches recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Add covers 13-20 using the Additional Covers section)';
     }
   }
   
@@ -3285,11 +3349,12 @@ const BooklistApp = (function() {
           showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
           return;
         }
-        
+
         const reader = new FileReader();
         reader.onload = (e) => {
-          const coverData = e.target.result;
-          addExtraCover(coverData, currentSlotIndex);
+          compressImage(e.target.result, { maxDimension: 1600 }).then(compressed => {
+            addExtraCover(compressed, currentSlotIndex);
+          });
         };
         reader.onerror = () => showNotification('Failed to read image file.', 'error');
         reader.readAsDataURL(file);
@@ -4070,7 +4135,7 @@ const BooklistApp = (function() {
     
     // Advanced mode per-line styling with individual spacing
     const savedLines = ct.lines || [];
-    const defaultSizes = [48, 28, 20];
+    const defaultSizes = [35, 25, 20];
     elements.coverLines.forEach((line, i) => {
       const saved = savedLines[i] || {};
       if (line.font) line.font.value = saved.font ?? "'Oswald', sans-serif";
@@ -4302,58 +4367,61 @@ const BooklistApp = (function() {
     if (!silent) showNotification('Booklist loaded.', 'success');
   }
   
-  // Local draft storage
-  function serializeDraftForLocal() {
-    const s = serializeState();
-    // Front cover is too large for localStorage — store it in IndexedDB instead
-    const frontCoverData = s.images?.frontCover || null;
-    if (s.images) s.images.frontCover = null;
-    // Fire-and-forget: persist front cover to IndexedDB
-    _openImageDB().then(db => {
-      const tx = db.transaction('images', 'readwrite');
-      const store = tx.objectStore('images');
-      if (frontCoverData) {
-        store.put(frontCoverData, 'draft-front-cover');
-      } else {
-        store.delete('draft-front-cover');
-      }
-    }).catch(() => { /* IndexedDB unavailable — front cover won't persist */ });
-    return s;
-  }
+  // Local draft storage (IndexedDB — no localStorage size limits)
+  let _draftSaveGenId = 0; // Generation counter to handle concurrent saves
 
   function saveDraftLocal() {
-    try {
-      localStorage.setItem('booklist-draft', JSON.stringify(serializeDraftForLocal()));
-      isDirtyLocal = false; // localStorage now has current state
-    } catch { /* ignore quota errors */ }
+    const thisGenId = ++_draftSaveGenId;
+    const s = serializeState();
+    _putImageIDB('draft', JSON.stringify(s)).then(() => {
+      // Only update flags if this is still the latest save
+      if (thisGenId === _draftSaveGenId) {
+        isDirtyLocal = false;
+      }
+      try { localStorage.setItem('has-draft', 'true'); } catch {}
+    }).catch(() => {
+      showNotification('Failed to save draft. Use Save to download a .booklist file.', 'error');
+    });
   }
 
   async function restoreDraftLocalIfPresent() {
     try {
-      const raw = localStorage.getItem('booklist-draft');
+      // Check for legacy localStorage draft and migrate to IndexedDB
+      try {
+        const legacyRaw = localStorage.getItem('booklist-draft');
+        if (legacyRaw) {
+          const parsed = JSON.parse(legacyRaw);
+          // Restore front cover from old IDB key
+          try {
+            const frontCover = await _getImageIDB('draft-front-cover');
+            if (frontCover && parsed.images) parsed.images.frontCover = frontCover;
+          } catch {}
+          // Migrate to new IDB key
+          await _putImageIDB('draft', JSON.stringify(parsed));
+          // Clean up old storage
+          localStorage.removeItem('booklist-draft');
+          _deleteImageIDB('draft-front-cover');
+          try { localStorage.setItem('has-draft', 'true'); } catch {}
+          applyState(parsed);
+          showNotification('Draft restored from this browser.', 'success');
+          return;
+        }
+      } catch { /* legacy migration failed — try new IDB path */ }
+
+      // Read from IndexedDB
+      const raw = await _getImageIDB('draft');
       if (!raw) return;
       const parsed = JSON.parse(raw);
-
-      // Restore front cover from IndexedDB if available
-      try {
-        const frontCover = await _getImageIDB('draft-front-cover');
-        if (frontCover && parsed.images) {
-          parsed.images.frontCover = frontCover;
-        }
-      } catch { /* IndexedDB unavailable — proceed without front cover */ }
-
       applyState(parsed);
       showNotification('Draft restored from this browser.', 'success');
-    } catch { /* ignore */ }
+    } catch { /* ignore corrupt data */ }
   }
 
   function resetToBlank() {
-    try { localStorage.removeItem('booklist-draft'); } catch {}
-    // Clear front cover from IndexedDB
-    _openImageDB().then(db => {
-      const tx = db.transaction('images', 'readwrite');
-      tx.objectStore('images').delete('draft-front-cover');
-    }).catch(() => {});
+    try { localStorage.removeItem('has-draft'); } catch {}
+    // Clear draft and legacy keys from IndexedDB
+    _deleteImageIDB('draft');
+    _deleteImageIDB('draft-front-cover');
     isDirtyLocal = false; // Prevent beforeunload after user already confirmed reset
     location.reload();
   }
@@ -4414,10 +4482,12 @@ const BooklistApp = (function() {
       pushUndo('upload-branding');
       const reader = new FileReader();
       reader.onload = (event) => {
-        imgElement.src = event.target.result;
-        imgElement.dataset.isPlaceholder = "false";
-        uploaderElement.classList.add('has-image');
-        debouncedSave();
+        compressImage(event.target.result, { maxDimension: 3000 }).then(compressed => {
+          imgElement.src = compressed;
+          imgElement.dataset.isPlaceholder = "false";
+          uploaderElement.classList.add('has-image');
+          debouncedSave();
+        });
       };
       reader.onerror = () => showNotification('Failed to read image file.', 'error');
       reader.readAsDataURL(file);
@@ -4447,18 +4517,20 @@ const BooklistApp = (function() {
 
       const reader = new FileReader();
       reader.onload = (event) => {
-        frontCoverImgElement.src = event.target.result;
-        frontCoverImgElement.dataset.isPlaceholder = "false";
-        frontCoverImgElement.dataset.isAutoGenerated = "false";
-        elements.frontCoverUploader.classList.add('has-image');
-        debouncedSave(); // Save draft with updated flag
+        compressImage(event.target.result, { maxDimension: 4800 }).then(compressed => {
+          frontCoverImgElement.src = compressed;
+          frontCoverImgElement.dataset.isPlaceholder = "false";
+          frontCoverImgElement.dataset.isAutoGenerated = "false";
+          elements.frontCoverUploader.classList.add('has-image');
+          debouncedSave(); // Save draft with updated flag
 
-        // Folio: excited about front cover upload
-        if (window.folio) {
-          window.folio.react('nod');
-          setTimeout(function() { if (window.folio) window.folio.setState('excited', 'cover-uploaded'); }, 300);
-          setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
-        }
+          // Folio: excited about front cover upload
+          if (window.folio) {
+            window.folio.react('nod');
+            setTimeout(function() { if (window.folio) window.folio.setState('excited', 'cover-uploaded'); }, 300);
+            setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
+          }
+        });
       };
       reader.onerror = () => showNotification('Failed to read image file.', 'error');
       reader.readAsDataURL(file);
@@ -4998,6 +5070,22 @@ const BooklistApp = (function() {
         debouncedSave();
       });
     }
+
+    // Front cover delete button - clears the cover image
+    const coverDeleteBtn = elements.frontCoverUploader.querySelector('.cover-delete-btn');
+    if (coverDeleteBtn) {
+      coverDeleteBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pushUndo('upload-front-cover');
+        const imgElement = elements.frontCoverUploader.querySelector('img');
+        imgElement.src = CONFIG.TRANSPARENT_GIF;
+        imgElement.dataset.isPlaceholder = 'true';
+        imgElement.dataset.isAutoGenerated = 'false';
+        elements.frontCoverUploader.classList.remove('has-image');
+        debouncedSave();
+      });
+    }
   }
   
   // ---------------------------------------------------------------------------
@@ -5425,7 +5513,7 @@ const BooklistApp = (function() {
    * @param {string} group - A label for coalescing (e.g. 'edit-text', 'add-book')
    */
   function pushUndo(group) {
-    if (_isRestoring) return;
+    if (_isRestoring || _tourActive) return;
 
     const now = Date.now();
     const state = serializeState();
@@ -5471,9 +5559,9 @@ const BooklistApp = (function() {
       applyState(resolved, { silent: true });
     }).finally(() => {
       _isRestoring = false;
-      // Single clean save of the restored state
+      // Single clean save of the restored state (isDirtyLocal cleared by
+      // saveDraftLocal's async completion, not here — avoids premature flag)
       saveDraftLocal();
-      isDirtyLocal = false;
       hasUnsavedFile = true;
       updateSaveIndicator();
       updateUndoRedoButtons();
@@ -5481,7 +5569,7 @@ const BooklistApp = (function() {
   }
 
   function undo() {
-    if (_undoStack.length === 0) return;
+    if (_undoStack.length === 0 || _tourActive) return;
 
     // Push current state onto redo stack
     const currentState = serializeState();
@@ -5494,7 +5582,7 @@ const BooklistApp = (function() {
   }
 
   function redo() {
-    if (_redoStack.length === 0) return;
+    if (_redoStack.length === 0 || _tourActive) return;
 
     // Push current state onto undo stack
     const currentState = serializeState();
@@ -5540,6 +5628,165 @@ const BooklistApp = (function() {
     });
 
     updateUndoRedoButtons();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tour Mode: save/restore full app state so the tour starts from blank
+  // ---------------------------------------------------------------------------
+  const TOUR_BACKUP_IDB_KEY = 'tour-backup';
+
+  /**
+   * Enter tour mode: snapshot current state + undo history to IndexedDB,
+   * then reset the app to a blank slate.  Suppresses undo/autosave while active.
+   * Returns a Promise<boolean> — false if backup failed (tour should not start).
+   */
+  async function enterTourMode() {
+    if (_tourActive) return false;
+
+    // 1. Capture current state (full serialization, images inline)
+    const snapshot = serializeState();
+
+    // 2. Capture undo/redo stacks (already JSON strings with image refs)
+    const backup = {
+      state: snapshot,
+      undoStack: _undoStack.slice(),
+      redoStack: _redoStack.slice(),
+      lastUndoGroup: _lastUndoGroup,
+      lastUndoTime: _lastUndoTime,
+    };
+
+    // 3. Persist to IndexedDB so an accidental refresh can recover
+    try {
+      await _putImageIDB(TOUR_BACKUP_IDB_KEY, JSON.stringify(backup));
+    } catch {
+      showNotification('Could not back up your current work. Save as a .booklist file before starting the tour.', 'error');
+      return false;
+    }
+
+    // 4. Activate tour guard (suppresses pushUndo + autosave)
+    _tourActive = true;
+    _isRestoring = true; // Also suppress side-effects during the blank reset
+
+    // 5. Reset to blank
+    initializeBooklist();
+
+    // Reset UI controls to defaults
+    if (elements.listNameInput) elements.listNameInput.value = '';
+    if (elements.coverTitleInput) elements.coverTitleInput.value = '';
+    elements.coverLines.forEach(line => { if (line.input) line.input.value = ''; });
+    if (elements.stretchCoversToggle) elements.stretchCoversToggle.checked = false;
+    if (elements.stretchBlockCoversToggle) elements.stretchBlockCoversToggle.checked = false;
+    if (elements.coverAdvancedToggle) {
+      elements.coverAdvancedToggle.checked = false;
+      toggleCoverMode(false);
+    }
+    if (elements.extendedCollageToggle) {
+      elements.extendedCollageToggle.checked = false;
+      toggleExtendedCollageMode(false, true);
+    }
+    extraCollageCovers = [];
+
+    // Reset collage layout to classic
+    if (elements.collageLayoutSelector) {
+      elements.collageLayoutSelector.querySelectorAll('.layout-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.layout === 'classic');
+      });
+    }
+    if (elements.showShelvesToggle) elements.showShelvesToggle.checked = false;
+    if (elements.titleBarPosition) elements.titleBarPosition.value = 'classic';
+    if (elements.tiltDegree) elements.tiltDegree.value = -25;
+    if (elements.tiltOffsetDirection) elements.tiltOffsetDirection.value = 'vertical';
+    updateTiltedSettingsVisibility();
+
+    // Clear front cover and branding images
+    applyUploaderImage(elements.frontCoverUploader, null);
+    applyUploaderImage(elements.brandingUploader, null);
+
+    // Reset QR
+    if (elements.qrUrlInput) elements.qrUrlInput.value = '';
+    if (elements.qrCodeCanvas) {
+      elements.qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="' + CONFIG.PLACEHOLDER_QR_URL + '"/>';
+    }
+    if (elements.qrCodeTextArea) {
+      elements.qrCodeTextArea.innerText = CONFIG.PLACEHOLDERS.qrText;
+      elements.qrCodeTextArea.style.color = CONFIG.PLACEHOLDER_COLOR;
+    }
+
+    // Disable undo/redo buttons
+    updateUndoRedoButtons();
+
+    _isRestoring = false;
+    return true;
+  }
+
+  /**
+   * Exit tour mode: restore the user's original state + undo history from the
+   * IndexedDB backup.
+   */
+  async function exitTourMode() {
+    if (!_tourActive) return;
+
+    // Invalidate any in-flight collage generation and cancel debounced ops
+    // so tour callbacks don't fire after state is restored
+    _collageGenId++;
+    debouncedSave.cancel();
+    debouncedCoverRegen.cancel();
+
+    _isRestoring = true;
+
+    try {
+      const raw = await _getImageIDB(TOUR_BACKUP_IDB_KEY);
+      if (raw) {
+        const backup = JSON.parse(raw);
+
+        // Restore the user's state
+        if (backup.state) {
+          applyState(backup.state, { silent: true });
+        }
+
+        // Restore undo/redo stacks
+        _undoStack = Array.isArray(backup.undoStack) ? backup.undoStack : [];
+        _redoStack = Array.isArray(backup.redoStack) ? backup.redoStack : [];
+        _lastUndoGroup = backup.lastUndoGroup || null;
+        _lastUndoTime = backup.lastUndoTime || 0;
+      }
+    } catch { /* corrupted backup — user keeps blank state */ }
+
+    // Clean up
+    _deleteImageIDB(TOUR_BACKUP_IDB_KEY);
+    _tourActive = false;
+    _isRestoring = false;
+
+    // Re-sync draft with restored state
+    saveDraftLocal();
+    updateUndoRedoButtons();
+    updateSaveIndicator();
+  }
+
+  /**
+   * Check if a tour backup exists in IndexedDB (called on startup for crash
+   * recovery). If found, move the pre-tour state into the draft slot so
+   * the normal restore path picks it up, then remove the tour backup.
+   */
+  async function recoverTourBackupIfPresent() {
+    // Clean up legacy localStorage tour backup if present (from pre-IDB versions)
+    try { localStorage.removeItem('booklist-tour-backup'); } catch {}
+
+    try {
+      const raw = await _getImageIDB(TOUR_BACKUP_IDB_KEY);
+      if (!raw) return false;
+      const backup = JSON.parse(raw);
+      if (backup.state) {
+        // Write the pre-tour state directly into the draft IDB slot
+        await _putImageIDB('draft', JSON.stringify(backup.state));
+        try { localStorage.setItem('has-draft', 'true'); } catch {}
+      }
+      _deleteImageIDB(TOUR_BACKUP_IDB_KEY);
+      return true;
+    } catch {
+      _deleteImageIDB(TOUR_BACKUP_IDB_KEY);
+      return false;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -5639,14 +5886,15 @@ const BooklistApp = (function() {
     // Set initial tilted settings visibility
     updateTiltedSettingsVisibility();
     
-    // Try restoring draft
-    restoreDraftLocalIfPresent();
-    
-    // Folio: greet based on whether a draft was restored (guard suppresses cascading hooks)
+    // Recover tour backup (if page was refreshed mid-tour), then restore draft.
+    // Both are async (IndexedDB), chained to ensure correct ordering.
+    recoverTourBackupIfPresent().then(() => restoreDraftLocalIfPresent());
+
+    // Folio: greet based on whether a draft exists (has-draft flag is sync)
     if (window.folio) {
       window.folio.guard(3500);
       let hasDraft = false;
-      try { hasDraft = localStorage.getItem('booklist-draft'); } catch { /* private browsing */ }
+      try { hasDraft = !!localStorage.getItem('has-draft'); } catch { /* private browsing */ }
       if (hasDraft) {
         window.folio.setState('greeting', 'draft-restored');
       } else {
@@ -5715,6 +5963,10 @@ const BooklistApp = (function() {
     getAiDescription, // For testing
     updateBackCoverVisibility, // For tour: visual-only toggle update (no data trim)
     resetZoom, // For tour: reset zoom before spotlight positioning
+    enterTourMode, // For tour: save state + blank the app
+    exitTourMode,  // For tour: restore pre-tour state
+    applyState,    // For tour: load sample booklist during tour
+    generateCoverCollage, // For tour: generate collage during tour
     get isDirtyLocal() { return isDirtyLocal; },   // For debugging
     get hasUnsavedFile() { return hasUnsavedFile; }, // For debugging
   };

@@ -214,7 +214,7 @@
               <div class="control-row">
                 <select class="font-select line-font" id="line-1-font" aria-label="Line 1 font" data-default="'Oswald', sans-serif">
               </select>
-                <input class="font-size-input line-size" id="line-1-size" type="number" min="8" value="48" aria-label="Line 1 size"/>
+                <input class="font-size-input line-size" id="line-1-size" type="number" min="8" value="35" aria-label="Line 1 size"/>
               </div>
               <div class="control-row">
                 <button class="bold-toggle active btn-icon line-bold" id="line-1-bold" aria-label="Line 1 bold">B</button>
@@ -228,7 +228,7 @@
               <div class="control-row">
                 <select class="font-select line-font" id="line-2-font" aria-label="Line 2 font" data-default="'Oswald', sans-serif">
               </select>
-                <input class="font-size-input line-size" id="line-2-size" type="number" min="8" value="28" aria-label="Line 2 size"/>
+                <input class="font-size-input line-size" id="line-2-size" type="number" min="8" value="25" aria-label="Line 2 size"/>
               </div>
               <div class="control-row">
                 <button class="bold-toggle btn-icon line-bold" id="line-2-bold" aria-label="Line 2 bold">B</button>
@@ -604,7 +604,7 @@
             </div>
             <label class="custom-uploader has-image" id="branding-uploader" role="button" aria-label="Upload library branding image">
               <img alt="Library Branding Placeholder" src="assets/img/branding-default.png"/>
-              <div class="placeholder-text">Click to upload<br/>library branding image<br/>(5 x 1.5 inches recommended)</div>
+              <div class="placeholder-text">Click to upload<br/>library branding image<br/>(min 3000 x 900 px recommended)</div>
               <input type="file" accept="image/*" aria-hidden="true"/>
               <button type="button" class="branding-delete-btn" title="Remove branding image"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
               <button type="button" class="branding-default-btn" title="Use default branding"><i class="fa-solid fa-image" aria-hidden="true"></i> Use Default</button>
@@ -615,9 +615,10 @@
             <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or generate front cover image">
               <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
-                Click to upload a custom cover<br/>(5 x 8 inches recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)
+                Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Cover Header<br/>(Star 12 books to include in the collage)
               </div>
               <input type="file" accept="image/*" aria-hidden="true"/>
+              <button type="button" class="cover-delete-btn" title="Remove cover image"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
             </div>
           </div>
           <div class="page-divider" aria-hidden="true"></div>

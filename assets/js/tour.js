@@ -40,7 +40,7 @@
       steps: [
         {
           target: '#folio-scene',
-          text: "Welcome to Booklist Maker! I'm Folio. This tool creates printable two-page booklists for library displays. Let me show you around.",
+          text: "Welcome to Booklist Maker! I'm Folio. This tool creates printable two-page booklists for library displays. Let me show you around. If you have a booklist loaded, don't worry, it will be saved and restored when the tour ends.",
           state: 'greeting',
           padding: 4,
         },
@@ -52,7 +52,7 @@
         },
         {
           target: '.sidebar',
-          text: "The sidebar is your workspace. The Search tab finds books, the Settings tab customizes everything. All your controls live here.",
+          text: "The sidebar is your workspace. The Search tab finds books, the Settings tab customizes everything.",
           state: 'evaluating',
           prepare: function() {
             const sidebar = document.querySelector('.sidebar');
@@ -64,7 +64,7 @@
         },
         {
           target: '.header-actions',
-          text: "These are your main controls. Load a saved list, Save your work, Reset to start fresh, and Generate PDF when everything looks right.",
+          text: "Up here you can Load a saved list, Save your work, Reset to start fresh, and Generate PDF when everything looks right.",
           state: 'idle',
           padding: 6,
         },
@@ -78,7 +78,7 @@
       steps: [
         {
           target: '#search-form',
-          text: "Start here. Type a keyword, title, or author into the search field and hit the Search button. Let me run a quick demo search for you.",
+          text: "Start here. Type a keyword, title, or author into the search field and hit the Search button. Let me run a demo search for Discworld, a fantasy series by Terry Pratchett.",
           state: 'searching',
           prepare: function() {
             openSidebarTab('tab-search');
@@ -114,17 +114,13 @@
         },
         {
           target: '#results-container',
-          text: "Click 'Add to List' to drop a book into the next open slot. It'll appear in your preview right away. Let me add one for you.",
+          text: "Click 'Add to List' to drop a book into the next open slot. It'll appear in your preview right away.",
           state: 'excited',
           interactive: true,
           prepare: function() {
             openSidebarTab('tab-search');
             const results = document.getElementById('results-container');
             if (results) results.scrollTop = 0;
-            setTimeout(function() {
-              const addBtn = document.querySelector('#results-container .add-to-list-button:not(.added)');
-              if (addBtn) addBtn.click();
-            }, 600);
           },
         },
       ]
@@ -137,16 +133,17 @@
       steps: [
         {
           target: '#print-page-2',
-          text: "Your books appear on page two in order. Each entry shows the cover, title, author, and description. You can also type directly into these fields to add a book manually if search didn't have it.",
-          state: 'evaluating',
+          text: "Now let me load a sample Discworld booklist so you can see what a full list looks like. Each entry shows the cover, title, author, and description. You can type directly into these fields to edit anything.",
+          state: 'excited',
           prepare: function() {
+            BooklistApp.applyState(TOUR_SAMPLE_STATE, { silent: true });
             scrollPreviewTo('print-page-2');
           },
           padding: 4,
         },
         {
           target: '#inside-left-panel .list-item:first-child .star-button',
-          text: "The star icon marks a book for the front cover collage. Star at least 12 books if you want to auto-generate one.",
+          text: "The star icon marks a book for the front cover collage. Star at least 12 books if you want to auto-generate one. This sample list already has 12 starred.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-2');
@@ -194,7 +191,7 @@
       steps: [
         {
           target: '#front-cover-uploader',
-          text: "This is your front cover. You can upload a custom image here, or auto-generate a collage from your starred books.",
+          text: "This is your front cover. You can upload a custom image here, or auto-generate a collage from your starred books. For generated covers, you can customize the title font, size, and background color, even add a gradient.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-1');
@@ -202,21 +199,74 @@
         },
         {
           target: '#generate-cover-button',
-          text: "Click here to generate the collage automatically. You'll need at least 12 starred books with cover images loaded.",
+          text: "This button generates the collage. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
           state: 'excited',
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Cover Header');
+
+            // Switch to advanced cover mode and set title lines
+            const advToggle = document.getElementById('cover-advanced-toggle');
+            if (advToggle && !advToggle.checked) {
+              advToggle.checked = true;
+              advToggle.dispatchEvent(new Event('change'));
+            }
+            const line1 = document.getElementById('cover-line-1');
+            const line2 = document.getElementById('cover-line-2');
+            if (line1) line1.value = 'Mind How You Go';
+            if (line2) line2.value = 'Reading Terry Pratchett';
+
+            // Set title bar gradient background
+            const bgColor = document.getElementById('cover-title-bg-color');
+            const gradToggle = document.getElementById('cover-title-gradient-toggle');
+            const bgColor2 = document.getElementById('cover-title-bg-color2');
+            if (bgColor) bgColor.value = '#6b46c1';
+            if (gradToggle) gradToggle.checked = true;
+            if (bgColor2) { bgColor2.value = '#63b3ed'; bgColor2.style.display = ''; }
+
+            // Set layout to classic and enable stretch covers
+            const selector = document.getElementById('collage-layout-selector');
+            if (selector) {
+              selector.querySelectorAll('.layout-option').forEach(function(opt) {
+                opt.classList.toggle('selected', opt.dataset.layout === 'classic');
+              });
+            }
+            const stretchToggle = document.getElementById('stretch-covers-toggle');
+            if (stretchToggle) stretchToggle.checked = true;
+          },
+        },
+        {
+          target: '#front-cover-uploader',
+          text: "This is Classic layout. It's clean and straightforward, great for showing off the covers without distraction.",
+          state: 'evaluating',
+          prepare: function() {
+            scrollPreviewTo('print-page-1');
+            BooklistApp.generateCoverCollage();
           },
         },
         {
           target: '#collage-layout-selector',
-          text: "Pick a layout for your collage. Hover over each option to get a description of how it arranges the book covers.",
+          text: "This is where you switch between layouts. Pick one and regenerate to see the change. Let me switch to Tilted.",
           state: 'evaluating',
-          hoverable: true,
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Cover Layout');
+          },
+        },
+        {
+          target: '#front-cover-uploader',
+          text: "And here's Tilted. It gives the cover a more dynamic, eye-catching feel. There are other layouts to try too, like Staggered and Masonry. Experiment with them later to find your favorite!",
+          state: 'excited',
+          prepare: function() {
+            scrollPreviewTo('print-page-1');
+            // Switch to tilted layout and regenerate
+            const selector = document.getElementById('collage-layout-selector');
+            if (selector) {
+              selector.querySelectorAll('.layout-option').forEach(function(opt) {
+                opt.classList.toggle('selected', opt.dataset.layout === 'tilted');
+              });
+            }
+            BooklistApp.generateCoverCollage();
           },
         },
         {
@@ -230,12 +280,22 @@
         },
         {
           target: '#branding-uploader',
-          text: "Add your library's logo or branding here. It appears on the back cover, giving the list a polished, official look.",
+          text: "Add your library's logo or branding here. It appears on the back cover, giving the list a polished, official look. I'll add the default one for now.",
           state: 'idle',
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
             scrollPreviewTo('print-page-1');
+            // Apply the default branding image
+            const uploader = document.getElementById('branding-uploader');
+            if (uploader) {
+              const img = uploader.querySelector('img');
+              if (img) {
+                img.src = 'assets/img/branding-default.png';
+                img.dataset.isPlaceholder = 'false';
+              }
+              uploader.classList.add('has-image');
+            }
           },
         },
       ]
@@ -265,6 +325,9 @@
           prepare: function() {
             const mainContent = document.querySelector('.main-content');
             if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+            // Set the sample list name
+            const nameInput = document.getElementById('list-name-input');
+            if (nameInput) nameInput.value = 'The Disc and Beyond';
           },
         },
         {
@@ -279,14 +342,21 @@
         },
         {
           target: '#qr-code-area',
-          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. Paste a URL and click Generate. Makes it easy for patrons to visit the link quickly.",
+          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. Let me add one linking to Terry Pratchett's Wikipedia page.",
           state: 'idle',
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
+            scrollPreviewTo('print-page-1');
+            // Set QR URL and generate
+            const qrInput = document.getElementById('qr-url-input');
+            if (qrInput) qrInput.value = 'https://en.wikipedia.org/wiki/Terry_Pratchett';
+            setTimeout(function() {
+              const qrBtn = document.getElementById('generate-qr-button');
+              if (qrBtn) qrBtn.click();
+            }, 300);
             const qr = document.getElementById('qr-code-area');
-            const mainContent = document.querySelector('.main-content');
-            if (qr && mainContent) {
+            if (qr) {
               qr.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
           },
@@ -296,8 +366,13 @@
           text: "This text area is your back cover blurb, next to the QR code. Write a short description, reading prompt, or instructions for patrons.",
           state: 'idle',
           prepare: function() {
+            // Set the sample QR text
             const qrText = document.getElementById('qr-code-text');
-            if (qrText) qrText.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (qrText) {
+              qrText.innerText = "Welcome to the Discworld, a fantasy world carried through space on the back of a giant turtle, where Pratchett will make you laugh, and then make you think, and then quietly break your heart. Scan the code to meet the man, then come find the books waiting for you on the shelf.";
+              qrText.style.color = '';
+              qrText.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
           },
         },
       ]
@@ -342,6 +417,47 @@
 
 
   /* ----------------------------------------------------------------
+     SAMPLE BOOKLIST STATE (loaded during tour to show a complete list)
+     Compact version: only the selected cover_id per book, no base64 images.
+     Covers load from Open Library; collage is generated live.
+     ---------------------------------------------------------------- */
+  const TOUR_SAMPLE_STATE = {
+    schema: 'booklist-v1',
+    meta: { listName: 'The Disc and Beyond' },
+    books: [
+      { key: '/works/OL453657W', isBlank: false, title: 'The Colour of Magic', author: 'Terry Pratchett', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett -\u00a0Fiction Pratchett', description: 'When a naive tourist arrives in Ankh-Morpork seeking adventure, he hires Rincewind, a spectacularly inept wizard, as his guide. Together they stumble through a world of dragons, barbarians, and dark temples, where survival depends less on magic than on sheer dumb luck.', currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [14647238] },
+      { key: '/works/OL453658W', isBlank: false, title: 'Mort', author: 'Terry Pratchett', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett -\u00a0Fiction Pratchett', description: "When a young man becomes Death's apprentice, he discovers the job involves more than just reaping souls. While Mort tries to fix a catastrophic mistake, Death himself embarks on a quest to understand what it means to be human, with hilariously tragic consequences.", currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [14648805] },
+      { key: '/works/OL453697W', isBlank: false, title: 'Small Gods', author: 'Terry Pratchett, Ray Friesen', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett - Fiction Pratchett', description: 'When the god Om manifests as a powerless tortoise, he must rely on Brutha, a humble novice, to restore his faith in a world where religious institutions wield absolute power. This graphic adaptation explores what happens when belief itself becomes the ultimate weapon.', currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [6405489] },
+      { key: '/works/OL453659W', isBlank: false, title: 'Sourcery', author: 'Terry Pratchett', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett -\u00a0Fiction Pratchett', description: 'When the first female sourcerer arrives at Unseen University, magic runs wild through Ankh-Morpork. Cowardly wizard Rincewind discovers unexpected powers and joins an unlikely band of heroes to stop the chaos before it consumes everything.', currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [15200528] },
+      { key: '/works/OL453660W', isBlank: false, title: 'Wyrd Sisters', author: 'Terry Pratchett', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett - Fiction Pratchett', description: 'When a tyrant murders the king of Lancre and seizes the throne, three quarrelsome witches must outwit him to restore the rightful heir. With a troupe of actors, a sinister cat, and a fool caught in the middle, Granny Weatherwax and her coven discover that magic and mischief make powerful allies.', currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [14648051] },
+      { key: '/works/OL453670W', isBlank: false, title: 'Equal Rites', author: 'Terry Pratchett', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett - Fiction Pratchett', description: "When eight-year-old Esk discovers she possesses magical talent, she defies tradition by seeking training as a wizard instead of a witch. Accompanied by the formidable Granny Weatherwax, Esk journeys to Ankh-Morpork's Unseen University, where she must prove that magic knows no gender.", currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [6925774] },
+      { key: '/works/OL453662W', isBlank: false, title: 'Hogfather', author: 'Terry Pratchett', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett - Fiction Pratchett', description: "When belief in the Hogfather, Discworld's gift-giving icon, dwindles dangerously low, Death himself must don the red suit and deliver presents on Hogswatchnight. But can a seven-foot skeleton truly capture the magic that children need to believe in?", currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [13271889] },
+      { key: '/works/OL453777W', isBlank: false, title: 'Maskerade', author: 'Terry Pratchett', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett - Fiction Pratchett', description: "When Granny Weatherwax and Nanny Ogg arrive at the opera house, they discover a ghost with very specific demands and a taste for theatrical mayhem. As accidents multiply and mysteries deepen, the witches can't resist meddling in the chaos, uncovering secrets far darker than any phantom's revenge.", currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [14646574] },
+      { key: '/works/OL453680W', isBlank: false, title: 'The Light Fantastic', author: 'Terry Pratchett, Ernest Riera', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett - Fiction Pratchett', description: "When a red star hurtles toward the Discworld, only one wizard can save it. Unfortunately, that wizard is Rincewind, a cowardly charlatan who can't cast a spell. Alongside a troll and a mysterious trunk, he stumbles through a world of chaos and absurdity in a race against cosmic catastrophe.", currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [6531015] },
+      { key: '/works/OL453852W', isBlank: false, title: 'Thud!', author: 'Terry Pratchett', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett - Fiction Pratchett', description: 'When a dwarf is found bludgeoned to death in a mine, all evidence points to a troll. Commander Vimes of the City Watch must solve this murder before ancient hatreds ignite a war that will tear Ankh-Morpork apart. With his fractured force and assassins closing in, time is running out.', currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [8741453] },
+      { key: '/works/OL453989W', isBlank: false, title: 'Wintersmith', author: 'Terry Pratchett, Paul Kidby', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett - Fiction Pratchett', description: 'When young witch Tiffany Aching catches the eye of the Spirit of Winter, he becomes obsessed with keeping her in his frozen world forever. Now Tiffany must use her wits and courage to outwit a lovesick immortal and bring spring back to the Discworld.', currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [6398070] },
+      { key: '/works/OL453654W', isBlank: false, title: 'Reaper Man', author: 'Terry Pratchett', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett - Fiction Pratchett', description: "When Death is forcibly retired, he takes on human form as a farmhand named Bill Door, learning what it means to live. Meanwhile, back in Ankh-Morpork, his absence causes chaos as life-force accumulates, and a dead wizard named Windle Poons discovers he's far more useful undead than he ever was alive.", currentCoverIndex: 0, customCoverData: null, includeInCollage: true, cover_ids: [12993919] },
+      { key: '/works/OL453707W', isBlank: false, title: 'Interesting Times', author: 'Terry Pratchett', callNumber: '[Call #]', authorDisplay: 'By Terry Pratchett -\u00a0Fiction Pratchett', description: "When a book about a tourist's holiday becomes revolutionary propaganda, hapless wizard Rincewind finds himself hailed as a savior by rebels in the Agatean Empire. The only problem: he can't even spell wizard, and \"interesting times\" is the worst curse imaginable on Discworld.", currentCoverIndex: 0, customCoverData: null, includeInCollage: false, cover_ids: [14778580] },
+      { key: 'blank-tour-1', isBlank: true, title: '[Enter Title]', author: '[Enter Author]', callNumber: '[Call #]', authorDisplay: '[Enter Author] - [Call #]', description: '[Enter a brief description here...]', currentCoverIndex: 0, customCoverData: null, includeInCollage: false, cover_ids: [] },
+      { key: 'blank-tour-2', isBlank: true, title: '[Enter Title]', author: '[Enter Author]', callNumber: '[Call #]', authorDisplay: '[Enter Author] - [Call #]', description: '[Enter a brief description here...]', currentCoverIndex: 0, customCoverData: null, includeInCollage: false, cover_ids: [] },
+    ],
+    extraCollageCovers: [],
+    ui: {
+      stretchCovers: false, stretchBlockCovers: false,
+      showQr: true, showBranding: true,
+      coverAdvancedMode: false, coverTitle: '',
+      coverLineTexts: ['', '', ''],
+      collageLayout: 'classic', showShelves: false,
+      titleBarPosition: 'classic', tiltDegree: -25, tiltOffsetDirection: 'vertical',
+      extendedCollageMode: false,
+      qrCodeUrl: '',
+      qrCodeText: '',
+    },
+    images: { frontCover: null, frontCoverIsAutoGenerated: false, branding: null },
+  };
+
+
+  /* ----------------------------------------------------------------
      TOUR STATE
      ---------------------------------------------------------------- */
   let currentSectionId = null;
@@ -350,8 +466,6 @@
   let fullTourSectionIndex = 0;
   let preTourFolioHidden = false;
   let isHoverable = false;
-  let preTourQrChecked = null;
-  let preTourBrandingChecked = null;
 
   // DOM refs (created once)
   let modalOverlay = null;
@@ -613,9 +727,17 @@
     beginTour();
   }
 
-  function beginTour() {
+  async function beginTour() {
     // Mark body as tour-active (elevates Folio, suppresses speech bubble)
     document.body.classList.add('tour-active');
+
+    // Save the user's full state and reset to blank (undo/autosave suppressed)
+    const success = await BooklistApp.enterTourMode();
+    if (!success) {
+      document.body.classList.remove('tour-active');
+      currentSectionId = null;
+      return;
+    }
 
     // Reset zoom to 100% so spotlight positioning is accurate
     if (BooklistApp.resetZoom) {
@@ -650,30 +772,12 @@
     const tabSettings = document.getElementById('tab-settings');
     if (tabSettings) tabSettings.scrollTop = 0;
 
-    // Force QR code and branding on for the tour (save original state).
-    // Use updateBackCoverVisibility() instead of dispatching 'change' events
-    // so that handleLayoutChange() doesn't permanently trim book data from
-    // slots that temporarily exceed the reduced MAX_BOOKS.
+    // Force QR code and branding on for the tour so all UI areas are visible
     const qrToggle = document.getElementById('toggle-qr-code');
     const brandingToggle = document.getElementById('toggle-branding');
-    let togglesChanged = false;
-    if (qrToggle) {
-      preTourQrChecked = qrToggle.checked;
-      if (!qrToggle.checked) {
-        qrToggle.checked = true;
-        togglesChanged = true;
-      }
-    }
-    if (brandingToggle) {
-      preTourBrandingChecked = brandingToggle.checked;
-      if (!brandingToggle.checked) {
-        brandingToggle.checked = true;
-        togglesChanged = true;
-      }
-    }
-    if (togglesChanged) {
-      BooklistApp.updateBackCoverVisibility();
-    }
+    if (qrToggle) qrToggle.checked = true;
+    if (brandingToggle) brandingToggle.checked = true;
+    BooklistApp.updateBackCoverVisibility();
 
     // Ensure Folio is visible
     const container = document.getElementById('folio-container');
@@ -703,31 +807,14 @@
         window.folio.setState(step.state || 'idle');
       }
 
-      // Panel content (update immediately, position after scroll)
-      const sectionLabel = panel.querySelector('.tour-panel-section');
-      const message = panel.querySelector('.tour-panel-message');
-      const counter = panel.querySelector('.tour-step-counter');
-      const prevBtn = panel.querySelector('.tour-prev-btn');
-      const nextBtn = panel.querySelector('.tour-next-btn');
-
-      sectionLabel.textContent = section.title;
-      message.textContent = step.text;
-
-      const gIdx = globalStepIndex();
-      const total = totalSteps();
-      counter.textContent = (gIdx + 1) + ' / ' + total;
-
-      prevBtn.disabled = (gIdx === 0);
-      nextBtn.textContent = (gIdx === total - 1) ? 'Finish' : 'Next';
+      // Hide spotlight/panel first so text doesn't change visibly mid-fade
+      spotlight.classList.remove('visible');
+      panel.classList.remove('visible');
 
       // Scroll target into view only if step didn't handle its own scrolling via prepare
       if (target && !step.prepare) {
         target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
-
-      // Hide spotlight/panel during transition to avoid stale positions
-      spotlight.classList.remove('visible');
-      panel.classList.remove('visible');
 
       // Toggle interaction blocker
       if (step.interactive) {
@@ -744,8 +831,25 @@
         isHoverable = false;
       }
 
-      // Wait for scroll to settle before positioning (needs time for sequenced scrolls)
+      // Wait for fade-out + scroll to settle, then update text and show
       setTimeout(function() {
+        // Update panel content now that it's fully hidden
+        const sectionLabel = panel.querySelector('.tour-panel-section');
+        const message = panel.querySelector('.tour-panel-message');
+        const counter = panel.querySelector('.tour-step-counter');
+        const prevBtn = panel.querySelector('.tour-prev-btn');
+        const nextBtn = panel.querySelector('.tour-next-btn');
+
+        sectionLabel.textContent = section.title;
+        message.textContent = step.text;
+
+        const gIdx = globalStepIndex();
+        const total = totalSteps();
+        counter.textContent = (gIdx + 1) + ' / ' + total;
+
+        prevBtn.disabled = (gIdx === 0);
+        nextBtn.textContent = (gIdx === total - 1) ? 'Finish' : 'Next';
+
         positionSpotlight(target, step.padding);
         positionPanel(target);
         spotlight.classList.add('visible');
@@ -788,7 +892,7 @@
     }
   }
 
-  function exitTour() {
+  async function exitTour() {
     currentSectionId = null;
     currentStepIndex = 0;
     isFullTour = false;
@@ -798,35 +902,29 @@
     // Remove tour-active state
     document.body.classList.remove('tour-active');
 
-    // Clean up demo search text and results if we filled them
-    const input = document.getElementById('keywordInput');
-    if (input && input.classList.contains('tour-demo-filled')) {
-      input.value = '';
-      input.classList.remove('tour-demo-filled');
-      const results = document.getElementById('results-container');
-      if (results) results.innerHTML = '';
-    }
-
     // Hide spotlight and panel
     spotlight.classList.remove('visible');
     panel.classList.remove('visible');
 
-    // Restore QR code and branding toggle states (visual-only, no data trim)
-    const qrToggle = document.getElementById('toggle-qr-code');
-    const brandingToggle = document.getElementById('toggle-branding');
-    let togglesRestored = false;
-    if (qrToggle && preTourQrChecked !== null) {
-      qrToggle.checked = preTourQrChecked;
-      preTourQrChecked = null;
-      togglesRestored = true;
+    // Restore the user's full pre-tour state (books, settings, undo history)
+    await BooklistApp.exitTourMode();
+
+    // Clean up demo search artifacts
+    const input = document.getElementById('keywordInput');
+    if (input) {
+      input.value = '';
+      input.classList.remove('tour-demo-filled');
     }
-    if (brandingToggle && preTourBrandingChecked !== null) {
-      brandingToggle.checked = preTourBrandingChecked;
-      preTourBrandingChecked = null;
-      togglesRestored = true;
-    }
-    if (togglesRestored) {
-      BooklistApp.updateBackCoverVisibility();
+    const results = document.getElementById('results-container');
+    if (results) results.innerHTML = '';
+
+    // Restore Folio visibility state
+    if (preTourFolioHidden) {
+      const container = document.getElementById('folio-container');
+      if (container) {
+        container.classList.add('folio-hidden');
+        try { localStorage.setItem('folio-hidden', 'true'); } catch {}
+      }
     }
 
     // Return Folio to idle
