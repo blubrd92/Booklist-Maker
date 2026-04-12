@@ -594,9 +594,14 @@ const BooklistApp = (function() {
     elements.notificationArea.classList.add('show');
     
     if (autoHide) {
+      // Success notifications auto-hide faster since they're just confirmations;
+      // errors get the full duration so users have time to read them.
+      const duration = type === 'success'
+        ? CONFIG.NOTIFICATION_DURATION_SUCCESS_MS
+        : CONFIG.NOTIFICATION_DURATION_MS;
       notificationTimeout = setTimeout(() => {
         hideNotification();
-      }, CONFIG.NOTIFICATION_DURATION_MS);
+      }, duration);
     }
   }
   
