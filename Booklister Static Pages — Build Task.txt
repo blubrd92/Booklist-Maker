@@ -1,0 +1,93 @@
+# Booklister Static Pages — Build Task
+
+I need you to add three new static HTML pages to my Booklister project, plus the navigation to access them. The project is a vanilla HTML/CSS/JS booklist creation tool currently deployed to GitHub Pages and live at https://booklister.org. The codebase follows a no-framework, no-build-step pattern, with everything in plain HTML/CSS/JS files, and I want to maintain that pattern. Do not introduce any build tooling, frameworks, or external dependencies.
+
+## Domain context
+
+The tool now has a custom domain: https://booklister.org. The repository already contains a CNAME file at the root with this domain. The previous URL was https://blubrd92.github.io/Booklist-Maker/ but the project has migrated to the custom domain. When generating any page copy, meta tags, canonical URLs, or links that reference the project's URL, use https://booklister.org as the canonical address. If you find any hardcoded references to the old GitHub Pages URL anywhere in the existing code that you happen to see while reading files for context, do not change them as part of this task. Note them in your final observations list instead.
+
+## Iterative workflow
+
+Complete each page fully and show it to me before starting the next one, so I can give feedback as we go. The order should be: first the navigation element (added to existing index.html plus created as a reusable pattern), then about.html, then for-libraries.html, then contact.html. Pause after each step and wait for my approval before moving on. Do not generate all pages at once.
+
+## Critical constraint: visual style must match the existing tool exactly
+
+Before writing any new pages, read the existing index.html, the main CSS file (likely in assets/css/ or similar, find it in the repo), and any shared style variables to understand the current design system. The new pages must use the same fonts, color palette, spacing, button styles, link styles, heading hierarchy, and overall visual language as the existing tool. Do not reinvent the design. The new pages should feel like they are part of the same project, not bolted on. If the existing tool uses CSS custom properties for theming, the new pages must use those same custom properties, not hardcoded colors. If the existing tool has a particular header style, the new pages should use the same header. Match it as closely as you can.
+
+## The three pages to create
+
+### 1. about.html
+
+A page about what Booklister is, why it was built, and who built it. The voice should be plainspoken and direct, written in first person, no marketing speak, no buzzwords, no corporate tone. Think "librarian explaining a thing they made" not "startup pitching a product."
+
+The page should cover:
+
+- What the tool does in one paragraph
+- Why I built it (a librarian at San Rafael Public Library who needed something better than what was available)
+- How it works at a high level (auto-fetches book information, generates cover collages, exports printable bifolds)
+- A section about Folio the cat mascot mentioning that "folio" is the bookbinding term for a single sheet folded once into four pages and that the tool's bifold output is itself a folio
+- An honest section about the AI use
+
+The AI section should explain that Booklister uses Tavily for web search and Anthropic's Claude for drafting book descriptions from those search results, that the descriptions are grounded in real search results rather than generated from training data, that AI-generated text is meant to be a starting draft for librarians to review and edit rather than a replacement for their judgment, and that the librarian is always the author of the final booklist.
+
+End with a brief note that the tool is free for individual librarians to use and that institutions interested in formal licensing can find more on the For Libraries page. Keep the page to a comfortable reading length, not exhaustive. A few hundred words total.
+
+### 2. for-libraries.html
+
+A page for library institutions considering using Booklister formally. This page should explain the institutional offer in concrete terms. Structure it around what an institution gets, what it costs, and how to get started.
+
+The offer to describe:
+
+- A custom branded instance of Booklister with the library's name, colors, and logo as the defaults, hosted at a dedicated subdomain like sonoma.booklister.org
+- Ongoing support and maintenance during the contract period
+- Small customizations as requested
+- The developer (me) absorbs API costs for Tavily and Claude on the library's behalf so the library doesn't need to manage those accounts
+
+The price should be listed as "$500 per year, billed annually."
+
+Include a brief paragraph noting that custom integrations with the library's catalog system (such as Polaris PAPI or BiblioCommons) are available as separate scoped projects, priced based on the integration complexity, and that interested libraries should reach out to discuss.
+
+End with a clear call to action: contact me to discuss whether Booklister is right for your library, and provide the contact email blubrd.web@proton.me as a clickable mailto link with the email visible as text so it can also be copied.
+
+The tone here should be slightly more formal than the about page because the audience includes administrators and procurement, but still plainspoken and not salesy.
+
+### 3. contact.html
+
+The simplest of the three. A short page explaining how to reach me. The page should have a brief paragraph noting that I welcome inquiries from individual librarians using the tool, library institutions interested in licensing, and IT or technical folks with questions about how the tool works.
+
+Provide blubrd.web@proton.me as a clickable mailto link with the email visible as text. Note that I check email in the evenings and on weekends since this is a side project and to expect a response within a few days rather than instantly.
+
+No form, no other contact methods, no social media links. Just the email and the honest expectations about response time.
+
+## Navigation
+
+Add a small, unobtrusive navigation element to the existing index.html (the tool itself) and to all three new pages, allowing visitors to move between the tool, the about page, the for-libraries page, and the contact page. The navigation should be simple and visually quiet so it doesn't compete with the tool itself. A small text-link nav in the header or footer is fine. It should not be a prominent menu bar that takes attention away from the tool. The label for the link back to the tool should be something like "Tool" or "Booklister" or "Home," whatever fits the style best. The navigation must be present on all four pages (index, about, for-libraries, contact) and styled identically.
+
+## File structure
+
+The new HTML files should live at the root of the repository alongside the existing index.html, so that they are accessible at booklister.org/about.html, booklister.org/for-libraries.html, and booklister.org/contact.html. Do not nest them in a subdirectory. They should share the existing CSS file for styling and may add a small additional CSS block or file only if necessary for page-specific layout that the existing CSS does not cover. Prefer reusing existing styles over adding new ones.
+
+## What not to do
+
+- Do not add any JavaScript frameworks
+- Do not add any build tools
+- Do not add any third-party CSS libraries like Tailwind or Bootstrap
+- Do not add any analytics, tracking, or telemetry
+- Do not add any cookie banners or privacy popups
+- Do not add a newsletter signup
+- Do not add social media share buttons
+- Do not write copy that uses words like "innovative," "cutting-edge," "revolutionary," "leverage," "empower," "seamless," or any other tech marketing vocabulary
+- Do not invent features that are not described in this prompt
+- Do not add testimonials or fake quotes
+- Do not add a roadmap or feature list
+- Do not change anything in the existing tool code beyond adding the navigation element
+- Do not modify the existing tool's CSS in any way that affects how the tool currently looks or behaves
+- Do not reorganize the existing file structure
+
+## Final check before you finish
+
+After all pages are approved and the navigation is in place, verify that the three new pages render correctly in a browser, that the navigation works in both directions (from tool to pages and from pages back to tool), that the styling matches the existing tool, that the mailto links open a fresh email to the correct address, and that no existing functionality in the tool has been broken by the addition of the navigation. Show me a summary of the files you created or modified before considering the task complete.
+
+## Standing instruction
+
+Only implement what I have explicitly described in this prompt. If you notice something that seems like it should also change (a typo elsewhere in the codebase, an opportunity for refactoring, a missing meta tag, anything else), do not change it. Instead, list those observations at the end of your work as suggestions, and I will decide whether to address them in a separate task.
