@@ -807,6 +807,10 @@
   <!-- Firebase (ES module). No-op on the public tool; only initializes on
        branded library subdomains. See assets/js/firebase-init.js. -->
   <script type="module" src="assets/js/firebase-init.js"></script>
+  <!-- Per-library config loader (ES module). Imports from firebase-init.js.
+       On the public tool it dispatches 'library-config-ready' with a null
+       config and returns. On branded instances it reads from Firestore. -->
+  <script type="module" src="assets/js/library-config.js"></script>
 
   <!-- Sidebar Toggle Script -->
   <script>
