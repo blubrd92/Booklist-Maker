@@ -1,0 +1,178 @@
+/* Login modal + header sign-out button for gated library instances.
+   Matches the .modal-overlay / .modal-content conventions from styles.css
+   (same color variables, radius, shadow, typography). Scoped to
+   #auth-modal and #auth-signout-button. */
+
+#auth-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(45, 55, 72, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+#auth-modal[hidden] {
+  display: none;
+}
+
+#auth-modal .auth-modal-content {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 420px;
+  padding: 28px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+#auth-modal h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--secondary-color);
+}
+
+#auth-modal .auth-subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+
+#auth-signin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#auth-modal .auth-field {
+  display: flex;
+  flex-direction: column;
+}
+
+#auth-modal label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 4px;
+}
+
+#auth-modal input[type="email"],
+#auth-modal input[type="password"] {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: white;
+  color: var(--text-color);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+#auth-modal input[type="email"]:focus,
+#auth-modal input[type="password"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+
+#auth-signin-submit {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 11px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+#auth-signin-submit:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+#auth-signin-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#auth-forgot-link {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px;
+  text-align: center;
+  text-decoration: underline;
+}
+
+#auth-forgot-link:hover {
+  color: var(--primary-hover);
+}
+
+#auth-error {
+  color: var(--danger-color);
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  background: rgba(229, 57, 53, 0.08);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--danger-color);
+}
+
+#auth-reset-confirm {
+  color: var(--success-color);
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  background: rgba(67, 160, 71, 0.08);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--success-color);
+}
+
+#auth-error[hidden],
+#auth-reset-confirm[hidden] {
+  display: none;
+}
+
+/* Sign-out button in the header — small circular icon to sit next to
+   the existing tour button. Matches header button translucent style. */
+#auth-signout-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  padding: 0;
+}
+
+#auth-signout-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+#auth-signout-button[hidden] {
+  display: none;
+}
+
+/* Never leak into PDF exports. */
+body.print-mode #auth-modal,
+body.print-mode #auth-signout-button {
+  display: none !important;
+}
