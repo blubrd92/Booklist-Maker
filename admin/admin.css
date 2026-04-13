@@ -191,6 +191,25 @@ html, body {
   text-align: left;
 }
 
+/* Role labels above each sign-in option (Google vs email). Small
+   uppercase headers so "this one is for you, that one is for them"
+   is obvious without reading a paragraph. */
+.admin-signin-role-label {
+  margin: 8px 0 2px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--admin-secondary);
+}
+
+.admin-signin-role-hint {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  color: var(--admin-text-light);
+  max-width: 440px;
+}
+
 /* --- EMAIL SIGN-IN (for library admins) --- */
 
 .admin-signin-divider {

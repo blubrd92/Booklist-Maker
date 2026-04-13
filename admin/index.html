@@ -36,17 +36,20 @@
          email/password form (library admins) -->
     <section id="admin-signin" class="admin-section" hidden>
       <h2>Sign in</h2>
-      <p>Sign in with your Google account (for the Booklister owner) or with your library staff email and password (for library admins).</p>
 
+      <p class="admin-signin-role-label">Booklister owner</p>
+      <p class="admin-signin-role-hint">Sign in with the Google account that owns the project.</p>
       <button id="google-signin-btn">
         <i class="fa-brands fa-google" aria-hidden="true"></i> Sign in with Google
       </button>
 
       <div class="admin-signin-divider"><span>or</span></div>
 
+      <p class="admin-signin-role-label">Library admin</p>
+      <p class="admin-signin-role-hint">Sign in with the email and password you use for your library's Booklister.</p>
       <form id="admin-email-signin-form" class="admin-email-signin-form">
         <div class="admin-field">
-          <label for="admin-email-signin-email">Library staff email</label>
+          <label for="admin-email-signin-email">Email</label>
           <input type="email" id="admin-email-signin-email" autocomplete="email" required>
         </div>
         <div class="admin-field">
