@@ -1,0 +1,5 @@
+# This file exists only so git tracks the otherwise-empty
+# assets/img/libraries/sanrafael/ directory. Drop logo.png
+# (and any other per-library assets) here; they get served
+# at the path the Firestore config's brandingImagePath points to
+# (e.g. "assets/img/libraries/sanrafael/logo.png").
