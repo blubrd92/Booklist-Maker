@@ -340,9 +340,12 @@ Document shape (current; intentionally minimal):
 ```
 {
   displayName: "San Rafael Public Library",
-  brandingImagePath: "assets/img/libraries/sanrafael/logo.png"
+  brandingImagePath: "assets/img/libraries/sanrafael/logo.png",
+  autoDraftDescriptionsDefault: true   // optional; defaults to true if missing
 }
 ```
+
+**`autoDraftDescriptionsDefault`** controls the starting state of the Search-tab "Auto-draft descriptions on add" toggle for this library's staff. When `true` (or missing, for backward compatibility with libraries that predate the setting), the tool auto-drafts a description each time a book is added from search. When `false`, book-add leaves the blank description placeholder and staff write their own. Individual staff can still flip the toggle in their own browser (preference is stored in localStorage under `booklister.autoDraftDescriptions`); this field is just the per-library default they see on first use, before they've touched the toggle themselves. The wand button on individual books is unaffected by this setting.
 
 ### `libraries/{libraryId}`
 Gated branded library configs (like `sonoma`). Readable only by members of that library (via the memberships check) OR by super-admins. Writable only by super-admins. Loaded by `library-config.js` after successful sign-in.

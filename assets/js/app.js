@@ -621,19 +621,30 @@ const BooklistApp = (function() {
 
   // Auto-draft toggle. Controls whether adding a book from search
   // auto-drafts a description. Only relevant on branded instances —
-  // the public tool never drafts on add. Default is ON so existing
-  // branded instances keep their current behavior unless the user
-  // explicitly opts out. Preference persists per browser.
+  // the public tool never drafts on add. Per-user preference persists
+  // in localStorage; if the user has no preference set, falls back to
+  // the per-library default from LIBRARY_CONFIG.autoDraftDescriptionsDefault
+  // (settable by the super-admin in the admin console). If that's also
+  // absent, falls back to on — matches the historical behavior for
+  // libraries that predate this setting.
   const AUTO_DESCRIPTION_STORAGE_KEY = 'booklister.autoDraftDescriptions';
+
+  function getLibraryAutoDescriptionDefault() {
+    const cfg = window.LIBRARY_CONFIG;
+    if (cfg && typeof cfg.autoDraftDescriptionsDefault === 'boolean') {
+      return cfg.autoDraftDescriptionsDefault;
+    }
+    return true;
+  }
 
   function getAutoDescriptionPreference() {
     try {
       const v = localStorage.getItem(AUTO_DESCRIPTION_STORAGE_KEY);
-      if (v === null) return true; // default on
-      return v === 'true';
+      if (v !== null) return v === 'true';
     } catch {
-      return true;
+      // private browsing — fall through to library default
     }
+    return getLibraryAutoDescriptionDefault();
   }
 
   function setAutoDescriptionPreference(enabled) {

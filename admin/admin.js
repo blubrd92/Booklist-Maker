@@ -37,13 +37,17 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 // Libraries hold only the fields that are genuinely per-library:
-// displayName (shown in the tab title + header credit) and
-// brandingImagePath (the logo image on the back cover). Everything
-// else — fonts, layout, extended mode, colors — starts from the
-// Booklister defaults and is per-user, not per-library.
+// displayName (shown in the tab title + header credit),
+// brandingImagePath (the logo image on the back cover), and
+// autoDraftDescriptionsDefault (whether the Search-tab auto-draft
+// toggle defaults on or off for this library's staff when they
+// haven't set their own preference yet). Everything else — fonts,
+// layout, extended mode, colors — starts from the Booklister defaults
+// and is per-user, not per-library.
 const DEFAULT_LIBRARY = {
   displayName: '',
   brandingImagePath: '',
+  autoDraftDescriptionsDefault: true,
 };
 
 // Same Firebase project as the main tool. This config is NOT a secret —
@@ -567,6 +571,7 @@ function openLibraryModal(lib) {
   const typeRadios = document.querySelectorAll('input[name="library-type"]');
   const nameInput = document.getElementById('admin-field-display-name');
   const brandingInput = document.getElementById('admin-field-branding-path');
+  const autoDraftInput = document.getElementById('admin-field-auto-draft-default');
   const errorEl = document.getElementById('admin-library-form-error');
 
   errorEl.hidden = true;
@@ -594,6 +599,10 @@ function openLibraryModal(lib) {
     // canonical path convention, even if the stored doc has something
     // different (older libraries may have had manually-entered paths).
     brandingInput.value = brandingPathFromId(lib.id);
+    // Auto-draft default: if the doc doesn't have the field (older
+    // libraries that predate this setting), default to true — matches
+    // the behavior the library had before the toggle existed.
+    autoDraftInput.checked = d.autoDraftDescriptionsDefault !== false;
   } else {
     // Create mode
     title.textContent = 'Add Library';
@@ -605,6 +614,7 @@ function openLibraryModal(lib) {
     }
     nameInput.value = '';
     brandingInput.value = '';
+    autoDraftInput.checked = true;
   }
 
   // Memberships section: only visible when editing an existing gated
@@ -641,6 +651,7 @@ async function handleLibraryFormSubmit(evt) {
 
   const idInput = document.getElementById('admin-field-library-id');
   const nameInput = document.getElementById('admin-field-display-name');
+  const autoDraftInput = document.getElementById('admin-field-auto-draft-default');
   const saveBtn = document.getElementById('admin-library-save-btn');
 
   const libraryId = idInput.value.trim().toLowerCase();
@@ -650,6 +661,7 @@ async function handleLibraryFormSubmit(evt) {
   // from the form input (which is a read-only mirror of the derived
   // value). This enforces the canonical path convention.
   const brandingImagePath = brandingPathFromId(libraryId);
+  const autoDraftDescriptionsDefault = autoDraftInput.checked;
 
   // Validation
   if (!libraryId) {
@@ -677,6 +689,7 @@ async function handleLibraryFormSubmit(evt) {
   const data = {
     displayName,
     brandingImagePath,
+    autoDraftDescriptionsDefault,
   };
 
   const collectionName = type === 'public' ? 'libraries-public' : 'libraries';

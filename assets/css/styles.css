@@ -645,6 +645,16 @@ input[type="color"]:hover {
 
 /* Search Form */
 .search-form { display: flex; flex-direction: column; gap: 12px; }
+/* The auto-draft toggle sits between the keyword input and the advanced
+   fields and inherits both the .search-form flex gap (12px) AND the
+   .checkbox-row 6px margin-top + .control-row 8px margin-bottom, which
+   stacks into too much visual buffer. Cancel the local margins so
+   only the flex gap remains — and knock a few pixels off that too via
+   negative margin-top so it sits a little closer to the keyword input. */
+#auto-description-toggle-row {
+  margin-top: -6px;
+  margin-bottom: 0;
+}
 .advanced-search-toggle summary {
   cursor: pointer;
   font-size: 0.9rem;
@@ -844,6 +854,11 @@ input[type="color"]:hover {
   letter-spacing: 0.4px;
 }
 .control-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+/* [hidden] rescue: the base .control-row display: flex rule above is
+   author-origin and beats the user-agent [hidden] { display: none }
+   rule. Without this explicit override any .control-row with the
+   hidden attribute stays visible. See CLAUDE.md "Known CSS Pitfalls". */
+.control-row[hidden] { display: none; }
 .control-row:last-child { margin-bottom: 0; }
 .checkbox-row { margin-top: 6px; }
 .checkbox-row input[type="checkbox"] {
