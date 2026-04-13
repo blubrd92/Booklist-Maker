@@ -56,13 +56,151 @@
       <button id="admin-denied-signout-btn" class="admin-btn-secondary">Sign out and try a different account</button>
     </section>
 
-    <!-- Authorized admin: the real app -->
+    <!-- Authorized admin: libraries list + actions -->
     <section id="admin-app" class="admin-section" hidden>
-      <h2>Libraries</h2>
-      <p class="admin-loading-text">Admin console authenticated. CRUD interface coming in the next substep.</p>
+      <div class="admin-app-header">
+        <h2>Libraries</h2>
+        <button id="admin-add-library-btn" class="admin-btn-primary">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i> Add Library
+        </button>
+      </div>
+
+      <div id="admin-libraries-loading" class="admin-loading-text">Loading libraries…</div>
+      <div id="admin-libraries-error" class="admin-error" hidden></div>
+
+      <div id="admin-libraries-empty" class="admin-empty" hidden>
+        <p>No libraries yet. Click <strong>Add Library</strong> to create your first one.</p>
+      </div>
+
+      <table id="admin-libraries-table" class="admin-table" hidden>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Display name</th>
+            <th>Type</th>
+            <th class="admin-actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="admin-libraries-tbody"></tbody>
+      </table>
     </section>
 
   </main>
+
+  <!-- Create / Edit library modal -->
+  <div id="admin-library-modal" class="admin-modal-overlay" hidden>
+    <div class="admin-modal">
+      <div class="admin-modal-header">
+        <h3 id="admin-library-modal-title">Add Library</h3>
+        <button type="button" class="admin-modal-close" id="admin-library-modal-close" aria-label="Close">&times;</button>
+      </div>
+
+      <form id="admin-library-form" class="admin-modal-body" novalidate>
+        <div class="admin-field">
+          <label for="admin-field-library-id">Library ID <span class="admin-required">*</span></label>
+          <input type="text" id="admin-field-library-id" autocomplete="off" spellcheck="false" required>
+          <p class="admin-field-hint">Lowercase letters, numbers, and hyphens. This becomes the subdomain (e.g. <code>sonoma</code> → <code>sonoma.booklister.org</code>) and cannot be changed after creation.</p>
+        </div>
+
+        <div class="admin-field">
+          <label>Type <span class="admin-required">*</span></label>
+          <div class="admin-radio-group" id="admin-field-type-group">
+            <label class="admin-radio">
+              <input type="radio" name="library-type" value="public" checked>
+              <span><strong>Public</strong> — Anyone can access this library instance. Config stored in <code>libraries-public</code>.</span>
+            </label>
+            <label class="admin-radio">
+              <input type="radio" name="library-type" value="gated">
+              <span><strong>Gated</strong> — Requires sign-in + membership. Config stored in <code>libraries</code>.</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="admin-field">
+          <label for="admin-field-display-name">Display name <span class="admin-required">*</span></label>
+          <input type="text" id="admin-field-display-name" required>
+          <p class="admin-field-hint">Shown in the browser tab and the "for &lt;library&gt;" header credit.</p>
+        </div>
+
+        <div class="admin-field">
+          <label for="admin-field-branding-path">Branding image path <span class="admin-required">*</span></label>
+          <input type="text" id="admin-field-branding-path" autocomplete="off" spellcheck="false" required>
+          <p class="admin-field-hint">Relative path from the repo root, e.g. <code>assets/img/libraries/sonoma/logo.png</code>. The file must be committed to the repo separately.</p>
+        </div>
+
+        <div class="admin-field-row">
+          <div class="admin-field">
+            <label for="admin-field-cover-font">Default cover font</label>
+            <select id="admin-field-cover-font"></select>
+          </div>
+          <div class="admin-field">
+            <label for="admin-field-book-font">Default book font</label>
+            <select id="admin-field-book-font"></select>
+          </div>
+        </div>
+
+        <div class="admin-field-row">
+          <div class="admin-field">
+            <label for="admin-field-layout">Default cover layout</label>
+            <select id="admin-field-layout">
+              <option value="classic">Classic</option>
+              <option value="masonry">Masonry (Bookshelf)</option>
+              <option value="staggered">Staggered</option>
+              <option value="tilted">Tilted</option>
+            </select>
+          </div>
+          <div class="admin-field">
+            <label for="admin-field-extended">Extended collage (20 covers)</label>
+            <div class="admin-checkbox">
+              <input type="checkbox" id="admin-field-extended">
+              <label for="admin-field-extended">Enable by default</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-field-row">
+          <div class="admin-field">
+            <label for="admin-field-primary-color">Primary color</label>
+            <input type="color" id="admin-field-primary-color" value="#5c6bc0">
+          </div>
+          <div class="admin-field">
+            <label for="admin-field-accent-color">Accent color</label>
+            <input type="color" id="admin-field-accent-color" value="#e53935">
+          </div>
+        </div>
+
+        <p id="admin-library-form-error" class="admin-error" hidden></p>
+      </form>
+
+      <div class="admin-modal-footer">
+        <button type="button" class="admin-btn-secondary" id="admin-library-cancel-btn">Cancel</button>
+        <button type="submit" class="admin-btn-primary" id="admin-library-save-btn" form="admin-library-form">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirmation modal -->
+  <div id="admin-delete-modal" class="admin-modal-overlay" hidden>
+    <div class="admin-modal admin-modal-small">
+      <div class="admin-modal-header">
+        <h3>Delete library?</h3>
+      </div>
+      <div class="admin-modal-body">
+        <p>Delete <strong id="admin-delete-library-name"></strong>?</p>
+        <p class="admin-note admin-note-warning">
+          This removes the library's config document from Firestore. Any existing
+          subdomain will go back to the generic Booklister experience on its next
+          page load. Memberships for this library are NOT deleted — manage those
+          separately.
+        </p>
+        <p id="admin-delete-error" class="admin-error" hidden></p>
+      </div>
+      <div class="admin-modal-footer">
+        <button type="button" class="admin-btn-secondary" id="admin-delete-cancel-btn">Cancel</button>
+        <button type="button" class="admin-btn-danger" id="admin-delete-confirm-btn">Delete library</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Safety net: if admin.js fails to load (Firebase CDN down, network
        firewall blocks gstatic.com, browser extension blocks the request,

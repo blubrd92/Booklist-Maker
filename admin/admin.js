@@ -24,7 +24,53 @@ import {
   getFirestore,
   doc,
   getDoc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  collection,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+
+// Font list copied from the main tool's CONFIG.FONTS. Kept in sync
+// manually. If you change the font list in assets/js/config.js, remember
+// to update this too.
+const FONTS = [
+  { value: "'Anton', sans-serif", label: 'Anton' },
+  { value: "'Arvo', serif", label: 'Arvo' },
+  { value: "'Bangers', system-ui", label: 'Bangers' },
+  { value: "'Bebas Neue', sans-serif", label: 'Bebas Neue' },
+  { value: "'Bungee', system-ui", label: 'Bungee' },
+  { value: "'Calibri', sans-serif", label: 'Calibri' },
+  { value: "'Cinzel', serif", label: 'Cinzel' },
+  { value: "'Crimson Text', serif", label: 'Crimson Text' },
+  { value: "'EB Garamond', serif", label: 'EB Garamond' },
+  { value: "'Georgia', serif", label: 'Georgia' },
+  { value: "'Helvetica', sans-serif", label: 'Helvetica' },
+  { value: "'Lato', sans-serif", label: 'Lato' },
+  { value: "'Libre Baskerville', serif", label: 'Libre Baskerville' },
+  { value: "'Merriweather', serif", label: 'Merriweather' },
+  { value: "'Montserrat', sans-serif", label: 'Montserrat' },
+  { value: "'Open Sans', sans-serif", label: 'Open Sans' },
+  { value: "'Oswald', sans-serif", label: 'Oswald' },
+  { value: "'Playfair Display', serif", label: 'Playfair Display' },
+  { value: "'Poppins', sans-serif", label: 'Poppins' },
+  { value: "'Raleway', sans-serif", label: 'Raleway' },
+  { value: "'Roboto', sans-serif", label: 'Roboto' },
+  { value: "'Roboto Slab', serif", label: 'Roboto Slab' },
+  { value: "'Source Sans 3', sans-serif", label: 'Source Sans 3' },
+  { value: "'Staatliches', system-ui", label: 'Staatliches' },
+  { value: "'Times New Roman', serif", label: 'Times New Roman' },
+];
+
+const DEFAULT_LIBRARY = {
+  displayName: '',
+  brandingImagePath: '',
+  defaultCoverFont: "'Oswald', sans-serif",
+  defaultBookFont: "'Lato', sans-serif",
+  defaultCoverLayout: 'classic',
+  defaultExtendedMode: false,
+  primaryColor: '#5c6bc0',
+  accentColor: '#e53935',
+};
 
 // Same Firebase project as the main tool. This config is NOT a secret —
 // it's safe to include in client code; Firestore security rules are what
@@ -171,7 +217,360 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // Authorized admin — show the main app area. CRUD UI goes here in
-  // substep C.
+  // Authorized admin — populate font selects (idempotent), load the
+  // libraries list, and reveal the app section.
+  populateFontSelects();
   showSection('app');
+  await loadLibraries();
+});
+
+// ---------------------------------------------------------------------------
+// Libraries CRUD
+// ---------------------------------------------------------------------------
+
+// In-memory cache of all libraries (both public and gated). Populated
+// by loadLibraries() and used by the edit/delete flows to avoid an
+// extra Firestore read when opening the form.
+let librariesCache = [];
+
+// Which library is currently being edited, or null for "create new".
+let editingLibrary = null;
+
+const LIBRARY_ID_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
+
+function populateFontSelects() {
+  for (const id of ['admin-field-cover-font', 'admin-field-book-font']) {
+    const sel = document.getElementById(id);
+    if (!sel || sel.options.length > 0) continue;
+    for (const font of FONTS) {
+      const opt = document.createElement('option');
+      opt.value = font.value;
+      opt.textContent = font.label;
+      sel.appendChild(opt);
+    }
+  }
+}
+
+// Fetch both collections and build a combined list of libraries. Each
+// entry is annotated with `type` ("public" or "gated") so the UI can
+// render the badge and the edit flow knows which collection to write to.
+async function loadLibraries() {
+  const loadingEl = document.getElementById('admin-libraries-loading');
+  const errorEl = document.getElementById('admin-libraries-error');
+  const emptyEl = document.getElementById('admin-libraries-empty');
+  const tableEl = document.getElementById('admin-libraries-table');
+
+  loadingEl.hidden = false;
+  errorEl.hidden = true;
+  emptyEl.hidden = true;
+  tableEl.hidden = true;
+
+  try {
+    const [publicSnap, gatedSnap] = await Promise.all([
+      getDocs(collection(db, 'libraries-public')),
+      getDocs(collection(db, 'libraries')),
+    ]);
+
+    const libs = [];
+    publicSnap.forEach((docSnap) => {
+      libs.push({ id: docSnap.id, type: 'public', data: docSnap.data() });
+    });
+    gatedSnap.forEach((docSnap) => {
+      libs.push({ id: docSnap.id, type: 'gated', data: docSnap.data() });
+    });
+
+    // Sort alphabetically by ID for stable display.
+    libs.sort((a, b) => a.id.localeCompare(b.id));
+    librariesCache = libs;
+
+    loadingEl.hidden = true;
+    if (libs.length === 0) {
+      emptyEl.hidden = false;
+    } else {
+      renderLibrariesTable(libs);
+      tableEl.hidden = false;
+    }
+  } catch (err) {
+    console.warn('[admin] loadLibraries failed:', err);
+    loadingEl.hidden = true;
+    errorEl.textContent = 'Failed to load libraries: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+  }
+}
+
+function renderLibrariesTable(libs) {
+  const tbody = document.getElementById('admin-libraries-tbody');
+  tbody.innerHTML = '';
+  for (const lib of libs) {
+    const tr = document.createElement('tr');
+
+    const tdId = document.createElement('td');
+    tdId.className = 'admin-lib-id';
+    tdId.textContent = lib.id;
+    tr.appendChild(tdId);
+
+    const tdName = document.createElement('td');
+    tdName.className = 'admin-lib-name';
+    tdName.textContent = lib.data.displayName || '(no display name)';
+    tr.appendChild(tdName);
+
+    const tdType = document.createElement('td');
+    const badge = document.createElement('span');
+    badge.className = 'admin-badge admin-badge-' + lib.type;
+    badge.textContent = lib.type;
+    tdType.appendChild(badge);
+    tr.appendChild(tdType);
+
+    const tdActions = document.createElement('td');
+    tdActions.className = 'admin-actions-col';
+    const actions = document.createElement('div');
+    actions.className = 'admin-row-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'admin-row-btn';
+    editBtn.type = 'button';
+    editBtn.innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit';
+    editBtn.addEventListener('click', () => openLibraryModal(lib));
+    actions.appendChild(editBtn);
+
+    const previewBtn = document.createElement('button');
+    previewBtn.className = 'admin-row-btn';
+    previewBtn.type = 'button';
+    previewBtn.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Preview';
+    previewBtn.addEventListener('click', () => {
+      window.open('https://' + lib.id + '.booklister.org', '_blank', 'noopener');
+    });
+    actions.appendChild(previewBtn);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'admin-row-btn admin-row-btn-danger';
+    deleteBtn.type = 'button';
+    deleteBtn.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i> Delete';
+    deleteBtn.addEventListener('click', () => openDeleteModal(lib));
+    actions.appendChild(deleteBtn);
+
+    tdActions.appendChild(actions);
+    tr.appendChild(tdActions);
+    tbody.appendChild(tr);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Library form modal (create + edit)
+// ---------------------------------------------------------------------------
+
+function openLibraryModal(lib) {
+  editingLibrary = lib; // null for create, library object for edit
+
+  const modal = document.getElementById('admin-library-modal');
+  const title = document.getElementById('admin-library-modal-title');
+  const idInput = document.getElementById('admin-field-library-id');
+  const typeRadios = document.querySelectorAll('input[name="library-type"]');
+  const nameInput = document.getElementById('admin-field-display-name');
+  const brandingInput = document.getElementById('admin-field-branding-path');
+  const coverFontSel = document.getElementById('admin-field-cover-font');
+  const bookFontSel = document.getElementById('admin-field-book-font');
+  const layoutSel = document.getElementById('admin-field-layout');
+  const extendedCb = document.getElementById('admin-field-extended');
+  const primaryInput = document.getElementById('admin-field-primary-color');
+  const accentInput = document.getElementById('admin-field-accent-color');
+  const errorEl = document.getElementById('admin-library-form-error');
+
+  errorEl.hidden = true;
+  errorEl.textContent = '';
+
+  if (lib) {
+    // Edit mode
+    title.textContent = 'Edit Library: ' + lib.id;
+    idInput.value = lib.id;
+    idInput.disabled = true; // ID is immutable
+    for (const r of typeRadios) {
+      r.checked = r.value === lib.type;
+      r.disabled = true; // Type is immutable (would require a collection move)
+    }
+    const d = lib.data || {};
+    nameInput.value = d.displayName || '';
+    brandingInput.value = d.brandingImagePath || '';
+    coverFontSel.value = d.defaultCoverFont || DEFAULT_LIBRARY.defaultCoverFont;
+    bookFontSel.value = d.defaultBookFont || DEFAULT_LIBRARY.defaultBookFont;
+    layoutSel.value = d.defaultCoverLayout || DEFAULT_LIBRARY.defaultCoverLayout;
+    extendedCb.checked = !!d.defaultExtendedMode;
+    primaryInput.value = d.primaryColor || DEFAULT_LIBRARY.primaryColor;
+    accentInput.value = d.accentColor || DEFAULT_LIBRARY.accentColor;
+  } else {
+    // Create mode
+    title.textContent = 'Add Library';
+    idInput.value = '';
+    idInput.disabled = false;
+    for (const r of typeRadios) {
+      r.disabled = false;
+      r.checked = r.value === 'public';
+    }
+    nameInput.value = '';
+    brandingInput.value = '';
+    coverFontSel.value = DEFAULT_LIBRARY.defaultCoverFont;
+    bookFontSel.value = DEFAULT_LIBRARY.defaultBookFont;
+    layoutSel.value = DEFAULT_LIBRARY.defaultCoverLayout;
+    extendedCb.checked = DEFAULT_LIBRARY.defaultExtendedMode;
+    primaryInput.value = DEFAULT_LIBRARY.primaryColor;
+    accentInput.value = DEFAULT_LIBRARY.accentColor;
+  }
+
+  modal.hidden = false;
+  // Focus the first editable field
+  (lib ? nameInput : idInput).focus();
+}
+
+function closeLibraryModal() {
+  document.getElementById('admin-library-modal').hidden = true;
+  editingLibrary = null;
+}
+
+function showLibraryFormError(msg) {
+  const el = document.getElementById('admin-library-form-error');
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+async function handleLibraryFormSubmit(evt) {
+  evt.preventDefault();
+
+  const idInput = document.getElementById('admin-field-library-id');
+  const nameInput = document.getElementById('admin-field-display-name');
+  const brandingInput = document.getElementById('admin-field-branding-path');
+  const coverFontSel = document.getElementById('admin-field-cover-font');
+  const bookFontSel = document.getElementById('admin-field-book-font');
+  const layoutSel = document.getElementById('admin-field-layout');
+  const extendedCb = document.getElementById('admin-field-extended');
+  const primaryInput = document.getElementById('admin-field-primary-color');
+  const accentInput = document.getElementById('admin-field-accent-color');
+  const saveBtn = document.getElementById('admin-library-save-btn');
+
+  const libraryId = idInput.value.trim().toLowerCase();
+  const type = document.querySelector('input[name="library-type"]:checked').value;
+  const displayName = nameInput.value.trim();
+  const brandingImagePath = brandingInput.value.trim();
+
+  // Validation
+  if (!libraryId) {
+    showLibraryFormError('Library ID is required.');
+    return;
+  }
+  if (!LIBRARY_ID_RE.test(libraryId)) {
+    showLibraryFormError('Library ID must be lowercase letters, numbers, and hyphens only, and cannot start or end with a hyphen.');
+    return;
+  }
+  if (!displayName) {
+    showLibraryFormError('Display name is required.');
+    return;
+  }
+  if (!brandingImagePath) {
+    showLibraryFormError('Branding image path is required.');
+    return;
+  }
+
+  // On create: check for ID collision with an existing library.
+  if (!editingLibrary) {
+    const collision = librariesCache.find((l) => l.id === libraryId);
+    if (collision) {
+      showLibraryFormError('A ' + collision.type + ' library with ID "' + libraryId + '" already exists.');
+      return;
+    }
+  }
+
+  const data = {
+    displayName,
+    brandingImagePath,
+    defaultCoverFont: coverFontSel.value,
+    defaultBookFont: bookFontSel.value,
+    defaultCoverLayout: layoutSel.value,
+    defaultExtendedMode: !!extendedCb.checked,
+    primaryColor: primaryInput.value,
+    accentColor: accentInput.value,
+  };
+
+  const collectionName = type === 'public' ? 'libraries-public' : 'libraries';
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+  try {
+    await setDoc(doc(db, collectionName, libraryId), data);
+    closeLibraryModal();
+    await loadLibraries();
+  } catch (err) {
+    console.warn('[admin] setDoc failed:', err);
+    showLibraryFormError('Save failed: ' + (err.message || err.code || 'unknown error'));
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Delete modal
+// ---------------------------------------------------------------------------
+
+let deletingLibrary = null;
+
+function openDeleteModal(lib) {
+  deletingLibrary = lib;
+  document.getElementById('admin-delete-library-name').textContent =
+    (lib.data.displayName || lib.id) + ' (' + lib.id + ')';
+  document.getElementById('admin-delete-error').hidden = true;
+  document.getElementById('admin-delete-modal').hidden = false;
+}
+
+function closeDeleteModal() {
+  document.getElementById('admin-delete-modal').hidden = true;
+  deletingLibrary = null;
+}
+
+async function handleDeleteConfirm() {
+  if (!deletingLibrary) return;
+  const confirmBtn = document.getElementById('admin-delete-confirm-btn');
+  const errorEl = document.getElementById('admin-delete-error');
+  const collectionName = deletingLibrary.type === 'public' ? 'libraries-public' : 'libraries';
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Deleting…';
+  try {
+    await deleteDoc(doc(db, collectionName, deletingLibrary.id));
+    closeDeleteModal();
+    await loadLibraries();
+  } catch (err) {
+    console.warn('[admin] deleteDoc failed:', err);
+    errorEl.textContent = 'Delete failed: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Delete library';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Wire up static event listeners (these elements exist on page load)
+// ---------------------------------------------------------------------------
+
+document.getElementById('admin-add-library-btn').addEventListener('click', () => openLibraryModal(null));
+document.getElementById('admin-library-modal-close').addEventListener('click', closeLibraryModal);
+document.getElementById('admin-library-cancel-btn').addEventListener('click', closeLibraryModal);
+document.getElementById('admin-library-form').addEventListener('submit', handleLibraryFormSubmit);
+document.getElementById('admin-delete-cancel-btn').addEventListener('click', closeDeleteModal);
+document.getElementById('admin-delete-confirm-btn').addEventListener('click', handleDeleteConfirm);
+
+// Close modal on Escape or click outside
+for (const modalId of ['admin-library-modal', 'admin-delete-modal']) {
+  const overlay = document.getElementById(modalId);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      if (modalId === 'admin-library-modal') closeLibraryModal();
+      else closeDeleteModal();
+    }
+  });
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (!document.getElementById('admin-library-modal').hidden) closeLibraryModal();
+    if (!document.getElementById('admin-delete-modal').hidden) closeDeleteModal();
+  }
 });
