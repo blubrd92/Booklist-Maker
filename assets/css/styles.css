@@ -132,6 +132,14 @@ button.is-loading::after {
   opacity: 0.6;
   white-space: nowrap;
 }
+/* Branded instances: scale the "for <library>" credit to match the
+   Booklister logo size so the library name reads as co-equal branding
+   rather than a dim subtitle. Opacity is bumped alongside size because
+   0.6 looks washed out at 1.1rem. */
+body.has-library-config .header-credit {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
 
 /* =========================================================================
    CONTENT PAGES (about, for-libraries, contact)

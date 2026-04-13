@@ -5889,6 +5889,11 @@ const BooklistApp = (function() {
     if (!config || _libraryConfigApplied) return;
     _libraryConfigApplied = true;
 
+    // Signal to CSS that a library config is in play. Used to scale up
+    // the .header-credit "for <library>" byline to match the logo size,
+    // among other potential future styling differences.
+    document.body.classList.add('has-library-config');
+
     // 1. Document title
     if (config.displayName) {
       document.title = config.displayName + ' Booklister';

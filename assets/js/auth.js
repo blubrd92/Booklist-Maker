@@ -134,8 +134,49 @@ if (auth) {
     if (modalEl) modalEl.hidden = true;
   }
 
+  // Map a library-config load error to a user-facing message. The error
+  // may be a FirebaseError (permission-denied from security rules, network
+  // failure, etc.) or a plain Error from library-config.js itself (e.g.
+  // "Library config not found for '<id>'." when the doc is missing).
+  function mapConfigError(err) {
+    const code = (err && err.code) || '';
+    const message = (err && err.message) || '';
+    if (code === 'permission-denied' || /permission|insufficient/i.test(message)) {
+      return 'Signed in, but this account is not authorized for this library. Contact your library admin.';
+    }
+    if (code === 'not-found' || /not found|not exist/i.test(message)) {
+      return 'Library configuration is missing. Contact your library admin.';
+    }
+    if (code === 'unavailable' || /network|offline/i.test(message)) {
+      return 'Could not reach the server. Check your connection and try again.';
+    }
+    return 'Could not load library configuration. Please try again, or contact your library admin.';
+  }
+
+  // Show a config-load error inside the auth modal. Re-opens the modal
+  // if it was closed (the typical sequence is: user signs in successfully
+  // -> we hide the modal -> library-config.js tries libraries/<id> and
+  // fails -> this runs).
+  function showConfigError(err) {
+    console.warn('[auth] library-config failed:', err);
+    openModal();
+    const errorEl = document.getElementById('auth-error');
+    const resetOkEl = document.getElementById('auth-reset-confirm');
+    if (errorEl) {
+      errorEl.textContent = mapConfigError(err);
+      errorEl.hidden = false;
+    }
+    if (resetOkEl) {
+      resetOkEl.textContent = '';
+      resetOkEl.hidden = true;
+    }
+  }
+
   // Synchronously attach listeners — no top-level await above this point.
   window.addEventListener('library-config-needs-auth', openModal);
+  window.addEventListener('library-config-failed', (evt) => {
+    showConfigError(evt && evt.detail && evt.detail.error);
+  });
   window.addEventListener('library-config-ready', () => {
     // Hide the modal and, if this is a gated instance and the user is
     // signed in, reveal the sign-out button in the header.
