@@ -299,6 +299,13 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('admin-user-info').hidden = true;
     // Also drop role-mode classes so the next sign-in starts clean.
     document.body.classList.remove('admin-mode-super', 'admin-mode-library');
+    // Close any modals that might still be open. Library admins sign
+    // out from inside an always-open modal; leaving it open would
+    // cover the sign-in screen with a dimmed backdrop.
+    document.getElementById('admin-library-modal').hidden = true;
+    document.getElementById('admin-delete-modal').hidden = true;
+    editingLibrary = null;
+    deletingLibrary = null;
     showSection('signin');
     return;
   }
@@ -412,17 +419,43 @@ async function loadLibraries() {
   tableEl.hidden = true;
 
   try {
-    const [publicSnap, gatedSnap] = await Promise.all([
+    // Parallel fetch: both library collections plus the memberships
+    // collection. We use memberships here only to compute which gated
+    // libraries currently have zero admins so we can surface a
+    // warning badge on those rows. Super-admin rules allow reading
+    // any membership, so this query is fine for super-admin views
+    // (library-admin views don't call loadLibraries at all).
+    const [publicSnap, gatedSnap, membershipsSnap] = await Promise.all([
       getDocs(collection(db, 'libraries-public')),
       getDocs(collection(db, 'libraries')),
+      getDocs(collection(db, 'memberships')),
     ]);
+
+    // Build a set of libraryIds that have at least one user with
+    // role == 'admin'. Used below to flag gated libraries without
+    // any library admins.
+    const librariesWithAdmins = new Set();
+    membershipsSnap.forEach((docSnap) => {
+      const d = docSnap.data();
+      if (d && d.role === 'admin' && typeof d.libraryId === 'string') {
+        librariesWithAdmins.add(d.libraryId);
+      }
+    });
 
     const libs = [];
     publicSnap.forEach((docSnap) => {
       libs.push({ id: docSnap.id, type: 'public', data: docSnap.data() });
     });
     gatedSnap.forEach((docSnap) => {
-      libs.push({ id: docSnap.id, type: 'gated', data: docSnap.data() });
+      libs.push({
+        id: docSnap.id,
+        type: 'gated',
+        data: docSnap.data(),
+        // Surfaced in the libraries table as a warning badge. Only
+        // meaningful for gated libraries — public libraries don't
+        // have memberships.
+        hasNoAdmins: !librariesWithAdmins.has(docSnap.id),
+      });
     });
 
     // Sort alphabetically by ID for stable display.
@@ -458,6 +491,16 @@ function renderLibrariesTable(libs) {
     const tdName = document.createElement('td');
     tdName.className = 'admin-lib-name';
     tdName.textContent = lib.data.displayName || '(no display name)';
+    // Gated libraries with zero admins get a warning badge next to
+    // their name — a soft nudge that staff management currently
+    // requires the super-admin, with no self-service delegation.
+    if (lib.type === 'gated' && lib.hasNoAdmins) {
+      const warn = document.createElement('span');
+      warn.className = 'admin-no-admin-warning';
+      warn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> No library admins';
+      warn.title = 'This gated library has no library admins. Staff management currently requires the super-admin.';
+      tdName.appendChild(warn);
+    }
     tr.appendChild(tdName);
 
     const tdType = document.createElement('td');

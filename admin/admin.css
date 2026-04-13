@@ -49,7 +49,11 @@ html, body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   position: sticky;
   top: 0;
-  z-index: 10;
+  /* Above .admin-modal-overlay (z-index: 1000) so the sign-out button
+     in the header stays reachable even when the library modal is open
+     and covering the viewport — otherwise library admins in their
+     modal-only restricted view would have no way to sign out. */
+  z-index: 1100;
 }
 
 .admin-header h1 {
@@ -520,6 +524,30 @@ code {
 .admin-badge-gated {
   background: rgba(92, 107, 192, 0.12);
   color: var(--admin-primary-hover);
+}
+
+/* "No library admins" warning badge, shown next to a gated library's
+   display name in the libraries table when the library currently has
+   zero admins in its memberships. Soft nudge, not a blocker — the
+   super-admin can still manage staff from this view. */
+.admin-no-admin-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  padding: 3px 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: rgba(251, 140, 0, 0.15);
+  color: #e65100;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.admin-no-admin-warning i {
+  font-size: 0.72rem;
 }
 
 .admin-actions-col {
