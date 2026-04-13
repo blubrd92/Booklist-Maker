@@ -632,6 +632,27 @@ code {
   flex: 1;
 }
 
+/* Single scroll region for modals with multiple content panels. The
+   library edit modal uses this to wrap its form AND memberships
+   section inside one scroll area instead of letting each .admin-modal-body
+   child scroll independently (which created two nested scrollbars).
+   The delete modal has one .admin-modal-body child so it doesn't use
+   this wrapper. */
+.admin-modal-scroll-area {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Inside the scroll-area wrapper, .admin-modal-body loses its own
+   scroll + flex-grow so it just contributes padding. The wrapper owns
+   the scrolling. */
+.admin-modal-scroll-area .admin-modal-body {
+  overflow: visible;
+  flex: none;
+}
+
 .admin-modal-footer {
   padding: 16px 24px;
   border-top: 1px solid var(--admin-border);

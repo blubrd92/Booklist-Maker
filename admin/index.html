@@ -120,69 +120,74 @@
         <button type="button" class="admin-modal-close" id="admin-library-modal-close" aria-label="Close">&times;</button>
       </div>
 
-      <form id="admin-library-form" class="admin-modal-body" novalidate>
-        <div class="admin-field">
-          <label for="admin-field-library-id">Library ID <span class="admin-required">*</span></label>
-          <input type="text" id="admin-field-library-id" autocomplete="off" spellcheck="false" required>
-          <p class="admin-field-hint">Lowercase letters, numbers, and hyphens. This becomes the subdomain (e.g. <code>sonoma</code> → <code>sonoma.booklister.org</code>) and cannot be changed after creation.</p>
-        </div>
-
-        <div class="admin-field">
-          <label>Type <span class="admin-required">*</span></label>
-          <div class="admin-radio-group" id="admin-field-type-group">
-            <label class="admin-radio">
-              <input type="radio" name="library-type" value="public" checked>
-              <span><strong>Public</strong> — Anyone can access this library instance. Config stored in <code>libraries-public</code>.</span>
-            </label>
-            <label class="admin-radio">
-              <input type="radio" name="library-type" value="gated">
-              <span><strong>Gated</strong> — Requires sign-in + membership. Config stored in <code>libraries</code>.</span>
-            </label>
+      <!-- Single scroll area that contains both the library config form
+           and (in edit mode for gated libraries) the memberships section.
+           Keeps the modal to one scrollbar instead of two. -->
+      <div class="admin-modal-scroll-area">
+        <form id="admin-library-form" class="admin-modal-body" novalidate>
+          <div class="admin-field">
+            <label for="admin-field-library-id">Library ID <span class="admin-required">*</span></label>
+            <input type="text" id="admin-field-library-id" autocomplete="off" spellcheck="false" required>
+            <p class="admin-field-hint">Lowercase letters, numbers, and hyphens. This becomes the subdomain (e.g. <code>sonoma</code> → <code>sonoma.booklister.org</code>) and cannot be changed after creation.</p>
           </div>
-        </div>
 
-        <div class="admin-field">
-          <label for="admin-field-display-name">Display name <span class="admin-required">*</span></label>
-          <input type="text" id="admin-field-display-name" required>
-          <p class="admin-field-hint">Shown in the browser tab and the "for &lt;library&gt;" header credit.</p>
-        </div>
+          <div class="admin-field">
+            <label>Type <span class="admin-required">*</span></label>
+            <div class="admin-radio-group" id="admin-field-type-group">
+              <label class="admin-radio">
+                <input type="radio" name="library-type" value="public" checked>
+                <span><strong>Public</strong> — Anyone can access this library instance. Config stored in <code>libraries-public</code>.</span>
+              </label>
+              <label class="admin-radio">
+                <input type="radio" name="library-type" value="gated">
+                <span><strong>Gated</strong> — Requires sign-in + membership. Config stored in <code>libraries</code>.</span>
+              </label>
+            </div>
+          </div>
 
-        <div class="admin-field">
-          <label for="admin-field-branding-path">Branding image path <span class="admin-required">*</span></label>
-          <input type="text" id="admin-field-branding-path" autocomplete="off" spellcheck="false" required>
-          <p class="admin-field-hint">Relative path from the repo root, e.g. <code>assets/img/libraries/sonoma/logo.png</code>. The file must be committed to the repo separately.</p>
-        </div>
+          <div class="admin-field">
+            <label for="admin-field-display-name">Display name <span class="admin-required">*</span></label>
+            <input type="text" id="admin-field-display-name" required>
+            <p class="admin-field-hint">Shown in the browser tab and the "for &lt;library&gt;" header credit.</p>
+          </div>
 
-        <p id="admin-library-form-error" class="admin-error" hidden></p>
-      </form>
+          <div class="admin-field">
+            <label for="admin-field-branding-path">Branding image path</label>
+            <input type="text" id="admin-field-branding-path" autocomplete="off" spellcheck="false" readonly placeholder="assets/img/libraries/&lt;id&gt;/logo.png">
+            <p class="admin-field-hint">Automatically derived from the library ID. Before users can see the logo, commit a <code>logo.png</code> file at exactly this path in the Booklister GitHub repo.</p>
+          </div>
 
-      <!-- Memberships section — only shown for gated libraries in edit
-           mode. Public libraries don't need memberships (any visitor can
-           read them), and you can't add members to a library until its
-           doc exists, so this is hidden in create mode. -->
-      <div id="admin-memberships-section" class="admin-modal-body admin-memberships" hidden>
-        <h4>Staff with access</h4>
-        <p class="admin-field-hint">
-          Enter the new staff member's email. The admin console will create a Firebase Auth
-          account for them and send a password reset email so they can set their own password.
-          They'll then be able to sign in at this library's URL.
-        </p>
+          <p id="admin-library-form-error" class="admin-error" hidden></p>
+        </form>
 
-        <div id="admin-memberships-loading" class="admin-loading-text">Loading memberships…</div>
-        <div id="admin-memberships-error" class="admin-error" hidden></div>
-        <div id="admin-memberships-empty" class="admin-empty admin-empty-compact" hidden>
-          No staff yet. Invite someone below to grant access.
-        </div>
-        <ul id="admin-memberships-list" class="admin-memberships-list" hidden></ul>
+        <!-- Memberships section — only shown for gated libraries in edit
+             mode. Public libraries don't need memberships (any visitor can
+             read them), and you can't add members to a library until its
+             doc exists, so this is hidden in create mode. -->
+        <div id="admin-memberships-section" class="admin-modal-body admin-memberships" hidden>
+          <h4>Staff with access</h4>
+          <p class="admin-field-hint">
+            Enter the new staff member's email. The admin console will create a Firebase Auth
+            account for them and send a password reset email so they can set their own password.
+            They'll then be able to sign in at this library's URL.
+          </p>
 
-        <form id="admin-add-membership-form" class="admin-add-membership">
-          <input type="email" id="admin-add-membership-email" placeholder="staff@library.org" autocomplete="off" spellcheck="false">
+          <div id="admin-memberships-loading" class="admin-loading-text">Loading memberships…</div>
+          <div id="admin-memberships-error" class="admin-error" hidden></div>
+          <div id="admin-memberships-empty" class="admin-empty admin-empty-compact" hidden>
+            No staff yet. Invite someone below to grant access.
+          </div>
+          <ul id="admin-memberships-list" class="admin-memberships-list" hidden></ul>
+
+          <form id="admin-add-membership-form" class="admin-add-membership">
+            <input type="email" id="admin-add-membership-email" placeholder="staff@library.org" autocomplete="off" spellcheck="false">
           <button type="submit" class="admin-btn-primary admin-btn-sm" id="admin-add-membership-btn">
             <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send invite
           </button>
         </form>
-        <p id="admin-add-membership-success" class="admin-note" hidden></p>
-        <p id="admin-add-membership-error" class="admin-error" hidden></p>
+          <p id="admin-add-membership-success" class="admin-note" hidden></p>
+          <p id="admin-add-membership-error" class="admin-error" hidden></p>
+        </div>
       </div>
 
       <div class="admin-modal-footer">

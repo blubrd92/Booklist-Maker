@@ -499,6 +499,16 @@ function renderLibrariesTable(libs) {
 // Library form modal (create + edit)
 // ---------------------------------------------------------------------------
 
+// Canonical branding-image path for a given library ID. The convention
+// is that every library's logo lives at
+// `assets/img/libraries/<id>/logo.png` in the Booklister repo. The
+// admin form displays this derived value as a readonly field so the
+// super-admin sees the exact path they need to commit the file to.
+function brandingPathFromId(libraryId) {
+  if (!libraryId) return '';
+  return 'assets/img/libraries/' + libraryId + '/logo.png';
+}
+
 function openLibraryModal(lib) {
   editingLibrary = lib; // null for create, library object for edit
 
@@ -530,7 +540,11 @@ function openLibraryModal(lib) {
     }
     const d = lib.data || {};
     nameInput.value = d.displayName || '';
-    brandingInput.value = d.brandingImagePath || '';
+    // Branding path is derived from the library ID, not stored in the
+    // Firestore doc's displayed form. Always regenerate to enforce the
+    // canonical path convention, even if the stored doc has something
+    // different (older libraries may have had manually-entered paths).
+    brandingInput.value = brandingPathFromId(lib.id);
   } else {
     // Create mode
     title.textContent = 'Add Library';
@@ -578,13 +592,15 @@ async function handleLibraryFormSubmit(evt) {
 
   const idInput = document.getElementById('admin-field-library-id');
   const nameInput = document.getElementById('admin-field-display-name');
-  const brandingInput = document.getElementById('admin-field-branding-path');
   const saveBtn = document.getElementById('admin-library-save-btn');
 
   const libraryId = idInput.value.trim().toLowerCase();
   const type = document.querySelector('input[name="library-type"]:checked').value;
   const displayName = nameInput.value.trim();
-  const brandingImagePath = brandingInput.value.trim();
+  // Branding path is always derived from the library ID, not read
+  // from the form input (which is a read-only mirror of the derived
+  // value). This enforces the canonical path convention.
+  const brandingImagePath = brandingPathFromId(libraryId);
 
   // Validation
   if (!libraryId) {
@@ -597,10 +613,6 @@ async function handleLibraryFormSubmit(evt) {
   }
   if (!displayName) {
     showLibraryFormError('Display name is required.');
-    return;
-  }
-  if (!brandingImagePath) {
-    showLibraryFormError('Branding image path is required.');
     return;
   }
 
@@ -681,6 +693,15 @@ async function handleDeleteConfirm() {
 // ---------------------------------------------------------------------------
 
 document.getElementById('admin-add-library-btn').addEventListener('click', () => openLibraryModal(null));
+
+// Live-update the branding path preview as the super-admin types a
+// library ID in create mode. In edit mode the ID input is disabled so
+// this listener never fires there.
+document.getElementById('admin-field-library-id').addEventListener('input', (e) => {
+  const brandingInput = document.getElementById('admin-field-branding-path');
+  if (!brandingInput) return;
+  brandingInput.value = brandingPathFromId(e.target.value.trim().toLowerCase());
+});
 document.getElementById('admin-library-modal-close').addEventListener('click', closeLibraryModal);
 document.getElementById('admin-library-cancel-btn').addEventListener('click', closeLibraryModal);
 document.getElementById('admin-library-form').addEventListener('submit', handleLibraryFormSubmit);
