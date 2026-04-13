@@ -995,3 +995,36 @@ body.admin-mode-library #admin-library-modal .admin-modal-close {
 body.admin-mode-library #admin-library-modal .admin-modal {
   max-width: 560px;
 }
+
+/* --- FOOTER --- */
+
+.admin-footer {
+  background: var(--admin-secondary);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 10px 24px;
+  text-align: center;
+  font-size: 0.85rem;
+  margin-top: 48px;
+}
+
+.admin-footer-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-footer-nav a {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--admin-transition);
+}
+
+.admin-footer-nav a:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.admin-footer-nav span {
+  color: rgba(255, 255, 255, 0.4);
+}

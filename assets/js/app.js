@@ -6002,6 +6002,33 @@ const BooklistApp = (function() {
       }
     }
 
+    // Role-aware Admin link. Only library admins (users whose memberships
+    // doc has role: 'admin') see this — regular staff and public-branded
+    // visitors don't. The link opens the admin console in a new tab so
+    // they can manage their library's staff roster without losing their
+    // current booklist draft. library-config.js sets window.LIBRARY_USER_ROLE
+    // after reading the signed-in user's own memberships doc.
+    if (window.LIBRARY_USER_ROLE === 'admin') {
+      const headerActions = document.querySelector('.header-actions');
+      const signOutBtn = document.getElementById('auth-signout-button');
+      if (headerActions && !document.getElementById('library-admin-link')) {
+        const adminLink = document.createElement('a');
+        adminLink.id = 'library-admin-link';
+        adminLink.href = 'https://admin.booklister.org/';
+        adminLink.target = '_blank';
+        adminLink.rel = 'noopener';
+        adminLink.title = 'Open the admin console';
+        adminLink.setAttribute('aria-label', 'Open the admin console in a new tab');
+        adminLink.innerHTML =
+          '<i class="fa-solid fa-user-shield" aria-hidden="true"></i> Admin';
+        if (signOutBtn) {
+          headerActions.insertBefore(adminLink, signOutBtn);
+        } else {
+          headerActions.appendChild(adminLink);
+        }
+      }
+    }
+
     // Reveal the tool. An inline script in index.html added this class
     // synchronously at page load to hide everything until a valid config
     // was available, preventing a flash of the unbranded tool on gated

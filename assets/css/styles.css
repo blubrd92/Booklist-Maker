@@ -324,6 +324,31 @@ body.has-library-config .header-credit {
 .header-actions #auth-signout-button {
   margin-left: 8px;
 }
+/* Role-aware Admin link, injected by applyLibraryConfig on branded
+   instances when the signed-in user's memberships doc has role: 'admin'.
+   Styled to match .btn-header so it feels like a sibling of the other
+   header buttons, but rendered as an anchor since it opens the external
+   admin console in a new tab. */
+.header-actions #library-admin-link {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  margin-left: 8px;
+}
+.header-actions #library-admin-link:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
 .btn-header {
   background-color: rgba(255,255,255,0.1);
   border: 1px solid rgba(255,255,255,0.15);
