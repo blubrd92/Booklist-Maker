@@ -680,7 +680,7 @@ const BooklistApp = (function() {
         showNotification(errorMsg, "error");
       } else if (bookItem) {
         bookItem.description = '[Description unavailable]';
-        showNotification(`Could not fetch description: ${errorMsg}`, 'error');
+        showNotification(`Could not draft description: ${errorMsg}`, 'error');
         updateDescriptionInPlace(bookKey);
         debouncedSave();
       }
@@ -732,7 +732,7 @@ const BooklistApp = (function() {
         showNotification(failMsg, "error");
       } else if (bookItem) {
         bookItem.description = '[Description unavailable]';
-        showNotification(`Could not fetch description for "${bookItem.title}": ${errorMessage}`, 'error');
+        showNotification(`Could not draft description for "${bookItem.title}": ${errorMessage}`, 'error');
         updateDescriptionInPlace(bookKey);
         debouncedSave();
         // Folio: worried about fetch failure
@@ -1136,13 +1136,13 @@ const BooklistApp = (function() {
           callNumber: CONFIG.PLACEHOLDERS.callNumber,
           authorDisplay: null, // Will be constructed on first render
           // When auto-drafting is enabled (branded instance with the
-          // toggle on) we stage a "Fetching..." placeholder because the
+          // toggle on) we stage a "Drafting..." placeholder because the
           // auto-fetcher below is about to replace it. Otherwise — public
           // tool, or branded instance with the toggle off — the description
           // stays at the standard blank placeholder and the user writes
           // their own (or reaches for the wand button on demand).
           description: shouldAutoFetchDescription()
-            ? 'Fetching book description... May take a few minutes.'
+            ? 'Drafting book description... May take a few minutes.'
             : CONFIG.PLACEHOLDERS.description,
           cover_ids: carouselState.allCoverIds,
           currentCoverIndex: carouselState.currentCoverIndex,
@@ -1474,8 +1474,8 @@ const BooklistApp = (function() {
     const magicButton = document.createElement('button');
     magicButton.className = 'magic-button';
     magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
-    magicButton.title = 'Fetch description';
-    magicButton.setAttribute('aria-label', 'Fetch description for this book');
+    magicButton.title = 'Draft description';
+    magicButton.setAttribute('aria-label', 'Draft description for this book');
     magicButton.onclick = () => handleMagicButtonClick(bookItem);
     
     // Item number (editable input for reordering)
@@ -1551,7 +1551,7 @@ const BooklistApp = (function() {
 
     descField.innerText = bookItem.description;
 
-    const isLoadingOrError = bookItem.description.includes('Fetching') ||
+    const isLoadingOrError = bookItem.description.includes('Drafting') ||
                              bookItem.description.includes('Description unavailable') ||
                              bookItem.description.startsWith('error:');
 
@@ -1615,7 +1615,7 @@ const BooklistApp = (function() {
     // Update bookItem.author with parsed value for getAiDescription
     bookItem.author = currentAuthor;
     
-    bookItem.description = "Fetching title description... May take a few minutes.";
+    bookItem.description = "Drafting title description... May take a few minutes.";
     updateDescriptionInPlace(bookItem.key);
     debouncedSave();
     // Folio: evaluating while fetching description
@@ -1826,7 +1826,7 @@ const BooklistApp = (function() {
     setupPlaceholderField(authorField, CONFIG.PLACEHOLDERS.authorWithCall, { originalColor: authorOriginalColor });
     
     // Description placeholder (special handling for loading states)
-    const isLoadingOrError = bookItem.description.includes('Fetching') ||
+    const isLoadingOrError = bookItem.description.includes('Drafting') ||
                             bookItem.description.includes('Description unavailable') ||
                             bookItem.description.startsWith('error:');
     
