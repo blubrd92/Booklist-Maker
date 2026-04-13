@@ -5859,6 +5859,119 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   // Public API / Initialization
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // Per-library config application (branded library instances only).
+  //
+  // Listens for the 'library-config-ready' custom event dispatched by
+  // assets/js/library-config.js. On the public tool the event fires with a
+  // null config and nothing happens. On branded instances we apply the
+  // fields from LIBRARY_CONFIG to the running tool. Font overrides are
+  // skipped if the user has already changed the relevant font-select away
+  // from its HTML data-default value.
+  //
+  // The event can fire before OR after init() depending on how fast the
+  // Firestore read resolves, so we listen at IIFE top level (which runs
+  // when app.js loads, before DOMContentLoaded) and stash a pending config
+  // if DOM element refs haven't been cached yet.
+  // ---------------------------------------------------------------------------
+  let _pendingLibraryConfig = null;
+  let _libraryConfigApplied = false;
+
+  function applyLibraryConfig(config) {
+    if (!config || _libraryConfigApplied) return;
+    _libraryConfigApplied = true;
+
+    // 1. Document title
+    if (config.displayName) {
+      document.title = config.displayName + ' Booklister';
+    }
+
+    // 2. Header credit byline
+    if (config.displayName) {
+      const credit = document.querySelector('.header-credit');
+      if (credit) credit.textContent = 'for ' + config.displayName;
+    }
+
+    // 3. Default branding image — only if the user hasn't uploaded one.
+    if (config.brandingImagePath && elements.brandingUploader) {
+      const img = elements.brandingUploader.querySelector('img');
+      if (img && img.dataset.isPlaceholder !== 'false') {
+        img.src = config.brandingImagePath;
+        img.dataset.isPlaceholder = 'false';
+        elements.brandingUploader.classList.add('has-image');
+      }
+    }
+
+    // 4. Cover header font — only if still at the HTML data-default value.
+    if (config.defaultCoverFont && elements.coverFontSelect) {
+      const sel = elements.coverFontSelect;
+      const htmlDefault = sel.dataset.default || '';
+      if (!sel.value || sel.value === htmlDefault) {
+        sel.value = config.defaultCoverFont;
+      }
+    }
+
+    // 5. Book-block fonts (title, author, desc) — only if still at default.
+    if (config.defaultBookFont) {
+      document.querySelectorAll(
+        '.export-controls .form-group[data-style-group]:not([data-style-group="qr"]) .font-select'
+      ).forEach(sel => {
+        const htmlDefault = sel.dataset.default || '';
+        if (!sel.value || sel.value === htmlDefault) {
+          sel.value = config.defaultBookFont;
+        }
+      });
+    }
+
+    // 6. Default cover layout.
+    if (config.defaultCoverLayout && elements.collageLayoutSelector) {
+      const selector = elements.collageLayoutSelector;
+      const target = selector.querySelector(
+        '.layout-option[data-layout="' + config.defaultCoverLayout + '"]'
+      );
+      if (target && !target.classList.contains('selected')) {
+        selector.querySelectorAll('.layout-option').forEach(o => o.classList.remove('selected'));
+        target.classList.add('selected');
+        updateTiltedSettingsVisibility();
+      }
+    }
+
+    // 7. Default extended collage mode.
+    if (typeof config.defaultExtendedMode === 'boolean' && elements.extendedCollageToggle) {
+      const toggle = elements.extendedCollageToggle;
+      if (toggle.checked !== config.defaultExtendedMode) {
+        toggle.checked = config.defaultExtendedMode;
+        toggleExtendedCollageMode(config.defaultExtendedMode, true);
+      }
+    }
+
+    // Sync the visible custom font dropdowns and re-apply preview styles.
+    refreshAllCustomFontDropdowns();
+    applyStyles();
+    autoRegenerateCoverIfAble();
+  }
+
+  function _onLibraryConfigReady(evt) {
+    const config = (evt && evt.detail && evt.detail.config) || window.LIBRARY_CONFIG || null;
+    if (!config) return;
+    // If init() hasn't cached the element refs yet, stash; init() applies.
+    if (!elements.coverFontSelect) {
+      _pendingLibraryConfig = config;
+    } else {
+      applyLibraryConfig(config);
+    }
+  }
+  window.addEventListener('library-config-ready', _onLibraryConfigReady);
+
+  // Belt-and-suspenders: if library-config.js has already run and set the
+  // global before we got here (possible under future script-order changes,
+  // e.g. if app.js ever becomes a module itself), stash it so init() still
+  // applies it. The 'library-config-ready' listener above handles the
+  // normal case where the event fires after we've attached.
+  if (window.LIBRARY_CONFIG && !_pendingLibraryConfig) {
+    _pendingLibraryConfig = window.LIBRARY_CONFIG;
+  }
+
   function init() {
     cacheElements();
     populateFontSelects();
@@ -5881,6 +5994,15 @@ const BooklistApp = (function() {
     // Set initial tilted settings visibility
     updateTiltedSettingsVisibility();
     
+    // Apply any library config that arrived before init() ran. On the
+    // public tool this is a no-op; on branded instances the listener
+    // either stashed the config here (if it arrived early) or has already
+    // applied it directly (if it arrived after init() started).
+    if (_pendingLibraryConfig) {
+      applyLibraryConfig(_pendingLibraryConfig);
+      _pendingLibraryConfig = null;
+    }
+
     // Recover tour backup (if page was refreshed mid-tour), then restore draft.
     // Both are async (IndexedDB), chained to ensure correct ordering.
     recoverTourBackupIfPresent().then(() => restoreDraftLocalIfPresent());

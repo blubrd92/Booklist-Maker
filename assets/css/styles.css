@@ -151,8 +151,15 @@ body.content-page .app-header {
   z-index: 20;
 }
 body.content-page .site-footer {
-  position: sticky;
+  /* Fixed rather than sticky: sticky only pins an element once scrolling
+     brings it into view, which means long content pages (about.html,
+     for-libraries.html) hide the footer off-screen on first load.
+     content-main already has 72px of bottom padding so nothing is
+     obscured by the fixed footer. */
+  position: fixed;
   bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 20;
 }
 .app-header a.logo {

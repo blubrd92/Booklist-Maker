@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="assets/css/styles.css"/>
   <link rel="stylesheet" href="assets/css/folio.css"/>
   <link rel="stylesheet" href="assets/css/tour.css"/>
+  <link rel="stylesheet" href="assets/css/auth.css"/>
   <!-- Google Fonts: All application fonts loaded via CDN -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -51,6 +52,9 @@
 
     <div class="header-actions">
       <button id="tour-button" title="Take a guided tour" aria-label="Open guided tour">?</button>
+      <button id="auth-signout-button" title="Sign out" aria-label="Sign out of library instance" hidden>
+        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+      </button>
       <button id="load-list-button" class="btn btn-header" title="Load Saved List" aria-label="Load saved booklist file">
         <i class="fa-solid fa-upload" aria-hidden="true"></i> Load
       </button>
@@ -798,11 +802,48 @@
     </div>
   </div>
 
+  <!-- Login modal for gated library instances. Hidden by default; only
+       revealed by assets/js/auth.js in response to the
+       'library-config-needs-auth' event. On the public tool and on
+       public branded instances this modal never appears. -->
+  <div id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" hidden>
+    <div class="auth-modal-content">
+      <h2 id="auth-modal-title">Sign in to Booklister</h2>
+      <p class="auth-subtitle">Enter your library credentials to continue.</p>
+      <form id="auth-signin-form" novalidate>
+        <div class="auth-field">
+          <label for="auth-email-input">Email</label>
+          <input id="auth-email-input" type="email" autocomplete="email" required>
+        </div>
+        <div class="auth-field">
+          <label for="auth-password-input">Password</label>
+          <input id="auth-password-input" type="password" autocomplete="current-password" required>
+        </div>
+        <div id="auth-error" role="alert" aria-live="polite" hidden></div>
+        <div id="auth-reset-confirm" role="status" aria-live="polite" hidden></div>
+        <button id="auth-signin-submit" type="submit">Sign in</button>
+        <button id="auth-forgot-link" type="button">Forgot password?</button>
+      </form>
+    </div>
+  </div>
+
   <script src="assets/js/config.js"></script>
   <script src="assets/js/book-utils.js"></script>
   <script src="assets/js/app.js"></script>
   <script src="assets/js/folio.js"></script>
   <script src="assets/js/tour.js"></script>
+
+  <!-- Firebase (ES module). No-op on the public tool; only initializes on
+       branded library subdomains. See assets/js/firebase-init.js. -->
+  <script type="module" src="assets/js/firebase-init.js"></script>
+  <!-- Auth UI (ES module). Listed before library-config.js so its
+       'library-config-needs-auth' / 'library-config-ready' listeners are
+       attached synchronously before library-config.js can dispatch. -->
+  <script type="module" src="assets/js/auth.js"></script>
+  <!-- Per-library config loader (ES module). Imports from firebase-init.js.
+       On the public tool it dispatches 'library-config-ready' with a null
+       config and returns. On branded instances it reads from Firestore. -->
+  <script type="module" src="assets/js/library-config.js"></script>
 
   <!-- Sidebar Toggle Script -->
   <script>
