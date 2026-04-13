@@ -172,8 +172,14 @@ html, body {
 /* Center the sign-in section's contents — heading, description,
    Google button, divider, email form, submit button, error message.
    Form labels and inputs stay left-aligned inside the form block;
-   only the block itself is centered. */
-#admin-signin {
+   only the block itself is centered.
+
+   NOTE: the :not([hidden]) scope is important. Without it, this
+   rule's specificity (id selector, 1,0,0) beats the generic
+   .admin-section[hidden] { display: none } rule (0,2,0), so the
+   section would stay visible as `display: flex` even after
+   showSection() set its hidden attribute. */
+#admin-signin:not([hidden]) {
   display: flex;
   flex-direction: column;
   align-items: center;
