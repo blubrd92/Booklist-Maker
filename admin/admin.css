@@ -639,15 +639,6 @@ code {
   cursor: not-allowed;
 }
 
-.admin-field input[type="color"] {
-  width: 56px;
-  height: 36px;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius);
-  padding: 2px;
-  cursor: pointer;
-}
-
 .admin-field-hint {
   margin: 6px 0 0;
   font-size: 0.8rem;

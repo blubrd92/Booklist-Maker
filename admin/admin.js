@@ -74,8 +74,6 @@ const DEFAULT_LIBRARY = {
   defaultBookFont: "'Lato', sans-serif",
   defaultCoverLayout: 'classic',
   defaultExtendedMode: false,
-  primaryColor: '#5c6bc0',
-  accentColor: '#e53935',
 };
 
 // Same Firebase project as the main tool. This config is NOT a secret —
@@ -559,8 +557,6 @@ function openLibraryModal(lib) {
   const bookFontSel = document.getElementById('admin-field-book-font');
   const layoutSel = document.getElementById('admin-field-layout');
   const extendedCb = document.getElementById('admin-field-extended');
-  const primaryInput = document.getElementById('admin-field-primary-color');
-  const accentInput = document.getElementById('admin-field-accent-color');
   const errorEl = document.getElementById('admin-library-form-error');
 
   errorEl.hidden = true;
@@ -588,8 +584,6 @@ function openLibraryModal(lib) {
     bookFontSel.value = d.defaultBookFont || DEFAULT_LIBRARY.defaultBookFont;
     layoutSel.value = d.defaultCoverLayout || DEFAULT_LIBRARY.defaultCoverLayout;
     extendedCb.checked = !!d.defaultExtendedMode;
-    primaryInput.value = d.primaryColor || DEFAULT_LIBRARY.primaryColor;
-    accentInput.value = d.accentColor || DEFAULT_LIBRARY.accentColor;
   } else {
     // Create mode
     title.textContent = 'Add Library';
@@ -605,8 +599,6 @@ function openLibraryModal(lib) {
     bookFontSel.value = DEFAULT_LIBRARY.defaultBookFont;
     layoutSel.value = DEFAULT_LIBRARY.defaultCoverLayout;
     extendedCb.checked = DEFAULT_LIBRARY.defaultExtendedMode;
-    primaryInput.value = DEFAULT_LIBRARY.primaryColor;
-    accentInput.value = DEFAULT_LIBRARY.accentColor;
   }
 
   // Memberships section: only visible when editing an existing gated
@@ -648,8 +640,6 @@ async function handleLibraryFormSubmit(evt) {
   const bookFontSel = document.getElementById('admin-field-book-font');
   const layoutSel = document.getElementById('admin-field-layout');
   const extendedCb = document.getElementById('admin-field-extended');
-  const primaryInput = document.getElementById('admin-field-primary-color');
-  const accentInput = document.getElementById('admin-field-accent-color');
   const saveBtn = document.getElementById('admin-library-save-btn');
 
   const libraryId = idInput.value.trim().toLowerCase();
@@ -691,8 +681,6 @@ async function handleLibraryFormSubmit(evt) {
     defaultBookFont: bookFontSel.value,
     defaultCoverLayout: layoutSel.value,
     defaultExtendedMode: !!extendedCb.checked,
-    primaryColor: primaryInput.value,
-    accentColor: accentInput.value,
   };
 
   const collectionName = type === 'public' ? 'libraries-public' : 'libraries';
