@@ -1,0 +1,99 @@
+rules_version = '2';
+
+// =============================================================================
+// Booklister Firestore security rules
+// =============================================================================
+//
+// This file is the source of truth for the rules. To deploy: copy the
+// contents into Firebase console → Firestore Database → Rules tab,
+// then click Publish. This project intentionally doesn't use the
+// Firebase CLI to avoid adding tooling/build steps (see session-one
+// constraints).
+//
+// Design:
+//
+// 1. `admins/{uid}` — one doc per admin, document ID is the user's
+//    Firebase Auth UID. Created manually in the Firebase console (there
+//    is no client-side code that can write here). An admin is any user
+//    with a document in this collection.
+//
+// 2. `libraries-public/{libraryId}` — publicly-readable library configs
+//    (like sanrafael). Anyone can read them. Only admins can write.
+//
+// 3. `libraries/{libraryId}` — gated library configs (like sonoma).
+//    Readable by members of that library (via memberships) OR by any
+//    admin. Writable only by admins.
+//
+// 4. `memberships/{uid}` — maps a Firebase Auth user UID to a single
+//    library they have access to. Users can read their own membership
+//    doc. Admins can read and write any membership doc.
+//
+// 5. Everything else — denied by the catch-all at the bottom.
+//
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper: is the requesting user an admin?
+    // -------------------------------------------------------------------------
+    function isAdmin() {
+      return request.auth != null
+             && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // -------------------------------------------------------------------------
+    // admins: one doc per admin, doc ID = Firebase Auth UID.
+    // Admins can read their own doc (so the admin console can verify
+    // admin status after Google sign-in). No client writes — admin docs
+    // are created manually in the Firebase console.
+    // -------------------------------------------------------------------------
+    match /admins/{adminUid} {
+      allow read: if request.auth != null && request.auth.uid == adminUid;
+      allow write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // libraries-public: publicly readable configs for unauthenticated
+    // branded instances (e.g., sanrafael). Admins can write to this
+    // collection from the admin console.
+    // -------------------------------------------------------------------------
+    match /libraries-public/{libraryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // libraries: gated library configs. Readable by members of that
+    // specific library (via the memberships collection) OR by any admin.
+    // Admins can write to this collection from the admin console.
+    // -------------------------------------------------------------------------
+    match /libraries/{libraryId} {
+      allow read: if isAdmin()
+                  || (request.auth != null
+                      && exists(/databases/$(database)/documents/memberships/$(request.auth.uid))
+                      && get(/databases/$(database)/documents/memberships/$(request.auth.uid)).data.libraryId == libraryId);
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // memberships: maps Firebase user UID to a single library ID.
+    // Users can read their own membership doc. Admins can read any
+    // membership doc (for managing library rosters in the admin console)
+    // and can create, update, or delete them.
+    // -------------------------------------------------------------------------
+    match /memberships/{userId} {
+      allow read: if isAdmin()
+                  || (request.auth != null && request.auth.uid == userId);
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // Catch-all deny. Anything not explicitly matched above is forbidden.
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

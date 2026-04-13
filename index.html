@@ -16,6 +16,20 @@
   <meta name="twitter:description" content="A free browser tool for making printable booklists for library displays. Built by a Bay Area librarian.">
   <title>Booklister</title>
 
+  <!-- Admin subdomain redirect. If the hostname is admin.booklister.org,
+       bounce to /admin/ immediately — the admin console is a separate app
+       in the /admin/ directory, and we don't want the main tool loading
+       on the admin subdomain at all. Runs before any other scripts or
+       CSS so the main tool never starts initializing. -->
+  <script>
+    (function() {
+      if (window.location.hostname === 'admin.booklister.org' &&
+          !window.location.pathname.startsWith('/admin/')) {
+        window.location.replace('/admin/');
+      }
+    })();
+  </script>
+
   <!-- Synchronous branded-host detection. Runs before any CSS or scripts
        load so that the .awaiting-library-config class is on <html>
        BEFORE the first paint, preventing a flash of the unbranded tool

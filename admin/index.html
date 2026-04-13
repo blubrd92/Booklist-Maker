@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Admin console is not for public discovery. Keep it out of search indexes. -->
+  <meta name="robots" content="noindex, nofollow">
+  <title>Booklister Admin</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+  <header class="admin-header">
+    <h1>
+      <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklister Admin
+    </h1>
+    <div class="admin-header-user" id="admin-user-info" hidden>
+      <span id="admin-user-email"></span>
+      <button id="admin-signout-btn">Sign out</button>
+    </div>
+  </header>
+
+  <main id="admin-main">
+
+    <!-- Loading state while we check auth -->
+    <section id="admin-loading" class="admin-section">
+      <p class="admin-loading-text">Loading…</p>
+    </section>
+
+    <!-- Not signed in: show Google sign-in button -->
+    <section id="admin-signin" class="admin-section" hidden>
+      <h2>Sign in</h2>
+      <p>This console is restricted to authorized Google accounts. Sign in with the account that owns the Booklister Firestore project.</p>
+      <button id="google-signin-btn">
+        <i class="fa-brands fa-google" aria-hidden="true"></i> Sign in with Google
+      </button>
+      <p id="admin-signin-error" class="admin-error" hidden></p>
+    </section>
+
+    <!-- Signed in but not authorized -->
+    <section id="admin-denied" class="admin-section" hidden>
+      <h2>Access denied</h2>
+      <p>You're signed in as <strong id="admin-denied-email"></strong>, but this account is not in the <code>admins</code> Firestore collection.</p>
+      <p>Your UID: <code id="admin-denied-uid"></code></p>
+      <p class="admin-note">
+        <strong>First-time setup:</strong> copy the UID above, then in the Firebase console go to
+        Firestore → <code>admins</code> collection → Add document, paste the UID as the document ID,
+        and save. Reload this page afterward. After that initial manual step, nothing else
+        needs to happen in the Firestore console.
+      </p>
+      <button id="admin-denied-signout-btn" class="admin-btn-secondary">Sign out and try a different account</button>
+    </section>
+
+    <!-- Authorized admin: the real app -->
+    <section id="admin-app" class="admin-section" hidden>
+      <h2>Libraries</h2>
+      <p class="admin-loading-text">Admin console authenticated. CRUD interface coming in the next substep.</p>
+    </section>
+
+  </main>
+
+  <!-- Safety net: if admin.js fails to load (Firebase CDN down, network
+       firewall blocks gstatic.com, browser extension blocks the request,
+       etc.), the page would stay stuck on "Loading…" forever. After a
+       few seconds, replace the loading section with a diagnostic. -->
+  <script>
+    setTimeout(function() {
+      var loading = document.getElementById('admin-loading');
+      if (loading && !loading.hidden) {
+        loading.innerHTML =
+          '<h2>Could not load the admin console</h2>' +
+          '<p>The Firebase SDK failed to load. This usually means:</p>' +
+          '<ul style="margin:0 0 16px 20px;color:#2d3748;line-height:1.6;">' +
+            '<li>Your network or a browser extension is blocking <code>gstatic.com</code></li>' +
+            '<li>Firebase is experiencing an outage</li>' +
+            '<li>Your device is offline</li>' +
+          '</ul>' +
+          '<p>Open the browser console for the underlying error.</p>';
+      }
+    }, 8000);
+  </script>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
