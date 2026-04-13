@@ -32,9 +32,25 @@ html, body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: var(--admin-bg);
   color: var(--admin-text);
-  min-height: 100vh;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Flex-column body so the footer sits at the bottom of the viewport
+   even when the main content (sign-in screen, denied screen) is short.
+   #admin-main takes flex: 1 to fill the space between header and footer. */
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#admin-main {
+  flex: 1 0 auto;
+}
+
+.admin-footer {
+  flex-shrink: 0;
 }
 
 /* --- HEADER --- */

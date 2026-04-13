@@ -63,15 +63,18 @@
 
       <ul>
         <li><strong>Your account.</strong> An email address (as the login identifier) and your password. Firebase Authentication handles the password, which means I never see it in plain text; it's hashed before it's stored.</li>
-        <li><strong>Your membership.</strong> A small record linking your account to the library you have access to, plus whether you're a staff member or a library admin.</li>
+        <li><strong>Your membership.</strong> A small record linking your account to the library you have access to, plus whether your role is 'staff' or 'admin'. That role determines what you can do within your library through the admin console.</li>
         <li><strong>The library's configuration.</strong> The library's display name and the path to its logo image. This is per-library, not per-user.</li>
       </ul>
 
       <p>I don't store anything else about you in Firebase. No booklist content, no search history, no usage analytics, no telemetry. The booklist work you do on a branded instance still stays in your browser, same as the public tool.</p>
 
+      <h2>Data retention</h2>
+      <p>While your library has an active Booklister instance, your account, membership, and library config are retained. When a staff member is removed from a library, their membership record is deleted immediately, which removes their access. Their Firebase Auth account (which no longer has permission to read any library data after the membership is removed) is cleaned up during a periodic audit, or sooner on request. When a library ends its Booklister relationship, all associated data is deleted within one business day of confirmation.</p>
+
       <h2>Who has access to this data</h2>
       <p>Administrative access to the Booklister Firebase project is tightly restricted, currently to me alone as the project's operator. I use that access to create new library instances, to onboard new library staff, and to help diagnose problems when something goes wrong. I don't browse or export user data for any other purpose. If that ever changes, for example if I add a second administrator, I'll update this page to reflect it.</p>
-      <p>Library admins at each library (typically one staff member per library) can see the list of user IDs and email addresses for other staff at their library, because they manage the roster. They can't see any other library's data and they can't see your booklist content.</p>
+      <p>Library admins at each library (typically one staff member per library) can see the list of user IDs and email addresses for other staff at their library, because they manage the roster. They can't see any other library's data and they can't see your booklist content. Library admins also cannot modify any other library's data and cannot elevate other staff to admin status. Actions like creating new libraries or changing someone's role to admin require the project operator.</p>
       <p>Google, as the operator of Firebase, has access to the underlying data the same way any cloud provider does. Their own privacy and security practices apply.</p>
 
       <h2>Cookies and tracking</h2>
@@ -85,6 +88,7 @@
       <ul>
         <li><strong>Stop using the tool.</strong> Nothing happens to your local draft. It stays on your device until you clear it.</li>
         <li><strong>Review what's on file.</strong> If you have a branded-instance account and want to know exactly what Booklister has stored about you, email me via the <a href="contact.html">Contact</a> page and I'll tell you.</li>
+        <li><strong>Audit your library's staff roster.</strong> If you're a library admin, you can see the full list of staff at your library at any time by signing in to the admin console. This is the authoritative list of who has access to your instance.</li>
         <li><strong>Correct information.</strong> If the email or other information associated with your account is wrong, email me from the <a href="contact.html">Contact</a> page and I'll fix it manually.</li>
         <li><strong>Export your work.</strong> Use the Save button in the tool to download a <code>.booklist</code> file of your current session.</li>
         <li><strong>Delete your account.</strong> If you have a branded-instance account and want it removed, email me from the <a href="contact.html">Contact</a> page. I'll delete your Firebase Auth account and any memberships linked to it. This is a manual process; there's no self-service account deletion button in the tool yet.</li>
@@ -97,6 +101,7 @@
 
       <h2>Applicable law</h2>
       <p>Booklister is operated by a private individual in the United States. It's a small project, not an institutional service. If you're accessing it from a jurisdiction with specific data protection requirements (EU, California, and others) and you have concerns about how that applies here, email me from the <a href="contact.html">Contact</a> page and I'll do my best to address them.</p>
+      <p>Booklister is operated from California, which makes the California Consumer Privacy Act (CCPA) applicable to personal information Booklister collects. In the Booklister context, that personal information is limited to staff email addresses and Firebase user IDs. You can request access, correction, or deletion of that information by emailing me from the <a href="contact.html">Contact</a> page, and I'll respond within a reasonable timeframe.</p>
     </article>
   </main>
 
