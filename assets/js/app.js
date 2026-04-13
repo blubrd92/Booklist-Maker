@@ -2000,6 +2000,54 @@ const BooklistApp = (function() {
   }
 
   /**
+   * Wait for all <img> elements matching the selector to finish loading
+   * and be ready for html2canvas to paint. Without this, an img whose
+   * src was just set but whose bytes are still in-flight over the
+   * network (or still decoding) appears in the html2canvas output as
+   * an empty box, because html2canvas takes a synchronous snapshot and
+   * a not-yet-decoded img has naturalWidth === 0.
+   *
+   * Three cases per image:
+   *   1. Already loaded and valid -> resolve immediately.
+   *   2. Already loaded but broken (complete but naturalWidth is 0,
+   *      e.g. 404) -> resolve immediately, waiting longer won't help.
+   *   3. Still loading -> prefer img.decode() where supported, which
+   *      returns a Promise resolving when the image is decoded and
+   *      ready to paint. Fall back to onload/onerror listeners on
+   *      older browsers.
+   *
+   * A decode failure resolves silently rather than rejecting, so a
+   * single broken image can't block the whole PDF export. A per-call
+   * timeout race prevents a stuck image (e.g. a remote URL on a bad
+   * connection) from hanging the export indefinitely.
+   */
+  function waitForImagesDecoded(selector, timeoutMs = 5000) {
+    const imgs = Array.from(document.querySelectorAll(selector));
+    const perImagePromises = imgs.map(img => {
+      if (img.complete) {
+        // Already loaded (whether valid or broken). Don't block on it.
+        return Promise.resolve();
+      }
+      if (typeof img.decode === 'function') {
+        return img.decode().catch(() => { /* decode failure is non-fatal */ });
+      }
+      return new Promise(resolve => {
+        const cleanup = () => {
+          img.removeEventListener('load', onLoad);
+          img.removeEventListener('error', onError);
+        };
+        const onLoad = () => { cleanup(); resolve(); };
+        const onError = () => { cleanup(); resolve(); };
+        img.addEventListener('load', onLoad);
+        img.addEventListener('error', onError);
+      });
+    });
+    const allSettled = Promise.all(perImagePromises);
+    const timeout = new Promise(resolve => setTimeout(resolve, timeoutMs));
+    return Promise.race([allSettled, timeout]);
+  }
+
+  /**
    * Loads an image from a URL
    */
   function loadImage(src) {
@@ -3872,6 +3920,14 @@ const BooklistApp = (function() {
     try {
       await new Promise(resolve => setTimeout(resolve, CONFIG.PDF_RENDER_DELAY_MS));
       await waitForFonts();
+      // Defense in depth: make sure every <img> in both print pages is
+      // fully decoded before html2canvas takes its snapshot. Guards
+      // against the specific case where branded-library logos or
+      // freshly-set images would capture as empty boxes because the
+      // bytes hadn't finished arriving over the network when capture
+      // started. Resolves silently on broken/missing images so they
+      // don't block the export.
+      await waitForImagesDecoded('#print-page-1 img, #print-page-2 img');
       
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({
