@@ -1505,7 +1505,10 @@ input[type="color"]:hover {
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  display: flex;
+  /* Hidden by default: the public tool has no library default to fall
+     back to, so this button has nothing meaningful to do. Branded
+     instances override this via body.has-library-branding below. */
+  display: none;
   align-items: center;
   gap: 4px;
   opacity: 0.9;
@@ -1518,8 +1521,13 @@ input[type="color"]:hover {
 .print-mode .branding-default-btn {
   display: none !important;
 }
-/* Only show Use Default when there's no image */
-#branding-uploader.has-image .branding-default-btn { display: none; }
+/* Branded instances: applyLibraryConfig adds body.has-library-branding
+   when LIBRARY_CONFIG.brandingImagePath is present, which reveals this
+   button whenever the user has cleared their branding image. Clicking
+   it re-loads the library's default brand. */
+body.has-library-branding #branding-uploader:not(.has-image) .branding-default-btn {
+  display: flex;
+}
 #branding-uploader.has-image.drag-over { border: 2px solid var(--primary-color); border-style: solid; }
 
 #branding-uploader .placeholder-text {

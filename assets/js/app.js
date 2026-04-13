@@ -5044,15 +5044,23 @@ const BooklistApp = (function() {
       });
     }
     
-    // Branding "Use Default" button - loads the default branding image
+    // Branding "Use Default" button - reloads the library-provided
+    // default brand image. CSS hides this button on the public tool
+    // (no library default exists); it only appears on branded
+    // instances when applyLibraryConfig has added body.has-library-branding
+    // AND the user has cleared their branding image. The guard below
+    // is defensive in case the button is ever triggered without a
+    // library default available.
     const brandingDefaultBtn = elements.brandingUploader.querySelector('.branding-default-btn');
     if (brandingDefaultBtn) {
       brandingDefaultBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        const libraryBranding = window.LIBRARY_CONFIG && window.LIBRARY_CONFIG.brandingImagePath;
+        if (!libraryBranding) return;
         pushUndo('upload-branding');
         const imgElement = elements.brandingUploader.querySelector('img');
-        imgElement.src = 'assets/img/branding-default.png';
+        imgElement.src = libraryBranding;
         imgElement.dataset.isPlaceholder = 'false';
         elements.brandingUploader.classList.add('has-image');
         debouncedSave();
@@ -5893,7 +5901,12 @@ const BooklistApp = (function() {
     }
 
     // 3. Default branding image — only if the user hasn't uploaded one.
+    //    The body class is added unconditionally (even if the user
+    //    already has their own image) so that the "Use Default" button
+    //    becomes available as a fallback when the user clears their
+    //    branding, letting them restore the library default.
     if (config.brandingImagePath && elements.brandingUploader) {
+      document.body.classList.add('has-library-branding');
       const img = elements.brandingUploader.querySelector('img');
       if (img && img.dataset.isPlaceholder !== 'false') {
         img.src = config.brandingImagePath;
