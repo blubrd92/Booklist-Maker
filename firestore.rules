@@ -7,47 +7,92 @@ rules_version = '2';
 // This file is the source of truth for the rules. To deploy: copy the
 // contents into Firebase console → Firestore Database → Rules tab,
 // then click Publish. This project intentionally doesn't use the
-// Firebase CLI to avoid adding tooling/build steps (see session-one
-// constraints).
+// Firebase CLI to avoid adding tooling/build steps (session-one
+// constraint).
 //
 // Design:
 //
-// 1. `admins/{uid}` — one doc per admin, document ID is the user's
-//    Firebase Auth UID. Created manually in the Firebase console (there
-//    is no client-side code that can write here). An admin is any user
-//    with a document in this collection.
+// 1. `admins/{uid}` — one doc per SUPER-ADMIN, document ID is the
+//    user's Firebase Auth UID. Super-admins have global read/write
+//    access to all libraries and memberships. Created manually in the
+//    Firebase console.
 //
 // 2. `libraries-public/{libraryId}` — publicly-readable library configs
-//    (like sanrafael). Anyone can read them. Only admins can write.
+//    (like sanrafael). Anyone can read. Only super-admins can write.
 //
 // 3. `libraries/{libraryId}` — gated library configs (like sonoma).
-//    Readable by members of that library (via memberships) OR by any
-//    admin. Writable only by admins.
+//    Readable by library members (via memberships) or super-admins.
+//    Writable only by super-admins. Library admins cannot edit library
+//    configs — if a library wants a config change, they ask the
+//    super-admin.
 //
 // 4. `memberships/{uid}` — maps a Firebase Auth user UID to a single
-//    library they have access to. Users can read their own membership
-//    doc. Admins can read and write any membership doc.
+//    library. Each doc has:
+//      - libraryId  (string, required)
+//      - role       (string "staff" or "admin", optional, default "staff")
 //
-// 5. Everything else — denied by the catch-all at the bottom.
+//    - Users can read their own membership doc.
+//    - Super-admins can read any membership.
+//    - Library admins can read memberships for their own library
+//      (so the library-admin UI can list staff).
+//    - Super-admins can write any membership with any role.
+//    - Library admins can create/update/delete memberships for STAFF
+//      (role="staff") in their own library only.
+//    - Library admins CANNOT promote a user to admin. That's a
+//      super-admin-only privilege, preventing runaway admin expansion.
+//    - Library admins CANNOT delete or demote another library admin.
+//      If a library admin needs removal, a super-admin does it.
+//    - Library admins CANNOT change a membership's libraryId (they
+//      can't reassign users to other libraries).
 //
+// Field whitelist on memberships prevents random extra fields from
+// sneaking in via a compromised or buggy client.
+//
+// Backward compatibility:
+// Existing memberships documents created before the `role` field was
+// introduced are treated as `role = "staff"` via `data.get('role',
+// 'staff')`. No data migration required — existing sonoma staff
+// memberships continue to work identically.
 // =============================================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // -------------------------------------------------------------------------
-    // Helper: is the requesting user an admin?
+    // Helpers
     // -------------------------------------------------------------------------
+
+    // Is the requesting user a super-admin? (global scope)
     function isAdmin() {
       return request.auth != null
              && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    // Is the requesting user a library admin for the given libraryId?
+    // Library admin = has a memberships doc with libraryId matching AND
+    // role == "admin".
+    function isLibraryAdminOf(libraryId) {
+      return request.auth != null
+             && exists(/databases/$(database)/documents/memberships/$(request.auth.uid))
+             && get(/databases/$(database)/documents/memberships/$(request.auth.uid)).data.libraryId == libraryId
+             && get(/databases/$(database)/documents/memberships/$(request.auth.uid)).data.get('role', 'staff') == 'admin';
+    }
+
+    // Schema validation for memberships docs. Limits keys to libraryId
+    // and optional role, and constrains role to "staff" or "admin".
+    function validMembershipFields(data) {
+      return data.libraryId is string
+             && data.libraryId.size() > 0
+             && data.keys().hasOnly(['libraryId', 'role'])
+             && data.get('role', 'staff') in ['staff', 'admin'];
+    }
+
     // -------------------------------------------------------------------------
-    // admins: one doc per admin, doc ID = Firebase Auth UID.
-    // Admins can read their own doc (so the admin console can verify
-    // admin status after Google sign-in). No client writes — admin docs
-    // are created manually in the Firebase console.
+    // admins collection
+    //
+    // One doc per super-admin. No client writes. Super-admins are
+    // created manually by editing Firestore directly in the Firebase
+    // console.
     // -------------------------------------------------------------------------
     match /admins/{adminUid} {
       allow read: if request.auth != null && request.auth.uid == adminUid;
@@ -55,9 +100,10 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // libraries-public: publicly readable configs for unauthenticated
-    // branded instances (e.g., sanrafael). Admins can write to this
-    // collection from the admin console.
+    // libraries-public collection
+    //
+    // Publicly readable. Only super-admins can write (from the admin
+    // console).
     // -------------------------------------------------------------------------
     match /libraries-public/{libraryId} {
       allow read: if true;
@@ -65,9 +111,12 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // libraries: gated library configs. Readable by members of that
-    // specific library (via the memberships collection) OR by any admin.
-    // Admins can write to this collection from the admin console.
+    // libraries collection (gated)
+    //
+    // Readable by members of the library or by super-admins. Writable
+    // only by super-admins. Library admins are members (they have a
+    // memberships doc with the right libraryId), so they can READ the
+    // library config — they just can't WRITE it.
     // -------------------------------------------------------------------------
     match /libraries/{libraryId} {
       allow read: if isAdmin()
@@ -78,15 +127,55 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // memberships: maps Firebase user UID to a single library ID.
-    // Users can read their own membership doc. Admins can read any
-    // membership doc (for managing library rosters in the admin console)
-    // and can create, update, or delete them.
+    // memberships collection
+    //
+    // See file header for the full permission model.
     // -------------------------------------------------------------------------
     match /memberships/{userId} {
-      allow read: if isAdmin()
-                  || (request.auth != null && request.auth.uid == userId);
-      allow write: if isAdmin();
+
+      // Reads:
+      // - Own membership doc (so signed-in users can check their own
+      //   access)
+      // - Super-admin (for the admin console)
+      // - Library admin of this doc's libraryId (so the library-admin UI
+      //   can list staff for their library)
+      allow read: if (request.auth != null && request.auth.uid == userId)
+                  || isAdmin()
+                  || isLibraryAdminOf(resource.data.libraryId);
+
+      // Creates:
+      // - Super-admin: can create any membership with any role.
+      // - Library admin: can create STAFF memberships (role=staff or
+      //   omitted) in their own library only. Cannot create new library
+      //   admins — that escalation is super-admin-only.
+      allow create: if validMembershipFields(request.resource.data)
+                    && (isAdmin()
+                        || (isLibraryAdminOf(request.resource.data.libraryId)
+                            && request.resource.data.get('role', 'staff') == 'staff'));
+
+      // Updates:
+      // - Super-admin: can update any membership to any valid state
+      //   (including promoting staff to admin or demoting admin to
+      //   staff).
+      // - Library admin: can only update staff memberships in their own
+      //   library, and cannot promote them to admin or reassign them
+      //   to a different library. Cannot touch memberships where the
+      //   CURRENT role is admin — can't demote another library admin.
+      allow update: if validMembershipFields(request.resource.data)
+                    && (isAdmin()
+                        || (isLibraryAdminOf(resource.data.libraryId)
+                            && resource.data.get('role', 'staff') == 'staff'
+                            && request.resource.data.libraryId == resource.data.libraryId
+                            && request.resource.data.get('role', 'staff') == 'staff'));
+
+      // Deletes:
+      // - Super-admin: can delete any membership.
+      // - Library admin: can delete STAFF memberships in their own
+      //   library only. Cannot delete other library admins (escalation
+      //   requires super-admin).
+      allow delete: if isAdmin()
+                    || (isLibraryAdminOf(resource.data.libraryId)
+                        && resource.data.get('role', 'staff') == 'staff');
     }
 
     // -------------------------------------------------------------------------
