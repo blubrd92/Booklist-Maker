@@ -166,34 +166,14 @@ body.has-library-config .header-credit {
 }
 
 /* =========================================================================
-   CONTENT PAGES (about, for-libraries, contact)
-   Reuses .app-header, .logo, .header-credit from the tool. Adds scrollable
-   body layout and article typography for reading pages.
+   CONTENT PAGES (about, for-libraries, contact, privacy)
+   Reuses .app-header, .logo, .header-credit from the tool. Inherits the
+   same fixed-viewport flex column body layout as the tool page, but the
+   middle .content-main area is its own scroll container — so the
+   scrollbar is confined to the area between the header and footer
+   instead of running the full viewport edge. Header and footer are
+   natural flex items (no position: sticky / fixed needed).
    ========================================================================= */
-body.content-page {
-  height: auto;
-  min-height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-/* Sticky header and footer on content pages only (tool page is fixed-height) */
-body.content-page .app-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-body.content-page .site-footer {
-  /* Fixed rather than sticky: sticky only pins an element once scrolling
-     brings it into view, which means long content pages (about.html,
-     for-libraries.html) hide the footer off-screen on first load.
-     content-main already has 72px of bottom padding so nothing is
-     obscured by the fixed footer. */
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 20;
-}
 .app-header a.logo {
   color: white;
   text-decoration: none;
@@ -204,7 +184,15 @@ body.content-page .site-footer {
 }
 .content-main {
   flex: 1;
-  padding: 56px 24px 72px;
+  /* min-height: 0 is the flexbox incantation that lets this child
+     shrink below the natural height of its content. Without it, a
+     flex item's default `min-height: auto` keeps it at the content's
+     height, which prevents overflow-y: auto from producing a
+     scrollbar. */
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 56px 24px;
   display: flex;
   justify-content: center;
 }
