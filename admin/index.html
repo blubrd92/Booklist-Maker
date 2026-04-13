@@ -179,24 +179,25 @@
       <div id="admin-memberships-section" class="admin-modal-body admin-memberships" hidden>
         <h4>Staff with access</h4>
         <p class="admin-field-hint">
-          Each user needs a Firebase Auth account and a <code>memberships/&lt;uid&gt;</code>
-          document pointing at this library. Create the auth user in the
-          Firebase console first, then paste their UID here.
+          Enter the new staff member's email. The admin console will create a Firebase Auth
+          account for them and send a password reset email so they can set their own password.
+          They'll then be able to sign in at this library's URL.
         </p>
 
         <div id="admin-memberships-loading" class="admin-loading-text">Loading memberships…</div>
         <div id="admin-memberships-error" class="admin-error" hidden></div>
         <div id="admin-memberships-empty" class="admin-empty admin-empty-compact" hidden>
-          No staff yet. Add a UID below to grant access.
+          No staff yet. Invite someone below to grant access.
         </div>
         <ul id="admin-memberships-list" class="admin-memberships-list" hidden></ul>
 
         <form id="admin-add-membership-form" class="admin-add-membership">
-          <input type="text" id="admin-add-membership-uid" placeholder="Firebase Auth UID" autocomplete="off" spellcheck="false">
-          <button type="submit" class="admin-btn-primary admin-btn-sm">
-            <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Add
+          <input type="email" id="admin-add-membership-email" placeholder="staff@library.org" autocomplete="off" spellcheck="false">
+          <button type="submit" class="admin-btn-primary admin-btn-sm" id="admin-add-membership-btn">
+            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send invite
           </button>
         </form>
+        <p id="admin-add-membership-success" class="admin-note" hidden></p>
         <p id="admin-add-membership-error" class="admin-error" hidden></p>
       </div>
 

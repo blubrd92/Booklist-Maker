@@ -728,3 +728,11 @@ code {
   font-size: 0.8rem;
   white-space: nowrap;
 }
+
+#admin-add-membership-success {
+  margin-top: 12px;
+  background: rgba(67, 160, 71, 0.1);
+  border-left-color: var(--admin-success);
+  color: var(--admin-text);
+  font-size: 0.85rem;
+}

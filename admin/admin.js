@@ -10,7 +10,7 @@
 // completely independent Firebase initialization that runs without the
 // host-gating logic the main tool has.
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {
   getAuth,
   GoogleAuthProvider,
@@ -19,6 +19,8 @@ import {
   onAuthStateChanged,
   setPersistence,
   browserLocalPersistence,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
   getFirestore,
@@ -594,11 +596,51 @@ document.addEventListener('keydown', (e) => {
 // Memberships (embedded in the gated-library edit modal)
 // ---------------------------------------------------------------------------
 
-// Firebase Auth UIDs are 28 characters of [A-Za-z0-9], though the spec
-// technically allows any printable characters up to 128 chars. Be
-// lenient: accept anything non-empty that isn't obviously garbage.
-// Reject whitespace since that's almost always a copy-paste mistake.
-const UID_RE = /^[A-Za-z0-9]{20,128}$/;
+// Loose email sanity check. Firebase's createUserWithEmailAndPassword
+// will reject malformed addresses with auth/invalid-email anyway, but
+// a client-side check catches the most obvious cases without a round
+// trip.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Generate a strong random password. Used internally as the initial
+// password for newly-invited staff — they never see or use it, because
+// we immediately send them a password reset email so they set their own.
+// We still make it strong in case Firebase tightens its password policy
+// in a future SDK update.
+function generateRandomPassword() {
+  // Ambiguous characters (0, O, 1, l, I) intentionally excluded so if
+  // this ever gets logged somewhere and a human has to read it, it's
+  // less error-prone.
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*';
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  let out = '';
+  for (const b of bytes) {
+    out += alphabet[b % alphabet.length];
+  }
+  return out;
+}
+
+// Create a Firebase Auth user WITHOUT disrupting the admin's current
+// session. Client-side createUserWithEmailAndPassword normally signs
+// you in as the new user, logging you out of your admin session. The
+// workaround is to initialize a secondary Firebase app instance and
+// do the user creation on that isolated auth context, then sign out
+// of the secondary instance and discard it.
+async function createAuthUserViaSecondaryApp(email, password) {
+  const secondaryApp = initializeApp(firebaseConfig, 'admin-user-creation-' + Date.now());
+  const secondaryAuth = getAuth(secondaryApp);
+  try {
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    // Sign out so the secondary instance isn't holding a session for the
+    // newly-created user. Not strictly required (deleteApp discards it
+    // either way), but defensive.
+    try { await signOut(secondaryAuth); } catch { /* non-fatal */ }
+    return cred.user.uid;
+  } finally {
+    try { await deleteApp(secondaryApp); } catch { /* non-fatal */ }
+  }
+}
 
 async function loadMemberships(libraryId) {
   const loadingEl = document.getElementById('admin-memberships-loading');
@@ -652,48 +694,119 @@ async function handleAddMembership(evt) {
   evt.preventDefault();
   if (!editingLibrary) return; // Shouldn't happen — the form is only visible in edit mode
 
-  const uidInput = document.getElementById('admin-add-membership-uid');
+  const emailInput = document.getElementById('admin-add-membership-email');
+  const addBtn = document.getElementById('admin-add-membership-btn');
   const errorEl = document.getElementById('admin-add-membership-error');
-  const uid = uidInput.value.trim();
+  const successEl = document.getElementById('admin-add-membership-success');
+  const email = emailInput.value.trim().toLowerCase();
 
   errorEl.hidden = true;
   errorEl.textContent = '';
+  successEl.hidden = true;
+  successEl.textContent = '';
 
-  if (!uid) {
-    errorEl.textContent = 'Paste a Firebase Auth UID.';
+  if (!email) {
+    errorEl.textContent = 'Enter an email address.';
     errorEl.hidden = false;
     return;
   }
-  if (!UID_RE.test(uid)) {
-    errorEl.textContent = 'That doesn\'t look like a valid UID. Firebase Auth UIDs are 20+ alphanumeric characters.';
+  if (!EMAIL_RE.test(email)) {
+    errorEl.textContent = 'That doesn\'t look like a valid email address.';
     errorEl.hidden = false;
     return;
   }
 
-  // Check if a membership for this UID already exists (in any library).
-  // If yes, either they're already in this library (noop) or they're in
-  // a different one (conflict — single-library-per-user policy).
+  addBtn.disabled = true;
+  const originalBtnHTML = addBtn.innerHTML;
+  addBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Inviting…';
+
+  let newUid = null;
+  let authUserCreated = false;
+
   try {
-    const existing = await getDoc(doc(db, 'memberships', uid));
-    if (existing.exists()) {
-      const existingLib = existing.data().libraryId;
-      if (existingLib === editingLibrary.id) {
-        errorEl.textContent = 'That user already has access to this library.';
-      } else {
-        errorEl.textContent = 'That user already has a membership for "' + existingLib +
-          '". Remove it from that library first, or use a different account.';
+    // Step 1: create the Firebase Auth user via a secondary app so we
+    // don't disrupt the admin's session. The password is random and
+    // throwaway — they'll reset it immediately via the emailed link.
+    const throwawayPassword = generateRandomPassword();
+    try {
+      newUid = await createAuthUserViaSecondaryApp(email, throwawayPassword);
+      authUserCreated = true;
+    } catch (err) {
+      if (err.code === 'auth/email-already-in-use') {
+        errorEl.textContent =
+          'An account with that email already exists in Firebase Auth. ' +
+          'Each user can only be a member of one library at a time. If they ' +
+          'should be moved here from another library, remove them from that ' +
+          'library first. If they already have access here, no action needed.';
+        errorEl.hidden = false;
+        return;
       }
+      if (err.code === 'auth/invalid-email') {
+        errorEl.textContent = 'Firebase rejected that email address. Check for typos.';
+        errorEl.hidden = false;
+        return;
+      }
+      if (err.code === 'auth/operation-not-allowed') {
+        errorEl.textContent =
+          'Email/password sign-in is disabled in Firebase Auth. Enable it in ' +
+          'Firebase Console → Authentication → Sign-in method → Email/Password.';
+        errorEl.hidden = false;
+        return;
+      }
+      throw err;
+    }
+
+    // Step 2: create the memberships/<uid> doc pointing at this library.
+    // If this fails, the auth user is created but has no membership — the
+    // admin can't clean that up from this UI (no Admin SDK), so they'd
+    // have to delete the auth user from the Firebase Auth console. We
+    // surface this clearly in the error message.
+    try {
+      await setDoc(doc(db, 'memberships', newUid), { libraryId: editingLibrary.id });
+    } catch (err) {
+      console.warn('[admin] memberships setDoc failed after auth user creation:', err);
+      errorEl.textContent =
+        'Created the auth user, but failed to set their membership: ' +
+        (err.message || err.code || 'unknown error') +
+        '. To clean up, delete this user from the Firebase Auth console and retry. ' +
+        'Orphaned UID: ' + newUid;
       errorEl.hidden = false;
       return;
     }
 
-    await setDoc(doc(db, 'memberships', uid), { libraryId: editingLibrary.id });
-    uidInput.value = '';
+    // Step 3: send the password reset email. This doubles as the invite —
+    // the new user clicks the link, sets a password, and they're in.
+    // If this step fails (rare), the user + membership are already in
+    // place, so they can still get in by clicking "Forgot password?" on
+    // the library's sign-in modal themselves. Non-fatal.
+    try {
+      await sendPasswordResetEmail(auth, email);
+      successEl.textContent =
+        'Invite sent to ' + email + '. They\'ll receive an email with a link to set their password.';
+      successEl.hidden = false;
+    } catch (resetErr) {
+      console.warn('[admin] password reset email failed:', resetErr);
+      successEl.textContent =
+        'User created and added to this library, but the invite email failed to send (' +
+        (resetErr.code || 'unknown error') + '). Ask the user to visit the library sign-in page ' +
+        'and click "Forgot password?" to trigger a reset themselves.';
+      successEl.hidden = false;
+    }
+
+    emailInput.value = '';
     await loadMemberships(editingLibrary.id);
   } catch (err) {
     console.warn('[admin] add membership failed:', err);
-    errorEl.textContent = 'Failed to add membership: ' + (err.message || err.code || 'unknown error');
+    let msg = 'Failed to add member: ' + (err.message || err.code || 'unknown error');
+    if (authUserCreated && newUid) {
+      msg += ' (Auth user was created with UID ' + newUid +
+        ' — clean up from the Firebase Auth console if needed.)';
+    }
+    errorEl.textContent = msg;
     errorEl.hidden = false;
+  } finally {
+    addBtn.disabled = false;
+    addBtn.innerHTML = originalBtnHTML;
   }
 }
 
