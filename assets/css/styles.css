@@ -34,7 +34,11 @@
 
 html {
   height: 100vh;
-  overflow: hidden;
+  /* No overflow: hidden here — the tool page's body sets its own
+     overflow: hidden to stay fixed-viewport, but content pages need
+     html to allow viewport scrolling. Clamping overflow on html
+     breaks mousewheel/touch scrolling on about.html and
+     for-libraries.html. */
 }
 
 /* Branded-instance auth gate. An inline script in index.html adds
