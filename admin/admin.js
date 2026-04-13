@@ -134,13 +134,32 @@ function clearSignInError() {
 }
 
 // ---------------------------------------------------------------------------
-// Admin check
+// Role detection
 // ---------------------------------------------------------------------------
+
+// The admin console supports two kinds of admins:
+//
+// 1. Super-admin — has a doc in the `admins` collection. Can see all
+//    libraries, create/edit/delete libraries, manage any memberships,
+//    and promote/demote library admins.
+//
+// 2. Library admin — has a doc in `memberships` with role == "admin".
+//    Can see ONLY their library, manage only that library's staff
+//    memberships (not admin-role memberships), and cannot touch
+//    library config fields.
+//
+// Everyone else (including regular staff with role "staff") gets the
+// access-denied screen.
+
+// Populated by resolveUserRole(). Used throughout the UI to decide
+// which buttons to show and which views to render.
+let currentUserRole = 'none'; // 'super-admin' | 'library-admin' | 'none'
+let currentLibraryAdminLibraryId = null; // string or null; only set when currentUserRole === 'library-admin'
 
 // Reads admins/<uid>. Returns true if the doc exists, false otherwise.
 // A permission-denied or network error counts as "not admin" because
 // either way the user can't get past this gate.
-async function isUserAdmin(user) {
+async function isUserSuperAdmin(user) {
   try {
     const snap = await getDoc(doc(db, 'admins', user.uid));
     return snap.exists();
@@ -148,6 +167,43 @@ async function isUserAdmin(user) {
     console.warn('[admin] failed to read admins/' + user.uid + ':', err);
     return false;
   }
+}
+
+// Reads memberships/<uid>. Returns { libraryId, role } if the doc
+// exists, else null. Used to detect library admins and to show the
+// right scoped view.
+async function readOwnMembership(user) {
+  try {
+    const snap = await getDoc(doc(db, 'memberships', user.uid));
+    if (!snap.exists()) return null;
+    return snap.data();
+  } catch (err) {
+    console.warn('[admin] failed to read memberships/' + user.uid + ':', err);
+    return null;
+  }
+}
+
+// Resolve the role for a signed-in user. Writes to the module-level
+// currentUserRole and currentLibraryAdminLibraryId state. Returns the
+// role string so callers can branch on it.
+async function resolveUserRole(user) {
+  // Super-admin takes precedence. If the user is in the admins
+  // collection, we don't need to look at memberships.
+  if (await isUserSuperAdmin(user)) {
+    currentUserRole = 'super-admin';
+    currentLibraryAdminLibraryId = null;
+    return currentUserRole;
+  }
+  // Not a super-admin — check for a library-admin membership.
+  const membership = await readOwnMembership(user);
+  if (membership && membership.role === 'admin' && typeof membership.libraryId === 'string') {
+    currentUserRole = 'library-admin';
+    currentLibraryAdminLibraryId = membership.libraryId;
+    return currentUserRole;
+  }
+  currentUserRole = 'none';
+  currentLibraryAdminLibraryId = null;
+  return currentUserRole;
 }
 
 // ---------------------------------------------------------------------------
@@ -210,22 +266,37 @@ onAuthStateChanged(auth, async (user) => {
     user.email || user.displayName || user.uid;
   document.getElementById('admin-user-info').hidden = false;
 
-  // Check admin status against Firestore.
+  // Resolve role against Firestore.
   showSection('loading');
-  const admin = await isUserAdmin(user);
+  const role = await resolveUserRole(user);
 
-  if (!admin) {
-    document.getElementById('admin-denied-email').textContent = user.email || user.uid;
-    document.getElementById('admin-denied-uid').textContent = user.uid;
-    showSection('denied');
+  if (role === 'super-admin') {
+    // Full admin UI: all libraries visible and editable.
+    document.body.classList.add('admin-mode-super');
+    document.body.classList.remove('admin-mode-library');
+    populateFontSelects();
+    showSection('app');
+    await loadLibraries();
     return;
   }
 
-  // Authorized admin — populate font selects (idempotent), load the
-  // libraries list, and reveal the app section.
-  populateFontSelects();
-  showSection('app');
-  await loadLibraries();
+  if (role === 'library-admin') {
+    // Restricted UI: only their library, only the memberships section,
+    // no library config editing, no other libraries visible.
+    document.body.classList.remove('admin-mode-super');
+    document.body.classList.add('admin-mode-library');
+    populateFontSelects();
+    showSection('app');
+    await openLibraryAdminView(currentLibraryAdminLibraryId);
+    return;
+  }
+
+  // No role match — access denied. Show their UID so they (or the
+  // super-admin) can bootstrap access if they should have it.
+  document.body.classList.remove('admin-mode-super', 'admin-mode-library');
+  document.getElementById('admin-denied-email').textContent = user.email || user.uid;
+  document.getElementById('admin-denied-uid').textContent = user.uid;
+  showSection('denied');
 });
 
 // ---------------------------------------------------------------------------
@@ -255,10 +326,54 @@ function populateFontSelects() {
   }
 }
 
+// Open the library-admin-only view for a specific library. This runs
+// instead of loadLibraries() when the signed-in user is a library
+// admin. It reads the one library doc they have access to and opens
+// the edit modal in a locked-down mode (no library config editing,
+// no other libraries visible, just the memberships section).
+async function openLibraryAdminView(libraryId) {
+  // Hide the all-libraries table UI elements (CSS does most of this via
+  // .admin-mode-library on body, but clear explicit hidden state too).
+  document.getElementById('admin-libraries-loading').hidden = true;
+  document.getElementById('admin-libraries-error').hidden = true;
+  document.getElementById('admin-libraries-empty').hidden = true;
+  document.getElementById('admin-libraries-table').hidden = true;
+
+  try {
+    // Library admins have read access to libraries/<their-library>
+    // because they're a member (per the Firestore rules).
+    const snap = await getDoc(doc(db, 'libraries', libraryId));
+    if (!snap.exists()) {
+      // Library admin's library config is missing. Shouldn't happen in
+      // practice (the super-admin creates the library first, then
+      // promotes a staff to library admin), but handle it gracefully.
+      const errorEl = document.getElementById('admin-libraries-error');
+      errorEl.textContent =
+        'Your library (' + libraryId + ') is not set up yet. Ask the Booklister admin to create it.';
+      errorEl.hidden = false;
+      return;
+    }
+    const libObject = { id: libraryId, type: 'gated', data: snap.data() };
+    openLibraryModal(libObject);
+  } catch (err) {
+    console.warn('[admin] openLibraryAdminView failed:', err);
+    const errorEl = document.getElementById('admin-libraries-error');
+    errorEl.textContent =
+      'Failed to load your library: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+  }
+}
+
 // Fetch both collections and build a combined list of libraries. Each
 // entry is annotated with `type` ("public" or "gated") so the UI can
 // render the badge and the edit flow knows which collection to write to.
 async function loadLibraries() {
+  // Defensive guard: loadLibraries must never be called in library-admin
+  // mode. It would try to list libraries-public (allowed) and libraries
+  // (denied for anything but the admin's own), mixing success and
+  // failure. The auth state driver already routes library admins to
+  // openLibraryAdminView instead.
+  if (currentUserRole === 'library-admin') return;
   const loadingEl = document.getElementById('admin-libraries-loading');
   const errorEl = document.getElementById('admin-libraries-error');
   const emptyEl = document.getElementById('admin-libraries-empty');
