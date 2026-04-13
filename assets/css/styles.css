@@ -321,10 +321,12 @@ body.content-page .site-footer {
   align-items: center;
   gap: 6px;
 }
-/* Extra spacing before the sign-out button so it's visibly separated
-   from the Generate PDF button and isn't reached for by accident. */
+/* Mirror #tour-button's margin-right: 8px so the sign-out button's
+   distance from Generate PDF on its left equals the tour button's
+   distance from Load on its right (both end up 8px margin + 6px gap
+   = 14px of visible spacing). */
 .header-actions #auth-signout-button {
-  margin-left: 24px;
+  margin-left: 8px;
 }
 .btn-header {
   background-color: rgba(255,255,255,0.1);
