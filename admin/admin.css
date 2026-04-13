@@ -612,8 +612,7 @@ code {
 }
 
 .admin-field input[type="text"],
-.admin-field input[type="email"],
-.admin-field select {
+.admin-field input[type="email"] {
   width: 100%;
   padding: 10px 12px;
   font-size: 0.95rem;
@@ -626,8 +625,7 @@ code {
 }
 
 .admin-field input[type="text"]:focus,
-.admin-field input[type="email"]:focus,
-.admin-field select:focus {
+.admin-field input[type="email"]:focus {
   outline: none;
   border-color: var(--admin-primary);
   box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
@@ -651,12 +649,6 @@ code {
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 0.85em;
-}
-
-.admin-field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
 }
 
 .admin-required {
@@ -703,28 +695,6 @@ code {
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 0.85em;
-}
-
-.admin-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius);
-  background: white;
-}
-
-.admin-checkbox input[type="checkbox"] {
-  cursor: pointer;
-}
-
-.admin-checkbox label {
-  margin: 0;
-  font-weight: 400;
-  font-size: 0.85rem;
-  color: var(--admin-text);
-  cursor: pointer;
 }
 
 .admin-note-warning {

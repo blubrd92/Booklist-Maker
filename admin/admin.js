@@ -36,44 +36,14 @@ import {
   where,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
-// Font list copied from the main tool's CONFIG.FONTS. Kept in sync
-// manually. If you change the font list in assets/js/config.js, remember
-// to update this too.
-const FONTS = [
-  { value: "'Anton', sans-serif", label: 'Anton' },
-  { value: "'Arvo', serif", label: 'Arvo' },
-  { value: "'Bangers', system-ui", label: 'Bangers' },
-  { value: "'Bebas Neue', sans-serif", label: 'Bebas Neue' },
-  { value: "'Bungee', system-ui", label: 'Bungee' },
-  { value: "'Calibri', sans-serif", label: 'Calibri' },
-  { value: "'Cinzel', serif", label: 'Cinzel' },
-  { value: "'Crimson Text', serif", label: 'Crimson Text' },
-  { value: "'EB Garamond', serif", label: 'EB Garamond' },
-  { value: "'Georgia', serif", label: 'Georgia' },
-  { value: "'Helvetica', sans-serif", label: 'Helvetica' },
-  { value: "'Lato', sans-serif", label: 'Lato' },
-  { value: "'Libre Baskerville', serif", label: 'Libre Baskerville' },
-  { value: "'Merriweather', serif", label: 'Merriweather' },
-  { value: "'Montserrat', sans-serif", label: 'Montserrat' },
-  { value: "'Open Sans', sans-serif", label: 'Open Sans' },
-  { value: "'Oswald', sans-serif", label: 'Oswald' },
-  { value: "'Playfair Display', serif", label: 'Playfair Display' },
-  { value: "'Poppins', sans-serif", label: 'Poppins' },
-  { value: "'Raleway', sans-serif", label: 'Raleway' },
-  { value: "'Roboto', sans-serif", label: 'Roboto' },
-  { value: "'Roboto Slab', serif", label: 'Roboto Slab' },
-  { value: "'Source Sans 3', sans-serif", label: 'Source Sans 3' },
-  { value: "'Staatliches', system-ui", label: 'Staatliches' },
-  { value: "'Times New Roman', serif", label: 'Times New Roman' },
-];
-
+// Libraries hold only the fields that are genuinely per-library:
+// displayName (shown in the tab title + header credit) and
+// brandingImagePath (the logo image on the back cover). Everything
+// else — fonts, layout, extended mode, colors — starts from the
+// Booklister defaults and is per-user, not per-library.
 const DEFAULT_LIBRARY = {
   displayName: '',
   brandingImagePath: '',
-  defaultCoverFont: "'Oswald', sans-serif",
-  defaultBookFont: "'Lato', sans-serif",
-  defaultCoverLayout: 'classic',
-  defaultExtendedMode: false,
 };
 
 // Same Firebase project as the main tool. This config is NOT a secret —
@@ -340,7 +310,6 @@ onAuthStateChanged(auth, async (user) => {
     // Full admin UI: all libraries visible and editable.
     document.body.classList.add('admin-mode-super');
     document.body.classList.remove('admin-mode-library');
-    populateFontSelects();
     showSection('app');
     await loadLibraries();
     return;
@@ -351,7 +320,6 @@ onAuthStateChanged(auth, async (user) => {
     // no library config editing, no other libraries visible.
     document.body.classList.remove('admin-mode-super');
     document.body.classList.add('admin-mode-library');
-    populateFontSelects();
     showSection('app');
     await openLibraryAdminView(currentLibraryAdminLibraryId);
     return;
@@ -378,19 +346,6 @@ let librariesCache = [];
 let editingLibrary = null;
 
 const LIBRARY_ID_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
-
-function populateFontSelects() {
-  for (const id of ['admin-field-cover-font', 'admin-field-book-font']) {
-    const sel = document.getElementById(id);
-    if (!sel || sel.options.length > 0) continue;
-    for (const font of FONTS) {
-      const opt = document.createElement('option');
-      opt.value = font.value;
-      opt.textContent = font.label;
-      sel.appendChild(opt);
-    }
-  }
-}
 
 // Open the library-admin-only view for a specific library. This runs
 // instead of loadLibraries() when the signed-in user is a library
@@ -553,10 +508,6 @@ function openLibraryModal(lib) {
   const typeRadios = document.querySelectorAll('input[name="library-type"]');
   const nameInput = document.getElementById('admin-field-display-name');
   const brandingInput = document.getElementById('admin-field-branding-path');
-  const coverFontSel = document.getElementById('admin-field-cover-font');
-  const bookFontSel = document.getElementById('admin-field-book-font');
-  const layoutSel = document.getElementById('admin-field-layout');
-  const extendedCb = document.getElementById('admin-field-extended');
   const errorEl = document.getElementById('admin-library-form-error');
 
   errorEl.hidden = true;
@@ -580,10 +531,6 @@ function openLibraryModal(lib) {
     const d = lib.data || {};
     nameInput.value = d.displayName || '';
     brandingInput.value = d.brandingImagePath || '';
-    coverFontSel.value = d.defaultCoverFont || DEFAULT_LIBRARY.defaultCoverFont;
-    bookFontSel.value = d.defaultBookFont || DEFAULT_LIBRARY.defaultBookFont;
-    layoutSel.value = d.defaultCoverLayout || DEFAULT_LIBRARY.defaultCoverLayout;
-    extendedCb.checked = !!d.defaultExtendedMode;
   } else {
     // Create mode
     title.textContent = 'Add Library';
@@ -595,10 +542,6 @@ function openLibraryModal(lib) {
     }
     nameInput.value = '';
     brandingInput.value = '';
-    coverFontSel.value = DEFAULT_LIBRARY.defaultCoverFont;
-    bookFontSel.value = DEFAULT_LIBRARY.defaultBookFont;
-    layoutSel.value = DEFAULT_LIBRARY.defaultCoverLayout;
-    extendedCb.checked = DEFAULT_LIBRARY.defaultExtendedMode;
   }
 
   // Memberships section: only visible when editing an existing gated
@@ -636,10 +579,6 @@ async function handleLibraryFormSubmit(evt) {
   const idInput = document.getElementById('admin-field-library-id');
   const nameInput = document.getElementById('admin-field-display-name');
   const brandingInput = document.getElementById('admin-field-branding-path');
-  const coverFontSel = document.getElementById('admin-field-cover-font');
-  const bookFontSel = document.getElementById('admin-field-book-font');
-  const layoutSel = document.getElementById('admin-field-layout');
-  const extendedCb = document.getElementById('admin-field-extended');
   const saveBtn = document.getElementById('admin-library-save-btn');
 
   const libraryId = idInput.value.trim().toLowerCase();
@@ -677,10 +616,6 @@ async function handleLibraryFormSubmit(evt) {
   const data = {
     displayName,
     brandingImagePath,
-    defaultCoverFont: coverFontSel.value,
-    defaultBookFont: bookFontSel.value,
-    defaultCoverLayout: layoutSel.value,
-    defaultExtendedMode: !!extendedCb.checked,
   };
 
   const collectionName = type === 'public' ? 'libraries-public' : 'libraries';

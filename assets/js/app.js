@@ -5890,26 +5890,26 @@ const BooklistApp = (function() {
     _libraryConfigApplied = true;
 
     // Signal to CSS that a library config is in play. Used to scale up
-    // the .header-credit "for <library>" byline to match the logo size,
-    // among other potential future styling differences.
+    // the .header-credit "for <library>" byline to match the logo size.
     document.body.classList.add('has-library-config');
 
-    // 1. Document title
+    // Libraries only own two per-library fields: displayName and
+    // brandingImagePath. Fonts, layout, and extended mode are per-USER
+    // preferences that start from the Booklister defaults — not
+    // per-library — so we don't touch them here.
+
+    // Document title + header credit byline.
     if (config.displayName) {
       document.title = config.displayName + ' Booklister';
-    }
-
-    // 2. Header credit byline
-    if (config.displayName) {
       const credit = document.querySelector('.header-credit');
       if (credit) credit.textContent = 'for ' + config.displayName;
     }
 
-    // 3. Default branding image — only if the user hasn't uploaded one.
-    //    The body class is added unconditionally (even if the user
-    //    already has their own image) so that the "Use Default" button
-    //    becomes available as a fallback when the user clears their
-    //    branding, letting them restore the library default.
+    // Default branding image — only if the user hasn't uploaded one.
+    // The body class is added unconditionally (even if the user already
+    // has their own image) so that the "Use Default" button becomes
+    // available as a fallback when the user clears their branding,
+    // letting them restore the library default.
     if (config.brandingImagePath && elements.brandingUploader) {
       document.body.classList.add('has-library-branding');
       const img = elements.brandingUploader.querySelector('img');
@@ -5919,54 +5919,6 @@ const BooklistApp = (function() {
         elements.brandingUploader.classList.add('has-image');
       }
     }
-
-    // 4. Cover header font — only if still at the HTML data-default value.
-    if (config.defaultCoverFont && elements.coverFontSelect) {
-      const sel = elements.coverFontSelect;
-      const htmlDefault = sel.dataset.default || '';
-      if (!sel.value || sel.value === htmlDefault) {
-        sel.value = config.defaultCoverFont;
-      }
-    }
-
-    // 5. Book-block fonts (title, author, desc) — only if still at default.
-    if (config.defaultBookFont) {
-      document.querySelectorAll(
-        '.export-controls .form-group[data-style-group]:not([data-style-group="qr"]) .font-select'
-      ).forEach(sel => {
-        const htmlDefault = sel.dataset.default || '';
-        if (!sel.value || sel.value === htmlDefault) {
-          sel.value = config.defaultBookFont;
-        }
-      });
-    }
-
-    // 6. Default cover layout.
-    if (config.defaultCoverLayout && elements.collageLayoutSelector) {
-      const selector = elements.collageLayoutSelector;
-      const target = selector.querySelector(
-        '.layout-option[data-layout="' + config.defaultCoverLayout + '"]'
-      );
-      if (target && !target.classList.contains('selected')) {
-        selector.querySelectorAll('.layout-option').forEach(o => o.classList.remove('selected'));
-        target.classList.add('selected');
-        updateTiltedSettingsVisibility();
-      }
-    }
-
-    // 7. Default extended collage mode.
-    if (typeof config.defaultExtendedMode === 'boolean' && elements.extendedCollageToggle) {
-      const toggle = elements.extendedCollageToggle;
-      if (toggle.checked !== config.defaultExtendedMode) {
-        toggle.checked = config.defaultExtendedMode;
-        toggleExtendedCollageMode(config.defaultExtendedMode, true);
-      }
-    }
-
-    // Sync the visible custom font dropdowns and re-apply preview styles.
-    refreshAllCustomFontDropdowns();
-    applyStyles();
-    autoRegenerateCoverIfAble();
 
     // Reveal the tool. An inline script in index.html added this class
     // synchronously at page load to hide everything until a valid config
