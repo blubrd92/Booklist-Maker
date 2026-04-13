@@ -36,6 +36,7 @@
   <main class="content-main">
     <article class="content-article">
       <h1>Privacy</h1>
+      <p class="content-effective-date">Effective April 13, 2026. Last updated April 13, 2026.</p>
 
       <p>Booklister is a free tool for making printable library booklists. It's a side project run by one person, and it collects as little about you as I could get away with while still making the tool work. This page explains what happens with your data.</p>
 
@@ -44,7 +45,7 @@
       <p>If you're using a branded library instance at a subdomain like <strong>sonoma.booklister.org</strong>, you sign in with an email and password, and that sign-in information is stored in Firebase (a Google service). Your actual booklist work still stays in your browser.</p>
 
       <h2>What stays on your device</h2>
-      <p>Booklister autosaves your work in progress — the books you've added, your styling choices, the current state of the tool — to your browser's IndexedDB storage. This never leaves your computer. It's there so you don't lose work if you reload the page.</p>
+      <p>Booklister autosaves your work in progress (the books you've added, your styling choices, the current state of the tool) to your browser's IndexedDB storage. This never leaves your computer. It's there so you don't lose work if you reload the page.</p>
       <p>You can clear it by clicking the Reset button in the tool, by using the delete buttons on individual uploads, or by clearing site data for <code>booklister.org</code> in your browser settings.</p>
       <p>The tool can also save your work as a <code>.booklist</code> file via the Save button. That file is downloaded to your computer; I never see it.</p>
 
@@ -61,7 +62,7 @@
       <p>If you're signing into a branded library instance (like <code>sonoma.booklister.org</code>), here's what ends up in Firebase:</p>
 
       <ul>
-        <li><strong>Your account.</strong> An email address (as the login identifier) and your password. Firebase Authentication handles the password — I never see it in plain text; it's hashed before it's stored.</li>
+        <li><strong>Your account.</strong> An email address (as the login identifier) and your password. Firebase Authentication handles the password, which means I never see it in plain text; it's hashed before it's stored.</li>
         <li><strong>Your membership.</strong> A small record linking your account to the library you have access to, plus whether you're a staff member or a library admin.</li>
         <li><strong>The library's configuration.</strong> The library's display name and the path to its logo image. This is per-library, not per-user.</li>
       </ul>
@@ -69,26 +70,32 @@
       <p>I don't store anything else about you in Firebase. No booklist content, no search history, no usage analytics, no telemetry. The booklist work you do on a branded instance still stays in your browser, same as the public tool.</p>
 
       <h2>Who has access to this data</h2>
-      <p>I'm the only person with administrative access to the Booklister Firebase project. I use that access to create new library instances, to onboard new library staff, and to help diagnose problems when something goes wrong. I don't browse or export data for any other purpose.</p>
-      <p>Library admins at each library (typically one staff member per library) can see the list of UIDs and email addresses for other staff at their library, because they manage the roster. They can't see any other library's data and they can't see your booklist content.</p>
+      <p>Administrative access to the Booklister Firebase project is tightly restricted, currently to me alone as the project's operator. I use that access to create new library instances, to onboard new library staff, and to help diagnose problems when something goes wrong. I don't browse or export user data for any other purpose. If that ever changes, for example if I add a second administrator, I'll update this page to reflect it.</p>
+      <p>Library admins at each library (typically one staff member per library) can see the list of user IDs and email addresses for other staff at their library, because they manage the roster. They can't see any other library's data and they can't see your booklist content.</p>
       <p>Google, as the operator of Firebase, has access to the underlying data the same way any cloud provider does. Their own privacy and security practices apply.</p>
 
       <h2>Cookies and tracking</h2>
-      <p>Booklister doesn't set tracking cookies. Firebase Authentication sets a session cookie and stores a token in your browser's local storage so you stay signed in across page reloads on branded instances. That's the only client-side state related to you as a user. No Google Analytics, no Facebook pixel, no third-party tracking of any kind.</p>
+      <p>Booklister doesn't set tracking cookies, doesn't use analytics, and doesn't build a profile of your activity. Firebase Authentication sets a session cookie and stores a token in your browser's local storage so you stay signed in across page reloads on branded instances. That's the only client-side state related to you as a user. No Google Analytics, no Facebook pixel, no third-party tracking of any kind.</p>
+      <p>Booklister does not embed analytics scripts, advertising pixels, or other tracking technologies that would allow third parties to collect personally identifiable information about your activity across websites or online services over time.</p>
+
+      <h2>Do Not Track</h2>
+      <p>Your browser may send a Do Not Track (DNT) signal when you visit websites. Booklister doesn't do anything special in response to that signal because there's no tracking to disable. Booklister doesn't set tracking cookies, doesn't use analytics, and doesn't build a profile of your activity regardless of whether DNT is set.</p>
 
       <h2>What you can do</h2>
       <ul>
         <li><strong>Stop using the tool.</strong> Nothing happens to your local draft. It stays on your device until you clear it.</li>
+        <li><strong>Review what's on file.</strong> If you have a branded-instance account and want to know exactly what Booklister has stored about you, email me via the <a href="contact.html">Contact</a> page and I'll tell you.</li>
+        <li><strong>Correct information.</strong> If the email or other information associated with your account is wrong, email me from the <a href="contact.html">Contact</a> page and I'll fix it manually.</li>
         <li><strong>Export your work.</strong> Use the Save button in the tool to download a <code>.booklist</code> file of your current session.</li>
-        <li><strong>Delete your account.</strong> If you have a branded-instance account and want it removed, contact me (see the <a href="contact.html">Contact</a> page). I'll delete your Firebase Auth account and any memberships linked to it. This is a manual process — there's no self-service account deletion button in the tool yet.</li>
-        <li><strong>Ask me anything.</strong> If something here is unclear, or you want to know specifically what's on file for a given account, email me from the <a href="contact.html">Contact</a> page.</li>
+        <li><strong>Delete your account.</strong> If you have a branded-instance account and want it removed, email me from the <a href="contact.html">Contact</a> page. I'll delete your Firebase Auth account and any memberships linked to it. This is a manual process; there's no self-service account deletion button in the tool yet.</li>
+        <li><strong>Ask me anything.</strong> If something here is unclear, email me from the <a href="contact.html">Contact</a> page.</li>
       </ul>
 
       <h2>Changes to this page</h2>
-      <p>If I ever need to add another data-collection feature — analytics, error reporting, anything — I'll update this page and note it in the site's Git history. Booklister's code is open on GitHub, so you can audit it directly if you'd rather not take my word for it.</p>
+      <p>If I ever need to add another data-collection feature (analytics, error reporting, anything like that), I'll update this page and revise the "Effective" and "Last updated" dates at the top. Material changes get a visible note on this page for at least one month after the update.</p>
 
       <h2>Applicable law</h2>
-      <p>Booklister is operated by a private individual in the United States. It's a small project, not an institutional service. If you're accessing it from a jurisdiction with specific data protection requirements (EU, California, etc.) and you have concerns about how that applies here, email me and I'll do my best to address them.</p>
+      <p>Booklister is operated by a private individual in the United States. It's a small project, not an institutional service. If you're accessing it from a jurisdiction with specific data protection requirements (EU, California, and others) and you have concerns about how that applies here, email me from the <a href="contact.html">Contact</a> page and I'll do my best to address them.</p>
     </article>
   </main>
 

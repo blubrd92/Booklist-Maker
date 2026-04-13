@@ -211,6 +211,14 @@ body.has-library-config .header-credit {
   line-height: 1.2;
   color: var(--text-color);
 }
+/* Subtitle-style "Effective ... / Last updated ..." line directly under
+   the h1 on pages that need an effective date (privacy.html today). */
+.content-article .content-effective-date {
+  margin: -14px 0 28px;
+  font-size: 0.9rem;
+  color: var(--text-light);
+  font-style: italic;
+}
 .content-article h2 {
   font-size: 1.2rem;
   font-weight: 600;
