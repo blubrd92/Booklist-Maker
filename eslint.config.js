@@ -73,6 +73,28 @@ export default [
     },
   },
   {
+    // ES module files (Firebase integration). These use `import`/`export`
+    // and top-level `await`, so they need sourceType "module". They run only
+    // on branded library instances — the public tool never loads them.
+    files: ["assets/js/firebase-init.js", "assets/js/library-config.js", "assets/js/auth.js"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: {
+        window: "readonly",
+        document: "readonly",
+        console: "readonly",
+        URLSearchParams: "readonly",
+      },
+    },
+    rules: {
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "no-undef": "error",
+      "no-var": "warn",
+      "prefer-const": ["warn", { destructuring: "all" }],
+    },
+  },
+  {
     ignores: ["node_modules/", "eslint.config.js", "vitest.config.js", "tests/"],
   },
 ];
