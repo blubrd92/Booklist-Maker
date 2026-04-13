@@ -642,3 +642,89 @@ code {
   border-left-color: #fb8c00;
   color: var(--admin-text);
 }
+
+/* --- MEMBERSHIPS (embedded in the library edit modal) --- */
+
+.admin-memberships {
+  border-top: 1px solid var(--admin-border);
+  background: #fafbfc;
+  padding-top: 20px;
+}
+
+.admin-memberships h4 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--admin-secondary);
+}
+
+.admin-empty-compact {
+  padding: 16px;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.admin-memberships-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: white;
+  overflow: hidden;
+}
+
+.admin-memberships-list[hidden] {
+  display: none;
+}
+
+.admin-memberships-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-memberships-list li:last-child {
+  border-bottom: none;
+}
+
+.admin-memberships-list .admin-membership-uid {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  color: var(--admin-text);
+  word-break: break-all;
+  flex: 1;
+}
+
+.admin-add-membership {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-add-membership input[type="text"] {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: white;
+  color: var(--admin-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  transition: border-color var(--admin-transition), box-shadow var(--admin-transition);
+}
+
+.admin-add-membership input[type="text"]:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+
+.admin-btn-sm {
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}

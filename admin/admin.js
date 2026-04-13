@@ -28,6 +28,8 @@ import {
   setDoc,
   deleteDoc,
   collection,
+  query,
+  where,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 // Font list copied from the main tool's CONFIG.FONTS. Kept in sync
@@ -416,6 +418,17 @@ function openLibraryModal(lib) {
     accentInput.value = DEFAULT_LIBRARY.accentColor;
   }
 
+  // Memberships section: only visible when editing an existing gated
+  // library. Public libraries don't use memberships, and you can't add
+  // members to a library before its doc exists.
+  const membershipsSection = document.getElementById('admin-memberships-section');
+  if (lib && lib.type === 'gated') {
+    membershipsSection.hidden = false;
+    loadMemberships(lib.id);
+  } else {
+    membershipsSection.hidden = true;
+  }
+
   modal.hidden = false;
   // Focus the first editable field
   (lib ? nameInput : idInput).focus();
@@ -424,6 +437,8 @@ function openLibraryModal(lib) {
 function closeLibraryModal() {
   document.getElementById('admin-library-modal').hidden = true;
   editingLibrary = null;
+  // Hide memberships section so it doesn't flash when opening create mode next
+  document.getElementById('admin-memberships-section').hidden = true;
 }
 
 function showLibraryFormError(msg) {
@@ -574,3 +589,124 @@ document.addEventListener('keydown', (e) => {
     if (!document.getElementById('admin-delete-modal').hidden) closeDeleteModal();
   }
 });
+
+// ---------------------------------------------------------------------------
+// Memberships (embedded in the gated-library edit modal)
+// ---------------------------------------------------------------------------
+
+// Firebase Auth UIDs are 28 characters of [A-Za-z0-9], though the spec
+// technically allows any printable characters up to 128 chars. Be
+// lenient: accept anything non-empty that isn't obviously garbage.
+// Reject whitespace since that's almost always a copy-paste mistake.
+const UID_RE = /^[A-Za-z0-9]{20,128}$/;
+
+async function loadMemberships(libraryId) {
+  const loadingEl = document.getElementById('admin-memberships-loading');
+  const errorEl = document.getElementById('admin-memberships-error');
+  const emptyEl = document.getElementById('admin-memberships-empty');
+  const listEl = document.getElementById('admin-memberships-list');
+
+  loadingEl.hidden = false;
+  errorEl.hidden = true;
+  emptyEl.hidden = true;
+  listEl.hidden = true;
+  listEl.innerHTML = '';
+
+  try {
+    const q = query(collection(db, 'memberships'), where('libraryId', '==', libraryId));
+    const snap = await getDocs(q);
+    loadingEl.hidden = true;
+
+    if (snap.empty) {
+      emptyEl.hidden = false;
+      return;
+    }
+
+    snap.forEach((docSnap) => {
+      const li = document.createElement('li');
+
+      const uidSpan = document.createElement('span');
+      uidSpan.className = 'admin-membership-uid';
+      uidSpan.textContent = docSnap.id;
+      li.appendChild(uidSpan);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'admin-row-btn admin-row-btn-danger';
+      removeBtn.type = 'button';
+      removeBtn.innerHTML = '<i class="fa-solid fa-user-minus" aria-hidden="true"></i> Remove';
+      removeBtn.addEventListener('click', () => removeMembership(docSnap.id, libraryId));
+      li.appendChild(removeBtn);
+
+      listEl.appendChild(li);
+    });
+    listEl.hidden = false;
+  } catch (err) {
+    console.warn('[admin] loadMemberships failed:', err);
+    loadingEl.hidden = true;
+    errorEl.textContent = 'Failed to load memberships: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+  }
+}
+
+async function handleAddMembership(evt) {
+  evt.preventDefault();
+  if (!editingLibrary) return; // Shouldn't happen — the form is only visible in edit mode
+
+  const uidInput = document.getElementById('admin-add-membership-uid');
+  const errorEl = document.getElementById('admin-add-membership-error');
+  const uid = uidInput.value.trim();
+
+  errorEl.hidden = true;
+  errorEl.textContent = '';
+
+  if (!uid) {
+    errorEl.textContent = 'Paste a Firebase Auth UID.';
+    errorEl.hidden = false;
+    return;
+  }
+  if (!UID_RE.test(uid)) {
+    errorEl.textContent = 'That doesn\'t look like a valid UID. Firebase Auth UIDs are 20+ alphanumeric characters.';
+    errorEl.hidden = false;
+    return;
+  }
+
+  // Check if a membership for this UID already exists (in any library).
+  // If yes, either they're already in this library (noop) or they're in
+  // a different one (conflict — single-library-per-user policy).
+  try {
+    const existing = await getDoc(doc(db, 'memberships', uid));
+    if (existing.exists()) {
+      const existingLib = existing.data().libraryId;
+      if (existingLib === editingLibrary.id) {
+        errorEl.textContent = 'That user already has access to this library.';
+      } else {
+        errorEl.textContent = 'That user already has a membership for "' + existingLib +
+          '". Remove it from that library first, or use a different account.';
+      }
+      errorEl.hidden = false;
+      return;
+    }
+
+    await setDoc(doc(db, 'memberships', uid), { libraryId: editingLibrary.id });
+    uidInput.value = '';
+    await loadMemberships(editingLibrary.id);
+  } catch (err) {
+    console.warn('[admin] add membership failed:', err);
+    errorEl.textContent = 'Failed to add membership: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+  }
+}
+
+async function removeMembership(uid, libraryId) {
+  try {
+    await deleteDoc(doc(db, 'memberships', uid));
+    await loadMemberships(libraryId);
+  } catch (err) {
+    console.warn('[admin] remove membership failed:', err);
+    const errorEl = document.getElementById('admin-memberships-error');
+    errorEl.textContent = 'Failed to remove membership: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+  }
+}
+
+document.getElementById('admin-add-membership-form').addEventListener('submit', handleAddMembership);

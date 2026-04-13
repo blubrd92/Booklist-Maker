@@ -172,6 +172,34 @@
         <p id="admin-library-form-error" class="admin-error" hidden></p>
       </form>
 
+      <!-- Memberships section — only shown for gated libraries in edit
+           mode. Public libraries don't need memberships (any visitor can
+           read them), and you can't add members to a library until its
+           doc exists, so this is hidden in create mode. -->
+      <div id="admin-memberships-section" class="admin-modal-body admin-memberships" hidden>
+        <h4>Staff with access</h4>
+        <p class="admin-field-hint">
+          Each user needs a Firebase Auth account and a <code>memberships/&lt;uid&gt;</code>
+          document pointing at this library. Create the auth user in the
+          Firebase console first, then paste their UID here.
+        </p>
+
+        <div id="admin-memberships-loading" class="admin-loading-text">Loading memberships…</div>
+        <div id="admin-memberships-error" class="admin-error" hidden></div>
+        <div id="admin-memberships-empty" class="admin-empty admin-empty-compact" hidden>
+          No staff yet. Add a UID below to grant access.
+        </div>
+        <ul id="admin-memberships-list" class="admin-memberships-list" hidden></ul>
+
+        <form id="admin-add-membership-form" class="admin-add-membership">
+          <input type="text" id="admin-add-membership-uid" placeholder="Firebase Auth UID" autocomplete="off" spellcheck="false">
+          <button type="submit" class="admin-btn-primary admin-btn-sm">
+            <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Add
+          </button>
+        </form>
+        <p id="admin-add-membership-error" class="admin-error" hidden></p>
+      </div>
+
       <div class="admin-modal-footer">
         <button type="button" class="admin-btn-secondary" id="admin-library-cancel-btn">Cancel</button>
         <button type="submit" class="admin-btn-primary" id="admin-library-save-btn" form="admin-library-form">Save</button>
