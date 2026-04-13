@@ -16,6 +16,25 @@
   <meta name="twitter:description" content="A free browser tool for making printable booklists for library displays. Built by a Bay Area librarian.">
   <title>Booklister</title>
 
+  <!-- Synchronous branded-host detection. Runs before any CSS or scripts
+       load so that the .awaiting-library-config class is on <html>
+       BEFORE the first paint, preventing a flash of the unbranded tool
+       on gated library subdomains. Mirrors firebase-init.js's host-
+       detection logic. The class is removed by applyLibraryConfig in
+       app.js once the library config has loaded and been applied. -->
+  <script>
+    (function() {
+      var PUBLIC_HOSTS = ['booklister.org', 'www.booklister.org', 'blubrd92.github.io', 'localhost', '127.0.0.1'];
+      var h = window.location.hostname;
+      var isLocal = h === 'localhost' || h === '127.0.0.1';
+      var hasOverride = isLocal && /[?&]library=/.test(window.location.search);
+      var isPublic = PUBLIC_HOSTS.indexOf(h) !== -1;
+      if (!isPublic || hasOverride) {
+        document.documentElement.classList.add('awaiting-library-config');
+      }
+    })();
+  </script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -48,9 +67,6 @@
         <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklister
       </div>
       <span class="header-credit">Designed by Javier Morales</span>
-      <button id="auth-signout-button" title="Sign out" aria-label="Sign out of library instance" hidden>
-        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-      </button>
     </div>
 
     <div class="header-actions">
@@ -66,6 +82,9 @@
       </button>
       <button id="export-pdf-button" class="btn btn-header-primary" title="Generate PDF" aria-label="Generate PDF of booklist">
         <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Generate PDF
+      </button>
+      <button id="auth-signout-button" title="Sign out" aria-label="Sign out of library instance" hidden>
+        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
       </button>
       <input type="file" id="load-list-input" accept=".booklist,.json,application/json" style="display: none;" aria-hidden="true" />
     </div>

@@ -37,6 +37,26 @@ html {
   overflow: hidden;
 }
 
+/* Branded-instance auth gate. An inline script in index.html adds
+   .awaiting-library-config to <html> synchronously at page load for
+   any non-public host (or localhost with ?library= override). While
+   that class is set, the entire body is visibility: hidden so the
+   tool never renders before the user is authenticated / the config
+   has loaded. #auth-modal is exempted so the login modal can appear
+   on the dark backdrop while the tool behind it stays invisible.
+   app.js's applyLibraryConfig removes the class as its final step,
+   at which point the body becomes visible with the branded state
+   already applied — no flash of the unbranded tool. */
+html.awaiting-library-config {
+  background: var(--secondary-color);
+}
+html.awaiting-library-config body {
+  visibility: hidden;
+}
+html.awaiting-library-config #auth-modal {
+  visibility: visible;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg-color);
@@ -294,7 +314,13 @@ body.content-page .site-footer {
 /* Header Action Buttons */
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+/* Extra spacing before the sign-out button so it's visibly separated
+   from the Generate PDF button and isn't reached for by accident. */
+.header-actions #auth-signout-button {
+  margin-left: 24px;
 }
 .btn-header {
   background-color: rgba(255,255,255,0.1);

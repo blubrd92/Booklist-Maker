@@ -5967,6 +5967,14 @@ const BooklistApp = (function() {
     refreshAllCustomFontDropdowns();
     applyStyles();
     autoRegenerateCoverIfAble();
+
+    // Reveal the tool. An inline script in index.html added this class
+    // synchronously at page load to hide everything until a valid config
+    // was available, preventing a flash of the unbranded tool on gated
+    // subdomains. Removing it now (at the end of applyLibraryConfig)
+    // means the body becomes visible with the branded state already in
+    // place.
+    document.documentElement.classList.remove('awaiting-library-config');
   }
 
   function _onLibraryConfigReady(evt) {
