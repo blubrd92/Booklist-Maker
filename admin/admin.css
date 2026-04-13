@@ -828,13 +828,35 @@ code {
   min-width: 0;
 }
 
-.admin-memberships-list .admin-membership-uid {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.8rem;
-  color: var(--admin-text);
-  word-break: break-all;
+/* Identity block within a membership row: email prominent on top,
+   UID muted below. If the doc has no email (legacy invites or manual
+   Firestore creation), the UID is promoted via the
+   .admin-membership-uid-primary modifier. */
+.admin-membership-ident {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   flex: 1;
   min-width: 0;
+}
+
+.admin-membership-email {
+  font-size: 0.88rem;
+  color: var(--admin-text);
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.admin-memberships-list .admin-membership-uid {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--admin-text-muted);
+  word-break: break-all;
+}
+
+.admin-memberships-list .admin-membership-uid-primary {
+  font-size: 0.8rem;
+  color: var(--admin-text);
 }
 
 .admin-membership-actions {

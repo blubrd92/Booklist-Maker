@@ -806,8 +806,8 @@ async function loadMemberships(libraryId) {
       return;
     }
 
-    // Sort: admins first, then staff, alphabetically by UID within each
-    // group. Makes it visually obvious who the library admins are.
+    // Sort: admins first, then staff. Within each group, sort
+    // alphabetically by the display label (email if known, else UID).
     const rows = [];
     snap.forEach((docSnap) => {
       rows.push({ uid: docSnap.id, data: docSnap.data() || {} });
@@ -816,7 +816,9 @@ async function loadMemberships(libraryId) {
       const aIsAdmin = a.data.role === 'admin';
       const bIsAdmin = b.data.role === 'admin';
       if (aIsAdmin !== bIsAdmin) return aIsAdmin ? -1 : 1;
-      return a.uid.localeCompare(b.uid);
+      const aLabel = (a.data.email || a.uid).toLowerCase();
+      const bLabel = (b.data.email || b.uid).toLowerCase();
+      return aLabel.localeCompare(bLabel);
     });
 
     const currentUid = auth.currentUser ? auth.currentUser.uid : null;
@@ -826,15 +828,33 @@ async function loadMemberships(libraryId) {
       const isAdminRow = row.data.role === 'admin';
       const isSelf = row.uid === currentUid;
 
-      // Left side: UID + role badge (+ "you" indicator if it's the
-      // current user — helps library admins see their own row)
+      // Left side: identity block (email + UID) + role badge + "you"
+      // indicator if it's the current user.
       const leftWrap = document.createElement('div');
       leftWrap.className = 'admin-membership-left';
 
+      const identWrap = document.createElement('div');
+      identWrap.className = 'admin-membership-ident';
+
+      if (row.data.email) {
+        const emailSpan = document.createElement('span');
+        emailSpan.className = 'admin-membership-email';
+        emailSpan.textContent = row.data.email;
+        identWrap.appendChild(emailSpan);
+      }
+
       const uidSpan = document.createElement('span');
       uidSpan.className = 'admin-membership-uid';
+      // If no email on this doc (legacy invite or manual Firestore
+      // creation), make the UID the prominent label instead of a
+      // secondary line.
+      if (!row.data.email) {
+        uidSpan.classList.add('admin-membership-uid-primary');
+      }
       uidSpan.textContent = row.uid;
-      leftWrap.appendChild(uidSpan);
+      identWrap.appendChild(uidSpan);
+
+      leftWrap.appendChild(identWrap);
 
       const roleBadge = document.createElement('span');
       roleBadge.className = 'admin-role-badge admin-role-badge-' + (isAdminRow ? 'admin' : 'staff');
@@ -980,15 +1000,19 @@ async function handleAddMembership(evt) {
 
     // Step 2: create the memberships/<uid> doc pointing at this library.
     // New invites always land as role="staff". Promoting to admin is a
-    // separate explicit action available only to super-admins.
-    // If this fails, the auth user is created but has no membership — the
-    // admin can't clean that up from this UI (no Admin SDK), so they'd
-    // have to delete the auth user from the Firebase Auth console. We
-    // surface this clearly in the error message.
+    // separate explicit action available only to super-admins. The
+    // email is cached in the doc as a display label for the staff list
+    // — the client SDK can't look it up by UID later, so we stash it
+    // now while we know it.
+    // If this fails, the auth user is created but has no membership —
+    // the admin can't clean that up from this UI (no Admin SDK), so
+    // they'd have to delete the auth user from the Firebase Auth console.
+    // We surface this clearly in the error message.
     try {
       await setDoc(doc(db, 'memberships', newUid), {
         libraryId: editingLibrary.id,
         role: 'staff',
+        email: email,
       });
     } catch (err) {
       console.warn('[admin] memberships setDoc failed after auth user creation:', err);

@@ -30,6 +30,13 @@ rules_version = '2';
 //    library. Each doc has:
 //      - libraryId  (string, required)
 //      - role       (string "staff" or "admin", optional, default "staff")
+//      - email      (string, optional) — the user's email address at
+//        invite time, cached here purely as a display label for the
+//        admin console's staff list. Client SDK can't look up another
+//        user's email by UID, so we store it alongside the membership
+//        at the moment the admin knows it (the invite form). If the
+//        user later changes their email in Firebase Auth, this copy
+//        goes stale — acceptable tradeoff for this project's scale.
 //
 //    - Users can read their own membership doc.
 //    - Super-admins can read any membership.
@@ -78,12 +85,13 @@ service cloud.firestore {
              && get(/databases/$(database)/documents/memberships/$(request.auth.uid)).data.get('role', 'staff') == 'admin';
     }
 
-    // Schema validation for memberships docs. Limits keys to libraryId
-    // and optional role, and constrains role to "staff" or "admin".
+    // Schema validation for memberships docs. Limits keys to libraryId,
+    // optional role (staff or admin), and optional email (a cached
+    // display label; the real source of truth is Firebase Auth).
     function validMembershipFields(data) {
       return data.libraryId is string
              && data.libraryId.size() > 0
-             && data.keys().hasOnly(['libraryId', 'role'])
+             && data.keys().hasOnly(['libraryId', 'role', 'email'])
              && data.get('role', 'staff') in ['staff', 'admin'];
     }
 
