@@ -164,7 +164,7 @@
         },
         {
           target: '#inside-left-panel .list-item:first-child .magic-button',
-          text: "The magic wand fetches a description for you. If a slot is missing a blurb, one click fills it in. You can also edit what it gives you or write your own from scratch.",
+          text: "The magic wand drafts a short reader's advisory description using AI. That's a paid-instance feature, so on the free public tool here, clicking it just tells you so. Either way, you can always edit the description or write your own from scratch.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-2');

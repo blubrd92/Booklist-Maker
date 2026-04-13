@@ -1105,7 +1105,14 @@ const BooklistApp = (function() {
         
         renderBooklist();
         debouncedSave();
-        getAiDescription(newBook.key);
+        // Auto-fetch an AI description on book-add, but only on
+        // branded library instances — AI calls cost money and the
+        // Magic button is a paid-only feature. Public-tool users
+        // still get whatever description Open Library returned in
+        // the search result, just not an AI-regenerated one.
+        if (window.LIBRARY_CONFIG) {
+          getAiDescription(newBook.key);
+        }
         
         // Folio: check if all slots are now filled
         if (window.folio) {
@@ -1500,6 +1507,18 @@ const BooklistApp = (function() {
   }
 
   function handleMagicButtonClick(bookItem) {
+    // AI description drafting is a paid feature. On the public tool
+    // (or any instance without a library config loaded) the button
+    // shows a notice and bails instead of calling the Google Apps
+    // Script. The call itself costs real money per use, so public
+    // users can't trigger it.
+    if (!window.LIBRARY_CONFIG) {
+      showNotification(
+        'AI description drafting is available on paid library instances only.',
+        'info'
+      );
+      return;
+    }
     pushUndo('ai-description');
     const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
     
