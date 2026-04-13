@@ -57,6 +57,24 @@ if (auth) {
     const forgotLink = modalEl.querySelector('#auth-forgot-link');
     const errorEl = modalEl.querySelector('#auth-error');
     const resetOkEl = modalEl.querySelector('#auth-reset-confirm');
+    const passwordToggle = modalEl.querySelector('#auth-password-toggle');
+
+    // Password visibility toggle. Flips the input between type="password"
+    // and type="text" and swaps the Font Awesome eye icon accordingly.
+    if (passwordToggle) {
+      passwordToggle.addEventListener('click', () => {
+        const isHidden = passwordInput.type === 'password';
+        passwordInput.type = isHidden ? 'text' : 'password';
+        passwordToggle.setAttribute('aria-pressed', String(isHidden));
+        passwordToggle.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+        const icon = passwordToggle.querySelector('i');
+        if (icon) {
+          icon.classList.toggle('fa-eye', !isHidden);
+          icon.classList.toggle('fa-eye-slash', isHidden);
+        }
+        passwordInput.focus();
+      });
+    }
 
     function showError(msg) {
       errorEl.textContent = msg;

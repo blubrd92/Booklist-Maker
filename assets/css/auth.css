@@ -66,7 +66,8 @@
 }
 
 #auth-modal input[type="email"],
-#auth-modal input[type="password"] {
+#auth-modal input[type="password"],
+#auth-modal #auth-password-input {
   width: 100%;
   padding: 10px 12px;
   font-size: 0.95rem;
@@ -78,10 +79,53 @@
 }
 
 #auth-modal input[type="email"]:focus,
-#auth-modal input[type="password"]:focus {
+#auth-modal input[type="password"]:focus,
+#auth-modal #auth-password-input:focus {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+
+/* Password visibility toggle: an eye icon button positioned inside the
+   password input. The input reserves padding-right so text doesn't run
+   under the button. Rule selector uses the ID (not [type="password"])
+   so it still applies when the input type is flipped to "text". */
+#auth-modal .auth-password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+#auth-modal #auth-password-input {
+  padding-right: 42px;
+}
+
+#auth-modal .auth-password-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+#auth-modal .auth-password-toggle:hover {
+  color: var(--primary-color);
+  background: var(--primary-light);
+}
+
+#auth-modal .auth-password-toggle:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
 #auth-signin-submit {

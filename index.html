@@ -48,13 +48,13 @@
         <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklister
       </div>
       <span class="header-credit">Designed by Javier Morales</span>
+      <button id="auth-signout-button" title="Sign out" aria-label="Sign out of library instance" hidden>
+        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+      </button>
     </div>
 
     <div class="header-actions">
       <button id="tour-button" title="Take a guided tour" aria-label="Open guided tour">?</button>
-      <button id="auth-signout-button" title="Sign out" aria-label="Sign out of library instance" hidden>
-        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-      </button>
       <button id="load-list-button" class="btn btn-header" title="Load Saved List" aria-label="Load saved booklist file">
         <i class="fa-solid fa-upload" aria-hidden="true"></i> Load
       </button>
@@ -817,7 +817,12 @@
         </div>
         <div class="auth-field">
           <label for="auth-password-input">Password</label>
-          <input id="auth-password-input" type="password" autocomplete="current-password" required>
+          <div class="auth-password-wrap">
+            <input id="auth-password-input" type="password" autocomplete="current-password" required>
+            <button type="button" id="auth-password-toggle" class="auth-password-toggle" aria-label="Show password" aria-pressed="false" tabindex="0">
+              <i class="fa-solid fa-eye" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
         <div id="auth-error" role="alert" aria-live="polite" hidden></div>
         <div id="auth-reset-confirm" role="status" aria-live="polite" hidden></div>
