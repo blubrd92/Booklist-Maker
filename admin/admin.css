@@ -168,6 +168,105 @@ html, body {
   font-size: 1.1rem;
 }
 
+/* --- EMAIL SIGN-IN (for library admins) --- */
+
+.admin-signin-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0 16px;
+  color: var(--admin-text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-signin-divider::before,
+.admin-signin-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--admin-border);
+}
+
+.admin-email-signin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+}
+
+.admin-email-signin-form .admin-field {
+  margin-bottom: 0;
+}
+
+.admin-email-signin-form input[type="email"],
+.admin-email-signin-form input[type="password"],
+.admin-email-signin-form #admin-email-signin-password {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: white;
+  color: var(--admin-text);
+  transition: border-color var(--admin-transition), box-shadow var(--admin-transition);
+  font-family: inherit;
+}
+
+.admin-email-signin-form input[type="email"]:focus,
+.admin-email-signin-form input[type="password"]:focus,
+.admin-email-signin-form #admin-email-signin-password:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+
+/* Password visibility toggle — mirrors the pattern from assets/css/auth.css
+   but scoped to the admin console. */
+.admin-email-signin-form .auth-password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.admin-email-signin-form #admin-email-signin-password {
+  padding-right: 42px;
+}
+
+.admin-email-signin-form .auth-password-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--admin-text-light);
+  cursor: pointer;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--admin-radius);
+  font-size: 0.95rem;
+  transition: color var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-email-signin-form .auth-password-toggle:hover {
+  color: var(--admin-primary);
+  background: var(--admin-primary-light);
+}
+
+.admin-email-signin-form .auth-password-toggle:focus {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 2px;
+}
+
+#admin-email-signin-submit {
+  margin-top: 4px;
+  align-self: flex-start;
+}
+
 /* --- ACCESS DENIED --- */
 
 #admin-denied-email {
@@ -691,12 +790,56 @@ code {
   border-bottom: none;
 }
 
+.admin-membership-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
 .admin-memberships-list .admin-membership-uid {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.8rem;
   color: var(--admin-text);
   word-break: break-all;
   flex: 1;
+  min-width: 0;
+}
+
+.admin-membership-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Role badges on membership rows. Small pill-shaped labels next to
+   the UID that make admin vs staff visually obvious at a glance. */
+.admin-role-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+
+.admin-role-badge-admin {
+  background: rgba(92, 107, 192, 0.15);
+  color: var(--admin-primary-hover);
+}
+
+.admin-role-badge-staff {
+  background: var(--admin-bg);
+  color: var(--admin-text-light);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-role-badge-you {
+  background: rgba(251, 140, 0, 0.12);
+  color: #e65100;
 }
 
 .admin-add-membership {
@@ -735,4 +878,35 @@ code {
   border-left-color: var(--admin-success);
   color: var(--admin-text);
   font-size: 0.85rem;
+}
+
+/* --- LIBRARY-ADMIN RESTRICTED VIEW --- */
+/* Applied when body has .admin-mode-library: hides the all-libraries
+   list UI and the library config edit fields inside the modal, leaving
+   only the memberships management section. */
+
+body.admin-mode-library .admin-app-header #admin-add-library-btn,
+body.admin-mode-library #admin-libraries-table,
+body.admin-mode-library #admin-libraries-empty,
+body.admin-mode-library #admin-libraries-loading {
+  display: none !important;
+}
+
+body.admin-mode-library #admin-app > h2 {
+  display: none; /* The modal title provides context instead */
+}
+
+/* Inside the library modal: hide the config form and footer, and the
+   close button. The memberships section stays. The modal effectively
+   becomes the library admin's whole UI. */
+body.admin-mode-library #admin-library-modal #admin-library-form,
+body.admin-mode-library #admin-library-modal .admin-modal-footer,
+body.admin-mode-library #admin-library-modal .admin-modal-close {
+  display: none !important;
+}
+
+/* The modal body no longer scrolls as its primary content — make it
+   feel more like a panel than a popup. */
+body.admin-mode-library #admin-library-modal .admin-modal {
+  max-width: 560px;
 }

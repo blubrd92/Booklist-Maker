@@ -15,6 +15,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   setPersistence,
@@ -28,6 +29,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  updateDoc,
   deleteDoc,
   collection,
   query,
@@ -238,6 +240,72 @@ document.getElementById('google-signin-btn').addEventListener('click', async () 
     showSignInError('Sign-in failed: ' + (err.message || err.code || 'unknown error'));
   }
 });
+
+// Email/password sign-in (for library admins). Library staff use this
+// with their existing library credentials — the same ones they'd use
+// on <library>.booklister.org. After sign-in, resolveUserRole checks
+// their memberships doc and either lands them on the library-admin
+// view or the access-denied screen.
+document.getElementById('admin-email-signin-form').addEventListener('submit', async (evt) => {
+  evt.preventDefault();
+  clearSignInError();
+  const emailInput = document.getElementById('admin-email-signin-email');
+  const passwordInput = document.getElementById('admin-email-signin-password');
+  const submitBtn = document.getElementById('admin-email-signin-submit');
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  if (!email || !password) {
+    showSignInError('Enter your email and password.');
+    return;
+  }
+  submitBtn.disabled = true;
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = 'Signing in…';
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    passwordInput.value = '';
+  } catch (err) {
+    console.warn('[admin] email sign-in failed:', err);
+    const code = err && err.code;
+    if (
+      code === 'auth/wrong-password' ||
+      code === 'auth/user-not-found' ||
+      code === 'auth/invalid-credential' ||
+      code === 'auth/invalid-email'
+    ) {
+      showSignInError('Incorrect email or password.');
+    } else if (code === 'auth/too-many-requests') {
+      showSignInError('Too many attempts. Try again later.');
+    } else if (code === 'auth/network-request-failed') {
+      showSignInError('Network error. Check your connection and try again.');
+    } else {
+      showSignInError('Sign-in failed: ' + (err.message || code || 'unknown error'));
+    }
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+  }
+});
+
+// Password visibility toggle on the email sign-in form — same pattern
+// as the main tool's library sign-in modal.
+(function wireSigninPasswordToggle() {
+  const toggle = document.getElementById('admin-email-signin-password-toggle');
+  const input = document.getElementById('admin-email-signin-password');
+  if (!toggle || !input) return;
+  toggle.addEventListener('click', () => {
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    toggle.setAttribute('aria-pressed', String(isHidden));
+    toggle.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+    const icon = toggle.querySelector('i');
+    if (icon) {
+      icon.classList.toggle('fa-eye', !isHidden);
+      icon.classList.toggle('fa-eye-slash', isHidden);
+    }
+    input.focus();
+  });
+})();
 
 async function handleSignOut() {
   try {
@@ -500,7 +568,13 @@ function openLibraryModal(lib) {
 
   if (lib) {
     // Edit mode
-    title.textContent = 'Edit Library: ' + lib.id;
+    if (currentUserRole === 'library-admin') {
+      // Library admins see a friendlier title — they don't need to
+      // think about the library ID, they just care about their library.
+      title.textContent = 'Staff at ' + (lib.data.displayName || lib.id);
+    } else {
+      title.textContent = 'Edit Library: ' + lib.id;
+    }
     idInput.value = lib.id;
     idInput.disabled = true; // ID is immutable
     for (const r of typeRadios) {
@@ -690,19 +764,28 @@ document.getElementById('admin-library-form').addEventListener('submit', handleL
 document.getElementById('admin-delete-cancel-btn').addEventListener('click', closeDeleteModal);
 document.getElementById('admin-delete-confirm-btn').addEventListener('click', handleDeleteConfirm);
 
-// Close modal on Escape or click outside
+// Close modal on Escape or click outside — but only for super-admins.
+// Library admins can't dismiss the library modal because it IS their
+// entire admin UI; dismissing it would leave them staring at a blank
+// page. To exit, they sign out via the header button.
 for (const modalId of ['admin-library-modal', 'admin-delete-modal']) {
   const overlay = document.getElementById(modalId);
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
-      if (modalId === 'admin-library-modal') closeLibraryModal();
-      else closeDeleteModal();
+      if (modalId === 'admin-library-modal') {
+        if (currentUserRole === 'library-admin') return;
+        closeLibraryModal();
+      } else {
+        closeDeleteModal();
+      }
     }
   });
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (!document.getElementById('admin-library-modal').hidden) closeLibraryModal();
+    if (!document.getElementById('admin-library-modal').hidden) {
+      if (currentUserRole !== 'library-admin') closeLibraryModal();
+    }
     if (!document.getElementById('admin-delete-modal').hidden) closeDeleteModal();
   }
 });
@@ -779,23 +862,103 @@ async function loadMemberships(libraryId) {
       return;
     }
 
+    // Sort: admins first, then staff, alphabetically by UID within each
+    // group. Makes it visually obvious who the library admins are.
+    const rows = [];
     snap.forEach((docSnap) => {
+      rows.push({ uid: docSnap.id, data: docSnap.data() || {} });
+    });
+    rows.sort((a, b) => {
+      const aIsAdmin = a.data.role === 'admin';
+      const bIsAdmin = b.data.role === 'admin';
+      if (aIsAdmin !== bIsAdmin) return aIsAdmin ? -1 : 1;
+      return a.uid.localeCompare(b.uid);
+    });
+
+    const currentUid = auth.currentUser ? auth.currentUser.uid : null;
+
+    for (const row of rows) {
       const li = document.createElement('li');
+      const isAdminRow = row.data.role === 'admin';
+      const isSelf = row.uid === currentUid;
+
+      // Left side: UID + role badge (+ "you" indicator if it's the
+      // current user — helps library admins see their own row)
+      const leftWrap = document.createElement('div');
+      leftWrap.className = 'admin-membership-left';
 
       const uidSpan = document.createElement('span');
       uidSpan.className = 'admin-membership-uid';
-      uidSpan.textContent = docSnap.id;
-      li.appendChild(uidSpan);
+      uidSpan.textContent = row.uid;
+      leftWrap.appendChild(uidSpan);
 
-      const removeBtn = document.createElement('button');
-      removeBtn.className = 'admin-row-btn admin-row-btn-danger';
-      removeBtn.type = 'button';
-      removeBtn.innerHTML = '<i class="fa-solid fa-user-minus" aria-hidden="true"></i> Remove';
-      removeBtn.addEventListener('click', () => removeMembership(docSnap.id, libraryId));
-      li.appendChild(removeBtn);
+      const roleBadge = document.createElement('span');
+      roleBadge.className = 'admin-role-badge admin-role-badge-' + (isAdminRow ? 'admin' : 'staff');
+      roleBadge.textContent = isAdminRow ? 'Admin' : 'Staff';
+      leftWrap.appendChild(roleBadge);
 
+      if (isSelf) {
+        const youBadge = document.createElement('span');
+        youBadge.className = 'admin-role-badge admin-role-badge-you';
+        youBadge.textContent = 'You';
+        leftWrap.appendChild(youBadge);
+      }
+
+      li.appendChild(leftWrap);
+
+      // Right side: action buttons. What's visible depends on WHO is
+      // looking and WHAT row this is.
+      const actionsWrap = document.createElement('div');
+      actionsWrap.className = 'admin-membership-actions';
+
+      // Promote / Demote button — super-admin only.
+      if (currentUserRole === 'super-admin' && !isSelf) {
+        if (!isAdminRow) {
+          // Staff row: offer Promote
+          const promoteBtn = document.createElement('button');
+          promoteBtn.className = 'admin-row-btn';
+          promoteBtn.type = 'button';
+          promoteBtn.innerHTML = '<i class="fa-solid fa-user-shield" aria-hidden="true"></i> Promote';
+          promoteBtn.title = 'Promote this user to library admin';
+          promoteBtn.addEventListener('click', () => promoteToAdmin(row.uid, libraryId));
+          actionsWrap.appendChild(promoteBtn);
+        } else {
+          // Admin row: offer Demote
+          const demoteBtn = document.createElement('button');
+          demoteBtn.className = 'admin-row-btn';
+          demoteBtn.type = 'button';
+          demoteBtn.innerHTML = '<i class="fa-solid fa-user-minus" aria-hidden="true"></i> Demote';
+          demoteBtn.title = 'Demote this library admin back to staff';
+          demoteBtn.addEventListener('click', () => demoteToStaff(row.uid, libraryId));
+          actionsWrap.appendChild(demoteBtn);
+        }
+      }
+
+      // Remove button — visibility rules:
+      //   - Super-admin: can remove any row EXCEPT their own (they
+      //     shouldn't accidentally sign themselves out, and they're
+      //     a super-admin anyway so this row would only be for
+      //     bookkeeping).
+      //   - Library admin: can remove STAFF rows in their library only.
+      //     Cannot remove themselves, cannot remove other admins.
+      //   - Anyone else: wouldn't be here.
+      const canRemove =
+        !isSelf &&
+        (currentUserRole === 'super-admin'
+          || (currentUserRole === 'library-admin' && !isAdminRow));
+
+      if (canRemove) {
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'admin-row-btn admin-row-btn-danger';
+        removeBtn.type = 'button';
+        removeBtn.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i> Remove';
+        removeBtn.addEventListener('click', () => removeMembership(row.uid, libraryId));
+        actionsWrap.appendChild(removeBtn);
+      }
+
+      li.appendChild(actionsWrap);
       listEl.appendChild(li);
-    });
+    }
     listEl.hidden = false;
   } catch (err) {
     console.warn('[admin] loadMemberships failed:', err);
@@ -872,12 +1035,17 @@ async function handleAddMembership(evt) {
     }
 
     // Step 2: create the memberships/<uid> doc pointing at this library.
+    // New invites always land as role="staff". Promoting to admin is a
+    // separate explicit action available only to super-admins.
     // If this fails, the auth user is created but has no membership — the
     // admin can't clean that up from this UI (no Admin SDK), so they'd
     // have to delete the auth user from the Firebase Auth console. We
     // surface this clearly in the error message.
     try {
-      await setDoc(doc(db, 'memberships', newUid), { libraryId: editingLibrary.id });
+      await setDoc(doc(db, 'memberships', newUid), {
+        libraryId: editingLibrary.id,
+        role: 'staff',
+      });
     } catch (err) {
       console.warn('[admin] memberships setDoc failed after auth user creation:', err);
       errorEl.textContent =
@@ -933,6 +1101,37 @@ async function removeMembership(uid, libraryId) {
     console.warn('[admin] remove membership failed:', err);
     const errorEl = document.getElementById('admin-memberships-error');
     errorEl.textContent = 'Failed to remove membership: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+  }
+}
+
+// Promote a staff member to library admin. Super-admin only — the UI
+// only shows the Promote button when currentUserRole === 'super-admin'
+// and the Firestore rules reject the write otherwise. Uses updateDoc
+// so libraryId stays intact even if the schema ever grows.
+async function promoteToAdmin(uid, libraryId) {
+  const errorEl = document.getElementById('admin-memberships-error');
+  errorEl.hidden = true;
+  try {
+    await updateDoc(doc(db, 'memberships', uid), { role: 'admin' });
+    await loadMemberships(libraryId);
+  } catch (err) {
+    console.warn('[admin] promote failed:', err);
+    errorEl.textContent = 'Failed to promote: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+  }
+}
+
+// Demote a library admin back to staff. Super-admin only.
+async function demoteToStaff(uid, libraryId) {
+  const errorEl = document.getElementById('admin-memberships-error');
+  errorEl.hidden = true;
+  try {
+    await updateDoc(doc(db, 'memberships', uid), { role: 'staff' });
+    await loadMemberships(libraryId);
+  } catch (err) {
+    console.warn('[admin] demote failed:', err);
+    errorEl.textContent = 'Failed to demote: ' + (err.message || err.code || 'unknown error');
     errorEl.hidden = false;
   }
 }

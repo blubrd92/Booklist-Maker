@@ -32,13 +32,35 @@
       <p class="admin-loading-text">Loading…</p>
     </section>
 
-    <!-- Not signed in: show Google sign-in button -->
+    <!-- Not signed in: show Google sign-in button (super-admin) and
+         email/password form (library admins) -->
     <section id="admin-signin" class="admin-section" hidden>
       <h2>Sign in</h2>
-      <p>This console is restricted to authorized Google accounts. Sign in with the account that owns the Booklister Firestore project.</p>
+      <p>Sign in with your Google account (for the Booklister owner) or with your library staff email and password (for library admins).</p>
+
       <button id="google-signin-btn">
         <i class="fa-brands fa-google" aria-hidden="true"></i> Sign in with Google
       </button>
+
+      <div class="admin-signin-divider"><span>or</span></div>
+
+      <form id="admin-email-signin-form" class="admin-email-signin-form">
+        <div class="admin-field">
+          <label for="admin-email-signin-email">Library staff email</label>
+          <input type="email" id="admin-email-signin-email" autocomplete="email" required>
+        </div>
+        <div class="admin-field">
+          <label for="admin-email-signin-password">Password</label>
+          <div class="auth-password-wrap">
+            <input type="password" id="admin-email-signin-password" autocomplete="current-password" required>
+            <button type="button" id="admin-email-signin-password-toggle" class="auth-password-toggle" aria-label="Show password" aria-pressed="false" tabindex="0">
+              <i class="fa-solid fa-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="admin-btn-primary" id="admin-email-signin-submit">Sign in with email</button>
+      </form>
+
       <p id="admin-signin-error" class="admin-error" hidden></p>
     </section>
 
