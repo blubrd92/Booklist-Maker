@@ -5963,6 +5963,15 @@ const BooklistApp = (function() {
   }
   window.addEventListener('library-config-ready', _onLibraryConfigReady);
 
+  // Belt-and-suspenders: if library-config.js has already run and set the
+  // global before we got here (possible under future script-order changes,
+  // e.g. if app.js ever becomes a module itself), stash it so init() still
+  // applies it. The 'library-config-ready' listener above handles the
+  // normal case where the event fires after we've attached.
+  if (window.LIBRARY_CONFIG && !_pendingLibraryConfig) {
+    _pendingLibraryConfig = window.LIBRARY_CONFIG;
+  }
+
   function init() {
     cacheElements();
     populateFontSelects();
