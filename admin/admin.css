@@ -168,6 +168,29 @@ html, body {
   font-size: 1.1rem;
 }
 
+/* --- SIGN-IN SECTION --- */
+/* Center the sign-in section's contents — heading, description,
+   Google button, divider, email form, submit button, error message.
+   Form labels and inputs stay left-aligned inside the form block;
+   only the block itself is centered. */
+#admin-signin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+#admin-signin > .admin-signin-divider,
+#admin-signin > .admin-email-signin-form,
+#admin-signin > .admin-error {
+  width: 100%;
+  max-width: 400px;
+}
+
+#admin-signin > .admin-email-signin-form {
+  text-align: left;
+}
+
 /* --- EMAIL SIGN-IN (for library admins) --- */
 
 .admin-signin-divider {
@@ -264,7 +287,7 @@ html, body {
 
 #admin-email-signin-submit {
   margin-top: 4px;
-  align-self: flex-start;
+  align-self: stretch;
 }
 
 /* --- ACCESS DENIED --- */
