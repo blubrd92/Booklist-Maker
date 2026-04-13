@@ -1085,7 +1085,14 @@ const BooklistApp = (function() {
           author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
           callNumber: CONFIG.PLACEHOLDERS.callNumber,
           authorDisplay: null, // Will be constructed on first render
-          description: 'Fetching book description... May take a few minutes.',
+          // On branded instances we stage a "Fetching..." placeholder
+          // because the auto-fetcher below is about to replace it. On
+          // the public tool there's no auto-fetcher, so the description
+          // stays at the standard blank placeholder and the user writes
+          // their own.
+          description: window.LIBRARY_CONFIG
+            ? 'Fetching book description... May take a few minutes.'
+            : CONFIG.PLACEHOLDERS.description,
           cover_ids: carouselState.allCoverIds,
           currentCoverIndex: carouselState.currentCoverIndex,
           includeInCollage: currentStarredCount < CONFIG.MIN_COVERS_FOR_COLLAGE
@@ -1095,21 +1102,21 @@ const BooklistApp = (function() {
         addButton.innerHTML = '&#10003;';
         addButton.classList.add('added');
         addButton.setAttribute('aria-label', `Remove "${book.title}" from booklist`);
-        
+
         // Folio: excited about the new book
         if (window.folio) {
           window.folio.react('nod');
           setTimeout(function() { if (window.folio) window.folio.setState('excited', 'book-added'); }, 300);
           setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
         }
-        
+
         renderBooklist();
         debouncedSave();
-        // Auto-fetch an AI description on book-add, but only on
-        // branded library instances — AI calls cost money and the
-        // Magic button is a paid-only feature. Public-tool users
-        // still get whatever description Open Library returned in
-        // the search result, just not an AI-regenerated one.
+        // Auto-fetch a description on book-add, but only on branded
+        // library instances. The Google Apps Script behind this has
+        // real per-use cost, so public-tool users don't trigger it
+        // (and their description field stays at the placeholder so
+        // they can write their own).
         if (window.LIBRARY_CONFIG) {
           getAiDescription(newBook.key);
         }
@@ -1507,14 +1514,14 @@ const BooklistApp = (function() {
   }
 
   function handleMagicButtonClick(bookItem) {
-    // AI description drafting is a paid feature. On the public tool
+    // Description drafting is a paid feature. On the public tool
     // (or any instance without a library config loaded) the button
     // shows a notice and bails instead of calling the Google Apps
     // Script. The call itself costs real money per use, so public
     // users can't trigger it.
     if (!window.LIBRARY_CONFIG) {
       showNotification(
-        'AI description drafting is available on paid library instances only.',
+        'This feature is available on paid library instances only.',
         'info'
       );
       return;
