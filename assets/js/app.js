@@ -292,6 +292,10 @@ const BooklistApp = (function() {
       classicSettings: document.getElementById('classic-settings'),
       showShelvesToggle: document.getElementById('show-shelves-toggle'),
       
+      // Auto-draft description toggle (branded instances only)
+      autoDescriptionToggle: document.getElementById('auto-description-toggle'),
+      autoDescriptionToggleRow: document.getElementById('auto-description-toggle-row'),
+
       // Extended collage mode
       extendedCollageToggle: document.getElementById('extended-collage-toggle'),
       extraCoversSection: document.getElementById('extra-covers-section'),
@@ -612,8 +616,43 @@ const BooklistApp = (function() {
   }
   
   // ---------------------------------------------------------------------------
-  // AI Description Fetching
+  // Description Fetching
   // ---------------------------------------------------------------------------
+
+  // Auto-draft toggle. Controls whether adding a book from search
+  // auto-drafts a description. Only relevant on branded instances —
+  // the public tool never drafts on add. Default is ON so existing
+  // branded instances keep their current behavior unless the user
+  // explicitly opts out. Preference persists per browser.
+  const AUTO_DESCRIPTION_STORAGE_KEY = 'booklister.autoDraftDescriptions';
+
+  function getAutoDescriptionPreference() {
+    try {
+      const v = localStorage.getItem(AUTO_DESCRIPTION_STORAGE_KEY);
+      if (v === null) return true; // default on
+      return v === 'true';
+    } catch {
+      return true;
+    }
+  }
+
+  function setAutoDescriptionPreference(enabled) {
+    try {
+      localStorage.setItem(AUTO_DESCRIPTION_STORAGE_KEY, enabled ? 'true' : 'false');
+    } catch {
+      // private browsing — preference is session-only
+    }
+  }
+
+  // Returns true only when (a) we're on a branded instance with a
+  // library config and (b) the user hasn't turned auto-drafting off.
+  // The public tool always returns false here and never calls the
+  // description backend automatically.
+  function shouldAutoFetchDescription() {
+    if (!window.LIBRARY_CONFIG) return false;
+    return getAutoDescriptionPreference();
+  }
+
   function getAiDescription(bookKey, isTest = false) {
     const bookItem = myBooklist.find(b => b.key === bookKey);
     if (!bookItem && !isTest) {
@@ -1085,12 +1124,13 @@ const BooklistApp = (function() {
           author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
           callNumber: CONFIG.PLACEHOLDERS.callNumber,
           authorDisplay: null, // Will be constructed on first render
-          // On branded instances we stage a "Fetching..." placeholder
-          // because the auto-fetcher below is about to replace it. On
-          // the public tool there's no auto-fetcher, so the description
+          // When auto-drafting is enabled (branded instance with the
+          // toggle on) we stage a "Fetching..." placeholder because the
+          // auto-fetcher below is about to replace it. Otherwise — public
+          // tool, or branded instance with the toggle off — the description
           // stays at the standard blank placeholder and the user writes
-          // their own.
-          description: window.LIBRARY_CONFIG
+          // their own (or reaches for the wand button on demand).
+          description: shouldAutoFetchDescription()
             ? 'Fetching book description... May take a few minutes.'
             : CONFIG.PLACEHOLDERS.description,
           cover_ids: carouselState.allCoverIds,
@@ -1112,12 +1152,13 @@ const BooklistApp = (function() {
 
         renderBooklist();
         debouncedSave();
-        // Auto-fetch a description on book-add, but only on branded
-        // library instances. The Google Apps Script behind this has
-        // real per-use cost, so public-tool users don't trigger it
-        // (and their description field stays at the placeholder so
-        // they can write their own).
-        if (window.LIBRARY_CONFIG) {
+        // Auto-draft a description on book-add when (a) we're on a
+        // branded library instance AND (b) the Search-tab toggle is
+        // on. The public tool never hits this path; branded users who
+        // prefer to write their own descriptions flip the toggle off.
+        // The magic wand button on each book remains available either
+        // way — it's an explicit per-book opt-in.
+        if (shouldAutoFetchDescription()) {
           getAiDescription(newBook.key);
         }
         
@@ -4724,6 +4765,14 @@ const BooklistApp = (function() {
         if (window.folio) window.folio.react('perk');
       });
     });
+
+    // Auto-draft description toggle (branded instances only; the row
+    // itself stays hidden on the public tool via applyLibraryConfig).
+    if (elements.autoDescriptionToggle) {
+      elements.autoDescriptionToggle.addEventListener('change', () => {
+        setAutoDescriptionPreference(elements.autoDescriptionToggle.checked);
+      });
+    }
     
     // List name input (triggers autosave)
     if (elements.listNameInput) {
@@ -6000,6 +6049,14 @@ const BooklistApp = (function() {
         img.dataset.isPlaceholder = 'false';
         elements.brandingUploader.classList.add('has-image');
       }
+    }
+
+    // Auto-draft description toggle — only meaningful on branded
+    // instances (where the description backend is actually wired up).
+    // Reveal the row and sync the checkbox from the persisted preference.
+    if (elements.autoDescriptionToggleRow && elements.autoDescriptionToggle) {
+      elements.autoDescriptionToggleRow.hidden = false;
+      elements.autoDescriptionToggle.checked = getAutoDescriptionPreference();
     }
 
     // Role-aware Admin link. Only library admins (users whose memberships

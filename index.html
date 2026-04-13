@@ -125,6 +125,14 @@
                 <label for="keywordInput" class="sr-only">Search keywords</label>
                 <input id="keywordInput" type="text" placeholder="Keyword..."/>
               </div>
+              <!-- Auto-fetch description toggle. Hidden by default; app.js
+                   reveals it on branded instances (where the description
+                   backend is actually wired up) after library-config-ready.
+                   Does not appear on the public tool. -->
+              <div class="control-row checkbox-row" id="auto-description-toggle-row" hidden>
+                <input id="auto-description-toggle" type="checkbox" checked/>
+                <label for="auto-description-toggle" title="When on, Booklister drafts a short description for each book as you add it. Turn it off if you prefer to write every description yourself. You can still use the wand button on any individual book either way.">Auto-draft descriptions on add</label>
+              </div>
               <div class="advanced-search-toggle">
                 <details>
                   <summary>Advanced Fields</summary>
