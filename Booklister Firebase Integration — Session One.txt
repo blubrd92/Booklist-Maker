@@ -1,0 +1,167 @@
+# Booklister Firebase Integration — Session One
+
+I need you to add Firebase Authentication and a per-library config loader to my Booklister project. The project is a vanilla HTML/CSS/JS booklist creation tool currently deployed to GitHub Pages at https://booklister.org. The codebase follows a no-framework, no-build-step pattern, and I want to maintain that pattern. We will use the Firebase JavaScript SDK loaded via CDN, not via npm, to preserve the no-build-step constraint.
+
+## What this session does, and what it does not do
+
+This session establishes the architecture for branded per-library instances at subdomains like sanrafael.booklister.org. It does not create any actual library config yet, that comes in a separate session. After this session is done, the public booklister.org instance must continue to behave exactly as it does today, with no Firebase, no login, no visible changes whatsoever. Branded instances at subdomains will load their config from Firestore, and depending on whether the config is in the public or gated collection, will either skip auth entirely or show a login screen.
+
+## Iterative workflow
+
+Complete each step fully and show it to me before starting the next one. The order is:
+
+Step one, add the Firebase SDK script tags to index.html and create a new file assets/js/firebase-init.js that initializes Firebase only when the hostname indicates a branded instance. Pause and show me.
+
+Step two, create assets/js/library-config.js that handles subdomain detection, config loading from Firestore (trying the public collection first, then the gated collection after auth), and exposes a global LIBRARY_CONFIG object (or null on the public tool). Pause and show me.
+
+Step three, create assets/js/auth.js that handles the sign-in flow, password reset, persistent session, and sign-out. Build the login modal HTML and CSS, and only render the modal when explicitly triggered by an event from library-config.js. On unauthenticated public-config instances, the modal never appears. Pause and show me.
+
+Step four, integrate everything into app.js so that on branded instances, after the config is loaded, the LIBRARY_CONFIG values override the relevant defaults (library name in title, default branding image source, default colors, default font selections, default cover layout). Do not refactor existing code beyond what's needed to read from LIBRARY_CONFIG when it exists. Pause and show me.
+
+After each step, wait for my approval before continuing.
+
+## Critical constraints
+
+The public booklister.org instance must be visually and functionally identical to its current state. No login screen, no Firebase code executing, no changes to any user-facing behavior. The way to enforce this is by checking window.location.hostname at the very top of firebase-init.js and library-config.js. If the hostname is exactly "booklister.org" or "www.booklister.org" or "blubrd92.github.io" or "localhost" or "127.0.0.1", do nothing. Return early. The Firebase SDK should not even initialize on those hosts.
+
+For local development, I need a way to test the branded flow without actually being on a subdomain. Add a query parameter override: if the URL contains ?library=sanrafael, treat it as if we were on sanrafael.booklister.org. This override should only work on localhost, never on a real domain, to prevent anyone from forcing a config load on the public tool.
+
+Do not introduce any build tooling, bundlers, or npm dependencies. All Firebase code must use the CDN-hosted SDK. Use the modular v9+ syntax via the CDN, not the older compat layer. The relevant CDN URLs are:
+
+- https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js
+- https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js
+- https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js
+
+These are loaded as ES modules using script type="module" tags. This is the one place where the no-build-step constraint forces a slightly more complex integration. The new files (firebase-init.js, library-config.js, auth.js) will need to be ES modules too, since they import from the Firebase SDK. The existing app.js, book-utils.js, config.js, folio.js, and tour.js stay as IIFE globals exactly as they are. The new module files communicate with the existing IIFE code via window globals (window.LIBRARY_CONFIG, window.LIBRARY_REQUIRES_AUTH, etc.) and via custom events dispatched on window.
+
+## The Firebase config
+
+Here is the config object from the Firebase console. Paste it into firebase-init.js:
+
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCRQahoA79yeWbbFUIEs4-4mft_KSGpjcw",
+  authDomain: "booklister-50296.firebaseapp.com",
+  projectId: "booklister-50296",
+  storageBucket: "booklister-50296.firebasestorage.app",
+  messagingSenderId: "682630183367",
+  appId: "1:682630183367:web:6a4a71476fcf3432b181e2"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+## File structure
+
+New files to create:
+
+- assets/js/firebase-init.js (ES module, initializes Firebase conditionally)
+- assets/js/library-config.js (ES module, loads per-library config from Firestore)
+- assets/js/auth.js (ES module, handles login UI and session management)
+- assets/css/auth.css (styles for the login modal)
+
+Modified files:
+
+- index.html (add new script tags, add login modal HTML)
+
+Do not modify any other files in this session. If you find yourself needing to change app.js, pause and ask me first. The goal of step four is to add minimal hooks into app.js that read from LIBRARY_CONFIG if it exists, not to refactor existing logic.
+
+## Detailed behavior specs
+
+### firebase-init.js
+
+At the top, check the hostname. If it's the public tool or local dev without the override query param, export nulls and return. Otherwise, initialize the Firebase app with the config, initialize Firestore, initialize Auth, and export the auth and db instances. Set persistence to local (browserLocalPersistence) so sessions survive browser restarts. Expose window.firebaseAuth and window.firebaseDb for use by other modules.
+
+### library-config.js
+
+Imports from firebase-init.js. If firebaseAuth or firebaseDb is null (public tool, not a branded instance), set window.LIBRARY_CONFIG = null and dispatch a custom event 'library-config-ready'.
+
+Otherwise, derive the libraryId from the hostname subdomain (or from the ?library= query param on localhost).
+
+Try to fetch the config from the libraries-public collection first using getDoc(doc(db, 'libraries-public', libraryId)). If the document exists, this is an unauthenticated public instance. Store the data in window.LIBRARY_CONFIG, set window.LIBRARY_REQUIRES_AUTH = false, dispatch 'library-config-ready', and skip all auth logic. The user is never shown a login modal.
+
+If the libraries-public document does not exist, this is a gated instance. Set window.LIBRARY_REQUIRES_AUTH = true and dispatch 'library-config-needs-auth'. The auth.js module listens for this event and shows the login modal. After successful sign-in, library-config.js fetches from the libraries collection using getDoc(doc(db, 'libraries', libraryId)). On success, store the data in window.LIBRARY_CONFIG and dispatch 'library-config-ready'. On failure (permission denied, document doesn't exist, network error), dispatch 'library-config-failed' with the error in the event detail.
+
+The schema for both libraries-public and libraries documents is the same:
+
+- displayName: string, e.g. "San Rafael Public Library"
+- primaryColor: hex string, e.g. "#003366"
+- accentColor: hex string, e.g. "#cc0000"
+- defaultCoverFont: CSS font-family string, e.g. "'Oswald', sans-serif"
+- defaultBookFont: CSS font-family string, e.g. "'Calibri', sans-serif"
+- brandingImagePath: string path, e.g. "assets/img/libraries/sanrafael/logo.png"
+- defaultCoverLayout: string, one of "classic", "masonry", "staggered", "tilted"
+- defaultExtendedMode: boolean
+
+You don't need to create any documents. They will be created manually in the Firebase console in a later session. For now, just make sure the loader knows how to read them.
+
+### auth.js
+
+Imports from firebase-init.js. If firebaseAuth is null, do nothing.
+
+Listen for the 'library-config-needs-auth' event. When it fires, render the login modal. Don't render it on page load, only when explicitly told to via this event. This way, public instances (libraries-public configs) never show the modal at all.
+
+The modal covers the entire viewport and prevents interaction with the tool underneath. It contains:
+
+- A heading that says "Sign in to Booklister" (don't include the library name yet, since we don't know it until after sign-in)
+- An email input
+- A password input
+- A "Sign in" button
+- A "Forgot password?" link that triggers Firebase's sendPasswordResetEmail flow
+- An error message area for failed sign-in attempts
+
+On successful sign-in, hide the modal. library-config.js will then fetch the gated config and dispatch 'library-config-ready'. On failed sign-in, show a friendly error message: "Incorrect email or password" for auth/wrong-password and auth/user-not-found, "Too many attempts, try again later" for auth/too-many-requests, "Network error, check your connection" for network failures, generic "Sign-in failed, please try again" for anything else.
+
+Add a sign-out button to the existing app header, only visible when window.LIBRARY_REQUIRES_AUTH is true and the user is signed in. Place it next to the existing tour button. Use a small icon button matching the existing header button style. On click, call signOut and reload the page.
+
+The modal should be styled to feel like part of the tool: same fonts, same color palette, same border radius and shadow conventions as the existing modals. Look at .modal-overlay and .modal-content in styles.css for reference. Put the new styles in assets/css/auth.css and link it from index.html.
+
+### Integration with app.js (step four)
+
+Listen for the 'library-config-ready' event. When it fires, if LIBRARY_CONFIG is not null, apply the values from the config:
+
+- Set the document title to LIBRARY_CONFIG.displayName + " Booklister"
+- Update the .header-credit text to "for " + LIBRARY_CONFIG.displayName  
+- Replace the default branding image source with LIBRARY_CONFIG.brandingImagePath
+- Set the default font for the cover header to LIBRARY_CONFIG.defaultCoverFont (only if no other font is currently selected, don't override user choices)
+- Set the default font for book blocks similarly
+- Set the selected layout to LIBRARY_CONFIG.defaultCoverLayout
+- Set the extended mode toggle to LIBRARY_CONFIG.defaultExtendedMode
+
+These should happen before the user has a chance to interact with the tool. If the event fires after the tool is already initialized (which it can, since auth and Firestore reads are async), apply the changes and trigger any necessary re-renders.
+
+If LIBRARY_CONFIG is null (public tool), do nothing. Tool behaves exactly as before.
+
+## What not to do
+
+- Do not add any build tooling, bundlers, or npm dependencies
+- Do not modify the existing IIFE pattern for app.js, book-utils.js, config.js, folio.js, or tour.js
+- Do not add Firebase Storage, Cloud Functions, Analytics, or any Firebase services beyond Authentication and Firestore
+- Do not add any telemetry or tracking
+- Do not make any visible changes to the public booklister.org instance
+- Do not write to Firestore from the client at all, all writes happen manually from the Firebase console
+- Do not invent fields for the library config beyond what's in the schema above
+- Do not create any actual library config documents or library-specific files in this session
+- Do not modify the CNAME file or anything DNS-related
+- Do not change anything in the existing tool's UX flow for the public tool
+
+## Standing instruction
+
+Only implement what I have explicitly described in this prompt. If you notice something that seems like it should also change (existing code that conflicts with the new auth flow, missing edge cases, opportunities for refactoring, anything else), do not change it. Instead, list those observations at the end of your work as suggestions, and I will decide whether to address them in a separate task.
+
+## Final check before you finish
+
+After all four steps are approved, verify by:
+
+1. Loading the public tool (booklister.org or localhost with no query param): should look and behave exactly as it does today, with no login modal, no Firebase code in the network tab, no console errors.
+
+2. Loading with ?library=sanrafael on localhost: since the libraries-public/sanrafael document doesn't exist yet and the libraries/sanrafael document doesn't exist yet either, the loader will fall through to the gated path and show the login modal. Attempting to sign in will fail because there's no user account yet. This is expected and proves the auth path is wired up.
+
+3. Confirm that no existing functionality in the tool has been broken on the public instance.
+
+Show me a summary of all files created or modified.
