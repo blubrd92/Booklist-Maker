@@ -292,7 +292,13 @@ document.getElementById('admin-denied-signout-btn').addEventListener('click', ha
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
+    // Clear the cached email label and hide the header user block.
+    // Clearing the text defensively means there's no stale value
+    // lingering in the DOM if the block ever gets re-shown.
+    document.getElementById('admin-user-email').textContent = '';
     document.getElementById('admin-user-info').hidden = true;
+    // Also drop role-mode classes so the next sign-in starts clean.
+    document.body.classList.remove('admin-mode-super', 'admin-mode-library');
     showSection('signin');
     return;
   }

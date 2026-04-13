@@ -66,7 +66,12 @@ html, body {
   opacity: 0.9;
 }
 
-.admin-header-user {
+/* :not([hidden]) scope is required here for the same reason as the
+   #admin-signin rule: without it, `.admin-header-user { display: flex }`
+   would override the [hidden] attribute's implicit display: none,
+   leaving the signed-in user's email and the sign-out button visible
+   after sign-out. */
+.admin-header-user:not([hidden]) {
   display: flex;
   align-items: center;
   gap: 12px;
