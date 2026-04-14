@@ -1,0 +1,1064 @@
+/* Booklister Admin Console styles.
+   Scoped to the /admin/ subtree — completely separate from the main
+   tool's styles.css. Uses the same color variables so the two feel
+   like siblings, but nothing in here bleeds into the main tool. */
+
+:root {
+  --admin-primary: #5c6bc0;
+  --admin-primary-hover: #3f51b5;
+  --admin-primary-light: #e8eaf6;
+  --admin-secondary: #37474f;
+  --admin-bg: #f5f7fa;
+  --admin-surface: #ffffff;
+  --admin-text: #2d3748;
+  --admin-text-light: #718096;
+  --admin-text-muted: #a0aec0;
+  --admin-border: #e1e5eb;
+  --admin-danger: #e53935;
+  --admin-success: #43a047;
+  --admin-radius: 8px;
+  --admin-radius-lg: 12px;
+  --admin-shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --admin-shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+  --admin-shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+  --admin-transition: 0.15s ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Flex-column body so the footer sits at the bottom of the viewport
+   even when the main content (sign-in screen, denied screen) is short.
+   #admin-main takes flex: 1 to fill the space between header and footer. */
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#admin-main {
+  flex: 1 0 auto;
+}
+
+.admin-footer {
+  flex-shrink: 0;
+}
+
+/* --- HEADER --- */
+
+.admin-header {
+  background: var(--admin-secondary);
+  color: white;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  /* Above .admin-modal-overlay (z-index: 1000) so the sign-out button
+     in the header stays reachable even when the library modal is open
+     and covering the viewport — otherwise library admins in their
+     modal-only restricted view would have no way to sign out. */
+  z-index: 1100;
+}
+
+.admin-header h1 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-header h1 i {
+  opacity: 0.9;
+}
+
+/* :not([hidden]) scope is required here for the same reason as the
+   #admin-signin rule: without it, `.admin-header-user { display: flex }`
+   would override the [hidden] attribute's implicit display: none,
+   leaving the signed-in user's email and the sign-out button visible
+   after sign-out. */
+.admin-header-user:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+
+.admin-header-user #admin-user-email {
+  opacity: 0.85;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.admin-header-user button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  padding: 6px 14px;
+  border-radius: var(--admin-radius);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--admin-transition), transform var(--admin-transition);
+}
+
+.admin-header-user button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+/* --- MAIN LAYOUT --- */
+
+#admin-main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.admin-section {
+  background: var(--admin-surface);
+  border-radius: var(--admin-radius-lg);
+  padding: 32px;
+  box-shadow: var(--admin-shadow-md);
+  margin-bottom: 16px;
+}
+
+.admin-section[hidden] {
+  display: none;
+}
+
+.admin-section h2 {
+  margin: 0 0 12px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--admin-secondary);
+}
+
+.admin-section p {
+  margin: 0 0 16px;
+  line-height: 1.55;
+  color: var(--admin-text);
+}
+
+.admin-section p:last-child {
+  margin-bottom: 0;
+}
+
+.admin-loading-text {
+  color: var(--admin-text-light);
+  font-size: 0.95rem;
+}
+
+/* --- SIGN-IN BUTTON --- */
+
+#google-signin-btn {
+  background: white;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  padding: 12px 24px;
+  border-radius: var(--admin-radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--admin-shadow-sm);
+  transition: all var(--admin-transition);
+  margin-top: 8px;
+}
+
+#google-signin-btn:hover {
+  box-shadow: var(--admin-shadow-md);
+  background: #fafbfc;
+  transform: translateY(-1px);
+}
+
+#google-signin-btn i {
+  color: #4285f4;
+  font-size: 1.1rem;
+}
+
+/* --- SIGN-IN SECTION --- */
+/* Center the sign-in section's contents — heading, description,
+   Google button, divider, email form, submit button, error message.
+   Form labels and inputs stay left-aligned inside the form block;
+   only the block itself is centered.
+
+   NOTE: the :not([hidden]) scope is important. Without it, this
+   rule's specificity (id selector, 1,0,0) beats the generic
+   .admin-section[hidden] { display: none } rule (0,2,0), so the
+   section would stay visible as `display: flex` even after
+   showSection() set its hidden attribute. */
+#admin-signin:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+#admin-signin > .admin-signin-divider,
+#admin-signin > .admin-email-signin-form,
+#admin-signin > .admin-error {
+  width: 100%;
+  max-width: 400px;
+}
+
+#admin-signin > .admin-email-signin-form {
+  text-align: left;
+}
+
+/* Role labels above each sign-in option (Google vs email). Small
+   uppercase headers so "this one is for you, that one is for them"
+   is obvious without reading a paragraph. */
+.admin-signin-role-label {
+  margin: 8px 0 2px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--admin-secondary);
+}
+
+.admin-signin-role-hint {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  color: var(--admin-text-light);
+  max-width: 440px;
+}
+
+/* --- EMAIL SIGN-IN (for library admins) --- */
+
+.admin-signin-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0 16px;
+  color: var(--admin-text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-signin-divider::before,
+.admin-signin-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--admin-border);
+}
+
+.admin-email-signin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+}
+
+.admin-email-signin-form .admin-field {
+  margin-bottom: 0;
+}
+
+.admin-email-signin-form input[type="email"],
+.admin-email-signin-form input[type="password"],
+.admin-email-signin-form #admin-email-signin-password {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: white;
+  color: var(--admin-text);
+  transition: border-color var(--admin-transition), box-shadow var(--admin-transition);
+  font-family: inherit;
+}
+
+.admin-email-signin-form input[type="email"]:focus,
+.admin-email-signin-form input[type="password"]:focus,
+.admin-email-signin-form #admin-email-signin-password:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+
+/* Password visibility toggle — mirrors the pattern from assets/css/auth.css
+   but scoped to the admin console. */
+.admin-email-signin-form .auth-password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.admin-email-signin-form #admin-email-signin-password {
+  padding-right: 42px;
+}
+
+.admin-email-signin-form .auth-password-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--admin-text-light);
+  cursor: pointer;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--admin-radius);
+  font-size: 0.95rem;
+  transition: color var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-email-signin-form .auth-password-toggle:hover {
+  color: var(--admin-primary);
+  background: var(--admin-primary-light);
+}
+
+.admin-email-signin-form .auth-password-toggle:focus {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 2px;
+}
+
+#admin-email-signin-submit {
+  margin-top: 4px;
+  align-self: stretch;
+}
+
+/* --- ACCESS DENIED --- */
+
+#admin-denied-email {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+#admin-denied-uid {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--admin-bg);
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--admin-border);
+  user-select: all;
+  font-size: 0.85rem;
+}
+
+.admin-btn-secondary {
+  background: white;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  padding: 10px 18px;
+  border-radius: var(--admin-radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--admin-transition);
+  margin-top: 8px;
+}
+
+.admin-btn-secondary:hover {
+  background: var(--admin-bg);
+  border-color: var(--admin-text-muted);
+}
+
+/* --- MESSAGES --- */
+
+.admin-error {
+  color: var(--admin-danger);
+  font-size: 0.9rem;
+  padding: 12px 16px;
+  background: rgba(229, 57, 53, 0.08);
+  border-radius: var(--admin-radius);
+  border-left: 3px solid var(--admin-danger);
+  margin-top: 12px;
+}
+
+.admin-note {
+  color: var(--admin-text);
+  font-size: 0.9rem;
+  padding: 14px 18px;
+  background: var(--admin-primary-light);
+  border-radius: var(--admin-radius);
+  border-left: 3px solid var(--admin-primary);
+  line-height: 1.6;
+}
+
+.admin-note code {
+  background: rgba(255, 255, 255, 0.6);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* --- ADMIN APP (libraries list) --- */
+
+.admin-app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.admin-app-header h2 {
+  margin: 0;
+}
+
+.admin-btn-primary {
+  background: var(--admin-primary);
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: var(--admin-radius);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background var(--admin-transition), transform var(--admin-transition);
+}
+
+.admin-btn-primary:hover:not(:disabled) {
+  background: var(--admin-primary-hover);
+  transform: translateY(-1px);
+}
+
+.admin-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-btn-danger {
+  background: var(--admin-danger);
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: var(--admin-radius);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--admin-transition), transform var(--admin-transition);
+}
+
+.admin-btn-danger:hover:not(:disabled) {
+  background: #c62828;
+  transform: translateY(-1px);
+}
+
+.admin-btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--admin-text-light);
+  background: var(--admin-bg);
+  border-radius: var(--admin-radius);
+}
+
+/* --- LIBRARIES TABLE --- */
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.admin-table[hidden] {
+  display: none;
+}
+
+.admin-table thead th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: var(--admin-text-light);
+  border-bottom: 1px solid var(--admin-border);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.admin-table tbody td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--admin-border);
+  vertical-align: middle;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr:hover {
+  background: var(--admin-bg);
+}
+
+.admin-table .admin-lib-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  color: var(--admin-text);
+}
+
+.admin-table .admin-lib-name {
+  color: var(--admin-text);
+}
+
+.admin-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.admin-badge-public {
+  background: rgba(67, 160, 71, 0.12);
+  color: #2e7d32;
+}
+
+.admin-badge-gated {
+  background: rgba(92, 107, 192, 0.12);
+  color: var(--admin-primary-hover);
+}
+
+/* "No library admins" warning badge, shown next to a gated library's
+   display name in the libraries table when the library currently has
+   zero admins in its memberships. Soft nudge, not a blocker — the
+   super-admin can still manage staff from this view. */
+.admin-no-admin-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  padding: 3px 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: rgba(251, 140, 0, 0.15);
+  color: #e65100;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.admin-no-admin-warning i {
+  font-size: 0.72rem;
+}
+
+.admin-actions-col {
+  text-align: right;
+  width: 220px;
+}
+
+.admin-row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.admin-row-btn {
+  background: white;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--admin-transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-row-btn:hover {
+  background: var(--admin-bg);
+  border-color: var(--admin-text-muted);
+}
+
+.admin-row-btn-danger {
+  color: var(--admin-danger);
+  border-color: rgba(229, 57, 53, 0.25);
+}
+
+.admin-row-btn-danger:hover {
+  background: rgba(229, 57, 53, 0.08);
+  border-color: var(--admin-danger);
+}
+
+/* --- MODAL --- */
+
+.admin-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(45, 55, 72, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.admin-modal-overlay[hidden] {
+  display: none;
+}
+
+.admin-modal {
+  background: white;
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--admin-shadow-lg);
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-modal-small {
+  max-width: 480px;
+}
+
+.admin-modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--admin-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(to bottom, #fafbfc, #f5f6f8);
+}
+
+.admin-modal-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--admin-secondary);
+}
+
+.admin-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--admin-text-muted);
+  cursor: pointer;
+  padding: 0 6px;
+  transition: color var(--admin-transition);
+}
+
+.admin-modal-close:hover {
+  color: var(--admin-danger);
+}
+
+.admin-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Single scroll region for modals with multiple content panels. The
+   library edit modal uses this to wrap its form AND memberships
+   section inside one scroll area instead of letting each .admin-modal-body
+   child scroll independently (which created two nested scrollbars).
+   The delete modal has one .admin-modal-body child so it doesn't use
+   this wrapper. */
+.admin-modal-scroll-area {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Inside the scroll-area wrapper, .admin-modal-body loses its own
+   scroll + flex-grow so it just contributes padding. The wrapper owns
+   the scrolling. */
+.admin-modal-scroll-area .admin-modal-body {
+  overflow: visible;
+  flex: none;
+}
+
+.admin-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--admin-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #fafbfc;
+}
+
+/* --- FORM FIELDS --- */
+
+.admin-field {
+  margin-bottom: 18px;
+}
+
+.admin-field:last-child {
+  margin-bottom: 0;
+}
+
+.admin-field label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--admin-text);
+  margin-bottom: 6px;
+}
+
+.admin-field input[type="text"],
+.admin-field input[type="email"] {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: white;
+  color: var(--admin-text);
+  transition: border-color var(--admin-transition), box-shadow var(--admin-transition);
+  font-family: inherit;
+}
+
+.admin-field input[type="text"]:focus,
+.admin-field input[type="email"]:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+
+.admin-field input[type="text"]:disabled {
+  background: var(--admin-bg);
+  color: var(--admin-text-light);
+  cursor: not-allowed;
+}
+
+.admin-field-hint {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: var(--admin-text-light);
+  line-height: 1.5;
+}
+
+.admin-field-hint code {
+  background: var(--admin-bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+.admin-required {
+  color: var(--admin-danger);
+}
+
+/* Checkbox-style admin field (e.g. auto-draft descriptions default). */
+.admin-field-checkbox .admin-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--admin-text);
+}
+
+.admin-field-checkbox .admin-checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--admin-primary);
+  cursor: pointer;
+  margin: 0;
+}
+
+.admin-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  cursor: pointer;
+  transition: all var(--admin-transition);
+  font-weight: 400;
+}
+
+.admin-radio:has(input:checked) {
+  border-color: var(--admin-primary);
+  background: var(--admin-primary-light);
+}
+
+.admin-radio input[type="radio"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.admin-radio span {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--admin-text);
+}
+
+.admin-radio code {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+.admin-note-warning {
+  background: rgba(251, 140, 0, 0.12);
+  border-left-color: #fb8c00;
+  color: var(--admin-text);
+}
+
+/* --- MEMBERSHIPS (embedded in the library edit modal) --- */
+
+.admin-memberships {
+  border-top: 1px solid var(--admin-border);
+  background: #fafbfc;
+  padding-top: 20px;
+}
+
+.admin-memberships h4 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--admin-secondary);
+}
+
+.admin-empty-compact {
+  padding: 16px;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.admin-memberships-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: white;
+  overflow: hidden;
+}
+
+.admin-memberships-list[hidden] {
+  display: none;
+}
+
+.admin-memberships-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-memberships-list li:last-child {
+  border-bottom: none;
+}
+
+.admin-membership-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Identity block within a membership row: email prominent on top,
+   UID muted below. If the doc has no email (legacy invites or manual
+   Firestore creation), the UID is promoted via the
+   .admin-membership-uid-primary modifier. */
+.admin-membership-ident {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-membership-email {
+  font-size: 0.88rem;
+  color: var(--admin-text);
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.admin-memberships-list .admin-membership-uid {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--admin-text-muted);
+  word-break: break-all;
+}
+
+.admin-memberships-list .admin-membership-uid-primary {
+  font-size: 0.8rem;
+  color: var(--admin-text);
+}
+
+.admin-membership-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Role badges on membership rows. Small pill-shaped labels next to
+   the UID that make admin vs staff visually obvious at a glance. */
+.admin-role-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+
+.admin-role-badge-admin {
+  background: rgba(92, 107, 192, 0.15);
+  color: var(--admin-primary-hover);
+}
+
+.admin-role-badge-staff {
+  background: var(--admin-bg);
+  color: var(--admin-text-light);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-role-badge-you {
+  background: rgba(251, 140, 0, 0.12);
+  color: #e65100;
+}
+
+.admin-add-membership {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-add-membership input[type="text"] {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: white;
+  color: var(--admin-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  transition: border-color var(--admin-transition), box-shadow var(--admin-transition);
+}
+
+.admin-add-membership input[type="text"]:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+
+.admin-btn-sm {
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+#admin-add-membership-success {
+  margin-top: 12px;
+  background: rgba(67, 160, 71, 0.1);
+  border-left-color: var(--admin-success);
+  color: var(--admin-text);
+  font-size: 0.85rem;
+}
+
+/* --- LIBRARY-ADMIN RESTRICTED VIEW --- */
+/* Applied when body has .admin-mode-library: hides the all-libraries
+   list UI and the library config edit fields inside the modal, leaving
+   only the memberships management section. */
+
+body.admin-mode-library .admin-app-header #admin-add-library-btn,
+body.admin-mode-library #admin-libraries-table,
+body.admin-mode-library #admin-libraries-empty,
+body.admin-mode-library #admin-libraries-loading {
+  display: none !important;
+}
+
+body.admin-mode-library #admin-app > h2 {
+  display: none; /* The modal title provides context instead */
+}
+
+/* Inside the library modal: hide the config form and footer, and the
+   close button. The memberships section stays. The modal effectively
+   becomes the library admin's whole UI. */
+body.admin-mode-library #admin-library-modal #admin-library-form,
+body.admin-mode-library #admin-library-modal .admin-modal-footer,
+body.admin-mode-library #admin-library-modal .admin-modal-close {
+  display: none !important;
+}
+
+/* The modal body no longer scrolls as its primary content — make it
+   feel more like a panel than a popup. */
+body.admin-mode-library #admin-library-modal .admin-modal {
+  max-width: 560px;
+}
+
+/* --- FOOTER --- */
+
+.admin-footer {
+  background: var(--admin-secondary);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 10px 24px;
+  text-align: center;
+  font-size: 0.85rem;
+  margin-top: 48px;
+}
+
+.admin-footer-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-footer-nav a {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--admin-transition);
+}
+
+.admin-footer-nav a:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.admin-footer-nav span {
+  color: rgba(255, 255, 255, 0.4);
+}

@@ -63,18 +63,46 @@ function dispatch(name, detail) {
   }
 
   // Fetch the gated config. Called after sign-in completes (or on page
-  // load if the user already has a persisted session).
+  // load if the user already has a persisted session). Also reads the
+  // current user's memberships doc so the main tool can show role-aware
+  // UI (e.g. the Admin link in the header, visible only to library admins).
   async function loadGatedConfig() {
     try {
       const snap = await getDoc(doc(db, 'libraries', libraryId));
-      if (snap.exists()) {
-        window.LIBRARY_CONFIG = snap.data();
-        dispatch('library-config-ready', { config: snap.data() });
-      } else {
+      if (!snap.exists()) {
         dispatch('library-config-failed', {
           error: new Error('Library config not found for "' + libraryId + '".')
         });
+        return;
       }
+      window.LIBRARY_CONFIG = snap.data();
+
+      // Best-effort: read the signed-in user's own memberships doc to
+      // surface their role. Permission-denied or missing doc both fall
+      // back to 'staff' silently — the Admin link just won't appear, but
+      // the tool still loads.
+      window.LIBRARY_USER_ROLE = 'staff';
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const memSnap = await getDoc(
+            doc(db, 'memberships', currentUser.uid)
+          );
+          if (memSnap.exists()) {
+            const data = memSnap.data();
+            if (data && data.role === 'admin') {
+              window.LIBRARY_USER_ROLE = 'admin';
+            }
+          }
+        }
+      } catch (roleErr) {
+        console.warn('[library-config] could not read own membership:', roleErr);
+      }
+
+      dispatch('library-config-ready', {
+        config: snap.data(),
+        role: window.LIBRARY_USER_ROLE
+      });
     } catch (err) {
       dispatch('library-config-failed', { error: err });
     }

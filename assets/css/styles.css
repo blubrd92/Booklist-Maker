@@ -34,7 +34,31 @@
 
 html {
   height: 100vh;
-  overflow: hidden;
+  /* No overflow: hidden here — the tool page's body sets its own
+     overflow: hidden to stay fixed-viewport, but content pages need
+     html to allow viewport scrolling. Clamping overflow on html
+     breaks mousewheel/touch scrolling on about.html and
+     for-libraries.html. */
+}
+
+/* Branded-instance auth gate. An inline script in index.html adds
+   .awaiting-library-config to <html> synchronously at page load for
+   any non-public host (or localhost with ?library= override). While
+   that class is set, the entire body is visibility: hidden so the
+   tool never renders before the user is authenticated / the config
+   has loaded. #auth-modal is exempted so the login modal can appear
+   on the dark backdrop while the tool behind it stays invisible.
+   app.js's applyLibraryConfig removes the class as its final step,
+   at which point the body becomes visible with the branded state
+   already applied — no flash of the unbranded tool. */
+html.awaiting-library-config {
+  background: var(--secondary-color);
+}
+html.awaiting-library-config body {
+  visibility: hidden;
+}
+html.awaiting-library-config #auth-modal {
+  visibility: visible;
 }
 
 body {
@@ -132,36 +156,24 @@ button.is-loading::after {
   opacity: 0.6;
   white-space: nowrap;
 }
+/* Branded instances: scale the "for <library>" credit to match the
+   Booklister logo size so the library name reads as co-equal branding
+   rather than a dim subtitle. Opacity is bumped alongside size because
+   0.6 looks washed out at 1.1rem. */
+body.has-library-config .header-credit {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
 
 /* =========================================================================
-   CONTENT PAGES (about, for-libraries, contact)
-   Reuses .app-header, .logo, .header-credit from the tool. Adds scrollable
-   body layout and article typography for reading pages.
+   CONTENT PAGES (about, for-libraries, contact, privacy)
+   Reuses .app-header, .logo, .header-credit from the tool. Inherits the
+   same fixed-viewport flex column body layout as the tool page, but the
+   middle .content-main area is its own scroll container — so the
+   scrollbar is confined to the area between the header and footer
+   instead of running the full viewport edge. Header and footer are
+   natural flex items (no position: sticky / fixed needed).
    ========================================================================= */
-body.content-page {
-  height: auto;
-  min-height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-/* Sticky header and footer on content pages only (tool page is fixed-height) */
-body.content-page .app-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-body.content-page .site-footer {
-  /* Fixed rather than sticky: sticky only pins an element once scrolling
-     brings it into view, which means long content pages (about.html,
-     for-libraries.html) hide the footer off-screen on first load.
-     content-main already has 72px of bottom padding so nothing is
-     obscured by the fixed footer. */
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 20;
-}
 .app-header a.logo {
   color: white;
   text-decoration: none;
@@ -172,7 +184,15 @@ body.content-page .site-footer {
 }
 .content-main {
   flex: 1;
-  padding: 56px 24px 72px;
+  /* min-height: 0 is the flexbox incantation that lets this child
+     shrink below the natural height of its content. Without it, a
+     flex item's default `min-height: auto` keeps it at the content's
+     height, which prevents overflow-y: auto from producing a
+     scrollbar. */
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 56px 24px;
   display: flex;
   justify-content: center;
 }
@@ -190,6 +210,14 @@ body.content-page .site-footer {
   margin: 0 0 24px;
   line-height: 1.2;
   color: var(--text-color);
+}
+/* Subtitle-style "Effective ... / Last updated ..." line directly under
+   the h1 on pages that need an effective date (privacy.html today). */
+.content-article .content-effective-date {
+  margin: -14px 0 28px;
+  font-size: 0.9rem;
+  color: var(--text-light);
+  font-style: italic;
 }
 .content-article h2 {
   font-size: 1.2rem;
@@ -251,6 +279,25 @@ body.content-page .site-footer {
   display: none !important;
 }
 
+/* Per-library footer suppression.
+   sanrafael instance asked to run without the Booklister site footer.
+   When the footer is hidden, the app-container needs to reclaim the
+   32px height the footer was using, and the floating controls that
+   were positioned to sit above the footer (zoom controls at bottom:48px,
+   folio at bottom:32px) need to drop down accordingly. Folio's bottom
+   is overridden in assets/css/folio.css with the same body.library-sanrafael
+   selector. If another library later wants the same treatment, either
+   add them to this rule or promote the pattern to a library config field. */
+body.library-sanrafael .site-footer {
+  display: none;
+}
+body.library-sanrafael .app-container {
+  height: calc(100vh - 52px);
+}
+body.library-sanrafael .zoom-controls {
+  bottom: 16px;
+}
+
 /* Panel Toggle Buttons in Header */
 .header-panel-toggles {
   display: flex;
@@ -286,7 +333,40 @@ body.content-page .site-footer {
 /* Header Action Buttons */
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+/* Mirror #tour-button's margin-right: 8px so the sign-out button's
+   distance from Generate PDF on its left equals the tour button's
+   distance from Load on its right (both end up 8px margin + 6px gap
+   = 14px of visible spacing). */
+.header-actions #auth-signout-button {
+  margin-left: 8px;
+}
+/* Role-aware Admin link, injected by applyLibraryConfig on branded
+   instances when the signed-in user's memberships doc has role: 'admin'.
+   Styled to match .btn-header so it feels like a sibling of the other
+   header buttons, but rendered as an anchor since it opens the external
+   admin console in a new tab. */
+.header-actions #library-admin-link {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  margin-left: 8px;
+}
+.header-actions #library-admin-link:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
 }
 .btn-header {
   background-color: rgba(255,255,255,0.1);
@@ -584,6 +664,16 @@ input[type="color"]:hover {
 
 /* Search Form */
 .search-form { display: flex; flex-direction: column; gap: 12px; }
+/* The auto-draft toggle sits between the keyword input and the advanced
+   fields and inherits both the .search-form flex gap (12px) AND the
+   .checkbox-row 6px margin-top + .control-row 8px margin-bottom, which
+   stacks into too much visual buffer. Cancel the local margins so
+   only the flex gap remains — and knock a few pixels off that too via
+   negative margin-top so it sits a little closer to the keyword input. */
+#auto-description-toggle-row {
+  margin-top: -6px;
+  margin-bottom: 0;
+}
 .advanced-search-toggle summary {
   cursor: pointer;
   font-size: 0.9rem;
@@ -783,6 +873,11 @@ input[type="color"]:hover {
   letter-spacing: 0.4px;
 }
 .control-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+/* [hidden] rescue: the base .control-row display: flex rule above is
+   author-origin and beats the user-agent [hidden] { display: none }
+   rule. Without this explicit override any .control-row with the
+   hidden attribute stays visible. See CLAUDE.md "Known CSS Pitfalls". */
+.control-row[hidden] { display: none; }
 .control-row:last-child { margin-bottom: 0; }
 .checkbox-row { margin-top: 6px; }
 .checkbox-row input[type="checkbox"] {
@@ -1505,7 +1600,10 @@ input[type="color"]:hover {
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  display: flex;
+  /* Hidden by default: the public tool has no library default to fall
+     back to, so this button has nothing meaningful to do. Branded
+     instances override this via body.has-library-branding below. */
+  display: none;
   align-items: center;
   gap: 4px;
   opacity: 0.9;
@@ -1518,8 +1616,13 @@ input[type="color"]:hover {
 .print-mode .branding-default-btn {
   display: none !important;
 }
-/* Only show Use Default when there's no image */
-#branding-uploader.has-image .branding-default-btn { display: none; }
+/* Branded instances: applyLibraryConfig adds body.has-library-branding
+   when LIBRARY_CONFIG.brandingImagePath is present, which reveals this
+   button whenever the user has cleared their branding image. Clicking
+   it re-loads the library's default brand. */
+body.has-library-branding #branding-uploader:not(.has-image) .branding-default-btn {
+  display: flex;
+}
 #branding-uploader.has-image.drag-over { border: 2px solid var(--primary-color); border-style: solid; }
 
 #branding-uploader .placeholder-text {

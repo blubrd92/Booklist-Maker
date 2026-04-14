@@ -25,6 +25,12 @@
   transition: opacity 0.3s ease, left 0.3s ease;
 }
 
+/* sanrafael instance hides the site footer; drop folio to match the
+   new floor. See the matching block in assets/css/styles.css. */
+body.library-sanrafael .folio-container {
+  bottom: 16px;
+}
+
 /* Slide with sidebar when it collapses */
 .sidebar.collapsed ~ .folio-container,
 body:has(.sidebar.collapsed) .folio-container {

@@ -33,6 +33,13 @@ const BooklistApp = (function() {
   let _isRestoring = false;  // Guard flag to prevent side effects during undo/redo restore
   let _tourActive = false;   // Guard flag: suppresses pushUndo and autosave during guided tour
   let _collageGenId = 0;     // Generation counter to discard stale async collage results
+  // Pre-edit snapshot used by style inputs (color pickers, font selects, size
+  // inputs, etc.) where the DOM value is mutated by the browser BEFORE the
+  // change/input event fires. pushUndo captures the current DOM via
+  // serializeState, which would grab the post-change state and make Ctrl+Z
+  // useless. We capture on focus (pre-edit) and commit on the first change
+  // event of that focus session. See capturePreEditSnapshot / commitPreEditSnapshot.
+  let _pendingPreEditSnapshot = null;
 
   // ---------------------------------------------------------------------------
   // IndexedDB Image Cache (deduplicates base64 images across undo snapshots)
@@ -292,6 +299,10 @@ const BooklistApp = (function() {
       classicSettings: document.getElementById('classic-settings'),
       showShelvesToggle: document.getElementById('show-shelves-toggle'),
       
+      // Auto-draft description toggle (branded instances only)
+      autoDescriptionToggle: document.getElementById('auto-description-toggle'),
+      autoDescriptionToggleRow: document.getElementById('auto-description-toggle-row'),
+
       // Extended collage mode
       extendedCollageToggle: document.getElementById('extended-collage-toggle'),
       extraCoversSection: document.getElementById('extra-covers-section'),
@@ -612,8 +623,54 @@ const BooklistApp = (function() {
   }
   
   // ---------------------------------------------------------------------------
-  // AI Description Fetching
+  // Description Fetching
   // ---------------------------------------------------------------------------
+
+  // Auto-draft toggle. Controls whether adding a book from search
+  // auto-drafts a description. Only relevant on branded instances —
+  // the public tool never drafts on add. Per-user preference persists
+  // in localStorage; if the user has no preference set, falls back to
+  // the per-library default from LIBRARY_CONFIG.autoDraftDescriptionsDefault
+  // (settable by the super-admin in the admin console). If that's also
+  // absent, falls back to on — matches the historical behavior for
+  // libraries that predate this setting.
+  const AUTO_DESCRIPTION_STORAGE_KEY = 'booklister.autoDraftDescriptions';
+
+  function getLibraryAutoDescriptionDefault() {
+    const cfg = window.LIBRARY_CONFIG;
+    if (cfg && typeof cfg.autoDraftDescriptionsDefault === 'boolean') {
+      return cfg.autoDraftDescriptionsDefault;
+    }
+    return true;
+  }
+
+  function getAutoDescriptionPreference() {
+    try {
+      const v = localStorage.getItem(AUTO_DESCRIPTION_STORAGE_KEY);
+      if (v !== null) return v === 'true';
+    } catch {
+      // private browsing — fall through to library default
+    }
+    return getLibraryAutoDescriptionDefault();
+  }
+
+  function setAutoDescriptionPreference(enabled) {
+    try {
+      localStorage.setItem(AUTO_DESCRIPTION_STORAGE_KEY, enabled ? 'true' : 'false');
+    } catch {
+      // private browsing — preference is session-only
+    }
+  }
+
+  // Returns true only when (a) we're on a branded instance with a
+  // library config and (b) the user hasn't turned auto-drafting off.
+  // The public tool always returns false here and never calls the
+  // description backend automatically.
+  function shouldAutoFetchDescription() {
+    if (!window.LIBRARY_CONFIG) return false;
+    return getAutoDescriptionPreference();
+  }
+
   function getAiDescription(bookKey, isTest = false) {
     const bookItem = myBooklist.find(b => b.key === bookKey);
     if (!bookItem && !isTest) {
@@ -630,7 +687,7 @@ const BooklistApp = (function() {
         showNotification(errorMsg, "error");
       } else if (bookItem) {
         bookItem.description = '[Description unavailable]';
-        showNotification(`Could not fetch description: ${errorMsg}`, 'error');
+        showNotification(`Could not draft description: ${errorMsg}`, 'error');
         updateDescriptionInPlace(bookKey);
         debouncedSave();
       }
@@ -682,7 +739,7 @@ const BooklistApp = (function() {
         showNotification(failMsg, "error");
       } else if (bookItem) {
         bookItem.description = '[Description unavailable]';
-        showNotification(`Could not fetch description for "${bookItem.title}": ${errorMessage}`, 'error');
+        showNotification(`Could not draft description for "${bookItem.title}": ${errorMessage}`, 'error');
         updateDescriptionInPlace(bookKey);
         debouncedSave();
         // Folio: worried about fetch failure
@@ -1085,7 +1142,15 @@ const BooklistApp = (function() {
           author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
           callNumber: CONFIG.PLACEHOLDERS.callNumber,
           authorDisplay: null, // Will be constructed on first render
-          description: 'Fetching book description... May take a few minutes.',
+          // When auto-drafting is enabled (branded instance with the
+          // toggle on) we stage a "Drafting..." placeholder because the
+          // auto-fetcher below is about to replace it. Otherwise — public
+          // tool, or branded instance with the toggle off — the description
+          // stays at the standard blank placeholder and the user writes
+          // their own (or reaches for the wand button on demand).
+          description: shouldAutoFetchDescription()
+            ? 'Drafting book description... May take a few minutes.'
+            : CONFIG.PLACEHOLDERS.description,
           cover_ids: carouselState.allCoverIds,
           currentCoverIndex: carouselState.currentCoverIndex,
           includeInCollage: currentStarredCount < CONFIG.MIN_COVERS_FOR_COLLAGE
@@ -1095,17 +1160,25 @@ const BooklistApp = (function() {
         addButton.innerHTML = '&#10003;';
         addButton.classList.add('added');
         addButton.setAttribute('aria-label', `Remove "${book.title}" from booklist`);
-        
+
         // Folio: excited about the new book
         if (window.folio) {
           window.folio.react('nod');
           setTimeout(function() { if (window.folio) window.folio.setState('excited', 'book-added'); }, 300);
           setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
         }
-        
+
         renderBooklist();
         debouncedSave();
-        getAiDescription(newBook.key);
+        // Auto-draft a description on book-add when (a) we're on a
+        // branded library instance AND (b) the Search-tab toggle is
+        // on. The public tool never hits this path; branded users who
+        // prefer to write their own descriptions flip the toggle off.
+        // The magic wand button on each book remains available either
+        // way — it's an explicit per-book opt-in.
+        if (shouldAutoFetchDescription()) {
+          getAiDescription(newBook.key);
+        }
         
         // Folio: check if all slots are now filled
         if (window.folio) {
@@ -1408,8 +1481,8 @@ const BooklistApp = (function() {
     const magicButton = document.createElement('button');
     magicButton.className = 'magic-button';
     magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
-    magicButton.title = 'Fetch description';
-    magicButton.setAttribute('aria-label', 'Fetch description for this book');
+    magicButton.title = 'Draft description';
+    magicButton.setAttribute('aria-label', 'Draft description for this book');
     magicButton.onclick = () => handleMagicButtonClick(bookItem);
     
     // Item number (editable input for reordering)
@@ -1485,7 +1558,7 @@ const BooklistApp = (function() {
 
     descField.innerText = bookItem.description;
 
-    const isLoadingOrError = bookItem.description.includes('Fetching') ||
+    const isLoadingOrError = bookItem.description.includes('Drafting') ||
                              bookItem.description.includes('Description unavailable') ||
                              bookItem.description.startsWith('error:');
 
@@ -1500,6 +1573,18 @@ const BooklistApp = (function() {
   }
 
   function handleMagicButtonClick(bookItem) {
+    // Description drafting is a custom-instance feature. On the public tool
+    // (or any instance without a library config loaded) the button
+    // shows a notice and bails instead of calling the Google Apps
+    // Script. The call itself costs real money per use, so public
+    // users can't trigger it.
+    if (!window.LIBRARY_CONFIG) {
+      showNotification(
+        'This feature is available on custom library instances only.',
+        'info'
+      );
+      return;
+    }
     pushUndo('ai-description');
     const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
     
@@ -1537,7 +1622,7 @@ const BooklistApp = (function() {
     // Update bookItem.author with parsed value for getAiDescription
     bookItem.author = currentAuthor;
     
-    bookItem.description = "Fetching title description... May take a few minutes.";
+    bookItem.description = "Drafting title description... May take a few minutes.";
     updateDescriptionInPlace(bookItem.key);
     debouncedSave();
     // Folio: evaluating while fetching description
@@ -1634,8 +1719,38 @@ const BooklistApp = (function() {
           book.customCoverData = compressed;
           book.cover_ids = [];
           book.currentCoverIndex = 0;
+
+          // Uploading a cover to a manual entry commits the slot as a real
+          // book and auto-stars it if there's room in the collage. Mirrors
+          // the search-add flow, where books added from search auto-star up
+          // to the collage minimum. Respects the active max (12 standard,
+          // 20 extended) so users who've already filled their collage won't
+          // see new stars exceed the limit.
+          const wasBlank = book.isBlank;
+          const wasStarred = book.includeInCollage;
+          if (book.isBlank) {
+            book.isBlank = false;
+          }
+          if (!book.includeInCollage) {
+            const starredCount = BookUtils.getStarredBooks(myBooklist).length;
+            const extendedMode = elements.extendedCollageToggle?.checked || false;
+            const maxCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+            const totalCollageCovers = starredCount + (extendedMode ? extraCollageCovers.length : 0);
+            if (totalCollageCovers < maxCovers) {
+              book.includeInCollage = true;
+            }
+          }
+          const stateChanged = wasBlank !== book.isBlank || wasStarred !== book.includeInCollage;
+
           coverImg.src = compressed;
           debouncedSave();
+
+          // If we un-blanked or starred, re-render so the star button and
+          // any other state-dependent UI update. Cheap compared to the
+          // upload path; only fires when something actually changed.
+          if (stateChanged) {
+            renderBooklist();
+          }
 
           // Folio: acknowledge cover upload
           if (window.folio) {
@@ -1748,7 +1863,7 @@ const BooklistApp = (function() {
     setupPlaceholderField(authorField, CONFIG.PLACEHOLDERS.authorWithCall, { originalColor: authorOriginalColor });
     
     // Description placeholder (special handling for loading states)
-    const isLoadingOrError = bookItem.description.includes('Fetching') ||
+    const isLoadingOrError = bookItem.description.includes('Drafting') ||
                             bookItem.description.includes('Description unavailable') ||
                             bookItem.description.startsWith('error:');
     
@@ -1997,6 +2112,54 @@ const BooklistApp = (function() {
       document.fonts.ready,
       new Promise(resolve => setTimeout(resolve, timeoutMs))
     ]);
+  }
+
+  /**
+   * Wait for all <img> elements matching the selector to finish loading
+   * and be ready for html2canvas to paint. Without this, an img whose
+   * src was just set but whose bytes are still in-flight over the
+   * network (or still decoding) appears in the html2canvas output as
+   * an empty box, because html2canvas takes a synchronous snapshot and
+   * a not-yet-decoded img has naturalWidth === 0.
+   *
+   * Three cases per image:
+   *   1. Already loaded and valid -> resolve immediately.
+   *   2. Already loaded but broken (complete but naturalWidth is 0,
+   *      e.g. 404) -> resolve immediately, waiting longer won't help.
+   *   3. Still loading -> prefer img.decode() where supported, which
+   *      returns a Promise resolving when the image is decoded and
+   *      ready to paint. Fall back to onload/onerror listeners on
+   *      older browsers.
+   *
+   * A decode failure resolves silently rather than rejecting, so a
+   * single broken image can't block the whole PDF export. A per-call
+   * timeout race prevents a stuck image (e.g. a remote URL on a bad
+   * connection) from hanging the export indefinitely.
+   */
+  function waitForImagesDecoded(selector, timeoutMs = 5000) {
+    const imgs = Array.from(document.querySelectorAll(selector));
+    const perImagePromises = imgs.map(img => {
+      if (img.complete) {
+        // Already loaded (whether valid or broken). Don't block on it.
+        return Promise.resolve();
+      }
+      if (typeof img.decode === 'function') {
+        return img.decode().catch(() => { /* decode failure is non-fatal */ });
+      }
+      return new Promise(resolve => {
+        const cleanup = () => {
+          img.removeEventListener('load', onLoad);
+          img.removeEventListener('error', onError);
+        };
+        const onLoad = () => { cleanup(); resolve(); };
+        const onError = () => { cleanup(); resolve(); };
+        img.addEventListener('load', onLoad);
+        img.addEventListener('error', onError);
+      });
+    });
+    const allSettled = Promise.all(perImagePromises);
+    const timeout = new Promise(resolve => setTimeout(resolve, timeoutMs));
+    return Promise.race([allSettled, timeout]);
   }
 
   /**
@@ -3872,6 +4035,14 @@ const BooklistApp = (function() {
     try {
       await new Promise(resolve => setTimeout(resolve, CONFIG.PDF_RENDER_DELAY_MS));
       await waitForFonts();
+      // Defense in depth: make sure every <img> in both print pages is
+      // fully decoded before html2canvas takes its snapshot. Guards
+      // against the specific case where branded-library logos or
+      // freshly-set images would capture as empty boxes because the
+      // bytes hadn't finished arriving over the network when capture
+      // started. Resolves silently on broken/missing images so they
+      // don't block the export.
+      await waitForImagesDecoded('#print-page-1 img, #print-page-2 img');
       
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({
@@ -4642,6 +4813,14 @@ const BooklistApp = (function() {
         if (window.folio) window.folio.react('perk');
       });
     });
+
+    // Auto-draft description toggle (branded instances only; the row
+    // itself stays hidden on the public tool via applyLibraryConfig).
+    if (elements.autoDescriptionToggle) {
+      elements.autoDescriptionToggle.addEventListener('change', () => {
+        setAutoDescriptionPreference(elements.autoDescriptionToggle.checked);
+      });
+    }
     
     // List name input (triggers autosave)
     if (elements.listNameInput) {
@@ -4788,7 +4967,10 @@ const BooklistApp = (function() {
       });
     }
     
-    // Simple mode: textarea and style controls
+    // Simple mode: textarea handler. The textarea lives in #cover-simple-mode
+    // (a separate form-group from #cover-title-style-group), so the main
+    // style-groups loop below doesn't catch it and a dedicated handler is
+    // needed.
     if (elements.coverTitleInput) {
       elements.coverTitleInput.addEventListener('input', () => {
         pushUndo('edit-cover-text');
@@ -4796,94 +4978,79 @@ const BooklistApp = (function() {
         debouncedCoverRegen();
       });
     }
-    
-    // Simple mode style controls
-    const simpleStyleElements = [
-      elements.coverFontSelect,
-      elements.coverFontSize,
-      elements.coverTextColor
-    ];
-    simpleStyleElements.forEach(el => {
-      if (el) {
-        el.addEventListener('input', () => {
-          pushUndo('change-cover-style');
-          debouncedSave();
-          debouncedCoverRegen();
-        });
-        el.addEventListener('change', () => {
-          pushUndo('change-cover-style');
-          debouncedSave();
-          debouncedCoverRegen();
-        });
-      }
-    });
 
-    // Simple mode bold/italic toggles
-    if (elements.coverBoldToggle) {
-      elements.coverBoldToggle.addEventListener('click', () => {
-        pushUndo('change-cover-style');
-        elements.coverBoldToggle.classList.toggle('active');
-        debouncedSave();
-        autoRegenerateCoverIfAble();
-      });
-    }
-    if (elements.coverItalicToggle) {
-      elements.coverItalicToggle.addEventListener('click', () => {
-        pushUndo('change-cover-style');
-        elements.coverItalicToggle.classList.toggle('active');
-        debouncedSave();
-        autoRegenerateCoverIfAble();
-      });
-    }
-    
+    // NOTE: Simple mode style controls (cover-font-select, cover-font-size,
+    // cover-text-color) and the cover-bold-toggle / cover-italic-toggle
+    // buttons used to have dedicated handlers here. They were REMOVED because
+    // those elements live inside #cover-title-style-group, which is already
+    // bound by the main style-groups loop further down. The dedicated
+    // handlers were duplicating every click and double-toggling the 'active'
+    // class on the bold/italic buttons, which is why those toggles silently
+    // stopped working. The main loop handles all of these elements correctly
+    // (with the pre-edit pattern for undo and debouncedSave() on every edit).
+
     // Advanced mode: per-line inputs and style controls
     elements.coverLines.forEach(line => {
-      // Text input (debounced for rapid typing)
+      // Text input — pre-edit pattern so undo captures state BEFORE typing.
       if (line.input) {
+        line.input.addEventListener('focus', capturePreEditSnapshot);
+        line.input.addEventListener('blur', clearPreEditSnapshot);
         line.input.addEventListener('input', () => {
-          pushUndo('edit-cover-text');
+          commitPreEditSnapshot('edit-cover-text');
           debouncedSave();
           debouncedCoverRegen();
         });
       }
-      // Font select (instant - discrete change)
+      // Font select — pre-edit pattern.
       if (line.font) {
+        line.font.addEventListener('focus', capturePreEditSnapshot);
+        line.font.addEventListener('blur', clearPreEditSnapshot);
         line.font.addEventListener('change', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
           autoRegenerateCoverIfAble();
         });
       }
-      // Size input (debounced for rapid changes)
+      // Size input — pre-edit pattern.
       if (line.size) {
+        line.size.addEventListener('focus', capturePreEditSnapshot);
+        line.size.addEventListener('blur', clearPreEditSnapshot);
         line.size.addEventListener('input', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
       }
-      // Color picker (debounced for dragging)
+      // Color picker — pre-edit pattern. This is the big one: without the
+      // pre-edit capture, Ctrl+Z on colors would pop the already-dragged-to
+      // color instead of reverting to what it was before the picker opened.
       if (line.color) {
+        line.color.addEventListener('focus', capturePreEditSnapshot);
+        line.color.addEventListener('blur', clearPreEditSnapshot);
         line.color.addEventListener('input', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
       }
-      // Spacing input (debounced for rapid changes)
+      // Spacing input — pre-edit pattern. Both input and change fire on
+      // number inputs; both go through the same commit helper so only one
+      // undo entry is pushed per focus session.
       if (line.spacing) {
+        line.spacing.addEventListener('focus', capturePreEditSnapshot);
+        line.spacing.addEventListener('blur', clearPreEditSnapshot);
         line.spacing.addEventListener('input', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
         line.spacing.addEventListener('change', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
       }
-      // Bold toggle (instant - discrete change)
+      // Bold toggle — button, pushUndo-before-mutation works correctly.
       if (line.bold) {
         line.bold.addEventListener('click', () => {
           pushUndo('change-cover-style');
@@ -4892,7 +5059,7 @@ const BooklistApp = (function() {
           autoRegenerateCoverIfAble();
         });
       }
-      // Italic toggle (instant - discrete change)
+      // Italic toggle — button, pushUndo-before-mutation works correctly.
       if (line.italic) {
         line.italic.addEventListener('click', () => {
           pushUndo('change-cover-style');
@@ -4934,16 +5101,26 @@ const BooklistApp = (function() {
     
     // Style controls
     document.querySelectorAll('.export-controls .form-group[data-style-group], #cover-title-style-group').forEach(group => {
+      // For input/select elements: use the pre-edit snapshot pattern so Ctrl+Z
+      // actually works for color pickers, font selects, font-size fields, etc.
+      // (The browser mutates the DOM value before the change/input event fires,
+      // so a plain pushUndo in the handler would capture the post-change state.)
+      // debouncedSave() is called on every change so style edits persist across
+      // refresh/tab-close even when nothing else triggers a save.
       group.querySelectorAll('select, input').forEach(input => {
+        input.addEventListener('focus', capturePreEditSnapshot);
+        input.addEventListener('blur', clearPreEditSnapshot);
         input.addEventListener('change', () => {
-          pushUndo('change-style');
+          commitPreEditSnapshot('change-style');
+          debouncedSave();
           applyStyles();
           if (group.id === 'cover-title-style-group') {
             debouncedCoverRegen();
           }
         });
         input.addEventListener('input', () => {
-          pushUndo('change-style');
+          commitPreEditSnapshot('change-style');
+          debouncedSave();
           applyStyles();
           if (group.id === 'cover-title-style-group') {
             debouncedCoverRegen();
@@ -4951,6 +5128,10 @@ const BooklistApp = (function() {
         });
       });
 
+      // For buttons: pushUndo-before-mutation works correctly because the
+      // click handler runs before classList.toggle, so serializeState captures
+      // the old class state. No pre-edit pattern needed, but debouncedSave()
+      // is still required so the toggled state persists across refresh.
       group.querySelectorAll('button').forEach(button => {
         // Skip line-specific bold/italic buttons (they have their own handlers)
         if (button.classList.contains('line-bold') || button.classList.contains('line-italic')) {
@@ -4961,6 +5142,7 @@ const BooklistApp = (function() {
           if (e.target.classList.contains('bold-toggle') || e.target.classList.contains('italic-toggle')) {
             e.target.classList.toggle('active');
           }
+          debouncedSave();
           applyStyles();
           if (group.id === 'cover-title-style-group') {
             autoRegenerateCoverIfAble();
@@ -5044,15 +5226,23 @@ const BooklistApp = (function() {
       });
     }
     
-    // Branding "Use Default" button - loads the default branding image
+    // Branding "Use Default" button - reloads the library-provided
+    // default brand image. CSS hides this button on the public tool
+    // (no library default exists); it only appears on branded
+    // instances when applyLibraryConfig has added body.has-library-branding
+    // AND the user has cleared their branding image. The guard below
+    // is defensive in case the button is ever triggered without a
+    // library default available.
     const brandingDefaultBtn = elements.brandingUploader.querySelector('.branding-default-btn');
     if (brandingDefaultBtn) {
       brandingDefaultBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        const libraryBranding = window.LIBRARY_CONFIG && window.LIBRARY_CONFIG.brandingImagePath;
+        if (!libraryBranding) return;
         pushUndo('upload-branding');
         const imgElement = elements.brandingUploader.querySelector('img');
-        imgElement.src = 'assets/img/branding-default.png';
+        imgElement.src = libraryBranding;
         imgElement.dataset.isPlaceholder = 'false';
         elements.brandingUploader.classList.add('has-image');
         debouncedSave();
@@ -5530,6 +5720,52 @@ const BooklistApp = (function() {
   }
 
   /**
+   * Capture the current state as a pre-edit snapshot, to be committed later
+   * when a style input actually changes. Used for inputs where the browser
+   * updates the DOM value BEFORE the change/input event fires (color pickers,
+   * selects, number inputs), which would otherwise cause pushUndo to capture
+   * the post-change state and make Ctrl+Z meaningless for that input.
+   *
+   * Call on focus. Safe to call multiple times — only captures once per
+   * focus session (until committed or cleared).
+   */
+  function capturePreEditSnapshot() {
+    if (_isRestoring || _tourActive) return;
+    if (_pendingPreEditSnapshot !== null) return; // Already captured this session
+    const state = serializeState();
+    _pendingPreEditSnapshot = JSON.stringify(_extractImages(state));
+  }
+
+  /**
+   * Commit the pending pre-edit snapshot to the undo stack, if one exists.
+   * Call on the input/change event. Only pushes once per focus session — once
+   * committed, subsequent calls are no-ops until a new capturePreEditSnapshot.
+   */
+  function commitPreEditSnapshot(group) {
+    if (_isRestoring || _tourActive) return;
+    if (_pendingPreEditSnapshot === null) return;
+
+    _undoStack.push(_pendingPreEditSnapshot);
+    _lastUndoGroup = group;
+    _lastUndoTime = Date.now();
+    _redoStack = [];
+    if (_undoStack.length > UNDO_MAX) {
+      _undoStack.shift();
+    }
+    updateUndoRedoButtons();
+
+    _pendingPreEditSnapshot = null;
+  }
+
+  /**
+   * Discard any uncommitted pre-edit snapshot. Call on blur so stale snapshots
+   * don't leak across unrelated interactions.
+   */
+  function clearPreEditSnapshot() {
+    _pendingPreEditSnapshot = null;
+  }
+
+  /**
    * Restore a snapshot, handling async image resolution and side-effect guards.
    * @param {string} jsonString - JSON-stringified snapshot with image refs
    * @returns {Promise<void>}
@@ -5881,19 +6117,38 @@ const BooklistApp = (function() {
     if (!config || _libraryConfigApplied) return;
     _libraryConfigApplied = true;
 
-    // 1. Document title
-    if (config.displayName) {
-      document.title = config.displayName + ' Booklister';
+    // Signal to CSS that a library config is in play. Used to scale up
+    // the .header-credit "for <library>" byline to match the logo size.
+    document.body.classList.add('has-library-config');
+
+    // Per-library CSS hook. Adds a `library-<id>` class to the body so
+    // stylesheets can target a specific library instance for customization
+    // (e.g., hide the site footer for one library that doesn't want it).
+    // Library IDs are alphanumeric + hyphen from the hostname subdomain,
+    // so they're safe to interpolate into a class name.
+    if (window.LIBRARY_ID) {
+      document.body.classList.add('library-' + window.LIBRARY_ID);
     }
 
-    // 2. Header credit byline
+    // Libraries only own two per-library fields: displayName and
+    // brandingImagePath. Fonts, layout, and extended mode are per-USER
+    // preferences that start from the Booklister defaults — not
+    // per-library — so we don't touch them here.
+
+    // Document title + header credit byline.
     if (config.displayName) {
+      document.title = config.displayName + ' Booklister';
       const credit = document.querySelector('.header-credit');
       if (credit) credit.textContent = 'for ' + config.displayName;
     }
 
-    // 3. Default branding image — only if the user hasn't uploaded one.
+    // Default branding image — only if the user hasn't uploaded one.
+    // The body class is added unconditionally (even if the user already
+    // has their own image) so that the "Use Default" button becomes
+    // available as a fallback when the user clears their branding,
+    // letting them restore the library default.
     if (config.brandingImagePath && elements.brandingUploader) {
+      document.body.classList.add('has-library-branding');
       const img = elements.brandingUploader.querySelector('img');
       if (img && img.dataset.isPlaceholder !== 'false') {
         img.src = config.brandingImagePath;
@@ -5902,53 +6157,48 @@ const BooklistApp = (function() {
       }
     }
 
-    // 4. Cover header font — only if still at the HTML data-default value.
-    if (config.defaultCoverFont && elements.coverFontSelect) {
-      const sel = elements.coverFontSelect;
-      const htmlDefault = sel.dataset.default || '';
-      if (!sel.value || sel.value === htmlDefault) {
-        sel.value = config.defaultCoverFont;
-      }
+    // Auto-draft description toggle — only meaningful on branded
+    // instances (where the description backend is actually wired up).
+    // Reveal the row and sync the checkbox from the persisted preference.
+    if (elements.autoDescriptionToggleRow && elements.autoDescriptionToggle) {
+      elements.autoDescriptionToggleRow.hidden = false;
+      elements.autoDescriptionToggle.checked = getAutoDescriptionPreference();
     }
 
-    // 5. Book-block fonts (title, author, desc) — only if still at default.
-    if (config.defaultBookFont) {
-      document.querySelectorAll(
-        '.export-controls .form-group[data-style-group]:not([data-style-group="qr"]) .font-select'
-      ).forEach(sel => {
-        const htmlDefault = sel.dataset.default || '';
-        if (!sel.value || sel.value === htmlDefault) {
-          sel.value = config.defaultBookFont;
+    // Role-aware Admin link. Only library admins (users whose memberships
+    // doc has role: 'admin') see this — regular staff and public-branded
+    // visitors don't. The link opens the admin console in a new tab so
+    // they can manage their library's staff roster without losing their
+    // current booklist draft. library-config.js sets window.LIBRARY_USER_ROLE
+    // after reading the signed-in user's own memberships doc.
+    if (window.LIBRARY_USER_ROLE === 'admin') {
+      const headerActions = document.querySelector('.header-actions');
+      const signOutBtn = document.getElementById('auth-signout-button');
+      if (headerActions && !document.getElementById('library-admin-link')) {
+        const adminLink = document.createElement('a');
+        adminLink.id = 'library-admin-link';
+        adminLink.href = 'https://admin.booklister.org/';
+        adminLink.target = '_blank';
+        adminLink.rel = 'noopener';
+        adminLink.title = 'Open the admin console';
+        adminLink.setAttribute('aria-label', 'Open the admin console in a new tab');
+        adminLink.innerHTML =
+          '<i class="fa-solid fa-user-shield" aria-hidden="true"></i> Admin';
+        if (signOutBtn) {
+          headerActions.insertBefore(adminLink, signOutBtn);
+        } else {
+          headerActions.appendChild(adminLink);
         }
-      });
-    }
-
-    // 6. Default cover layout.
-    if (config.defaultCoverLayout && elements.collageLayoutSelector) {
-      const selector = elements.collageLayoutSelector;
-      const target = selector.querySelector(
-        '.layout-option[data-layout="' + config.defaultCoverLayout + '"]'
-      );
-      if (target && !target.classList.contains('selected')) {
-        selector.querySelectorAll('.layout-option').forEach(o => o.classList.remove('selected'));
-        target.classList.add('selected');
-        updateTiltedSettingsVisibility();
       }
     }
 
-    // 7. Default extended collage mode.
-    if (typeof config.defaultExtendedMode === 'boolean' && elements.extendedCollageToggle) {
-      const toggle = elements.extendedCollageToggle;
-      if (toggle.checked !== config.defaultExtendedMode) {
-        toggle.checked = config.defaultExtendedMode;
-        toggleExtendedCollageMode(config.defaultExtendedMode, true);
-      }
-    }
-
-    // Sync the visible custom font dropdowns and re-apply preview styles.
-    refreshAllCustomFontDropdowns();
-    applyStyles();
-    autoRegenerateCoverIfAble();
+    // Reveal the tool. An inline script in index.html added this class
+    // synchronously at page load to hide everything until a valid config
+    // was available, preventing a flash of the unbranded tool on gated
+    // subdomains. Removing it now (at the end of applyLibraryConfig)
+    // means the body becomes visible with the branded state already in
+    // place.
+    document.documentElement.classList.remove('awaiting-library-config');
   }
 
   function _onLibraryConfigReady(evt) {

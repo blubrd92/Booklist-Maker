@@ -16,6 +16,39 @@
   <meta name="twitter:description" content="A free browser tool for making printable booklists for library displays. Built by a Bay Area librarian.">
   <title>Booklister</title>
 
+  <!-- Admin subdomain redirect. If the hostname is admin.booklister.org,
+       bounce to /admin/ immediately — the admin console is a separate app
+       in the /admin/ directory, and we don't want the main tool loading
+       on the admin subdomain at all. Runs before any other scripts or
+       CSS so the main tool never starts initializing. -->
+  <script>
+    (function() {
+      if (window.location.hostname === 'admin.booklister.org' &&
+          !window.location.pathname.startsWith('/admin/')) {
+        window.location.replace('/admin/');
+      }
+    })();
+  </script>
+
+  <!-- Synchronous branded-host detection. Runs before any CSS or scripts
+       load so that the .awaiting-library-config class is on <html>
+       BEFORE the first paint, preventing a flash of the unbranded tool
+       on gated library subdomains. Mirrors firebase-init.js's host-
+       detection logic. The class is removed by applyLibraryConfig in
+       app.js once the library config has loaded and been applied. -->
+  <script>
+    (function() {
+      var PUBLIC_HOSTS = ['booklister.org', 'www.booklister.org', 'blubrd92.github.io', 'localhost', '127.0.0.1'];
+      var h = window.location.hostname;
+      var isLocal = h === 'localhost' || h === '127.0.0.1';
+      var hasOverride = isLocal && /[?&]library=/.test(window.location.search);
+      var isPublic = PUBLIC_HOSTS.indexOf(h) !== -1;
+      if (!isPublic || hasOverride) {
+        document.documentElement.classList.add('awaiting-library-config');
+      }
+    })();
+  </script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -52,9 +85,6 @@
 
     <div class="header-actions">
       <button id="tour-button" title="Take a guided tour" aria-label="Open guided tour">?</button>
-      <button id="auth-signout-button" title="Sign out" aria-label="Sign out of library instance" hidden>
-        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-      </button>
       <button id="load-list-button" class="btn btn-header" title="Load Saved List" aria-label="Load saved booklist file">
         <i class="fa-solid fa-upload" aria-hidden="true"></i> Load
       </button>
@@ -66,6 +96,9 @@
       </button>
       <button id="export-pdf-button" class="btn btn-header-primary" title="Generate PDF" aria-label="Generate PDF of booklist">
         <i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Generate PDF
+      </button>
+      <button id="auth-signout-button" title="Sign out" aria-label="Sign out of library instance" hidden>
+        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
       </button>
       <input type="file" id="load-list-input" accept=".booklist,.json,application/json" style="display: none;" aria-hidden="true" />
     </div>
@@ -91,6 +124,14 @@
               <div class="form-group">
                 <label for="keywordInput" class="sr-only">Search keywords</label>
                 <input id="keywordInput" type="text" placeholder="Keyword..."/>
+              </div>
+              <!-- Auto-draft description toggle. Hidden by default; app.js
+                   reveals it on branded instances (where the description
+                   backend is actually wired up) after library-config-ready.
+                   Does not appear on the public tool. -->
+              <div class="control-row checkbox-row" id="auto-description-toggle-row" hidden>
+                <input id="auto-description-toggle" type="checkbox" checked/>
+                <label for="auto-description-toggle" title="When on, Booklister drafts a short description for each book as you add it. Turn it off if you prefer to write every description yourself. You can still use the wand button on any individual book either way.">Auto-draft descriptions on add</label>
               </div>
               <div class="advanced-search-toggle">
                 <details>
@@ -609,8 +650,8 @@
                 <img alt="QR Code Placeholder" src="https://placehold.co/900x900/EAEAEA/333333?text=QR+Code"/>
               </div>
             </div>
-            <label class="custom-uploader has-image" id="branding-uploader" role="button" aria-label="Upload library branding image">
-              <img alt="Library Branding Placeholder" src="assets/img/branding-default.png"/>
+            <label class="custom-uploader" id="branding-uploader" role="button" aria-label="Upload library branding image">
+              <img alt="Library Branding Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-is-placeholder="true"/>
               <div class="placeholder-text">Click to upload<br/>library branding image<br/>(min 3000 x 900 px recommended)</div>
               <input type="file" accept="image/*" aria-hidden="true"/>
               <button type="button" class="branding-delete-btn" title="Remove branding image"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
@@ -817,7 +858,12 @@
         </div>
         <div class="auth-field">
           <label for="auth-password-input">Password</label>
-          <input id="auth-password-input" type="password" autocomplete="current-password" required>
+          <div class="auth-password-wrap">
+            <input id="auth-password-input" type="password" autocomplete="current-password" required>
+            <button type="button" id="auth-password-toggle" class="auth-password-toggle" aria-label="Show password" aria-pressed="false" tabindex="0">
+              <i class="fa-solid fa-eye" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
         <div id="auth-error" role="alert" aria-live="polite" hidden></div>
         <div id="auth-reset-confirm" role="status" aria-live="polite" hidden></div>
@@ -975,6 +1021,8 @@
       <a href="for-libraries.html">For Libraries</a>
       <span aria-hidden="true">·</span>
       <a href="contact.html">Contact</a>
+      <span aria-hidden="true">·</span>
+      <a href="privacy.html">Privacy</a>
     </nav>
   </footer>
 

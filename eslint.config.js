@@ -73,10 +73,16 @@ export default [
     },
   },
   {
-    // ES module files (Firebase integration). These use `import`/`export`
-    // and top-level `await`, so they need sourceType "module". They run only
-    // on branded library instances — the public tool never loads them.
-    files: ["assets/js/firebase-init.js", "assets/js/library-config.js", "assets/js/auth.js"],
+    // ES module files (Firebase integration + admin console). These use
+    // `import`/`export` and top-level `await`, so they need sourceType
+    // "module". They run only on branded library instances or in the
+    // admin console — the public tool never loads them.
+    files: [
+      "assets/js/firebase-init.js",
+      "assets/js/library-config.js",
+      "assets/js/auth.js",
+      "admin/admin.js",
+    ],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",

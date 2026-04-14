@@ -41,15 +41,21 @@
 
       <h2>What you get</h2>
 
-      <p><strong>A custom-branded instance of Booklister.</strong> Your library's name, colors, logo, and default settings (fonts, layouts, which toggles are on) become the starting point. When your staff open the tool, it's already set up the way you want, so every booklist they make starts on-brand.</p>
+      <p><strong>A custom-branded instance of Booklister.</strong> Your library's name and logo become the starting point, along with a default for whether book descriptions auto-draft as staff add titles. When your staff open the tool, it's already set up the way you want, so every booklist they make starts on-brand.</p>
 
       <p><strong>A dedicated subdomain.</strong> Something like libraryname.booklister.org. It's yours, it's stable, and it points at a version of the tool set up for your library specifically.</p>
 
-      <p><strong>Ongoing support and maintenance.</strong> Throughout the contract period I'll keep the tool running, fix bugs, push improvements as they come up, and respond to questions or issues your staff runs into.</p>
+      <p><strong>Priority support and maintenance.</strong> Throughout the contract period I'll keep the tool running, fix bugs, and push improvements as they come up. Questions from custom-instance libraries jump ahead of the general weekends-and-evenings queue that handles inquiries to the public tool. Booklister is a side project around my day job, so I can't commit to a specific response window, but I prioritize custom-instance issues and don't let them sit.</p>
+
+      <p><strong>Your library manages its own staff accounts.</strong> A designated admin at your library adds and removes staff through a dedicated admin console without needing to go through me. You stay in control of your own roster, and I remain available as a backstop for anything the admin UI doesn't cover.</p>
 
       <p><strong>Your feedback shapes the tool.</strong> If your library needs something Booklister doesn't do yet, let me know. Anything I build goes into the main tool and rolls out to every instance. I don't build one-off features for individual libraries because I'd rather keep one Booklister than maintain a dozen slightly different versions.</p>
 
-      <p><strong>API costs covered on your behalf.</strong> Booklister uses external services for web search and AI-drafted descriptions, and those carry per-use costs. For institutional clients I cover those costs directly, so your library doesn't have to set up or manage API accounts with third-party vendors.</p>
+      <p><strong>AI-drafted book descriptions, included.</strong> Booklister has a one-click "magic wand" on each book that drafts a short reader's advisory summary using a live web search plus a language model. This feature costs real money per use (API charges), so it's reserved for custom library instances. On the free public tool at booklister.org the button shows a notice saying so; on your branded instance it's fully enabled, and I cover the underlying API costs on your behalf. Your library never needs to set up or manage any third-party API accounts.</p>
+
+      <p><strong>Public-tool fallback.</strong> If the custom instance ever has an outage, your staff can fall back to the public tool at booklister.org without any configuration changes. The core tool is the same; only the branding and the AI description feature differ.</p>
+
+      <p><strong>Setup takes about a week.</strong> Most of that time is waiting for DNS propagation and procurement paperwork rather than development. Once your library is ready to proceed, spinning up the branded instance itself takes an afternoon.</p>
 
       <h2>What it costs</h2>
 
@@ -58,6 +64,10 @@
       <h2>Catalog integrations</h2>
 
       <p>If your library wants Booklister to connect directly to its catalog system, that's possible but handled as a separate scoped project. The complexity varies a lot depending on the system and what you need, so pricing is scoped to each project individually. If this is something you're interested in, get in touch and we can walk through what it would involve.</p>
+
+      <h2>Ending the relationship</h2>
+
+      <p>If your library ever decides to stop using Booklister, winding things down is straightforward. Send me a note from the <a href="contact.html">contact</a> page and I'll confirm in writing, then remove your library's Firestore configuration, all of its staff memberships, and the branding assets associated with the instance. I don't keep backup copies after a deletion request is completed, so anything you still want (saved <code>.booklist</code> files, exported PDFs) should be downloaded before the takedown. This is a manual process I handle personally, same as account creation. I aim to complete deletion requests within one business day of confirmation.</p>
 
       <h2>How to get started</h2>
 
@@ -74,6 +84,8 @@
       <a href="for-libraries.html" aria-current="page">For Libraries</a>
       <span aria-hidden="true">·</span>
       <a href="contact.html">Contact</a>
+      <span aria-hidden="true">·</span>
+      <a href="privacy.html">Privacy</a>
     </nav>
   </footer>
 

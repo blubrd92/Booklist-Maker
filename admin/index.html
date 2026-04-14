@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Admin console is not for public discovery. Keep it out of search indexes. -->
+  <meta name="robots" content="noindex, nofollow">
+  <title>Booklister Admin</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+  <header class="admin-header">
+    <h1>
+      <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklister Admin
+    </h1>
+    <div class="admin-header-user" id="admin-user-info" hidden>
+      <span id="admin-user-email"></span>
+      <button id="admin-signout-btn">Sign out</button>
+    </div>
+  </header>
+
+  <main id="admin-main">
+
+    <!-- Loading state while we check auth -->
+    <section id="admin-loading" class="admin-section">
+      <p class="admin-loading-text">Loading…</p>
+    </section>
+
+    <!-- Not signed in: show Google sign-in button (super-admin) and
+         email/password form (library admins) -->
+    <section id="admin-signin" class="admin-section" hidden>
+      <h2>Sign in</h2>
+
+      <p class="admin-signin-role-label">Booklister owner</p>
+      <p class="admin-signin-role-hint">Sign in with the Google account that owns the project.</p>
+      <button id="google-signin-btn">
+        <i class="fa-brands fa-google" aria-hidden="true"></i> Sign in with Google
+      </button>
+
+      <div class="admin-signin-divider"><span>or</span></div>
+
+      <p class="admin-signin-role-label">Library admin</p>
+      <p class="admin-signin-role-hint">Sign in with the email and password you use for your library's Booklister.</p>
+      <form id="admin-email-signin-form" class="admin-email-signin-form">
+        <div class="admin-field">
+          <label for="admin-email-signin-email">Email</label>
+          <input type="email" id="admin-email-signin-email" autocomplete="email" required>
+        </div>
+        <div class="admin-field">
+          <label for="admin-email-signin-password">Password</label>
+          <div class="auth-password-wrap">
+            <input type="password" id="admin-email-signin-password" autocomplete="current-password" required>
+            <button type="button" id="admin-email-signin-password-toggle" class="auth-password-toggle" aria-label="Show password" aria-pressed="false" tabindex="0">
+              <i class="fa-solid fa-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="admin-btn-primary" id="admin-email-signin-submit">Sign in with email</button>
+      </form>
+
+      <p id="admin-signin-error" class="admin-error" hidden></p>
+    </section>
+
+    <!-- Signed in but not authorized -->
+    <section id="admin-denied" class="admin-section" hidden>
+      <h2>Access denied</h2>
+      <p>You're signed in as <strong id="admin-denied-email"></strong>, but this account is not in the <code>admins</code> Firestore collection.</p>
+      <p>Your UID: <code id="admin-denied-uid"></code></p>
+      <p class="admin-note">
+        <strong>First-time setup:</strong> copy the UID above, then in the Firebase console go to
+        Firestore → <code>admins</code> collection → Add document, paste the UID as the document ID,
+        and save. Reload this page afterward. After that initial manual step, nothing else
+        needs to happen in the Firestore console.
+      </p>
+      <button id="admin-denied-signout-btn" class="admin-btn-secondary">Sign out and try a different account</button>
+    </section>
+
+    <!-- Authorized admin: libraries list + actions -->
+    <section id="admin-app" class="admin-section" hidden>
+      <div class="admin-app-header">
+        <h2>Libraries</h2>
+        <button id="admin-add-library-btn" class="admin-btn-primary">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i> Add Library
+        </button>
+      </div>
+
+      <div id="admin-libraries-loading" class="admin-loading-text">Loading libraries…</div>
+      <div id="admin-libraries-error" class="admin-error" hidden></div>
+
+      <div id="admin-libraries-empty" class="admin-empty" hidden>
+        <p>No libraries yet. Click <strong>Add Library</strong> to create your first one.</p>
+      </div>
+
+      <table id="admin-libraries-table" class="admin-table" hidden>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Display name</th>
+            <th>Type</th>
+            <th class="admin-actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="admin-libraries-tbody"></tbody>
+      </table>
+    </section>
+
+  </main>
+
+  <!-- Create / Edit library modal -->
+  <div id="admin-library-modal" class="admin-modal-overlay" hidden>
+    <div class="admin-modal">
+      <div class="admin-modal-header">
+        <h3 id="admin-library-modal-title">Add Library</h3>
+        <button type="button" class="admin-modal-close" id="admin-library-modal-close" aria-label="Close">&times;</button>
+      </div>
+
+      <!-- Single scroll area that contains both the library config form
+           and (in edit mode for gated libraries) the memberships section.
+           Keeps the modal to one scrollbar instead of two. -->
+      <div class="admin-modal-scroll-area">
+        <form id="admin-library-form" class="admin-modal-body" novalidate>
+          <div class="admin-field">
+            <label for="admin-field-library-id">Library ID <span class="admin-required">*</span></label>
+            <input type="text" id="admin-field-library-id" autocomplete="off" spellcheck="false" required>
+            <p class="admin-field-hint">Lowercase letters, numbers, and hyphens. This becomes the subdomain (e.g. <code>sonoma</code> → <code>sonoma.booklister.org</code>) and cannot be changed after creation.</p>
+          </div>
+
+          <div class="admin-field">
+            <label>Type <span class="admin-required">*</span></label>
+            <div class="admin-radio-group" id="admin-field-type-group">
+              <label class="admin-radio">
+                <input type="radio" name="library-type" value="public" checked>
+                <span><strong>Public</strong> — Anyone can access this library instance. Config stored in <code>libraries-public</code>.</span>
+              </label>
+              <label class="admin-radio">
+                <input type="radio" name="library-type" value="gated">
+                <span><strong>Gated</strong> — Requires sign-in + membership. Config stored in <code>libraries</code>.</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="admin-field">
+            <label for="admin-field-display-name">Display name <span class="admin-required">*</span></label>
+            <input type="text" id="admin-field-display-name" required>
+            <p class="admin-field-hint">Shown in the browser tab and the "for &lt;library&gt;" header credit.</p>
+          </div>
+
+          <div class="admin-field">
+            <label for="admin-field-branding-path">Branding image path</label>
+            <input type="text" id="admin-field-branding-path" autocomplete="off" spellcheck="false" readonly placeholder="assets/img/libraries/&lt;id&gt;/logo.png">
+            <p class="admin-field-hint">Automatically derived from the library ID. Before users can see the logo, commit a <code>logo.png</code> file at exactly this path in the Booklister GitHub repo.</p>
+          </div>
+
+          <div class="admin-field admin-field-checkbox">
+            <label class="admin-checkbox-label">
+              <input type="checkbox" id="admin-field-auto-draft-default" checked>
+              <span>Auto-draft descriptions by default</span>
+            </label>
+            <p class="admin-field-hint">Controls the default state of the "Auto-draft descriptions on add" toggle in the Search tab for this library's staff. Individual staff can still flip it in their own browser; this is just the starting default they see on first use. Leave on unless the library has asked for it off.</p>
+          </div>
+
+          <p id="admin-library-form-error" class="admin-error" hidden></p>
+        </form>
+
+        <!-- Memberships section — only shown for gated libraries in edit
+             mode. Public libraries don't need memberships (any visitor can
+             read them), and you can't add members to a library until its
+             doc exists, so this is hidden in create mode. -->
+        <div id="admin-memberships-section" class="admin-modal-body admin-memberships" hidden>
+          <h4>Staff with access</h4>
+          <p class="admin-field-hint">
+            Enter the new staff member's email. The admin console will create a Firebase Auth
+            account for them and send a password reset email so they can set their own password.
+            They'll then be able to sign in at this library's URL.
+          </p>
+
+          <div id="admin-memberships-loading" class="admin-loading-text">Loading memberships…</div>
+          <div id="admin-memberships-error" class="admin-error" hidden></div>
+          <div id="admin-memberships-empty" class="admin-empty admin-empty-compact" hidden>
+            No staff yet. Invite someone below to grant access.
+          </div>
+          <ul id="admin-memberships-list" class="admin-memberships-list" hidden></ul>
+
+          <form id="admin-add-membership-form" class="admin-add-membership">
+            <input type="email" id="admin-add-membership-email" placeholder="staff@library.org" autocomplete="off" spellcheck="false">
+          <button type="submit" class="admin-btn-primary admin-btn-sm" id="admin-add-membership-btn">
+            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Send invite
+          </button>
+        </form>
+          <p id="admin-add-membership-success" class="admin-note" hidden></p>
+          <p id="admin-add-membership-error" class="admin-error" hidden></p>
+        </div>
+      </div>
+
+      <div class="admin-modal-footer">
+        <button type="button" class="admin-btn-secondary" id="admin-library-cancel-btn">Cancel</button>
+        <button type="submit" class="admin-btn-primary" id="admin-library-save-btn" form="admin-library-form">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirmation modal -->
+  <div id="admin-delete-modal" class="admin-modal-overlay" hidden>
+    <div class="admin-modal admin-modal-small">
+      <div class="admin-modal-header">
+        <h3>Delete library?</h3>
+      </div>
+      <div class="admin-modal-body">
+        <p>Delete <strong id="admin-delete-library-name"></strong>?</p>
+        <p class="admin-note admin-note-warning">
+          This removes the library's config document from Firestore. Any existing
+          subdomain will go back to the generic Booklister experience on its next
+          page load. Memberships for this library are NOT deleted — manage those
+          separately.
+        </p>
+        <p id="admin-delete-error" class="admin-error" hidden></p>
+      </div>
+      <div class="admin-modal-footer">
+        <button type="button" class="admin-btn-secondary" id="admin-delete-cancel-btn">Cancel</button>
+        <button type="button" class="admin-btn-danger" id="admin-delete-confirm-btn">Delete library</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="admin-footer" role="contentinfo">
+    <nav class="admin-footer-nav" aria-label="Admin console navigation">
+      <a href="https://booklister.org/">Home</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://booklister.org/contact.html">Contact</a>
+    </nav>
+  </footer>
+
+  <!-- Safety net: if admin.js fails to load (Firebase CDN down, network
+       firewall blocks gstatic.com, browser extension blocks the request,
+       etc.), the page would stay stuck on "Loading…" forever. After a
+       few seconds, replace the loading section with a diagnostic. -->
+  <script>
+    setTimeout(function() {
+      var loading = document.getElementById('admin-loading');
+      if (loading && !loading.hidden) {
+        loading.innerHTML =
+          '<h2>Could not load the admin console</h2>' +
+          '<p>The Firebase SDK failed to load. This usually means:</p>' +
+          '<ul style="margin:0 0 16px 20px;color:#2d3748;line-height:1.6;">' +
+            '<li>Your network or a browser extension is blocking <code>gstatic.com</code></li>' +
+            '<li>Firebase is experiencing an outage</li>' +
+            '<li>Your device is offline</li>' +
+          '</ul>' +
+          '<p>Open the browser console for the underlying error.</p>';
+      }
+    }, 8000);
+  </script>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
