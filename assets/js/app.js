@@ -2766,6 +2766,37 @@ const BooklistApp = (function() {
         }
       } else {
         // === MASONRY-PACK PATH ===
+        //
+        // --- TUNING NOTES ------------------------------------------------
+        // If a library gives feedback on how the masonry-pack mode looks
+        // in Staggered, these are the knobs worth touching (in order of
+        // likelihood):
+        //
+        // hGutter (6pt, near top of drawLayoutStaggered): horizontal
+        //   spacing between packed covers in a row. Tighten to 3-4pt for
+        //   a denser "pinboard" feel; loosen to 8-10pt for more breathing
+        //   room.
+        //
+        // Left bleed start (`cursor = -h`): one row-height of bleed past
+        //   the left edge. Tighten to `-h * 0.5` to pull the leftmost
+        //   cover onto the canvas; loosen to `-h * 1.5` for more bleed.
+        //
+        // Right bleed end (`canvasWidth + h`): same idea on the right.
+        //   Both edges should usually be adjusted symmetrically.
+        //
+        // maxIterPerRow (200): safety cap, not a tuning knob. Only trips
+        //   if the dimension fallback fails, which shouldn't happen in
+        //   practice.
+        //
+        // The motivating use case is children's / YA collections where
+        // cover aspect ratios vary widely (square picture books, tall
+        // middle-grade paperbacks, slim YA). Adult fiction lists with
+        // uniform trade-paperback covers will look nearly identical to
+        // stretch-on mode. Staggered in particular tends to look better
+        // with stretch-on for uniform-aspect collections; the masonry
+        // path is mainly valuable when cover sizes vary.
+        // ------------------------------------------------------------------
+        //
         // Each cover in the row has a variable width derived from its
         // natural aspect ratio; row height stays uniform at h. No stagger
         // offset in masonry mode (matching Tilted's masonry behavior and
@@ -3122,6 +3153,30 @@ const BooklistApp = (function() {
       }
     } else {
       // === MASONRY-PACK MODE ===
+      //
+      // --- TUNING NOTES --------------------------------------------------
+      // If a library gives feedback on how the masonry-pack mode looks in
+      // Tilted, these are the knobs worth touching (in order of likelihood):
+      //
+      // gridExtent factor (see `canvasDiag * 0.8` a few dozen lines up):
+      //   controls how far past canvas edges the pattern extends. Tighten
+      //   to 0.6 if bleed feels excessive on a particular collection;
+      //   loosen to 1.0 if you see gaps near rotated corners.
+      //
+      // hGutter / vGutter (6pt, near top of function): horizontal and
+      //   vertical spacing between packed covers. Tighten to 3-4pt for a
+      //   denser "pinboard" feel; loosen to 8-10pt for more breathing room.
+      //
+      // maxIterPerLine (200): safety cap, not a tuning knob. Only trips
+      //   if the dimension fallback fails, which shouldn't happen in
+      //   practice.
+      //
+      // The motivating use case is children's / YA collections where cover
+      // aspect ratios vary widely (square picture books, tall middle-grade
+      // paperbacks, slim YA). Adult fiction lists with uniform trade-
+      // paperback covers will look nearly identical to stretch-on mode.
+      // ------------------------------------------------------------------
+      //
       // Packing bounds: symmetric around canvas center on the pack axis,
       // using the same gridExtent the tilted layout already uses for its
       // bleed calculations. Covers start before the canvas and continue
