@@ -164,7 +164,7 @@
         },
         {
           target: '#inside-left-panel .list-item:first-child .magic-button',
-          text: "The magic wand drafts a description for you. That's a paid-instance feature, so on the free public tool here, clicking it just tells you so. You can always edit what it gives you or write your own from scratch.",
+          text: "The magic wand drafts a description for you. That's a custom-instance feature, so on the free public tool here, clicking it just tells you so. You can always edit what it gives you or write your own from scratch.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-2');

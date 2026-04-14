@@ -1573,7 +1573,7 @@ const BooklistApp = (function() {
     // users can't trigger it.
     if (!window.LIBRARY_CONFIG) {
       showNotification(
-        'This feature is available on paid library instances only.',
+        'This feature is available on custom library instances only.',
         'info'
       );
       return;
