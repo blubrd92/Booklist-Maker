@@ -33,6 +33,13 @@ const BooklistApp = (function() {
   let _isRestoring = false;  // Guard flag to prevent side effects during undo/redo restore
   let _tourActive = false;   // Guard flag: suppresses pushUndo and autosave during guided tour
   let _collageGenId = 0;     // Generation counter to discard stale async collage results
+  // Pre-edit snapshot used by style inputs (color pickers, font selects, size
+  // inputs, etc.) where the DOM value is mutated by the browser BEFORE the
+  // change/input event fires. pushUndo captures the current DOM via
+  // serializeState, which would grab the post-change state and make Ctrl+Z
+  // useless. We capture on focus (pre-edit) and commit on the first change
+  // event of that focus session. See capturePreEditSnapshot / commitPreEditSnapshot.
+  let _pendingPreEditSnapshot = null;
 
   // ---------------------------------------------------------------------------
   // IndexedDB Image Cache (deduplicates base64 images across undo snapshots)
@@ -5010,52 +5017,66 @@ const BooklistApp = (function() {
     
     // Advanced mode: per-line inputs and style controls
     elements.coverLines.forEach(line => {
-      // Text input (debounced for rapid typing)
+      // Text input — pre-edit pattern so undo captures state BEFORE typing.
       if (line.input) {
+        line.input.addEventListener('focus', capturePreEditSnapshot);
+        line.input.addEventListener('blur', clearPreEditSnapshot);
         line.input.addEventListener('input', () => {
-          pushUndo('edit-cover-text');
+          commitPreEditSnapshot('edit-cover-text');
           debouncedSave();
           debouncedCoverRegen();
         });
       }
-      // Font select (instant - discrete change)
+      // Font select — pre-edit pattern.
       if (line.font) {
+        line.font.addEventListener('focus', capturePreEditSnapshot);
+        line.font.addEventListener('blur', clearPreEditSnapshot);
         line.font.addEventListener('change', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
           autoRegenerateCoverIfAble();
         });
       }
-      // Size input (debounced for rapid changes)
+      // Size input — pre-edit pattern.
       if (line.size) {
+        line.size.addEventListener('focus', capturePreEditSnapshot);
+        line.size.addEventListener('blur', clearPreEditSnapshot);
         line.size.addEventListener('input', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
       }
-      // Color picker (debounced for dragging)
+      // Color picker — pre-edit pattern. This is the big one: without the
+      // pre-edit capture, Ctrl+Z on colors would pop the already-dragged-to
+      // color instead of reverting to what it was before the picker opened.
       if (line.color) {
+        line.color.addEventListener('focus', capturePreEditSnapshot);
+        line.color.addEventListener('blur', clearPreEditSnapshot);
         line.color.addEventListener('input', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
       }
-      // Spacing input (debounced for rapid changes)
+      // Spacing input — pre-edit pattern. Both input and change fire on
+      // number inputs; both go through the same commit helper so only one
+      // undo entry is pushed per focus session.
       if (line.spacing) {
+        line.spacing.addEventListener('focus', capturePreEditSnapshot);
+        line.spacing.addEventListener('blur', clearPreEditSnapshot);
         line.spacing.addEventListener('input', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
         line.spacing.addEventListener('change', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         });
       }
-      // Bold toggle (instant - discrete change)
+      // Bold toggle — button, pushUndo-before-mutation works correctly.
       if (line.bold) {
         line.bold.addEventListener('click', () => {
           pushUndo('change-cover-style');
@@ -5064,7 +5085,7 @@ const BooklistApp = (function() {
           autoRegenerateCoverIfAble();
         });
       }
-      // Italic toggle (instant - discrete change)
+      // Italic toggle — button, pushUndo-before-mutation works correctly.
       if (line.italic) {
         line.italic.addEventListener('click', () => {
           pushUndo('change-cover-style');
@@ -5106,16 +5127,22 @@ const BooklistApp = (function() {
     
     // Style controls
     document.querySelectorAll('.export-controls .form-group[data-style-group], #cover-title-style-group').forEach(group => {
+      // For input/select elements: use the pre-edit snapshot pattern so Ctrl+Z
+      // actually works for color pickers, font selects, font-size fields, etc.
+      // (The browser mutates the DOM value before the change/input event fires,
+      // so a plain pushUndo in the handler would capture the post-change state.)
       group.querySelectorAll('select, input').forEach(input => {
+        input.addEventListener('focus', capturePreEditSnapshot);
+        input.addEventListener('blur', clearPreEditSnapshot);
         input.addEventListener('change', () => {
-          pushUndo('change-style');
+          commitPreEditSnapshot('change-style');
           applyStyles();
           if (group.id === 'cover-title-style-group') {
             debouncedCoverRegen();
           }
         });
         input.addEventListener('input', () => {
-          pushUndo('change-style');
+          commitPreEditSnapshot('change-style');
           applyStyles();
           if (group.id === 'cover-title-style-group') {
             debouncedCoverRegen();
@@ -5123,6 +5150,9 @@ const BooklistApp = (function() {
         });
       });
 
+      // For buttons: pushUndo-before-mutation works correctly because the
+      // click handler runs before classList.toggle, so serializeState captures
+      // the old class state. No pre-edit pattern needed.
       group.querySelectorAll('button').forEach(button => {
         // Skip line-specific bold/italic buttons (they have their own handlers)
         if (button.classList.contains('line-bold') || button.classList.contains('line-italic')) {
@@ -5707,6 +5737,52 @@ const BooklistApp = (function() {
     }
 
     updateUndoRedoButtons();
+  }
+
+  /**
+   * Capture the current state as a pre-edit snapshot, to be committed later
+   * when a style input actually changes. Used for inputs where the browser
+   * updates the DOM value BEFORE the change/input event fires (color pickers,
+   * selects, number inputs), which would otherwise cause pushUndo to capture
+   * the post-change state and make Ctrl+Z meaningless for that input.
+   *
+   * Call on focus. Safe to call multiple times — only captures once per
+   * focus session (until committed or cleared).
+   */
+  function capturePreEditSnapshot() {
+    if (_isRestoring || _tourActive) return;
+    if (_pendingPreEditSnapshot !== null) return; // Already captured this session
+    const state = serializeState();
+    _pendingPreEditSnapshot = JSON.stringify(_extractImages(state));
+  }
+
+  /**
+   * Commit the pending pre-edit snapshot to the undo stack, if one exists.
+   * Call on the input/change event. Only pushes once per focus session — once
+   * committed, subsequent calls are no-ops until a new capturePreEditSnapshot.
+   */
+  function commitPreEditSnapshot(group) {
+    if (_isRestoring || _tourActive) return;
+    if (_pendingPreEditSnapshot === null) return;
+
+    _undoStack.push(_pendingPreEditSnapshot);
+    _lastUndoGroup = group;
+    _lastUndoTime = Date.now();
+    _redoStack = [];
+    if (_undoStack.length > UNDO_MAX) {
+      _undoStack.shift();
+    }
+    updateUndoRedoButtons();
+
+    _pendingPreEditSnapshot = null;
+  }
+
+  /**
+   * Discard any uncommitted pre-edit snapshot. Call on blur so stale snapshots
+   * don't leak across unrelated interactions.
+   */
+  function clearPreEditSnapshot() {
+    _pendingPreEditSnapshot = null;
   }
 
   /**
