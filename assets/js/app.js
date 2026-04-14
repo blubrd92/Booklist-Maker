@@ -4967,7 +4967,10 @@ const BooklistApp = (function() {
       });
     }
     
-    // Simple mode: textarea and style controls
+    // Simple mode: textarea handler. The textarea lives in #cover-simple-mode
+    // (a separate form-group from #cover-title-style-group), so the main
+    // style-groups loop below doesn't catch it and a dedicated handler is
+    // needed.
     if (elements.coverTitleInput) {
       elements.coverTitleInput.addEventListener('input', () => {
         pushUndo('edit-cover-text');
@@ -4975,46 +4978,17 @@ const BooklistApp = (function() {
         debouncedCoverRegen();
       });
     }
-    
-    // Simple mode style controls
-    const simpleStyleElements = [
-      elements.coverFontSelect,
-      elements.coverFontSize,
-      elements.coverTextColor
-    ];
-    simpleStyleElements.forEach(el => {
-      if (el) {
-        el.addEventListener('input', () => {
-          pushUndo('change-cover-style');
-          debouncedSave();
-          debouncedCoverRegen();
-        });
-        el.addEventListener('change', () => {
-          pushUndo('change-cover-style');
-          debouncedSave();
-          debouncedCoverRegen();
-        });
-      }
-    });
 
-    // Simple mode bold/italic toggles
-    if (elements.coverBoldToggle) {
-      elements.coverBoldToggle.addEventListener('click', () => {
-        pushUndo('change-cover-style');
-        elements.coverBoldToggle.classList.toggle('active');
-        debouncedSave();
-        autoRegenerateCoverIfAble();
-      });
-    }
-    if (elements.coverItalicToggle) {
-      elements.coverItalicToggle.addEventListener('click', () => {
-        pushUndo('change-cover-style');
-        elements.coverItalicToggle.classList.toggle('active');
-        debouncedSave();
-        autoRegenerateCoverIfAble();
-      });
-    }
-    
+    // NOTE: Simple mode style controls (cover-font-select, cover-font-size,
+    // cover-text-color) and the cover-bold-toggle / cover-italic-toggle
+    // buttons used to have dedicated handlers here. They were REMOVED because
+    // those elements live inside #cover-title-style-group, which is already
+    // bound by the main style-groups loop further down. The dedicated
+    // handlers were duplicating every click and double-toggling the 'active'
+    // class on the bold/italic buttons, which is why those toggles silently
+    // stopped working. The main loop handles all of these elements correctly
+    // (with the pre-edit pattern for undo and debouncedSave() on every edit).
+
     // Advanced mode: per-line inputs and style controls
     elements.coverLines.forEach(line => {
       // Text input — pre-edit pattern so undo captures state BEFORE typing.
