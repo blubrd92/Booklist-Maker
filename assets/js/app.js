@@ -3032,31 +3032,151 @@ const BooklistApp = (function() {
     };
     
     // === DRAW FULL GRID ===
-    // Draw everything, title bar will cover the appropriate region
-    for (let row = 0; row < numRows; row++) {
-      for (let col = 0; col < numCols; col++) {
-        let gridX, gridY;
+    // Draw everything, title bar will cover the appropriate region.
+    //
+    // Branch:
+    //   shouldStretch === true  → fixed-slot grid with stagger (legacy path,
+    //                             byte-for-byte identical to pre-feature)
+    //   shouldStretch === false → masonry-pack: columns (vertical offset) or
+    //                             rows (horizontal offset) packed with
+    //                             aspect-ratio-preserving cover dimensions.
+    //                             Stagger offsets are dropped in this mode
+    //                             (pure masonry look), individual tilt
+    //                             rotation is preserved, books cycle
+    //                             monotonically, covers bleed off edges.
+    const masonryMode = !shouldStretch;
+    if (!masonryMode) {
+      for (let row = 0; row < numRows; row++) {
+        for (let col = 0; col < numCols; col++) {
+          let gridX, gridY;
 
-        if (offsetDirection === 'vertical') {
-          // Vertical stagger: odd COLUMNS shift down
-          const isOddCol = col % 2 === 1;
-          const colStagger = isOddCol ? staggerOffset : 0;
-          gridX = gridOriginX + col * hStep + slotWidth / 2;
-          gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
-        } else {
-          // Horizontal stagger: odd ROWS shift right
-          const isOddRow = row % 2 === 1;
-          const rowStagger = isOddRow ? staggerOffset : 0;
-          gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
-          gridY = gridOriginY + row * vStep + slotHeight / 2;
+          if (offsetDirection === 'vertical') {
+            // Vertical stagger: odd COLUMNS shift down
+            const isOddCol = col % 2 === 1;
+            const colStagger = isOddCol ? staggerOffset : 0;
+            gridX = gridOriginX + col * hStep + slotWidth / 2;
+            gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
+          } else {
+            // Horizontal stagger: odd ROWS shift right
+            const isOddRow = row % 2 === 1;
+            const rowStagger = isOddRow ? staggerOffset : 0;
+            gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
+            gridY = gridOriginY + row * vStep + slotHeight / 2;
+          }
+
+          const rotated = rotatePoint(gridX, gridY);
+
+          // Draw if cover intersects the canvas at all
+          if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
+            const imgIdx = getImageForCell(row, col) % images.length;
+            drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
+          }
         }
+      }
+    } else {
+      // === MASONRY-PACK MODE ===
+      // Packing bounds: symmetric around canvas center on the pack axis,
+      // using the same gridExtent the tilted layout already uses for its
+      // bleed calculations. Covers start before the canvas and continue
+      // past it so the pattern looks continuous through rotation.
+      const packStart = offsetDirection === 'vertical'
+        ? centerY - gridExtent
+        : centerX - gridExtent;
+      const packEnd = offsetDirection === 'vertical'
+        ? centerY + gridExtent
+        : centerX + gridExtent;
 
-        const rotated = rotatePoint(gridX, gridY);
+      // Number of lines (columns for vertical mode, rows for horizontal).
+      // Vertical uses the existing numCols. Horizontal needs an analogous
+      // numRows sized from gridExtent (the existing numRows = 12 is fixed
+      // for the stretched path and not wide enough here).
+      const numLines = offsetDirection === 'vertical'
+        ? numCols
+        : Math.ceil(gridExtent * 2 / vStep) + 2;
 
-        // Draw if cover intersects the canvas at all
-        if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
-          const imgIdx = getImageForCell(row, col) % images.length;
-          drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
+      // Monotonic cover index; cycles via modulo. Each line continues from
+      // where the previous line left off, so a book that appears at the
+      // bottom of one column won't necessarily appear at the top of the
+      // next — this prevents obvious visual repetition along lines.
+      let counter = 0;
+
+      // Belt-and-suspenders iteration cap per line. With a defensive
+      // non-zero dimension fallback below, this should never trip in
+      // practice. 200 iterations is ~60,000 px of packing at a typical
+      // cover size, far beyond any reasonable gridExtent.
+      const maxIterPerLine = 200;
+
+      for (let line = 0; line < numLines; line++) {
+        let cursor = packStart;
+        let iter = 0;
+
+        while (cursor < packEnd && iter < maxIterPerLine) {
+          const img = images[counter % images.length];
+
+          // Per-cover dimensions from natural aspect ratio. If the image
+          // isn't ready (no naturalWidth/Height), fall back to the fixed
+          // slot dims so the loop always makes forward progress and
+          // doesn't infinite-loop on a zero-dimension cover.
+          let drawW, drawH;
+          if (offsetDirection === 'vertical') {
+            drawW = slotWidth;
+            if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              drawH = slotWidth * (img.naturalHeight / img.naturalWidth);
+            } else {
+              drawH = slotHeight;
+            }
+            if (!(drawH > 0)) drawH = slotHeight;
+          } else {
+            drawH = slotHeight;
+            if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              drawW = slotHeight * (img.naturalWidth / img.naturalHeight);
+            } else {
+              drawW = slotWidth;
+            }
+            if (!(drawW > 0)) drawW = slotWidth;
+          }
+
+          // Unrotated grid-space center of the cover. Same grid origin as
+          // the stretched path, just without stagger offsets.
+          let gridX, gridY;
+          if (offsetDirection === 'vertical') {
+            gridX = gridOriginX + line * hStep + slotWidth / 2;
+            gridY = cursor + drawH / 2;
+          } else {
+            gridX = cursor + drawW / 2;
+            gridY = gridOriginY + line * vStep + slotHeight / 2;
+          }
+
+          const rotated = rotatePoint(gridX, gridY);
+
+          // Reuse the existing cull. It computes corners from fixed
+          // slotWidth/slotHeight rather than the per-cover dimensions, so
+          // the check is slightly conservative (may keep a few covers
+          // whose variable dimensions actually place them off-canvas).
+          // Harmless — at worst a few extra drawImage calls on the margin.
+          if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
+            ctx.save();
+            ctx.translate(rotated.x, rotated.y);
+            ctx.rotate(rotationRad);
+            if (img && img.complete && img.naturalWidth > 0) {
+              ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+            } else {
+              ctx.fillStyle = '#ddd';
+              ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH);
+            }
+            ctx.restore();
+          }
+
+          // Advance along the packing axis by the variable dimension plus
+          // the standard gutter.
+          if (offsetDirection === 'vertical') {
+            cursor += drawH + vGutter;
+          } else {
+            cursor += drawW + hGutter;
+          }
+
+          counter++;
+          iter++;
         }
       }
     }
