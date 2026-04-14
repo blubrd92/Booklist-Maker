@@ -3094,11 +3094,11 @@ const BooklistApp = (function() {
         ? numCols
         : Math.ceil(gridExtent * 2 / vStep) + 2;
 
-      // Monotonic cover index; cycles via modulo. Each line continues from
-      // where the previous line left off, so a book that appears at the
-      // bottom of one column won't necessarily appear at the top of the
-      // next — this prevents obvious visual repetition along lines.
-      let counter = 0;
+      // Cover selection reuses the existing getImageForCell() formulas so
+      // the masonry packing picks books with the same per-line patterns the
+      // stretched tilted path uses. getImageForCell expects (row, col):
+      //   vertical mode walks down a column, so depth → row, line → col
+      //   horizontal mode walks across a row, so line → row, depth → col
 
       // Belt-and-suspenders iteration cap per line. With a defensive
       // non-zero dimension fallback below, this should never trip in
@@ -3108,10 +3108,13 @@ const BooklistApp = (function() {
 
       for (let line = 0; line < numLines; line++) {
         let cursor = packStart;
-        let iter = 0;
+        let depth = 0;
 
-        while (cursor < packEnd && iter < maxIterPerLine) {
-          const img = images[counter % images.length];
+        while (cursor < packEnd && depth < maxIterPerLine) {
+          const imgIdx = offsetDirection === 'vertical'
+            ? getImageForCell(depth, line) % images.length
+            : getImageForCell(line, depth) % images.length;
+          const img = images[imgIdx];
 
           // Per-cover dimensions from natural aspect ratio. If the image
           // isn't ready (no naturalWidth/Height), fall back to the fixed
@@ -3175,8 +3178,7 @@ const BooklistApp = (function() {
             cursor += drawW + hGutter;
           }
 
-          counter++;
-          iter++;
+          depth++;
         }
       }
     }
