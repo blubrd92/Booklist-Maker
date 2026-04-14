@@ -5046,10 +5046,15 @@ const BooklistApp = (function() {
       });
     }
     
-    // List name input (triggers autosave)
+    // List name input (triggers autosave). Uses the same pre-edit
+    // snapshot pattern as QR URL and the style inputs: text inputs
+    // have their .value mutated by the browser BEFORE the input event
+    // fires, so a plain pushUndo call would capture post-edit state.
     if (elements.listNameInput) {
+      elements.listNameInput.addEventListener('focus', capturePreEditSnapshot);
+      elements.listNameInput.addEventListener('blur', clearPreEditSnapshot);
       elements.listNameInput.addEventListener('input', () => {
-        pushUndo('edit-list-name');
+        commitPreEditSnapshot('edit-list-name');
         debouncedSave();
       });
     }
@@ -5500,24 +5505,35 @@ const BooklistApp = (function() {
     
     // Strip formatting on paste (same as other editable fields)
     elements.qrCodeTextArea.addEventListener('paste', handlePastePlainText);
-    
-    // Safety net: sanitize any formatting that sneaks through on input
+
+    // Pre-edit snapshot pattern for undo. The QR blurb text is a
+    // contenteditable div, so its DOM content is mutated BEFORE the
+    // input event fires. serializeState reads the blurb text directly
+    // from the DOM via innerText (no intermediate JS store), so plain
+    // pushUndo on input would capture the post-edit state and Ctrl+Z
+    // would be a no-op. Capture on focus, commit on first input, clear
+    // on blur — same pattern used by style inputs.
+    elements.qrCodeTextArea.addEventListener('focus', capturePreEditSnapshot);
+
     elements.qrCodeTextArea.addEventListener('input', () => {
       sanitizeContentEditable(elements.qrCodeTextArea);
-      pushUndo('edit-qr-text');
+      commitPreEditSnapshot('edit-qr-text');
       debouncedSave();
     });
-    
-    // Save on blur
+
     elements.qrCodeTextArea.addEventListener('blur', () => {
-      pushUndo('edit-qr-text');
-      debouncedSave();
+      clearPreEditSnapshot();
     });
-    
-    // Save QR URL input on change
+
+    // Save QR URL input on change — uses the same pre-edit snapshot
+    // pattern. The <input type="text"> value is mutated by the browser
+    // before the input event fires, so without the pattern, pushUndo
+    // captures post-edit state.
     if (elements.qrUrlInput) {
+      elements.qrUrlInput.addEventListener('focus', capturePreEditSnapshot);
+      elements.qrUrlInput.addEventListener('blur', clearPreEditSnapshot);
       elements.qrUrlInput.addEventListener('input', () => {
-        pushUndo('edit-qr');
+        commitPreEditSnapshot('edit-qr');
         debouncedSave();
       });
     }
@@ -5638,21 +5654,49 @@ const BooklistApp = (function() {
     
     // Commit selection
     function commitSelection(value) {
+      // Capture the pre-edit snapshot BEFORE mutating the hidden select.
+      // The custom dropdown handles user clicks on its own UI (trigger
+      // button and option list), so the hidden <select> element never
+      // receives a focus event from real interaction. The pre-edit
+      // pattern attached to the hidden select in the main style-groups
+      // loop therefore never fires, and the change event below ends up
+      // in commitPreEditSnapshot with nothing to commit. Capturing here
+      // keeps the undo semantics correct for font changes.
+      //
+      // clearPreEditSnapshot first discards any stale snapshot that
+      // might still be pending from a previously focused input. In
+      // normal browser flow the blur on that input would have fired
+      // already (clicking the custom dropdown transfers focus away),
+      // but this is defensive insurance: if a snapshot somehow leaks
+      // across focus transitions, we want the font change's undo
+      // entry to reflect the state immediately before the font change,
+      // not the state before some unrelated earlier edit.
+      //
+      // capturePreEditSnapshot is a no-op during state restoration and
+      // tour mode (guarded internally), so this is safe to call even
+      // when commitSelection is invoked programmatically outside user
+      // interaction.
+      clearPreEditSnapshot();
+      capturePreEditSnapshot();
+
       committedValue = value;
       select.value = value;
-      
+
       // Update selected state in list
       list.querySelectorAll('.custom-font-dropdown-option').forEach(li => {
         const isSelected = li.dataset.value === value;
         li.classList.toggle('selected', isSelected);
         li.setAttribute('aria-selected', isSelected ? 'true' : 'false');
       });
-      
+
       updateTrigger();
-      
-      // Trigger change event on original select for any listeners
+
+      // Trigger change event on original select for any listeners. The
+      // change event handlers in the main style-groups and cover-lines
+      // loops will call commitPreEditSnapshot, which will find the
+      // snapshot we just captured and push it to the undo stack.
       select.dispatchEvent(new Event('change', { bubbles: true }));
-      
+
       // Save state
       debouncedSave();
     }
