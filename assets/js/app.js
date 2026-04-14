@@ -1566,7 +1566,7 @@ const BooklistApp = (function() {
   }
 
   function handleMagicButtonClick(bookItem) {
-    // Description drafting is a paid feature. On the public tool
+    // Description drafting is a custom-instance feature. On the public tool
     // (or any instance without a library config loaded) the button
     // shows a notice and bails instead of calling the Google Apps
     // Script. The call itself costs real money per use, so public
