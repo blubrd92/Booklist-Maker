@@ -5131,11 +5131,14 @@ const BooklistApp = (function() {
       // actually works for color pickers, font selects, font-size fields, etc.
       // (The browser mutates the DOM value before the change/input event fires,
       // so a plain pushUndo in the handler would capture the post-change state.)
+      // debouncedSave() is called on every change so style edits persist across
+      // refresh/tab-close even when nothing else triggers a save.
       group.querySelectorAll('select, input').forEach(input => {
         input.addEventListener('focus', capturePreEditSnapshot);
         input.addEventListener('blur', clearPreEditSnapshot);
         input.addEventListener('change', () => {
           commitPreEditSnapshot('change-style');
+          debouncedSave();
           applyStyles();
           if (group.id === 'cover-title-style-group') {
             debouncedCoverRegen();
@@ -5143,6 +5146,7 @@ const BooklistApp = (function() {
         });
         input.addEventListener('input', () => {
           commitPreEditSnapshot('change-style');
+          debouncedSave();
           applyStyles();
           if (group.id === 'cover-title-style-group') {
             debouncedCoverRegen();
@@ -5152,7 +5156,8 @@ const BooklistApp = (function() {
 
       // For buttons: pushUndo-before-mutation works correctly because the
       // click handler runs before classList.toggle, so serializeState captures
-      // the old class state. No pre-edit pattern needed.
+      // the old class state. No pre-edit pattern needed, but debouncedSave()
+      // is still required so the toggled state persists across refresh.
       group.querySelectorAll('button').forEach(button => {
         // Skip line-specific bold/italic buttons (they have their own handlers)
         if (button.classList.contains('line-bold') || button.classList.contains('line-italic')) {
@@ -5163,6 +5168,7 @@ const BooklistApp = (function() {
           if (e.target.classList.contains('bold-toggle') || e.target.classList.contains('italic-toggle')) {
             e.target.classList.toggle('active');
           }
+          debouncedSave();
           applyStyles();
           if (group.id === 'cover-title-style-group') {
             autoRegenerateCoverIfAble();
