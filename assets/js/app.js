@@ -6121,6 +6121,15 @@ const BooklistApp = (function() {
     // the .header-credit "for <library>" byline to match the logo size.
     document.body.classList.add('has-library-config');
 
+    // Per-library CSS hook. Adds a `library-<id>` class to the body so
+    // stylesheets can target a specific library instance for customization
+    // (e.g., hide the site footer for one library that doesn't want it).
+    // Library IDs are alphanumeric + hyphen from the hostname subdomain,
+    // so they're safe to interpolate into a class name.
+    if (window.LIBRARY_ID) {
+      document.body.classList.add('library-' + window.LIBRARY_ID);
+    }
+
     // Libraries only own two per-library fields: displayName and
     // brandingImagePath. Fonts, layout, and extended mode are per-USER
     // preferences that start from the Booklister defaults — not
