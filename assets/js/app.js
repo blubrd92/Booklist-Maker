@@ -2744,21 +2744,68 @@ const BooklistApp = (function() {
     
     // Helper to draw a row filling edge-to-edge with partial covers bleeding off both edges
     const drawBrickRow = (y, h, useOffset, imgOffset) => {
-      const w = h * bookAspect;
-      const spacing = w + hGutter;
-      
-      const coversNeeded = Math.ceil(canvasWidth / spacing) + 2;
-      const totalWidth = coversNeeded * w + (coversNeeded - 1) * hGutter;
-      
-      let startX = (canvasWidth - totalWidth) / 2;
-      if (useOffset) {
-        startX -= spacing / 2;
-      }
-      
-      for (let i = 0; i < coversNeeded; i++) {
-        const imgIdx = (imgOffset + i) % images.length;
-        const x = startX + i * spacing;
-        drawCoverImage(ctx, images[imgIdx], x, y, w, h, shouldStretch);
+      if (shouldStretch) {
+        // === LEGACY STRETCHED PATH ===
+        // Uniform cover width (h * bookAspect), fixed count, centered
+        // with optional stagger offset. Unchanged from pre-feature.
+        const w = h * bookAspect;
+        const spacing = w + hGutter;
+
+        const coversNeeded = Math.ceil(canvasWidth / spacing) + 2;
+        const totalWidth = coversNeeded * w + (coversNeeded - 1) * hGutter;
+
+        let startX = (canvasWidth - totalWidth) / 2;
+        if (useOffset) {
+          startX -= spacing / 2;
+        }
+
+        for (let i = 0; i < coversNeeded; i++) {
+          const imgIdx = (imgOffset + i) % images.length;
+          const x = startX + i * spacing;
+          drawCoverImage(ctx, images[imgIdx], x, y, w, h, shouldStretch);
+        }
+      } else {
+        // === MASONRY-PACK PATH ===
+        // Each cover in the row has a variable width derived from its
+        // natural aspect ratio; row height stays uniform at h. No stagger
+        // offset in masonry mode (matching Tilted's masonry behavior and
+        // the user's "like masonry" framing). Covers bleed off left and
+        // right edges via a cursor-based loop.
+        //
+        // Cycling logic (imgOffset + i pattern) is preserved identically
+        // from the stretched path above: cover at position i in the row
+        // is the same book regardless of stretch mode — just packed
+        // tighter with aspect-ratio-preserving width.
+        const fallbackW = h * bookAspect;
+        let cursor = -h; // one row-height of bleed past the left edge
+        let i = 0;
+        const maxIterPerRow = 200;
+
+        while (cursor < canvasWidth + h && i < maxIterPerRow) {
+          const imgIdx = (imgOffset + i) % images.length;
+          const img = images[imgIdx];
+
+          // Per-cover width from natural aspect ratio. Defensive fallback
+          // to fallbackW if the image isn't loaded or has zero natural
+          // dimensions — prevents infinite loops on pathological covers.
+          let drawW;
+          if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+            drawW = h * (img.naturalWidth / img.naturalHeight);
+          } else {
+            drawW = fallbackW;
+          }
+          if (!(drawW > 0)) drawW = fallbackW;
+
+          // drawW was computed to match the cover's natural aspect at row
+          // height h, so stretch-to-fit into (drawW, h) is equivalent to
+          // aspect-fit. Pass shouldStretch=true here so drawCoverImage
+          // uses the cheap 4-arg draw path and the fallback-on-missing
+          // branch still fires for unloaded images.
+          drawCoverImage(ctx, img, cursor, y, drawW, h, true);
+
+          cursor += drawW + hGutter;
+          i++;
+        }
       }
     };
     
