@@ -1712,8 +1712,38 @@ const BooklistApp = (function() {
           book.customCoverData = compressed;
           book.cover_ids = [];
           book.currentCoverIndex = 0;
+
+          // Uploading a cover to a manual entry commits the slot as a real
+          // book and auto-stars it if there's room in the collage. Mirrors
+          // the search-add flow, where books added from search auto-star up
+          // to the collage minimum. Respects the active max (12 standard,
+          // 20 extended) so users who've already filled their collage won't
+          // see new stars exceed the limit.
+          const wasBlank = book.isBlank;
+          const wasStarred = book.includeInCollage;
+          if (book.isBlank) {
+            book.isBlank = false;
+          }
+          if (!book.includeInCollage) {
+            const starredCount = BookUtils.getStarredBooks(myBooklist).length;
+            const extendedMode = elements.extendedCollageToggle?.checked || false;
+            const maxCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
+            const totalCollageCovers = starredCount + (extendedMode ? extraCollageCovers.length : 0);
+            if (totalCollageCovers < maxCovers) {
+              book.includeInCollage = true;
+            }
+          }
+          const stateChanged = wasBlank !== book.isBlank || wasStarred !== book.includeInCollage;
+
           coverImg.src = compressed;
           debouncedSave();
+
+          // If we un-blanked or starred, re-render so the star button and
+          // any other state-dependent UI update. Cheap compared to the
+          // upload path; only fires when something actually changed.
+          if (stateChanged) {
+            renderBooklist();
+          }
 
           // Folio: acknowledge cover upload
           if (window.folio) {
