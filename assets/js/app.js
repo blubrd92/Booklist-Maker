@@ -3186,14 +3186,17 @@ const BooklistApp = (function() {
       // Sequential row-group order for 16 and 20 count horizontal
       // non-center. 4 rows of N books (N=5 for 20-count, N=4 for
       // 16-count) cycle through the full list, then the pattern
-      // repeats every 4 rows. At 16-count this means row 0 and row 4
-      // show the same books, so if it looks too repetitive at the
-      // user's default tilt angle, swap to the coprime-offset variant
-      // from the previous revision.
+      // repeats every 4 rows. For 16-count specifically, add a
+      // period-3 coprime col offset so row 0 and row 4 contain the
+      // same 4 books in a DIFFERENT order, extending the visual
+      // cycle from 4 rows to LCM(4,3)=12 rows. 20-count doesn't
+      // need the offset (5 books per row is enough variety for the
+      // visible row count in Tilted).
       if (useRegularSequential) {
         const booksPerRow = totalImages === 20 ? 5 : 4;
         const rowGroup = (row % 4) * booksPerRow;
-        idx = rowGroup + (col % booksPerRow);
+        const colOffset = totalImages === 16 ? row % 3 : 0;
+        idx = rowGroup + ((col + colOffset) % booksPerRow);
       } else if (totalImages <= 12) {
         // 12-count: 3 row groups of 4 horizontal, or 4 col groups of
         // 3 vertical.
