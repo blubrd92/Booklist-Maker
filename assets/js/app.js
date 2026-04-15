@@ -2533,8 +2533,23 @@ const BooklistApp = (function() {
     }
     
     // Calculate actual gutters
-    const vGutter = slotHeight * vGutterRatio;
+    let vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
+
+    // When the slot is horizontally constrained (16-count case), the
+    // row block may not fill the available vertical space, leaving a
+    // visible gap between the title bar and the rows. Distribute the
+    // leftover pixels evenly across the existing vGutters so the grid
+    // expands to fill instead. For 12 and 20 counts the slot is
+    // vertically constrained and the leftover is ~0, so the guard
+    // below skips and behavior is unchanged.
+    if (numVGutters > 0) {
+      const usedHeight = numRows * slotHeight + numVGutters * vGutter;
+      const leftover = totalVerticalSpace - usedHeight;
+      if (leftover > 1) {
+        vGutter += leftover / numVGutters;
+      }
+    }
     
     // Calculate title bar position based on uniform slot height
     let titleY;
@@ -2660,9 +2675,24 @@ const BooklistApp = (function() {
       slotHeight = slotHeightFromHorizontal;
     }
     
-    const vGutter = slotHeight * vGutterRatio;
+    let vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
-    
+
+    // When the slot is horizontally constrained (16-count case), the
+    // row block may not fill the available vertical space, leaving a
+    // visible gap between the title bar and the rows. Distribute the
+    // leftover pixels evenly across the existing vGutters so the grid
+    // expands to fill instead. Shelves are already accounted for in
+    // totalVerticalSpace, so the formula works without adjustment.
+    // For 12 and 20 counts the leftover is ~0 and the guard skips.
+    if (numVGutters > 0) {
+      const usedHeight = numRows * slotHeight + numVGutters * vGutter;
+      const leftover = totalVerticalSpace - usedHeight;
+      if (leftover > 1) {
+        vGutter += leftover / numVGutters;
+      }
+    }
+
     // Helper to draw a row with shelf (handles partial rows)
     let globalImageIndex = 0;
     const drawRowWithShelf = (rowY, height) => {
@@ -2732,9 +2762,11 @@ const BooklistApp = (function() {
     const vGutter = 6 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
     
-    // Dynamic rows: 4 for 12 or 16 covers, 5 for 20 covers
+    // Dynamic rows: 4 for 12 covers, 5 for 16 or 20 covers.
+    // 16-count uses 5 rows (like 20) so the rows are denser and the
+    // visual reads more like the higher-count mode the user wanted.
     const coverCount = images.length;
-    const numRows = coverCount <= 12 ? 4 : (coverCount <= 16 ? 4 : 5);
+    const numRows = coverCount <= 12 ? 4 : 5;
     
     // Determine row distribution
     let rowsAbove, rowsBelow;
@@ -2750,8 +2782,13 @@ const BooklistApp = (function() {
       default: rowsAbove = Math.floor(numRows / 2); rowsBelow = numRows - rowsAbove;
     }
     
-    // Calculate offset per row to ensure all covers appear
-    const imageOffsetPerRow = Math.ceil(images.length / numRows);
+    // Calculate offset per row to ensure all covers appear.
+    // Floor instead of ceil matters for 16-count specifically: with
+    // ceil(16/5)=4, row 4's offset (4*4=16) wraps to 0, making rows
+    // 0 and 4 identical. With floor(16/5)=3 the offsets are 0,3,6,9,12
+    // — all distinct mod 16. For 12 and 20 counts floor == ceil
+    // (integer division: 12/4=3, 20/5=4), so this is a no-op.
+    const imageOffsetPerRow = Math.floor(images.length / numRows);
     
     // Helper to draw a row filling edge-to-edge with partial covers bleeding off both edges
     const drawBrickRow = (y, h, useOffset, imgOffset) => {
@@ -3062,19 +3099,20 @@ const BooklistApp = (function() {
     const gridOriginX = centerX - (numCols * hStep) / 2;
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
-    // Deterministic image selection based on offset direction and bar position.
-    // Supports 12 and 20 image counts with hand-tuned patterns. 16-count
-    // routes through the 20-count branch; the outer `% totalImages` wrap
-    // keeps the index in bounds when it would otherwise overshoot (e.g.
-    // row group 15 + col offset 4 → 19, which is valid for 20 but oob
-    // for 16 and wraps back to book 3).
+    // Deterministic image selection based on offset direction and bar
+    // position. Each cover count (12, 16, 20) has its own hand-tuned
+    // pattern. The outer `% totalImages` wrap at the bottom is a
+    // defensive safety net; the dedicated branches already generate
+    // indices within [0, totalImages).
     const totalImages = images.length;
-    // Only use sequential order for 16/20-image covers with horizontal offset and non-center position
-    const useRegularSequential = totalImages > 12 && position !== 'center' && offsetDirection === 'horizontal';
+    // Sequential row-group order is a 20-count-only fallback for the
+    // horizontal non-center case. 16-count has its own dedicated
+    // branch below and doesn't need it.
+    const useRegularSequential = totalImages === 20 && position !== 'center' && offsetDirection === 'horizontal';
 
     const getImageForCell = (row, col) => {
       let idx;
-      // For non-center positions with horizontal offset and 16/20 images,
+      // For non-center positions with horizontal offset and 20 images,
       // use 4 rows of 5 in a loop. Each row shows only its 5 books,
       // columns cycle within that set.
       if (useRegularSequential) {
@@ -3091,8 +3129,22 @@ const BooklistApp = (function() {
           const rowOffset = col % 3;
           idx = colGroup + ((row + rowOffset) % 3);
         }
+      } else if (totalImages === 16) {
+        // 16-count: clean 4×4 pattern modeled on the 12-count style.
+        // Period-4 row/col groups with a period-3 offset (coprime) so
+        // consecutive rows/cols never resolve to the same starting
+        // book. All 16 books appear; the full cycle is LCM(4,3)=12.
+        if (offsetDirection === 'horizontal') {
+          const rowGroup = (row % 4) * 4;
+          const colOffset = row % 3;
+          idx = rowGroup + ((col + colOffset) % 4);
+        } else {
+          const colGroup = (col % 4) * 4;
+          const rowOffset = col % 3;
+          idx = colGroup + ((row + rowOffset) % 4);
+        }
       } else {
-        // 20-image logic (also used for 16-count via modulo wrap below)
+        // 20-image logic
         if (offsetDirection === 'horizontal') {
           // Pattern for maximum visibility:
           // Row 0,2: books 0-4 (1-5)
@@ -3122,9 +3174,10 @@ const BooklistApp = (function() {
           idx = colGroup + ((row + rowOffset) % 4);
         }
       }
-      // Defensive wrap: the 20-count patterns can return indices up to 19,
-      // which is out of bounds for 16-count. Modulo ensures every index
-      // resolves to a valid book regardless of totalImages.
+      // Defensive wrap: every branch above is supposed to return an
+      // in-bounds index, but clamp anyway in case a future count is
+      // added that slips through. Double-modulo handles any edge case
+      // where idx could theoretically go negative.
       return ((idx % totalImages) + totalImages) % totalImages;
     };
     
