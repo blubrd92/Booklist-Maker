@@ -3007,20 +3007,8 @@ const BooklistApp = (function() {
         titleY = (canvasHeight - bgH) / 2;
     }
     
-    // Calculate cover size.
-    //
-    // Decoupled from title bar height (`bgH`): the Tilted layout draws
-    // a rotated grid across the full canvas and paints the title bar
-    // on top of the covers, so bgH doesn't actually displace any
-    // slots. Subtracting bgH here (as earlier revisions did) caused
-    // every cover to shrink when the user bumped up the title bar
-    // font or added lines, even though nothing was being pushed out
-    // of the way. The sectionHeight formula now uses the full canvas
-    // height minus the constant title gutter, so cover size stays
-    // stable regardless of title bar configuration. If a very tall
-    // title bar covers too much of the collage, the title bar
-    // position dropdown is the right knob to reach for.
-    const sectionHeight = (canvasHeight - 2 * titleGutter) / 2;
+    // Calculate cover size
+    const sectionHeight = (canvasHeight - bgH - 2 * titleGutter) / 2;
     const rowsPerSection = 2.5;
     const slotHeight = (sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection;
     const slotWidth = slotHeight * bookAspect;
