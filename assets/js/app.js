@@ -2761,20 +2761,22 @@ const BooklistApp = (function() {
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
 
     // Balanced leftover redistribution (see drawLayoutClassic for the
-    // full rationale). Split any remaining vertical space 50/50
-    // between inter-row vGutters and title-bar margins so neither
-    // the rows feel floaty nor the title bar feels cramped. Shelves
-    // must be added to usedHeight here since they're a real vertical
-    // cost (each row pairs its slot with a shelf underneath). No-op
-    // for 12 and 20 counts.
+    // full rationale). Split any remaining vertical space between
+    // inter-row vGutters and title-bar margins. Uses the same 60/40
+    // skew toward vGutters as Classic does, so 16-count Bookshelf
+    // rows feel less tightly packed to match. Shelves are added to
+    // usedHeight here since they're a real vertical cost (each row
+    // pairs its slot with a shelf underneath). No-op for 12 and 20
+    // counts.
     if (numVGutters > 0 && marginCount > 0) {
       const availableHeight = canvasHeight - bgH;
       const usedHeight = numRows * slotHeight + numVGutters * vGutter + marginCount * margin + totalShelfHeight;
       const leftover = availableHeight - usedHeight;
       if (leftover > 1) {
-        const halfLeftover = leftover / 2;
-        vGutter += halfLeftover / numVGutters;
-        margin += halfLeftover / marginCount;
+        const gutterShare = leftover * 0.6;
+        const marginShare = leftover * 0.4;
+        vGutter += gutterShare / numVGutters;
+        margin += marginShare / marginCount;
       }
     } else if (numVGutters > 0) {
       // Fallback for exotic positions with no title bar margins.
