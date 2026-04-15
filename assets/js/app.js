@@ -6459,12 +6459,29 @@ const BooklistApp = (function() {
   function undo() {
     if (_undoStack.length === 0 || _tourActive) return;
 
-    // Push current state onto redo stack
+    // Compute current state once so we can skip no-op entries and
+    // avoid calling serializeState multiple times.
     const currentState = serializeState();
     const currentSnapshot = _extractImages(currentState);
-    _redoStack.push(JSON.stringify(currentSnapshot));
+    const currentJson = JSON.stringify(currentSnapshot);
 
-    // Pop from undo stack and restore
+    // Skip any top-of-stack entries that equal the current state.
+    // This happens when the user toggles a setting multiple times
+    // within the coalesce window back to its original value — the
+    // coalesced undo entry is the pre-burst state which equals
+    // current, and popping it would flash the preview without any
+    // visible change.
+    while (_undoStack.length > 0 && _undoStack[_undoStack.length - 1] === currentJson) {
+      _undoStack.pop();
+    }
+
+    if (_undoStack.length === 0) {
+      updateUndoRedoButtons();
+      return;
+    }
+
+    // Push current state onto redo stack, pop real undo entry, restore.
+    _redoStack.push(currentJson);
     const snapshot = _undoStack.pop();
     restoreSnapshot(snapshot);
   }
@@ -6472,12 +6489,22 @@ const BooklistApp = (function() {
   function redo() {
     if (_redoStack.length === 0 || _tourActive) return;
 
-    // Push current state onto undo stack
+    // Same de-dup dance as undo() — skip any top-of-stack redo
+    // entries that already match current, so redo doesn't flash.
     const currentState = serializeState();
     const currentSnapshot = _extractImages(currentState);
-    _undoStack.push(JSON.stringify(currentSnapshot));
+    const currentJson = JSON.stringify(currentSnapshot);
 
-    // Pop from redo stack and restore
+    while (_redoStack.length > 0 && _redoStack[_redoStack.length - 1] === currentJson) {
+      _redoStack.pop();
+    }
+
+    if (_redoStack.length === 0) {
+      updateUndoRedoButtons();
+      return;
+    }
+
+    _undoStack.push(currentJson);
     const snapshot = _redoStack.pop();
     restoreSnapshot(snapshot);
   }
