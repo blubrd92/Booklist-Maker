@@ -6369,7 +6369,15 @@ const BooklistApp = (function() {
    *     the user picks an option, so before change fires).
    *   - `keydown` covers keyboard interactions (space/enter/arrow
    *     keys on focused elements), which fire before the browser's
-   *     default action.
+   *     default action. BUT the keydown listener must filter to
+   *     ONLY mutating keys — without that filter, pressing Ctrl+Z
+   *     on a focused checkbox would fire this listener (which runs
+   *     BEFORE the document-level undo handler because element
+   *     listeners precede document listeners in the bubbling phase),
+   *     pushing a fresh snapshot of the current state onto the undo
+   *     stack. The document handler would then immediately undo()
+   *     that fresh snapshot — a no-op restore that made Ctrl+Z on
+   *     toggles silently fail.
    *
    * pushUndo's coalescing collapses same-tick duplicates into one
    * entry, so overlapping captures (click+mousedown on the same
@@ -6380,7 +6388,22 @@ const BooklistApp = (function() {
     const capture = () => pushUndo(group);
     element.addEventListener('click', capture);
     element.addEventListener('mousedown', capture);
-    element.addEventListener('keydown', capture);
+    // Allow-list of keys that can actually mutate a checkbox, radio,
+    // or select. Anything else (Ctrl+Z, Tab, Escape, character keys,
+    // etc.) must not trigger a capture — otherwise undo shortcuts
+    // pollute the undo stack with no-op snapshots right before
+    // undo() runs, and the ordering races `undo()` into popping a
+    // fresh copy of the current state.
+    const MUTATING_KEYS = new Set([
+      ' ', 'Enter', 'Spacebar',
+      'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+      'PageUp', 'PageDown', 'Home', 'End',
+    ]);
+    element.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!MUTATING_KEYS.has(e.key)) return;
+      capture();
+    });
   }
 
   /**
@@ -6456,6 +6479,27 @@ const BooklistApp = (function() {
     });
   }
 
+  /**
+   * Semantic equality check for two serialized snapshots, ignoring
+   * the `savedAt` timestamp that serializeState stamps on every call.
+   * Without this, two snapshots taken milliseconds apart with
+   * IDENTICAL logical state would compare unequal purely because
+   * their savedAt strings differ, which defeats the undo/redo dedup
+   * loop and was one of the causes of "undo flashes but doesn't do
+   * anything" on toggles.
+   */
+  function _snapshotsEqual(a, b) {
+    if (a === b) return true;
+    // Strip the savedAt timestamp before comparing. serializeState
+    // stamps a fresh `"savedAt":"..."` on every call, so two
+    // snapshots with logically identical state can still differ
+    // byte-for-byte. A simple regex replace avoids the overhead and
+    // error-handling of JSON.parse — the snapshot format is
+    // controlled internally so the field name is stable.
+    const SAVED_AT_RE = /"savedAt":"[^"]*"/;
+    return a.replace(SAVED_AT_RE, '') === b.replace(SAVED_AT_RE, '');
+  }
+
   function undo() {
     if (_undoStack.length === 0 || _tourActive) return;
 
@@ -6466,12 +6510,10 @@ const BooklistApp = (function() {
     const currentJson = JSON.stringify(currentSnapshot);
 
     // Skip any top-of-stack entries that equal the current state.
-    // This happens when the user toggles a setting multiple times
-    // within the coalesce window back to its original value — the
-    // coalesced undo entry is the pre-burst state which equals
-    // current, and popping it would flash the preview without any
-    // visible change.
-    while (_undoStack.length > 0 && _undoStack[_undoStack.length - 1] === currentJson) {
+    // See _snapshotsEqual for why string equality alone isn't
+    // enough — savedAt timestamps differ even when logical state
+    // is identical.
+    while (_undoStack.length > 0 && _snapshotsEqual(_undoStack[_undoStack.length - 1], currentJson)) {
       _undoStack.pop();
     }
 
@@ -6495,7 +6537,7 @@ const BooklistApp = (function() {
     const currentSnapshot = _extractImages(currentState);
     const currentJson = JSON.stringify(currentSnapshot);
 
-    while (_redoStack.length > 0 && _redoStack[_redoStack.length - 1] === currentJson) {
+    while (_redoStack.length > 0 && _snapshotsEqual(_redoStack[_redoStack.length - 1], currentJson)) {
       _redoStack.pop();
     }
 
