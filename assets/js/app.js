@@ -6526,11 +6526,27 @@ const BooklistApp = (function() {
     if (btnUndo) btnUndo.addEventListener('click', undo);
     if (btnRedo) btnRedo.addEventListener('click', redo);
 
-    // Keyboard shortcuts
+    // Keyboard shortcuts. Only skip our undo/redo when focus is in
+    // a text-editable form field that has its own native undo history
+    // (typing should use browser undo for character-by-character
+    // granularity, not our snapshot-based undo). Checkboxes, radios,
+    // color pickers, selects, and buttons do NOT have native undo, so
+    // our handler needs to run for them — otherwise Ctrl+Z after
+    // clicking e.g. "Stretch Book Covers" does nothing because the
+    // checkbox is still focused and the old early-return stole the
+    // keypress without routing it anywhere.
+    const TEXT_INPUT_TYPES = new Set([
+      'text', 'search', 'url', 'email', 'tel', 'password', 'number',
+      'date', 'datetime-local', 'month', 'time', 'week'
+    ]);
     document.addEventListener('keydown', (e) => {
-      const tag = document.activeElement?.tagName;
-      // Skip when focus is in INPUT, TEXTAREA, or SELECT
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const el = document.activeElement;
+      const tag = el?.tagName;
+      const type = (el?.type || '').toLowerCase();
+      const isTextField =
+        tag === 'TEXTAREA' ||
+        (tag === 'INPUT' && TEXT_INPUT_TYPES.has(type));
+      if (isTextField) return;
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
