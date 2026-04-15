@@ -6393,46 +6393,56 @@ const BooklistApp = (function() {
   /**
    * Wire pre-change undo capture onto an element whose `change` event
    * fires AFTER the browser has already mutated the DOM state
-   * (checkboxes, radios, selects). Hooks `click`, `mousedown`, and
-   * `keydown` — between the three they catch every interaction that
-   * leads to a state change BEFORE the state change happens:
+   * (checkboxes, radios, selects).
    *
-   *   - `click` fires pre-toggle on checkboxes/radios (click handlers
-   *     run before the browser's activation behavior which does the
-   *     actual toggle). Critically, click ALSO forwards from a
-   *     `<label for="id">` click to the associated input, whereas
-   *     `mousedown` does not — clicking the label fires mousedown on
-   *     the label, not the input. Without the click listener, label
-   *     clicks would go uncaptured.
-   *   - `mousedown` fires pre-open on `<select>` dropdowns (before
-   *     the user picks an option, so before change fires).
-   *   - `keydown` covers keyboard interactions (space/enter/arrow
-   *     keys on focused elements), which fire before the browser's
-   *     default action. BUT the keydown listener must filter to
-   *     ONLY mutating keys — without that filter, pressing Ctrl+Z
-   *     on a focused checkbox would fire this listener (which runs
-   *     BEFORE the document-level undo handler because element
-   *     listeners precede document listeners in the bubbling phase),
-   *     pushing a fresh snapshot of the current state onto the undo
-   *     stack. The document handler would then immediately undo()
-   *     that fresh snapshot — a no-op restore that made Ctrl+Z on
-   *     toggles silently fail.
+   * The tricky part: for `<input type="checkbox">`, the browser runs
+   * "pre-click activation steps" that flip `.checked` BEFORE the
+   * click event is dispatched to the element (HTML spec). So a
+   * `click` listener on the input sees the ALREADY-TOGGLED state —
+   * it's useless for pre-change capture. `mousedown`, by contrast,
+   * fires strictly before any click activation and sees pre-toggle
+   * state, so it's the right hook for direct mouse clicks on the
+   * input itself.
    *
-   * pushUndo's coalescing collapses same-tick duplicates into one
-   * entry, so overlapping captures (click+mousedown on the same
-   * direct click) don't stack.
+   * Label clicks are even trickier: when a user clicks a
+   * `<label for="...">`, the mousedown event fires on the LABEL, not
+   * on the associated input — mousedown does NOT forward through the
+   * label. The label's click handler runs, its default action
+   * dispatches a synthetic click on the input, the input's pre-click
+   * activation steps toggle the checkbox, and finally the input's
+   * click handlers run with `.checked` already flipped. So neither
+   * `mousedown` nor `click` on the input catches a label click
+   * pre-toggle. The ONLY reliable pre-toggle event is `mousedown` or
+   * `click` on the LABEL itself (both fire before the label's
+   * default action runs the synthetic click on the input).
+   *
+   * Keyboard interactions (space/enter/arrow keys on focused
+   * element) fire `keydown` before the browser's default action,
+   * and don't involve any click dispatch, so `keydown` is
+   * straightforwardly pre-mutation.
+   *
+   * Events attached:
+   *   - input element: `mousedown` (pre-toggle, direct clicks),
+   *     filtered `keydown` (pre-mutation, keyboard). NOT `click`
+   *     (post-toggle, wrong).
+   *   - associated label(s): `mousedown` (pre-toggle, label clicks).
+   *     Both `label[for="id"]` siblings and `element.closest('label')`
+   *     wrappers are covered.
+   *
+   * pushUndo's coalescing handles rapid repeated interactions and
+   * same-tick duplicate captures.
    */
   function bindPreChangeCapture(element, group) {
     if (!element) return;
     const capture = () => pushUndo(group);
-    element.addEventListener('click', capture);
+
+    // Direct interactions with the input itself.
     element.addEventListener('mousedown', capture);
+
     // Allow-list of keys that can actually mutate a checkbox, radio,
-    // or select. Anything else (Ctrl+Z, Tab, Escape, character keys,
-    // etc.) must not trigger a capture — otherwise undo shortcuts
-    // pollute the undo stack with no-op snapshots right before
-    // undo() runs, and the ordering races `undo()` into popping a
-    // fresh copy of the current state.
+    // or select. Ctrl+Z/Cmd+Z and other non-mutating keys must skip
+    // — otherwise they'd pollute the undo stack with no-op snapshots
+    // right before undo() runs and race it into a no-op pop.
     const MUTATING_KEYS = new Set([
       ' ', 'Enter', 'Spacebar',
       'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
@@ -6442,6 +6452,20 @@ const BooklistApp = (function() {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (!MUTATING_KEYS.has(e.key)) return;
       capture();
+    });
+
+    // Associated labels: mousedown on either a sibling `<label for>`
+    // or a wrapping `<label>` fires pre-toggle for label clicks,
+    // which is the only reliable pre-mutation signal available when
+    // the user clicks label text instead of the checkbox itself.
+    const labels = new Set();
+    if (element.id) {
+      document.querySelectorAll(`label[for="${element.id}"]`).forEach((l) => labels.add(l));
+    }
+    const ancestorLabel = element.closest && element.closest('label');
+    if (ancestorLabel) labels.add(ancestorLabel);
+    labels.forEach((label) => {
+      label.addEventListener('mousedown', capture);
     });
   }
 
