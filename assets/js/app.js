@@ -3007,10 +3007,19 @@ const BooklistApp = (function() {
         titleY = (canvasHeight - bgH) / 2;
     }
     
-    // Calculate cover size
+    // Calculate cover size.
+    //
+    // The base formula sizes slots to fill two "sections" (above and
+    // below the title bar) with 2.5 rows each. tiltedShrinkFactor is
+    // a uniform post-scale that tightens every cover in both
+    // dimensions for a slightly airier look — 0.95 = 5% smaller per
+    // dimension (~9.75% smaller in area). Tweak this single constant
+    // to loosen (→1.0) or tighten (→0.90) further. Applies uniformly
+    // across 12/16/20 counts and all title bar positions.
     const sectionHeight = (canvasHeight - bgH - 2 * titleGutter) / 2;
     const rowsPerSection = 2.5;
-    const slotHeight = (sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection;
+    const tiltedShrinkFactor = 0.95;
+    const slotHeight = ((sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection) * tiltedShrinkFactor;
     const slotWidth = slotHeight * bookAspect;
     
     // Spacing between cover centers
