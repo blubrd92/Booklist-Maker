@@ -2531,7 +2531,26 @@ const BooklistApp = (function() {
       slotWidth = slotWidthFromHorizontal;
       slotHeight = slotHeightFromHorizontal;
     }
-    
+
+    // Horizontally-constrained rescue: if the slot hit its canvas-width
+    // cap before it hit the vertical cap (16-count Classic is the only
+    // count where this happens), let it grow toward the vertical ideal
+    // by tightening horizontal gutters. This absorbs some of the
+    // vertical leftover into slot size instead of dumping it all into
+    // vGutter, which was making the rows look floaty at short title
+    // bars. Stops growing when hGutter hits a minimum so covers never
+    // touch. For 12 and 20 counts slotWidthFromVertical is already
+    // <= slotWidthFromHorizontal so this branch is a no-op.
+    if (slotWidthFromHorizontal < slotWidthFromVertical) {
+      const minHGutter = 4 * (CONFIG.PDF_DPI / 72); // ~33 px at 600 DPI
+      const maxSlotWidth = (canvasWidth - (numCols + 1) * minHGutter) / numCols;
+      const grownSlotWidth = Math.min(slotWidthFromVertical, maxSlotWidth);
+      if (grownSlotWidth > slotWidth) {
+        slotWidth = grownSlotWidth;
+        slotHeight = slotWidth / bookAspect;
+      }
+    }
+
     // Calculate actual gutters
     let vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
@@ -2674,7 +2693,21 @@ const BooklistApp = (function() {
       slotWidth = slotWidthFromHorizontal;
       slotHeight = slotHeightFromHorizontal;
     }
-    
+
+    // Horizontally-constrained rescue for 16-count (see drawLayoutClassic
+    // for the full rationale). Same mechanism: let the slot grow toward
+    // the vertical ideal by tightening hGutter, stopping at a minimum
+    // so covers don't touch. No-op for 12 and 20 counts.
+    if (slotWidthFromHorizontal < slotWidthFromVertical) {
+      const minHGutter = 4 * (CONFIG.PDF_DPI / 72); // ~33 px at 600 DPI
+      const maxSlotWidth = (canvasWidth - (numCols + 1) * minHGutter) / numCols;
+      const grownSlotWidth = Math.min(slotWidthFromVertical, maxSlotWidth);
+      if (grownSlotWidth > slotWidth) {
+        slotWidth = grownSlotWidth;
+        slotHeight = slotWidth / bookAspect;
+      }
+    }
+
     let vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
 
