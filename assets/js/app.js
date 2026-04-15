@@ -3594,11 +3594,19 @@ const BooklistApp = (function() {
           }
         }
 
-        // Trim user-added extras if the new count has fewer slots than
-        // the previous mode had filled (e.g. downgrading 20 → 16).
-        const maxExtras = Math.max(0, count - CONFIG.MIN_COVERS_FOR_COLLAGE);
-        if (extraCollageCovers.length > maxExtras) {
-          extraCollageCovers = extraCollageCovers.slice(0, maxExtras);
+        // Trim user-added extras so the total cover count never exceeds
+        // the new mode's count. The budget is `count - currentlyStarred`
+        // (computed AFTER the auto-star step above so any newly-starred
+        // books reduce the extras budget). Without this — and using the
+        // simpler `count - 12` formula — a 20→16 downgrade with 14
+        // starred books would leave 14 starred + 4 extras = 18 covers,
+        // and the downstream slice(0, maxCovers) in generateCoverCollage
+        // would silently drop the last 2 extras while still showing them
+        // as filled slots in the extras grid.
+        const currentStarred = BookUtils.getStarredBooks(myBooklist).length;
+        const extrasBudget = Math.max(0, count - currentStarred);
+        if (extraCollageCovers.length > extrasBudget) {
+          extraCollageCovers = extraCollageCovers.slice(0, extrasBudget);
         }
       } else {
         // When restoring, just update the placeholder text (don't clear cover)
