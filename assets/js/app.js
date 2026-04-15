@@ -4379,14 +4379,16 @@ const BooklistApp = (function() {
    * Binds events for extra covers feature
    */
   function bindExtraCoversEvents() {
-    // Collage cover count radio group (12 / 16 / 20)
+    // Collage cover count radio group (12 / 16 / 20). Radios flip
+    // their DOM state BEFORE the `change` event fires, so capture
+    // pre-change state via mousedown/keydown on each radio input.
     if (elements.collageCoverCountRadios && elements.collageCoverCountRadios.length) {
       elements.collageCoverCountRadios.forEach(function(radio) {
+        bindPreChangeCapture(radio, 'set-collage-cover-count');
         radio.addEventListener('change', function() {
           if (!radio.checked) return;
           const newCount = parseInt(radio.value, 10);
           if (CONFIG.COLLAGE_COVER_COUNTS.indexOf(newCount) === -1) return;
-          pushUndo('set-collage-cover-count');
           setCollageCoverCount(newCount);
           // Folio: perk at the mode switch
           if (window.folio) window.folio.react('perk');
@@ -5391,13 +5393,16 @@ const BooklistApp = (function() {
       pushUndo('generate-collage');
       generateCoverCollage();
     });
+    // Stretch toggles: capture BEFORE the change event (which fires
+    // after the checkbox is already flipped). mousedown/keydown both
+    // fire pre-mutation.
+    bindPreChangeCapture(elements.stretchCoversToggle, 'change-style');
     elements.stretchCoversToggle.addEventListener('change', () => {
-      pushUndo('change-style');
       autoRegenerateCoverIfAble();
       debouncedSave();
     });
+    bindPreChangeCapture(elements.stretchBlockCoversToggle, 'change-style');
     elements.stretchBlockCoversToggle.addEventListener('change', () => {
-      pushUndo('change-style');
       applyBlockCoverStyle();
       debouncedSave();
     });
@@ -5432,82 +5437,99 @@ const BooklistApp = (function() {
     
     // Show shelves toggle for classic layout
     if (elements.showShelvesToggle) {
+      bindPreChangeCapture(elements.showShelvesToggle, 'change-style');
       elements.showShelvesToggle.addEventListener('change', () => {
-        pushUndo('change-style');
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
     }
-    
+
     // Title bar position dropdown
     if (elements.titleBarPosition) {
+      bindPreChangeCapture(elements.titleBarPosition, 'change-style');
       elements.titleBarPosition.addEventListener('change', () => {
-        pushUndo('change-style');
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
     }
-    
-    // Tilted layout settings
+
+    // Tilted layout settings. tiltDegree is a number input — use the
+    // pre-edit snapshot pattern with focus/blur so typing captures the
+    // state before the first keystroke, matching other style inputs.
     if (elements.tiltDegree) {
+      elements.tiltDegree.addEventListener('focus', capturePreEditSnapshot);
+      elements.tiltDegree.addEventListener('blur', clearPreEditSnapshot);
       elements.tiltDegree.addEventListener('input', () => {
-        pushUndo('change-style');
+        commitPreEditSnapshot('change-style');
         debouncedSave();
         debouncedCoverRegen();
       });
       elements.tiltDegree.addEventListener('change', () => {
-        pushUndo('change-style');
+        commitPreEditSnapshot('change-style');
         debouncedSave();
         debouncedCoverRegen();
       });
     }
     if (elements.tiltOffsetDirection) {
+      bindPreChangeCapture(elements.tiltOffsetDirection, 'change-style');
       elements.tiltOffsetDirection.addEventListener('change', () => {
-        pushUndo('change-style');
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
     }
     
-    // Margins & Padding inputs
+    // Margins & Padding inputs. Number inputs mutate BEFORE the input
+    // event, so use the pre-edit snapshot pattern (focus → capture,
+    // first input → commit, blur → clear) so undo captures the state
+    // before the user started typing.
     ['cover-title-outer-margin', 'cover-title-side-margin', 'cover-title-pad-x', 'cover-title-pad-y'].forEach(id => {
       const input = document.getElementById(id);
       if (input) {
+        input.addEventListener('focus', capturePreEditSnapshot);
+        input.addEventListener('blur', clearPreEditSnapshot);
         input.addEventListener('input', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
         });
         input.addEventListener('change', autoRegenerateCoverIfAble);
       }
     });
 
-    // BG Color picker
+    // BG Color picker. Color pickers mutate BEFORE input fires, so
+    // same pre-edit snapshot pattern.
     const bgColorPicker = document.getElementById('cover-title-bg-color');
     if (bgColorPicker) {
+      bgColorPicker.addEventListener('focus', capturePreEditSnapshot);
+      bgColorPicker.addEventListener('blur', clearPreEditSnapshot);
       bgColorPicker.addEventListener('input', () => {
-        pushUndo('change-cover-style');
+        commitPreEditSnapshot('change-cover-style');
         debouncedSave();
       });
       bgColorPicker.addEventListener('change', autoRegenerateCoverIfAble);
     }
 
-    // Gradient toggle checkbox
+    // Gradient toggle checkbox. Pre-change capture (mousedown/keydown)
+    // so undo/redo sees the pre-flip state.
     const gradToggle = document.getElementById('cover-title-gradient-toggle');
     if (gradToggle) {
+      bindPreChangeCapture(gradToggle, 'change-cover-style');
       gradToggle.addEventListener('change', () => {
         const bgColor2El = document.getElementById('cover-title-bg-color2');
         if (bgColor2El) bgColor2El.style.display = gradToggle.checked ? '' : 'none';
-        pushUndo('change-cover-style');
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
     }
 
-    // Gradient end color picker
+    // Gradient end color picker. Color inputs mutate BEFORE input
+    // fires, so use the focus/blur pre-edit snapshot pattern to
+    // capture the pre-interaction color.
     const bgColor2Picker = document.getElementById('cover-title-bg-color2');
     if (bgColor2Picker) {
+      bgColor2Picker.addEventListener('focus', capturePreEditSnapshot);
+      bgColor2Picker.addEventListener('blur', clearPreEditSnapshot);
       bgColor2Picker.addEventListener('input', () => {
-        pushUndo('change-cover-style');
+        commitPreEditSnapshot('change-cover-style');
         debouncedSave();
       });
       bgColor2Picker.addEventListener('change', autoRegenerateCoverIfAble);
@@ -5515,8 +5537,8 @@ const BooklistApp = (function() {
 
     // Cover mode toggle
     if (elements.coverAdvancedToggle) {
+      bindPreChangeCapture(elements.coverAdvancedToggle, 'change-style');
       elements.coverAdvancedToggle.addEventListener('change', (e) => {
-        pushUndo('change-style');
         toggleCoverMode(e.target.checked);
         debouncedSave();
         autoRegenerateCoverIfAble();
@@ -5635,13 +5657,14 @@ const BooklistApp = (function() {
       }
     });
     
-    // Layout toggles
+    // Layout toggles. Same pre-change capture pattern — change fires
+    // after the checkbox is already flipped, so hook mousedown/keydown.
+    bindPreChangeCapture(elements.toggleQrCode, 'toggle-ui');
     elements.toggleQrCode.addEventListener('change', () => {
-      pushUndo('toggle-ui');
       handleLayoutChange();
     });
+    bindPreChangeCapture(elements.toggleBranding, 'toggle-ui');
     elements.toggleBranding.addEventListener('change', () => {
-      pushUndo('toggle-ui');
       handleLayoutChange();
     });
     
@@ -5651,13 +5674,18 @@ const BooklistApp = (function() {
       generateQrCode();
     });
     
-    // Spacing inputs and background color for cover auto-regen
+    // Spacing inputs and background color for cover auto-regen.
+    // Undo capture for these is handled by the dedicated focus/blur
+    // pre-edit snapshot handlers higher up (margins, bg colors); this
+    // loop only triggers live regeneration on input/change so the
+    // preview updates as the user drags a slider or edits a number.
+    // Do NOT call pushUndo here — the event fires post-mutation and
+    // would create duplicate undo entries on top of the pre-edit ones.
     const coverLayoutInputIds = ['cover-title-outer-margin', 'cover-title-pad-x', 'cover-title-pad-y', 'cover-title-side-margin', 'cover-title-bg-color', 'cover-title-bg-color2'];
     coverLayoutInputIds.forEach(id => {
       const el = document.getElementById(id);
       if (el) {
         ['input', 'change'].forEach(evt => el.addEventListener(evt, () => {
-          pushUndo('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         }));
@@ -6321,6 +6349,24 @@ const BooklistApp = (function() {
     }
 
     updateUndoRedoButtons();
+  }
+
+  /**
+   * Wire pre-change undo capture onto an element whose `change` event
+   * fires AFTER the browser has already mutated the DOM state
+   * (checkboxes, radios, selects). Hooks `mousedown` and `keydown`
+   * because both fire BEFORE the checkbox toggles / the option
+   * is picked, so pushUndo captures the pre-change snapshot.
+   * pushUndo's coalescing handles rapid repeated interactions:
+   * clicking the same checkbox many times quickly collapses into
+   * a single undo entry pointing at the pre-burst state, which is
+   * what users expect.
+   */
+  function bindPreChangeCapture(element, group) {
+    if (!element) return;
+    const capture = () => pushUndo(group);
+    element.addEventListener('mousedown', capture);
+    element.addEventListener('keydown', capture);
   }
 
   /**
