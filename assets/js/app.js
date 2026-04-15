@@ -2466,8 +2466,10 @@ const BooklistApp = (function() {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     const position = options.titleBarPosition || 'classic';
-    
-    const margin = styles.outerMarginPx;
+
+    // `margin` is the gap around the title bar. Mutable so the 16-count
+    // rescue below can grow it to absorb leftover vertical space.
+    let margin = styles.outerMarginPx;
     const bookAspect = 0.75; // width / height
     
     // 12 covers = 3×4, 16 covers = 4×4, 20 covers = 4×5
@@ -2555,14 +2557,26 @@ const BooklistApp = (function() {
     let vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
 
-    // When the slot is horizontally constrained (16-count case), the
-    // row block may not fill the available vertical space, leaving a
-    // visible gap between the title bar and the rows. Distribute the
-    // leftover pixels evenly across the existing vGutters so the grid
-    // expands to fill instead. For 12 and 20 counts the slot is
-    // vertically constrained and the leftover is ~0, so the guard
-    // below skips and behavior is unchanged.
-    if (numVGutters > 0) {
+    // Balanced leftover redistribution (targets the 16-count case).
+    // After the horizontal rescue above, there may still be vertical
+    // space unaccounted for between the rows, the title bar, and its
+    // margins. Split that leftover 50/50 between inter-row vGutters
+    // and title-bar margins, so neither the rows feel floaty nor the
+    // title bar feels cramped. For 12 and 20 counts the leftover is
+    // ~0 (vertically-constrained slot fills exactly) and the guard
+    // below skips, so behavior is unchanged there.
+    if (numVGutters > 0 && marginCount > 0) {
+      const availableHeight = canvasHeight - bgH;
+      const usedHeight = numRows * slotHeight + numVGutters * vGutter + marginCount * margin;
+      const leftover = availableHeight - usedHeight;
+      if (leftover > 1) {
+        const halfLeftover = leftover / 2;
+        vGutter += halfLeftover / numVGutters;
+        margin += halfLeftover / marginCount;
+      }
+    } else if (numVGutters > 0) {
+      // Fallback for exotic position/row counts where there are no
+      // title bar margins to absorb half. Dump it all into vGutters.
       const usedHeight = numRows * slotHeight + numVGutters * vGutter;
       const leftover = totalVerticalSpace - usedHeight;
       if (leftover > 1) {
@@ -2632,8 +2646,10 @@ const BooklistApp = (function() {
     const shelfLineWidth = 6 * (CONFIG.PDF_DPI / 72);
     const shelfColor = '#5D4037';
     const shelfOverhang = 20 * (CONFIG.PDF_DPI / 72);
-    const margin = styles.outerMarginPx;
-    
+    // `margin` is the gap around the title bar. Mutable so the 16-count
+    // rescue below can grow it to absorb leftover vertical space.
+    let margin = styles.outerMarginPx;
+
     const bookAspect = 0.75;
     
     // 12 covers = 3×4, 16 covers = 4×4, 20 covers = 4×5
@@ -2711,14 +2727,24 @@ const BooklistApp = (function() {
     let vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
 
-    // When the slot is horizontally constrained (16-count case), the
-    // row block may not fill the available vertical space, leaving a
-    // visible gap between the title bar and the rows. Distribute the
-    // leftover pixels evenly across the existing vGutters so the grid
-    // expands to fill instead. Shelves are already accounted for in
-    // totalVerticalSpace, so the formula works without adjustment.
-    // For 12 and 20 counts the leftover is ~0 and the guard skips.
-    if (numVGutters > 0) {
+    // Balanced leftover redistribution (see drawLayoutClassic for the
+    // full rationale). Split any remaining vertical space 50/50
+    // between inter-row vGutters and title-bar margins so neither
+    // the rows feel floaty nor the title bar feels cramped. Shelves
+    // must be added to usedHeight here since they're a real vertical
+    // cost (each row pairs its slot with a shelf underneath). No-op
+    // for 12 and 20 counts.
+    if (numVGutters > 0 && marginCount > 0) {
+      const availableHeight = canvasHeight - bgH;
+      const usedHeight = numRows * slotHeight + numVGutters * vGutter + marginCount * margin + totalShelfHeight;
+      const leftover = availableHeight - usedHeight;
+      if (leftover > 1) {
+        const halfLeftover = leftover / 2;
+        vGutter += halfLeftover / numVGutters;
+        margin += halfLeftover / marginCount;
+      }
+    } else if (numVGutters > 0) {
+      // Fallback for exotic positions with no title bar margins.
       const usedHeight = numRows * slotHeight + numVGutters * vGutter;
       const leftover = totalVerticalSpace - usedHeight;
       if (leftover > 1) {
