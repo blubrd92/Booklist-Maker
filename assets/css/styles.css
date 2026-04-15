@@ -904,11 +904,25 @@ input[type="color"]:hover {
 .collage-cover-count-option {
   margin: 0;
   cursor: pointer;
+  /* Containing block for the absolutely-positioned input below.
+     Without this, the input falls back to the initial containing
+     block (viewport), which can cause subtle layout side effects. */
+  position: relative;
+  display: inline-flex;
 }
 .collage-cover-count-option input[type="radio"] {
+  /* Visually-hidden but accessible. Confined to the label via
+     inset:0 so its absolute positioning never escapes the segment. */
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   opacity: 0;
   pointer-events: none;
+  appearance: none;
+  -webkit-appearance: none;
 }
 .collage-cover-count-option span {
   display: inline-block;
