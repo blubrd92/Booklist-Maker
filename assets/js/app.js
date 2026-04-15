@@ -3018,7 +3018,7 @@ const BooklistApp = (function() {
     // across 12/16/20 counts and all title bar positions.
     const sectionHeight = (canvasHeight - bgH - 2 * titleGutter) / 2;
     const rowsPerSection = 2.5;
-    const tiltedShrinkFactor = 0.95;
+    const tiltedShrinkFactor = 0.90;
     const slotHeight = ((sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection) * tiltedShrinkFactor;
     const slotWidth = slotHeight * bookAspect;
     
