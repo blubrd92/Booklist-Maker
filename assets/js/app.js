@@ -6354,17 +6354,31 @@ const BooklistApp = (function() {
   /**
    * Wire pre-change undo capture onto an element whose `change` event
    * fires AFTER the browser has already mutated the DOM state
-   * (checkboxes, radios, selects). Hooks `mousedown` and `keydown`
-   * because both fire BEFORE the checkbox toggles / the option
-   * is picked, so pushUndo captures the pre-change snapshot.
-   * pushUndo's coalescing handles rapid repeated interactions:
-   * clicking the same checkbox many times quickly collapses into
-   * a single undo entry pointing at the pre-burst state, which is
-   * what users expect.
+   * (checkboxes, radios, selects). Hooks `click`, `mousedown`, and
+   * `keydown` — between the three they catch every interaction that
+   * leads to a state change BEFORE the state change happens:
+   *
+   *   - `click` fires pre-toggle on checkboxes/radios (click handlers
+   *     run before the browser's activation behavior which does the
+   *     actual toggle). Critically, click ALSO forwards from a
+   *     `<label for="id">` click to the associated input, whereas
+   *     `mousedown` does not — clicking the label fires mousedown on
+   *     the label, not the input. Without the click listener, label
+   *     clicks would go uncaptured.
+   *   - `mousedown` fires pre-open on `<select>` dropdowns (before
+   *     the user picks an option, so before change fires).
+   *   - `keydown` covers keyboard interactions (space/enter/arrow
+   *     keys on focused elements), which fire before the browser's
+   *     default action.
+   *
+   * pushUndo's coalescing collapses same-tick duplicates into one
+   * entry, so overlapping captures (click+mousedown on the same
+   * direct click) don't stack.
    */
   function bindPreChangeCapture(element, group) {
     if (!element) return;
     const capture = () => pushUndo(group);
+    element.addEventListener('click', capture);
     element.addEventListener('mousedown', capture);
     element.addEventListener('keydown', capture);
   }
