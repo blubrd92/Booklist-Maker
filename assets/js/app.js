@@ -41,6 +41,19 @@ const BooklistApp = (function() {
   // event of that focus session. See capturePreEditSnapshot / commitPreEditSnapshot.
   let _pendingPreEditSnapshot = null;
 
+  // DOM-independent source of truth for the QR blurb text. The
+  // qrCodeTextArea is a contenteditable div inside #qr-code-area, which
+  // is toggled display:none when the user turns "Show QR Code" off. The
+  // browser's .innerText accessor returns '' for any element whose
+  // computed style is display:none, so reading innerText during
+  // serialization while the area is hidden would silently overwrite a
+  // real blurb with empty. Mirror the text into this module variable
+  // on every input event (and during applyState when loading), then
+  // have serializeState read from here instead of the DOM. This value
+  // never holds the placeholder sentinel — it's either the user's real
+  // content or empty.
+  let _currentQrText = '';
+
   // ---------------------------------------------------------------------------
   // IndexedDB Image Cache (deduplicates base64 images across undo snapshots)
   // ---------------------------------------------------------------------------
@@ -4703,7 +4716,12 @@ const BooklistApp = (function() {
     const isAdvancedMode = elements.coverAdvancedToggle?.checked || false;
     const coverTitle = elements.coverTitleInput?.value || ''; // Simple mode text
     const coverLineTexts = elements.coverLines.map(line => line.input?.value || ''); // Advanced mode texts
-    const qrTextContent = (elements.qrCodeTextArea?.innerText || '').trim();
+    // Read the QR blurb from the DOM-independent mirror (_currentQrText)
+    // rather than elements.qrCodeTextArea.innerText. innerText returns
+    // '' on any display:none element, so when the user has Show QR Code
+    // toggled off, serializing would silently wipe their saved blurb.
+    // _currentQrText is kept in sync via the input handler and applyState.
+    const qrTextContent = (_currentQrText || '').trim();
 
     return {
       schema: 'booklist-v1',
@@ -4984,9 +5002,14 @@ const BooklistApp = (function() {
       if (loadedText && loadedText !== CONFIG.PLACEHOLDERS.qrText) {
         elements.qrCodeTextArea.innerText = loadedText;
         elements.qrCodeTextArea.style.color = '';
+        // Mirror into the DOM-independent source of truth so a later
+        // serializeState call reads it correctly even if the QR area
+        // is hidden (Show QR Code toggled off).
+        _currentQrText = loadedText;
       } else {
         elements.qrCodeTextArea.innerText = CONFIG.PLACEHOLDERS.qrText;
         elements.qrCodeTextArea.style.color = CONFIG.PLACEHOLDER_COLOR;
+        _currentQrText = '';
       }
     }
     
@@ -5891,6 +5914,12 @@ const BooklistApp = (function() {
 
     elements.qrCodeTextArea.addEventListener('input', () => {
       sanitizeContentEditable(elements.qrCodeTextArea);
+      // Mirror current DOM text into the module-level source of truth
+      // so serializeState can read it even if the QR area gets hidden
+      // later (via Show QR Code toggle). Never store the placeholder
+      // sentinel — that's managed separately by setupPlaceholderField.
+      const txt = (elements.qrCodeTextArea.innerText || '').trim();
+      _currentQrText = (txt && txt !== CONFIG.PLACEHOLDERS.qrText) ? txt : '';
       commitPreEditSnapshot('edit-qr-text');
       debouncedSave();
     });
@@ -6692,6 +6721,7 @@ const BooklistApp = (function() {
       elements.qrCodeTextArea.innerText = CONFIG.PLACEHOLDERS.qrText;
       elements.qrCodeTextArea.style.color = CONFIG.PLACEHOLDER_COLOR;
     }
+    _currentQrText = '';
 
     // Disable undo/redo buttons
     updateUndoRedoButtons();
