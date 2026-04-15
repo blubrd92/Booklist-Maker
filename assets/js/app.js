@@ -1813,9 +1813,17 @@ const BooklistApp = (function() {
     titleField.setAttribute('role', 'textbox');
     titleField.setAttribute('aria-label', 'Book title');
     titleField.addEventListener('paste', handlePastePlainText);
+    // Pre-edit snapshot pattern (see coverTitleInput / QR text for the
+    // rationale). Plain pushUndo on contenteditable input captures the
+    // POST-mutation DOM, making Ctrl+Z a no-op on the first coalesced
+    // edit and producing the "text doubles on undo/redo" quirk the
+    // user reported. Capture on focus, commit on first input of the
+    // focus session, clear on blur.
+    titleField.onfocus = capturePreEditSnapshot;
+    titleField.onblur = clearPreEditSnapshot;
     titleField.oninput = (e) => {
       sanitizeContentEditable(e.target);
-      pushUndo('edit-text');
+      commitPreEditSnapshot('edit-text');
       bookItem.title = e.target.innerText;
       if (bookItem.isBlank && bookItem.title !== CONFIG.PLACEHOLDERS.title) {
         bookItem.isBlank = false;
@@ -1838,9 +1846,11 @@ const BooklistApp = (function() {
     authorField.setAttribute('role', 'textbox');
     authorField.setAttribute('aria-label', 'Author and call number');
     authorField.addEventListener('paste', handlePastePlainText);
+    authorField.onfocus = capturePreEditSnapshot;
+    authorField.onblur = clearPreEditSnapshot;
     authorField.oninput = (e) => {
       sanitizeContentEditable(e.target);
-      pushUndo('edit-text');
+      commitPreEditSnapshot('edit-text');
       // Store the raw display text exactly as typed
       bookItem.authorDisplay = e.target.innerText;
       debouncedSave();
@@ -1854,9 +1864,11 @@ const BooklistApp = (function() {
     descriptionField.setAttribute('role', 'textbox');
     descriptionField.setAttribute('aria-label', 'Book description');
     descriptionField.addEventListener('paste', handlePastePlainText);
+    descriptionField.onfocus = capturePreEditSnapshot;
+    descriptionField.onblur = clearPreEditSnapshot;
     descriptionField.oninput = (e) => {
       sanitizeContentEditable(e.target);
-      pushUndo('edit-text');
+      commitPreEditSnapshot('edit-text');
       bookItem.description = e.target.innerText;
       debouncedSave();
     };
@@ -3744,20 +3756,17 @@ const BooklistApp = (function() {
           }
         }
 
-        // Trim user-added extras so the total cover count never exceeds
-        // the new mode's count. The budget is `count - currentlyStarred`
-        // (computed AFTER the auto-star step above so any newly-starred
-        // books reduce the extras budget). Without this — and using the
-        // simpler `count - 12` formula — a 20→16 downgrade with 14
-        // starred books would leave 14 starred + 4 extras = 18 covers,
-        // and the downstream slice(0, maxCovers) in generateCoverCollage
-        // would silently drop the last 2 extras while still showing them
-        // as filled slots in the extras grid.
-        const currentStarred = BookUtils.getStarredBooks(myBooklist).length;
-        const extrasBudget = Math.max(0, count - currentStarred);
-        if (extraCollageCovers.length > extrasBudget) {
-          extraCollageCovers = extraCollageCovers.slice(0, extrasBudget);
-        }
+        // NOTE: previous revisions trimmed extraCollageCovers on
+        // downgrade (20→16, or 16/20→12) to keep the in-memory array
+        // in sync with the visible grid slots. That has been removed
+        // per user request so extras survive mode switches: a user
+        // who has 8 extras in 20-count and drops to 12 keeps all 8
+        // extras hidden in memory, and flipping back to 20 brings
+        // them back unchanged. renderExtraCoversGrid already caps
+        // visible slots at getMaxExtraCovers(), and
+        // generateCoverCollage caps rendered covers at maxCovers
+        // via slice(0, maxCovers), so the hidden entries don't
+        // cause orphan slots or over-full collages.
       } else {
         // When restoring, just update the placeholder text (don't clear cover)
         updateExtendedModePlaceholderText(count);
@@ -3767,7 +3776,12 @@ const BooklistApp = (function() {
       renderBooklist();
       renderExtraCoversGrid();
     } else {
-      // When switching back to 12, unstar books beyond 12 and drop all extras
+      // When switching back to 12, unstar books beyond 12. Leave the
+      // user-added extraCollageCovers array intact in memory so a
+      // subsequent switch back to 16 or 20 brings them right back.
+      // The grid is hidden (display:none) in 12-count mode and the
+      // count functions ignore extras when count === 12, so keeping
+      // them around has no side effect.
       let starredCount = 0;
       for (let i = 0; i < myBooklist.length; i++) {
         const book = myBooklist[i];
@@ -3777,9 +3791,6 @@ const BooklistApp = (function() {
             book.includeInCollage = false;
           }
         }
-      }
-      if (!isRestoring) {
-        extraCollageCovers = [];
       }
       // Restore default placeholder text
       restoreFrontCoverPlaceholderText();
@@ -5517,8 +5528,17 @@ const BooklistApp = (function() {
     // style-groups loop below doesn't catch it and a dedicated handler is
     // needed.
     if (elements.coverTitleInput) {
+      // Pre-edit snapshot pattern for the simple-mode cover title
+      // textarea. The previous plain pushUndo() path captured the
+      // post-mutation DOM state (the textarea's .value has already
+      // been updated by the browser before `input` fires), which
+      // made Ctrl+Z a no-op for the first coalesced edit and could
+      // visually manifest as undo/redo "doubling" the text. Same
+      // pattern used by the advanced-mode line inputs and qr text.
+      elements.coverTitleInput.addEventListener('focus', capturePreEditSnapshot);
+      elements.coverTitleInput.addEventListener('blur', clearPreEditSnapshot);
       elements.coverTitleInput.addEventListener('input', () => {
-        pushUndo('edit-cover-text');
+        commitPreEditSnapshot('edit-cover-text');
         debouncedSave();
         debouncedCoverRegen();
       });
