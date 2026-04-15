@@ -2585,19 +2585,27 @@ const BooklistApp = (function() {
     // Balanced leftover redistribution (targets the 16-count case).
     // After the horizontal rescue above, there may still be vertical
     // space unaccounted for between the rows, the title bar, and its
-    // margins. Split that leftover 50/50 between inter-row vGutters
-    // and title-bar margins, so neither the rows feel floaty nor the
-    // title bar feels cramped. For 12 and 20 counts the leftover is
-    // ~0 (vertically-constrained slot fills exactly) and the guard
-    // below skips, so behavior is unchanged there.
+    // margins. Split that leftover between inter-row vGutters and
+    // title-bar margins.
+    //
+    // The split skews toward vGutters (60/40 instead of 50/50) so
+    // 16-count Classic rows feel less tightly packed — per user
+    // feedback the pre-skew balance left the rows visually cramped
+    // against each other. The 60/40 ratio scales with the leftover
+    // amount, so at short title bars (large leftover) the extra
+    // breathing room is more pronounced; at tall title bars (small
+    // leftover) the shift is subtle. For 12 and 20 counts the
+    // leftover is ~0 (vertically-constrained slot fills exactly)
+    // and the guard below skips entirely.
     if (numVGutters > 0 && marginCount > 0) {
       const availableHeight = canvasHeight - bgH;
       const usedHeight = numRows * slotHeight + numVGutters * vGutter + marginCount * margin;
       const leftover = availableHeight - usedHeight;
       if (leftover > 1) {
-        const halfLeftover = leftover / 2;
-        vGutter += halfLeftover / numVGutters;
-        margin += halfLeftover / marginCount;
+        const gutterShare = leftover * 0.6;
+        const marginShare = leftover * 0.4;
+        vGutter += gutterShare / numVGutters;
+        margin += marginShare / marginCount;
       }
     } else if (numVGutters > 0) {
       // Fallback for exotic position/row counts where there are no
