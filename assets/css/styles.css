@@ -383,6 +383,7 @@ body.library-sanrafael .zoom-controls {
   transition: all var(--transition-fast);
   min-width: 75px;
   justify-content: center;
+  white-space: nowrap;
 }
 .btn-header:hover {
   background-color: rgba(255,255,255,0.2);
@@ -424,6 +425,7 @@ body.library-sanrafael .zoom-controls {
   justify-content: center;
   font-weight: 600;
   box-shadow: 0 2px 4px rgba(67, 160, 71, 0.3);
+  white-space: nowrap;
 }
 .btn-header-primary:hover {
   background-color: var(--success-hover);
