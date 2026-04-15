@@ -3077,7 +3077,7 @@ const BooklistApp = (function() {
     // across 12/16/20 counts and all title bar positions.
     const sectionHeight = (canvasHeight - bgH - 2 * titleGutter) / 2;
     const rowsPerSection = 2.5;
-    const tiltedShrinkFactor = 0.90;
+    const tiltedShrinkFactor = 1.00;
     const slotHeight = ((sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection) * tiltedShrinkFactor;
     const slotWidth = slotHeight * bookAspect;
     
@@ -3167,50 +3167,76 @@ const BooklistApp = (function() {
     const gridOriginX = centerX - (numCols * hStep) / 2;
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
-    // Deterministic image selection based on offset direction and bar
-    // position. Each cover count (12, 16, 20) has its own hand-tuned
-    // pattern. The outer `% totalImages` wrap at the bottom is a
-    // defensive safety net; the dedicated branches already generate
-    // indices within [0, totalImages).
+    // Deterministic image selection based on cover count, offset
+    // direction, and title bar position. 16-count and 20-count share
+    // the same overall shape: a sequential pattern for horizontal
+    // non-center, a doubled-row pattern for horizontal center, and a
+    // col-shuffled pattern for vertical. The only differences are
+    // books-per-row (4 for 16-count, 5 for 20-count) and the choice
+    // to use 12-count-style vertical for 16-count. 12-count has its
+    // own 3×4 patterns. The outer `% totalImages` wrap at the bottom
+    // is a defensive safety net.
     const totalImages = images.length;
-    // Sequential row-group order is a 20-count-only fallback for the
-    // horizontal non-center case. 16-count has its own dedicated
-    // branch below and doesn't need it.
-    const useRegularSequential = totalImages === 20 && position !== 'center' && offsetDirection === 'horizontal';
+    const useRegularSequential = (totalImages === 20 || totalImages === 16)
+      && position !== 'center'
+      && offsetDirection === 'horizontal';
 
     const getImageForCell = (row, col) => {
       let idx;
-      // For non-center positions with horizontal offset and 20 images,
-      // use 4 rows of 5 in a loop. Each row shows only its 5 books,
-      // columns cycle within that set.
+      // Sequential row-group order for 16 and 20 count horizontal
+      // non-center. 4 rows of N books (N=5 for 20-count, N=4 for
+      // 16-count) cycle through the full list, then the pattern
+      // repeats every 4 rows. At 16-count this means row 0 and row 4
+      // show the same books, so if it looks too repetitive at the
+      // user's default tilt angle, swap to the coprime-offset variant
+      // from the previous revision.
       if (useRegularSequential) {
-        const rowGroup = (row % 4) * 5;  // 0, 5, 10, 15, then repeats
-        idx = rowGroup + (col % 5);
+        const booksPerRow = totalImages === 20 ? 5 : 4;
+        const rowGroup = (row % 4) * booksPerRow;
+        idx = rowGroup + (col % booksPerRow);
       } else if (totalImages <= 12) {
-        // Original 12-image logic
+        // 12-count: 3 row groups of 4 horizontal, or 4 col groups of
+        // 3 vertical.
         if (offsetDirection === 'horizontal') {
           const rowGroup = (row % 3) * 4;
           idx = rowGroup + (col % 4);
         } else {
-          // Vertical: 4 column groups, each cycles through 3 books
           const colGroup = (col % 4) * 3;
           const rowOffset = col % 3;
           idx = colGroup + ((row + rowOffset) % 3);
         }
+      } else if (totalImages === 16 && offsetDirection === 'vertical') {
+        // 16-count vertical (any position): 12-count-style col-group
+        // pattern, adapted with 4-book col groups and period-3 row
+        // offset (coprime). Kept from the previous revision — the
+        // user explicitly asked for vertical to stay on 12-count-style
+        // loop while horizontal moves to 20-count-style.
+        const colGroup = (col % 4) * 4;
+        const rowOffset = col % 3;
+        idx = colGroup + ((row + rowOffset) % 4);
       } else if (totalImages === 16) {
-        // 16-count: clean 4×4 pattern modeled on the 12-count style.
-        // Period-4 row/col groups with a period-3 offset (coprime) so
-        // consecutive rows/cols never resolve to the same starting
-        // book. All 16 books appear; the full cycle is LCM(4,3)=12.
-        if (offsetDirection === 'horizontal') {
-          const rowGroup = (row % 4) * 4;
-          const colOffset = row % 3;
-          idx = rowGroup + ((col + colOffset) % 4);
+        // 16-count horizontal CENTER position: adapted from the
+        // 20-count center-horizontal doubled 6-row pattern, with
+        // 4-book row groups instead of 5. Double-visibility rows
+        // land on the same visible bands around the title bar to
+        // keep the primary books in the reader's eye.
+        //   rowMod 0,2 → books 0-3  (double)
+        //   rowMod 1   → books 4-7
+        //   rowMod 3,5 → books 8-11 (double)
+        //   rowMod 4   → books 12-15
+        // Repeats every 6 rows.
+        const rowMod = row % 6;
+        let rowGroup;
+        if (rowMod === 0 || rowMod === 2) {
+          rowGroup = 0;   // books 0-3
+        } else if (rowMod === 1) {
+          rowGroup = 4;   // books 4-7
+        } else if (rowMod === 3 || rowMod === 5) {
+          rowGroup = 8;   // books 8-11
         } else {
-          const colGroup = (col % 4) * 4;
-          const rowOffset = col % 3;
-          idx = colGroup + ((row + rowOffset) % 4);
+          rowGroup = 12;  // books 12-15
         }
+        idx = rowGroup + (col % 4);
       } else {
         // 20-image logic
         if (offsetDirection === 'horizontal') {
