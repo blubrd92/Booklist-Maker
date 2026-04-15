@@ -5777,7 +5777,17 @@ const BooklistApp = (function() {
         const parsed = JSON.parse(text);
         clearUndoHistory();
         applyState(parsed);
-        debouncedSave(); // Sync browser draft with loaded file
+        // Direct save (not debounced) so the IndexedDB draft reflects
+        // the just-loaded file immediately. The previous code used
+        // debouncedSave() which scheduled a write 400ms later — if the
+        // user refreshed within that window (or the browser killed the
+        // pending setTimeout on beforeunload), the IDB draft still
+        // held the PREVIOUS draft and refresh would revert to it,
+        // losing everything from the loaded file including the QR
+        // blurb text. The save-file path at the button handler uses
+        // saveDraftLocal() directly for the same reason; the load path
+        // was just never updated to match.
+        saveDraftLocal();
         hasUnsavedFile = false; // File was just loaded from disk
         updateSaveIndicator();
         // Folio: greet on file load (guard suppresses cascading hooks)
