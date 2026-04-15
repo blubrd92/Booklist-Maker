@@ -3395,9 +3395,9 @@ const BooklistApp = (function() {
     const baseGutter = 6 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
     
-    // Column count based on cover count: 5 for 12 or 16, 6 for 20
+    // Column count based on cover count: 5 for 12, 6 for 16 or 20
     const imageCount = images.length;
-    const numCols = imageCount <= 16 ? 5 : 6;
+    const numCols = imageCount <= 12 ? 5 : 6;
     console.log('[Masonry] Using numCols =', numCols, 'for', imageCount, 'covers');
     
     // Calculate column width - gutters only BETWEEN columns, not at edges
