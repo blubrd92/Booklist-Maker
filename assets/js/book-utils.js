@@ -71,12 +71,16 @@
      * Counts the total number of valid covers (starred books + extras).
      * @param {Array} booklist - The myBooklist array
      * @param {Array} extraCovers - The extraCollageCovers array
-     * @param {boolean} extendedMode - Whether extended collage mode is on
+     * @param {boolean|number} modeOrCount - Either the legacy boolean
+     *   (true = extended/20, false = standard/12) or a numeric cover
+     *   count (12, 16, or 20). Extras only count when the mode requires
+     *   more than MIN_COVERS_FOR_COLLAGE books.
      * @returns {number}
      */
-    countTotalCovers: function(booklist, extraCovers, extendedMode) {
+    countTotalCovers: function(booklist, extraCovers, modeOrCount) {
+      const count = BookUtils.getRequiredCovers(modeOrCount);
       const booksWithCovers = BookUtils.getStarredBooksWithCovers(booklist);
-      const extraCount = extendedMode
+      const extraCount = count > CONFIG.MIN_COVERS_FOR_COLLAGE
         ? extraCovers.filter(function(ec) {
             return ec.coverData && !isPlaceholderUrl(ec.coverData);
           }).length
@@ -86,13 +90,23 @@
 
     /**
      * Determines the required number of covers based on mode.
-     * @param {boolean} extendedMode - Whether extended collage mode is on
+     * Accepts either the legacy boolean (true = 20, false = 12) or a
+     * numeric cover count (12, 16, or 20). Any unknown value falls
+     * back to MIN_COVERS_FOR_COLLAGE.
+     * @param {boolean|number} modeOrCount
      * @returns {number}
      */
-    getRequiredCovers: function(extendedMode) {
-      return extendedMode
-        ? CONFIG.MAX_COVERS_FOR_COLLAGE
-        : CONFIG.MIN_COVERS_FOR_COLLAGE;
+    getRequiredCovers: function(modeOrCount) {
+      if (typeof modeOrCount === 'boolean') {
+        return modeOrCount
+          ? CONFIG.MAX_COVERS_FOR_COLLAGE
+          : CONFIG.MIN_COVERS_FOR_COLLAGE;
+      }
+      if (typeof modeOrCount === 'number' &&
+          CONFIG.COLLAGE_COVER_COUNTS.indexOf(modeOrCount) !== -1) {
+        return modeOrCount;
+      }
+      return CONFIG.MIN_COVERS_FOR_COLLAGE;
     },
 
     /**
@@ -137,12 +151,12 @@
      * Checks whether the collage should auto-regenerate based on current state.
      * @param {Array} booklist
      * @param {Array} extraCovers
-     * @param {boolean} extendedMode
+     * @param {boolean|number} modeOrCount - Legacy boolean or numeric cover count
      * @returns {boolean}
      */
-    hasEnoughCoversForCollage: function(booklist, extraCovers, extendedMode) {
-      const total = BookUtils.countTotalCovers(booklist, extraCovers, extendedMode);
-      const required = BookUtils.getRequiredCovers(extendedMode);
+    hasEnoughCoversForCollage: function(booklist, extraCovers, modeOrCount) {
+      const total = BookUtils.countTotalCovers(booklist, extraCovers, modeOrCount);
+      const required = BookUtils.getRequiredCovers(modeOrCount);
       return total >= required;
     },
 

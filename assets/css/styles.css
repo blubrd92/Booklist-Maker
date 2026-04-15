@@ -894,6 +894,41 @@ input[type="color"]:hover {
   cursor: pointer;
   font-size: 0.9rem;
 }
+/* Segmented radio group used for the collage cover count selector. */
+.collage-cover-count-group {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.collage-cover-count-option {
+  margin: 0;
+  cursor: pointer;
+}
+.collage-cover-count-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.collage-cover-count-option span {
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-color);
+  background: #fff;
+  border-right: 1px solid var(--border-color);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.collage-cover-count-option:last-child span { border-right: none; }
+.collage-cover-count-option input[type="radio"]:checked + span {
+  background: var(--primary-color);
+  color: #fff;
+}
+.collage-cover-count-option input[type="radio"]:focus-visible + span {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
+}
 .btn-icon {
   width: 32px;
   height: 32px;

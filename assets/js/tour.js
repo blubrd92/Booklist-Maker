@@ -289,12 +289,12 @@
           },
         },
         {
-          target: '#extended-collage-toggle',
-          text: "Flip this on to expand from 12 to 20 covers. Extra cover slots appear below where you can add supplementary images.",
+          target: '.collage-cover-count-group',
+          text: "Pick 12, 16, or 20 covers for the auto-generated collage. The 16 and 20 modes open extra cover slots below where you can add supplementary images.",
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');
-            openSettingsSection('Front Cover', '#extended-collage-toggle');
+            openSettingsSection('Front Cover', '.collage-cover-count-group');
           },
         },
         {
@@ -470,7 +470,7 @@
       coverLineTexts: ['', '', ''],
       collageLayout: 'classic', showShelves: false,
       titleBarPosition: 'classic', tiltDegree: -25, tiltOffsetDirection: 'vertical',
-      extendedCollageMode: false,
+      collageCoverCount: 12,
       qrCodeUrl: '',
       qrCodeText: '',
     },
