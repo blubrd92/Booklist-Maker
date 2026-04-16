@@ -2947,10 +2947,10 @@ const BooklistApp = (function() {
         // ------------------------------------------------------------------
         //
         // Each cover in the row has a variable width derived from its
-        // natural aspect ratio; row height stays uniform at h. No stagger
-        // offset in masonry mode (matching Tilted's masonry behavior and
-        // the user's "like masonry" framing). Covers bleed off left and
-        // right edges via a cursor-based loop.
+        // natural aspect ratio; row height stays uniform at h. Alternate
+        // rows get a half-cover-width stagger offset to preserve the
+        // brick pattern. Covers bleed off left and right edges via a
+        // cursor-based loop.
         //
         // Cycling logic (imgOffset + i pattern) is preserved identically
         // from the stretched path above: cover at position i in the row
@@ -2958,6 +2958,14 @@ const BooklistApp = (function() {
         // tighter with aspect-ratio-preserving width.
         const fallbackW = h * bookAspect;
         let cursor = -h; // one row-height of bleed past the left edge
+        // Apply a half-cover-width offset on alternate rows to
+        // preserve the brick-pattern stagger, even with variable-
+        // width masonry covers. Uses the uniform slot width
+        // (h * bookAspect) as the offset basis — same as the
+        // stretch path — since per-cover widths vary.
+        if (useOffset) {
+          cursor -= (fallbackW + hGutter) / 2;
+        }
         let i = 0;
         const maxIterPerRow = 200;
 
@@ -3427,6 +3435,13 @@ const BooklistApp = (function() {
 
       for (let line = 0; line < numLines; line++) {
         let cursor = packStart;
+        // Restore the brick-pattern stagger in masonry mode: shift
+        // odd lines by half a step along the pack axis (same offset
+        // as the stretch path). This gives the characteristic flair
+        // of Staggered/Tilted even with variable-dimension covers.
+        if (line % 2 === 1) {
+          cursor += staggerOffset;
+        }
         let depth = 0;
 
         while (cursor < packEnd && depth < maxIterPerLine) {
@@ -3459,7 +3474,7 @@ const BooklistApp = (function() {
           }
 
           // Unrotated grid-space center of the cover. Same grid origin as
-          // the stretched path, just without stagger offsets.
+          // the stretched path, with stagger restored via cursor offset.
           let gridX, gridY;
           if (offsetDirection === 'vertical') {
             gridX = gridOriginX + line * hStep + slotWidth / 2;
