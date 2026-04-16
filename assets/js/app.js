@@ -1915,6 +1915,172 @@ const BooklistApp = (function() {
   }
   
   // ---------------------------------------------------------------------------
+  // Color Palette Popover
+  // ---------------------------------------------------------------------------
+
+  const _palettePopovers = [];
+  let _activePopover = null;
+
+  // Library-friendly curated presets.
+  const PRESET_COLORS = [
+    '#000000', '#ffffff', '#1a1a2e', '#2c3e50', '#34495e',
+    '#8b0000', '#1b5e20', '#0d47a1', '#4a148c', '#e65100',
+  ];
+
+  function getUsedColors() {
+    const freq = {};
+    document.querySelectorAll('input[type="color"]').forEach(input => {
+      if (input.offsetParent === null) return;
+      const c = (input.value || '').toLowerCase();
+      if (c) freq[c] = (freq[c] || 0) + 1;
+    });
+    const unique = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
+    // Filter out colors that are already in presets — they'd be
+    // redundant in the "used" section.
+    return unique.filter(c => !PRESET_COLORS.includes(c)).slice(0, 5);
+  }
+
+  function closeActivePopover() {
+    if (_activePopover) {
+      _activePopover.classList.remove('open');
+      _activePopover = null;
+    }
+  }
+
+  function buildPopoverContent(popover, colorInput) {
+    popover.innerHTML = '';
+    const currentColor = colorInput.value.toLowerCase();
+
+    // "Used in this booklist" section
+    const usedColors = getUsedColors();
+    if (usedColors.length > 0) {
+      const label1 = document.createElement('div');
+      label1.className = 'color-palette-section-label';
+      label1.textContent = 'Used in this booklist';
+      popover.appendChild(label1);
+
+      const row1 = document.createElement('div');
+      row1.className = 'color-palette-row';
+      usedColors.forEach(color => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'color-palette-swatch';
+        if (color === currentColor) btn.classList.add('active');
+        btn.style.backgroundColor = color;
+        btn.title = color.toUpperCase();
+        btn.setAttribute('aria-label', 'Apply ' + color);
+        btn.addEventListener('click', () => applySwatch(color, colorInput));
+        row1.appendChild(btn);
+      });
+      popover.appendChild(row1);
+    }
+
+    // "Presets" section
+    const label2 = document.createElement('div');
+    label2.className = 'color-palette-section-label';
+    label2.textContent = 'Presets';
+    popover.appendChild(label2);
+
+    const row2 = document.createElement('div');
+    row2.className = 'color-palette-row';
+    PRESET_COLORS.forEach(color => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'color-palette-swatch';
+      if (color === currentColor) btn.classList.add('active');
+      btn.style.backgroundColor = color;
+      btn.title = color.toUpperCase();
+      btn.setAttribute('aria-label', 'Apply ' + color);
+      btn.addEventListener('click', () => applySwatch(color, colorInput));
+      row2.appendChild(btn);
+    });
+    popover.appendChild(row2);
+
+    // "Custom..." button
+    const customBtn = document.createElement('button');
+    customBtn.type = 'button';
+    customBtn.className = 'color-palette-custom-btn';
+    customBtn.textContent = 'Custom\u2026';
+    customBtn.addEventListener('click', () => {
+      closeActivePopover();
+      colorInput.click();
+    });
+    popover.appendChild(customBtn);
+  }
+
+  function applySwatch(color, colorInput) {
+    capturePreEditSnapshot();
+    colorInput.value = color;
+    colorInput.dispatchEvent(new Event('input', { bubbles: true }));
+    colorInput.dispatchEvent(new Event('change', { bubbles: true }));
+    closeActivePopover();
+  }
+
+  function setupColorPopovers() {
+    const selectors = [
+      '.export-controls .form-group[data-style-group] .color-picker',
+      '#cover-title-style-group .color-picker:not(.line-color)',
+      '#cover-title-bg-color',
+    ];
+    const skipIds = new Set(['cover-title-bg-color2']);
+    const seen = new Set();
+
+    selectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(picker => {
+        if (seen.has(picker) || skipIds.has(picker.id)) return;
+        seen.add(picker);
+
+        // Wrap the color input + trigger in a relative container
+        const wrap = document.createElement('span');
+        wrap.className = 'color-palette-wrap';
+        picker.parentNode.insertBefore(wrap, picker);
+        wrap.appendChild(picker);
+
+        // Trigger button (small palette icon)
+        const trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'color-palette-trigger';
+        trigger.innerHTML = '<i class="fa-solid fa-palette" style="font-size:0.6rem"></i>';
+        trigger.title = 'Color palette';
+        trigger.setAttribute('aria-label', 'Open color palette');
+        wrap.appendChild(trigger);
+
+        // Popover panel
+        const popover = document.createElement('div');
+        popover.className = 'color-palette-popover';
+        wrap.appendChild(popover);
+
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (_activePopover === popover) {
+            closeActivePopover();
+            return;
+          }
+          closeActivePopover();
+          buildPopoverContent(popover, picker);
+          popover.classList.add('open');
+          _activePopover = popover;
+        });
+
+        _palettePopovers.push({ picker, popover, trigger });
+      });
+    });
+
+    // Close popover on click outside
+    document.addEventListener('click', (e) => {
+      if (_activePopover && !e.target.closest('.color-palette-wrap')) {
+        closeActivePopover();
+      }
+    });
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && _activePopover) {
+        closeActivePopover();
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Style Application
   // ---------------------------------------------------------------------------
   function applyStyles() {
@@ -7135,7 +7301,10 @@ const BooklistApp = (function() {
     
     // Set initial tilted settings visibility
     updateTiltedSettingsVisibility();
-    
+
+    // Color palette popovers on the primary color pickers
+    setupColorPopovers();
+
     // Apply any library config that arrived before init() ran. On the
     // public tool this is a no-op; on branded instances the listener
     // either stashed the config here (if it arrived early) or has already
