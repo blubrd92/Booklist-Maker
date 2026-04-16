@@ -1915,6 +1915,94 @@ const BooklistApp = (function() {
   }
   
   // ---------------------------------------------------------------------------
+  // Color Swatch Palette ("colors used in this booklist")
+  // ---------------------------------------------------------------------------
+
+  // Pickers that get a swatch row. Populated once during
+  // setupColorSwatches() after elements are cached.
+  const _swatchPickers = [];
+
+  /**
+   * Scan all color-type inputs in the document, dedupe, rank by
+   * frequency, and return the top N hex values. Seeds with black
+   * and white so the palette is never empty on a fresh booklist.
+   */
+  function getUsedColors(max) {
+    max = max || 5;
+    const freq = {};
+    document.querySelectorAll('input[type="color"]').forEach(input => {
+      const c = (input.value || '').toLowerCase();
+      if (c) freq[c] = (freq[c] || 0) + 1;
+    });
+    const unique = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
+    // Seed defaults so the palette is never empty
+    ['#000000', '#ffffff'].forEach(s => {
+      if (!unique.includes(s)) unique.push(s);
+    });
+    return unique.slice(0, max);
+  }
+
+  /**
+   * Create swatch rows for the "big" color pickers. Call once from
+   * init after DOM is ready and elements are cached.
+   */
+  function setupColorSwatches() {
+    // Target the primary color pickers (skip per-line advanced-mode
+    // pickers to avoid UI clutter in the compact per-line rows).
+    const selectors = [
+      '.export-controls .form-group[data-style-group] .color-picker',
+      '#cover-title-style-group .color-picker',
+      '#cover-title-bg-color',
+    ];
+    const seen = new Set();
+    selectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(picker => {
+        if (seen.has(picker)) return;
+        seen.add(picker);
+        _swatchPickers.push(picker);
+
+        const row = picker.closest('.control-row');
+        if (!row) return;
+
+        const container = document.createElement('div');
+        container.className = 'color-swatches';
+        row.insertAdjacentElement('afterend', container);
+        picker._swatchContainer = container;
+      });
+    });
+    refreshAllColorSwatches();
+  }
+
+  /**
+   * Re-render every swatch row with the current used-color palette.
+   */
+  function refreshAllColorSwatches() {
+    const colors = getUsedColors(5);
+    _swatchPickers.forEach(picker => {
+      const container = picker._swatchContainer;
+      if (!container) return;
+      container.innerHTML = '';
+      colors.forEach(color => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'color-swatch';
+        if (color === picker.value.toLowerCase()) btn.classList.add('active');
+        btn.style.backgroundColor = color;
+        btn.title = color.toUpperCase();
+        btn.setAttribute('aria-label', 'Apply color ' + color);
+        btn.addEventListener('click', () => {
+          capturePreEditSnapshot();
+          picker.value = color;
+          picker.dispatchEvent(new Event('input', { bubbles: true }));
+          picker.dispatchEvent(new Event('change', { bubbles: true }));
+          refreshAllColorSwatches();
+        });
+        container.appendChild(btn);
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Style Application
   // ---------------------------------------------------------------------------
   function applyStyles() {
@@ -5151,6 +5239,9 @@ const BooklistApp = (function() {
       setTimeout(() => generateCoverCollage(), 150);
     }
 
+    // Refresh color swatches so the palette reflects the loaded state.
+    refreshAllColorSwatches();
+
     if (!silent) showNotification('Booklist loaded.', 'success');
   }
   
@@ -7135,6 +7226,17 @@ const BooklistApp = (function() {
     
     // Set initial tilted settings visibility
     updateTiltedSettingsVisibility();
+
+    // Color swatch palettes under the "big" color pickers. Must run
+    // after cacheElements + bindEvents so the DOM is ready and the
+    // elements are cached. Delegated input listener auto-refreshes
+    // the palette whenever any color picker value changes.
+    setupColorSwatches();
+    document.querySelector('.sidebar')?.addEventListener('input', (e) => {
+      if (e.target && e.target.type === 'color') {
+        refreshAllColorSwatches();
+      }
+    });
     
     // Apply any library config that arrived before init() ran. On the
     // public tool this is a no-op; on branded instances the listener

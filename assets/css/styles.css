@@ -967,6 +967,33 @@ input[type="color"]:hover {
 .font-size-input { width: 58px; text-align: center; }
 .mini-label { font-size: 0.75rem; color: var(--text-light); font-weight: 500; }
 
+/* Color swatch palette — quick-pick row of "colors used in this booklist" */
+.color-swatches {
+  display: flex;
+  gap: 5px;
+  margin: 2px 0 6px 0;
+  padding-left: 1px;
+}
+.color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-color);
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+.color-swatch:hover {
+  transform: scale(1.25);
+  border-color: var(--primary-color);
+}
+.color-swatch.active {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-color);
+}
+
 .advanced-settings summary {
   font-size: 0.9rem;
   cursor: pointer;
