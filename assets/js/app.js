@@ -5541,7 +5541,18 @@ const BooklistApp = (function() {
     // snapshot pattern as tiltDegree.
     if (elements.tiltCoverSize) {
       elements.tiltCoverSize.addEventListener('focus', capturePreEditSnapshot);
-      elements.tiltCoverSize.addEventListener('blur', clearPreEditSnapshot);
+      elements.tiltCoverSize.addEventListener('blur', () => {
+        clearPreEditSnapshot();
+        // Snap out-of-range values back to valid range on blur so the
+        // field always shows a value the user can trust. The HTML
+        // min/max attributes are advisory — users can type anything.
+        const raw = parseFloat(elements.tiltCoverSize.value);
+        if (!isFinite(raw)) {
+          elements.tiltCoverSize.value = 100;
+        } else {
+          elements.tiltCoverSize.value = Math.max(50, Math.min(100, raw));
+        }
+      });
       elements.tiltCoverSize.addEventListener('input', () => {
         commitPreEditSnapshot('change-style');
         debouncedSave();
