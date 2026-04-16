@@ -2021,8 +2021,9 @@ const BooklistApp = (function() {
       '.export-controls .form-group[data-style-group] .color-picker',
       '#cover-title-style-group .color-picker:not(.line-color)',
       '#cover-title-bg-color',
+      '#cover-title-bg-color2',
     ];
-    const skipIds = new Set(['cover-title-bg-color2']);
+    const skipIds = new Set();
     const seen = new Set();
 
     selectors.forEach(sel => {
@@ -5025,7 +5026,10 @@ const BooklistApp = (function() {
     if (gradToggle) gradToggle.checked = !!ct.bgGradient;
     setStr('cover-title-bg-color2', ct.bgColor2 || '#333333');
     const bgColor2El = document.getElementById('cover-title-bg-color2');
-    if (bgColor2El) bgColor2El.style.display = ct.bgGradient ? '' : 'none';
+    // If the gradient input was wrapped by setupColorPopovers, hide/show
+    // the wrapper so the palette trigger hides along with the input.
+    const bgColor2Target = bgColor2El?.closest('.color-palette-wrap') || bgColor2El;
+    if (bgColor2Target) bgColor2Target.style.display = ct.bgGradient ? '' : 'none';
 
     // Simple mode styling
     const simple = ct.simple || {};
@@ -5784,7 +5788,10 @@ const BooklistApp = (function() {
       bindPreChangeCapture(gradToggle, 'change-cover-style');
       gradToggle.addEventListener('change', () => {
         const bgColor2El = document.getElementById('cover-title-bg-color2');
-        if (bgColor2El) bgColor2El.style.display = gradToggle.checked ? '' : 'none';
+        // Target the palette wrapper if it exists so the trigger
+        // button hides/shows alongside the color input.
+        const target = bgColor2El?.closest('.color-palette-wrap') || bgColor2El;
+        if (target) target.style.display = gradToggle.checked ? '' : 'none';
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
