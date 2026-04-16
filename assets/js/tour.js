@@ -361,7 +361,7 @@
         },
         {
           target: '#qr-code-area',
-          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. Let me add one linking to Terry Pratchett's Wikipedia page.",
+          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. You can enter the QR Code url in the Back Cover section in the Settings tab. Let me add one linking to Terry Pratchett's Wikipedia page.",
           state: 'idle',
           prepare: function() {
             openSidebarTab('tab-settings');
@@ -383,7 +383,7 @@
         },
         {
           target: '#qr-code-text',
-          text: "This text area is your back cover blurb, next to the QR code. Write a short description, reading prompt, or instructions for patrons.",
+          text: "This text area is your back cover blurb, next to the QR code. Write a short description, reading prompt, or friendly message for patrons.",
           state: 'idle',
           prepare: function() {
             // Set the sample QR text
