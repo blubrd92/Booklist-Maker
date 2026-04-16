@@ -309,6 +309,7 @@ const BooklistApp = (function() {
       tiltedSettings: document.getElementById('tilted-settings'),
       tiltDegree: document.getElementById('tilt-degree'),
       tiltOffsetDirection: document.getElementById('tilt-offset-direction'),
+      tiltCoverSize: document.getElementById('tilt-cover-size'),
       classicSettings: document.getElementById('classic-settings'),
       showShelvesToggle: document.getElementById('show-shelves-toggle'),
       
@@ -2232,6 +2233,11 @@ const BooklistApp = (function() {
     // Tilted layout specific settings
     const tiltDegree = parseFloat(elements.tiltDegree?.value ?? '-25');
     const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
+    // Cover Size slider is a percentage (50–100). Convert to the
+    // 0.5–1.0 multiplier used by drawLayoutTilted. Default 100% =
+    // 1.0 = no shrink.
+    const tiltCoverSizePct = parseFloat(elements.tiltCoverSize?.value ?? '100');
+    const tiltCoverSize = Math.max(0.5, Math.min(1.0, (isFinite(tiltCoverSizePct) ? tiltCoverSizePct : 100) / 100));
     
     // Read the active cover count (12 / 16 / 20)
     const collageCoverCount = getCollageCoverCount();
@@ -2298,6 +2304,7 @@ const BooklistApp = (function() {
       titleBarPosition,
       tiltDegree,
       tiltOffsetDirection,
+      tiltCoverSize,
       coverCount: coversToDraw.length
     };
     
@@ -3106,13 +3113,19 @@ const BooklistApp = (function() {
     // The base formula sizes slots to fill two "sections" (above and
     // below the title bar) with 2.5 rows each. tiltedShrinkFactor is
     // a uniform post-scale that tightens every cover in both
-    // dimensions for a slightly airier look — 0.95 = 5% smaller per
-    // dimension (~9.75% smaller in area). Tweak this single constant
-    // to loosen (→1.0) or tighten (→0.90) further. Applies uniformly
-    // across 12/16/20 counts and all title bar positions.
+    // dimensions — 0.95 = 5% smaller per dimension (~9.75% smaller
+    // in area), 1.0 = full size. The user exposes this as a "Cover
+    // Size (%)" setting in the Tilted Layout Settings panel (50–100
+    // percent, default 100). Shrinking can help maximize the number
+    // of unique books visible in the rotated grid since smaller
+    // slots mean more cells fit on screen at a given tilt angle.
+    // Applies uniformly across 12/16/20 counts and all title bar
+    // positions.
     const sectionHeight = (canvasHeight - bgH - 2 * titleGutter) / 2;
     const rowsPerSection = 2.5;
-    const tiltedShrinkFactor = 1.00;
+    const tiltedShrinkFactor = (typeof options.tiltCoverSize === 'number' && options.tiltCoverSize > 0)
+      ? options.tiltCoverSize
+      : 1.0;
     const slotHeight = ((sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection) * tiltedShrinkFactor;
     const slotWidth = slotHeight * bookAspect;
     
@@ -4718,6 +4731,10 @@ const BooklistApp = (function() {
     // Get tilted layout settings
     const tiltDegree = parseFloat(elements.tiltDegree?.value ?? '-25');
     const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
+    const tiltCoverSizePctRaw = parseFloat(elements.tiltCoverSize?.value ?? '100');
+    const tiltCoverSizePct = isFinite(tiltCoverSizePctRaw)
+      ? Math.max(50, Math.min(100, tiltCoverSizePctRaw))
+      : 100;
     
     // Get list name (used for filename)
     const listName = (elements.listNameInput?.value || '').trim();
@@ -4757,6 +4774,7 @@ const BooklistApp = (function() {
         titleBarPosition,
         tiltDegree,
         tiltOffsetDirection,
+        tiltCoverSizePct,
         collageCoverCount: getCollageCoverCount(),
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: (qrTextContent !== CONFIG.PLACEHOLDERS.qrText) ? qrTextContent : '',
@@ -4976,6 +4994,15 @@ const BooklistApp = (function() {
     }
     if (elements.tiltOffsetDirection) {
       elements.tiltOffsetDirection.value = loaded.ui?.tiltOffsetDirection || 'vertical';
+    }
+    if (elements.tiltCoverSize) {
+      // Back-compat: older saves don't have this field. Default to
+      // 100 (no shrink) so existing drafts open unchanged.
+      const loadedPct = loaded.ui?.tiltCoverSizePct;
+      const pct = (typeof loadedPct === 'number' && isFinite(loadedPct))
+        ? Math.max(50, Math.min(100, loadedPct))
+        : 100;
+      elements.tiltCoverSize.value = pct;
     }
     
     // Show/hide tilted settings based on layout
@@ -5510,7 +5537,24 @@ const BooklistApp = (function() {
         autoRegenerateCoverIfAble();
       });
     }
-    
+    // Tilted cover size (percent) — number input, same pre-edit
+    // snapshot pattern as tiltDegree.
+    if (elements.tiltCoverSize) {
+      elements.tiltCoverSize.addEventListener('focus', capturePreEditSnapshot);
+      elements.tiltCoverSize.addEventListener('blur', clearPreEditSnapshot);
+      elements.tiltCoverSize.addEventListener('input', () => {
+        commitPreEditSnapshot('change-style');
+        debouncedSave();
+        debouncedCoverRegen();
+      });
+      elements.tiltCoverSize.addEventListener('change', () => {
+        commitPreEditSnapshot('change-style');
+        debouncedSave();
+        debouncedCoverRegen();
+      });
+    }
+
+
     // Margins & Padding inputs. Number inputs mutate BEFORE the input
     // event, so use the pre-edit snapshot pattern (focus → capture,
     // first input → commit, blur → clear) so undo captures the state
@@ -6740,6 +6784,7 @@ const BooklistApp = (function() {
     if (elements.titleBarPosition) elements.titleBarPosition.value = 'classic';
     if (elements.tiltDegree) elements.tiltDegree.value = -25;
     if (elements.tiltOffsetDirection) elements.tiltOffsetDirection.value = 'vertical';
+    if (elements.tiltCoverSize) elements.tiltCoverSize.value = 100;
     updateTiltedSettingsVisibility();
 
     // Clear front cover and branding images
