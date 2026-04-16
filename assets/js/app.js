@@ -1923,19 +1923,21 @@ const BooklistApp = (function() {
   const _swatchPickers = [];
 
   /**
-   * Scan all color-type inputs in the document, dedupe, rank by
-   * frequency, and return the top N hex values. Seeds with black
+   * Scan all VISIBLE color-type inputs in the document, dedupe, rank
+   * by frequency, and return the top N hex values. Seeds with black
    * and white so the palette is never empty on a fresh booklist.
+   * Hidden inputs (e.g. the gradient-end color when gradient is off)
+   * are excluded so their default values don't pollute the palette.
    */
   function getUsedColors(max) {
     max = max || 5;
     const freq = {};
     document.querySelectorAll('input[type="color"]').forEach(input => {
+      if (input.offsetParent === null) return;
       const c = (input.value || '').toLowerCase();
       if (c) freq[c] = (freq[c] || 0) + 1;
     });
     const unique = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
-    // Seed defaults so the palette is never empty
     ['#000000', '#ffffff'].forEach(s => {
       if (!unique.includes(s)) unique.push(s);
     });
@@ -1943,30 +1945,46 @@ const BooklistApp = (function() {
   }
 
   /**
-   * Create swatch rows for the "big" color pickers. Call once from
+   * Create swatch rows for the primary color pickers. Call once from
    * init after DOM is ready and elements are cached.
+   *
+   * Placement: inline (after the color input within its control-row)
+   * for most pickers. Per-line advanced-mode pickers (.line-color)
+   * get a new row below since the per-line rows are too compact.
+   * The gradient-end color (#cover-title-bg-color2) is skipped
+   * entirely — it shares a row with the bg color, toggles
+   * visibility, and would be confusing to swatch alongside the
+   * primary bg picker.
    */
   function setupColorSwatches() {
-    // Target the primary color pickers (skip per-line advanced-mode
-    // pickers to avoid UI clutter in the compact per-line rows).
     const selectors = [
       '.export-controls .form-group[data-style-group] .color-picker',
       '#cover-title-style-group .color-picker',
       '#cover-title-bg-color',
     ];
+    const skipIds = new Set(['cover-title-bg-color2']);
     const seen = new Set();
+
     selectors.forEach(sel => {
       document.querySelectorAll(sel).forEach(picker => {
-        if (seen.has(picker)) return;
+        if (seen.has(picker) || skipIds.has(picker.id)) return;
         seen.add(picker);
         _swatchPickers.push(picker);
 
-        const row = picker.closest('.control-row');
-        if (!row) return;
-
         const container = document.createElement('div');
         container.className = 'color-swatches';
-        row.insertAdjacentElement('afterend', container);
+
+        if (picker.classList.contains('line-color')) {
+          // Per-line pickers: new row below (too compact for inline)
+          const row = picker.closest('.control-row');
+          if (row) row.insertAdjacentElement('afterend', container);
+        } else {
+          // Everything else: inline after the color input
+          picker.insertAdjacentElement('afterend', container);
+          const row = picker.closest('.control-row');
+          if (row) row.style.flexWrap = 'wrap';
+        }
+
         picker._swatchContainer = container;
       });
     });
