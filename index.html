@@ -125,15 +125,6 @@
                 <label for="keywordInput" class="sr-only">Search keywords</label>
                 <input id="keywordInput" type="text" placeholder="Keyword..."/>
               </div>
-              <!-- Auto-draft description toggle. Hidden by default; app.js
-                   reveals it on branded instances (where the description
-                   backend is actually wired up) after library-config-ready.
-                   Does not appear on the public tool. -->
-              <div class="control-row checkbox-row" id="auto-description-toggle-row" hidden>
-                <input id="auto-description-toggle" type="checkbox" checked/>
-                <label for="auto-description-toggle" title="When on, Booklister drafts a short description for each book as you add it. Turn it off if you prefer to write every description yourself. You can still use the wand button on any individual book either way.">Auto-draft descriptions on add</label>
-              </div>
-              <p id="auto-description-hint" class="masonry-hint" style="display: none; font-size: 0.7rem; color: #888; margin: 2px 0 0 22px; font-style: italic;">Tip: Shift+click the wand button on any book to paste your own summary for the drafter to condense.</p>
               <div class="advanced-search-toggle">
                 <details>
                   <summary>Advanced Fields</summary>
@@ -151,6 +142,15 @@
                     <label for="personInput" class="sr-only">Contributor</label>
                     <input id="personInput" type="text" placeholder="Contributor"/>
                   </div>
+                  <!-- Auto-draft description toggle. Hidden by default; app.js
+                       reveals it on branded instances (where the description
+                       backend is actually wired up) after library-config-ready.
+                       Does not appear on the public tool. -->
+                  <div class="control-row checkbox-row" id="auto-description-toggle-row" hidden style="margin-top: 8px;">
+                    <input id="auto-description-toggle" type="checkbox" checked/>
+                    <label for="auto-description-toggle" title="When on, Booklister drafts a short description for each book as you add it. Turn it off if you prefer to write every description yourself. You can still use the wand button on any individual book either way.">Auto-draft descriptions on add</label>
+                  </div>
+                  <p id="auto-description-hint" class="masonry-hint" style="display: none; font-size: 0.7rem; color: #888; margin: 2px 0 0 22px; font-style: italic;">Tip: Shift+click the wand button on any book to paste your own summary for the drafter to condense.</p>
                 </details>
               </div>
               <button id="fetchButton" type="submit" class="btn btn-primary btn-block">Search</button>
