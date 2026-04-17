@@ -2031,7 +2031,7 @@ const BooklistApp = (function() {
   function setupColorPopovers() {
     const selectors = [
       '.export-controls .form-group[data-style-group] .color-picker',
-      '#cover-title-style-group .color-picker:not(.line-color)',
+      '#cover-title-style-group .color-picker',
       '#cover-title-bg-color',
       '#cover-title-bg-color2',
     ];

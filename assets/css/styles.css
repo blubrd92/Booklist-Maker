@@ -1580,6 +1580,13 @@ input[type="color"]:hover {
 .line-style-group .font-size-input {
   width: 60px;
 }
+/* Tighten the gap between the "Line Spacing:" label and the spacing
+   input so there's room for the palette trigger button on the same
+   row. The label + input pair are visually one unit; the rest of the
+   row uses the normal 8px gap. */
+.line-style-group .mini-label + .line-spacing {
+  margin-left: -4px;
+}
 
 /* --- LAYOUT SELECTOR (in Settings tab) --- */
 #collage-layout-details {
