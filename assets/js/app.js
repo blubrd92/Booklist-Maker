@@ -35,10 +35,16 @@ const BooklistApp = (function() {
 
   // Tracks book keys with in-flight AI description requests so the
   // magic button can be disabled per-book while a fetch is running.
-  // Prevents spam-clicking (each click costs real API money) and
-  // the race condition where multiple concurrent responses overwrite
-  // each other. renderBooklist checks this set when creating buttons.
   const _pendingDescriptions = new Set();
+
+  // Easter egg: runtime overrides for the Apps Script drafter config.
+  // Ctrl+Shift+D opens a modal to tweak MIN_CHARS, MAX_CHARS, etc.
+  // Stored in-memory only — resets on page refresh so test settings
+  // can't accidentally persist. Sent as `configOverrides` in the
+  // request payload; the script merges them with its CONFIG for that
+  // request only.
+  let _drafterOverrides = null;
+
   let _collageGenId = 0;     // Generation counter to discard stale async collage results
   // Pre-edit snapshot used by style inputs (color pickers, font selects, size
   // inputs, etc.) where the DOM value is mutated by the browser BEFORE the
@@ -727,6 +733,10 @@ const BooklistApp = (function() {
     // search and use the pasted text as the source material.
     if (sourceText) {
       payload.sourceText = sourceText;
+    }
+    // Easter egg: include runtime config overrides if active.
+    if (_drafterOverrides) {
+      payload.configOverrides = _drafterOverrides;
     }
     
     _pendingDescriptions.add(bookKey);
@@ -1788,6 +1798,136 @@ const BooklistApp = (function() {
     textarea.focus();
   }
   
+  // Easter egg: Ctrl+Shift+D opens a drafter settings modal.
+  // Defaults match the deployed Apps Script CONFIG. Overrides are
+  // sent as configOverrides in the request payload and reset on
+  // page refresh (in-memory only).
+  const DRAFTER_DEFAULTS = {
+    MIN_CHARS: 280,
+    MAX_CHARS: 295,
+    LENGTH_TOLERANCE: 10,
+    TEMPERATURE: 0.6,
+    DRAFT_COUNT: 1,
+    MAX_RETRIES: 2,
+  };
+
+  function showDrafterSettingsModal() {
+    const existing = document.getElementById('drafter-settings-modal');
+    if (existing) existing.remove();
+
+    const current = _drafterOverrides || {};
+
+    const fields = [
+      { key: 'MIN_CHARS', label: 'Min Characters', type: 'number', step: 5 },
+      { key: 'MAX_CHARS', label: 'Max Characters', type: 'number', step: 5 },
+      { key: 'LENGTH_TOLERANCE', label: 'Length Tolerance', type: 'number', step: 1 },
+      { key: 'TEMPERATURE', label: 'Temperature', type: 'number', step: 0.1, min: 0, max: 1 },
+      { key: 'DRAFT_COUNT', label: 'Draft Count (2+ enables judge)', type: 'number', step: 1, min: 1, max: 5 },
+      { key: 'MAX_RETRIES', label: 'Max Length Retries', type: 'number', step: 1, min: 0, max: 5 },
+    ];
+
+    const overlay = document.createElement('div');
+    overlay.id = 'drafter-settings-modal';
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    content.style.maxWidth = '380px';
+
+    const header = document.createElement('div');
+    header.className = 'modal-header';
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Drafter Settings';
+    h3.style.fontSize = '0.95rem';
+    header.appendChild(h3);
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'modal-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.addEventListener('click', () => overlay.remove());
+    header.appendChild(closeBtn);
+    content.appendChild(header);
+
+    const body = document.createElement('div');
+    body.style.padding = '14px';
+
+    if (_drafterOverrides) {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'background: #FFF3CD; color: #856404; padding: 6px 10px; border-radius: 4px; font-size: 0.75rem; margin-bottom: 12px; font-weight: 500;';
+      badge.textContent = 'Custom overrides are active for this session.';
+      body.appendChild(badge);
+    }
+
+    const inputs = {};
+    fields.forEach(f => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;';
+      const label = document.createElement('label');
+      label.textContent = f.label;
+      label.style.cssText = 'font-size: 0.8rem; font-weight: 500; color: var(--text-color);';
+      row.appendChild(label);
+      const input = document.createElement('input');
+      input.type = f.type;
+      input.step = f.step;
+      if (f.min !== undefined) input.min = f.min;
+      if (f.max !== undefined) input.max = f.max;
+      input.value = (current[f.key] !== undefined) ? current[f.key] : DRAFTER_DEFAULTS[f.key];
+      input.style.cssText = 'width: 70px; text-align: center; padding: 4px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.85rem;';
+      row.appendChild(input);
+      body.appendChild(row);
+      inputs[f.key] = input;
+    });
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display: flex; justify-content: space-between; margin-top: 14px;';
+
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.textContent = 'Reset to Defaults';
+    resetBtn.style.cssText = 'padding: 6px 12px; font-size: 0.8rem; background: none; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer; color: var(--text-light);';
+    resetBtn.addEventListener('click', () => {
+      _drafterOverrides = null;
+      overlay.remove();
+      showNotification('Drafter settings reset to defaults.', 'success');
+    });
+    actions.appendChild(resetBtn);
+
+    const applyBtn = document.createElement('button');
+    applyBtn.type = 'button';
+    applyBtn.className = 'btn btn-sm btn-primary';
+    applyBtn.textContent = 'Apply';
+    applyBtn.style.padding = '6px 16px';
+    applyBtn.addEventListener('click', () => {
+      const overrides = {};
+      let hasOverride = false;
+      fields.forEach(f => {
+        const val = parseFloat(inputs[f.key].value);
+        if (isFinite(val) && val !== DRAFTER_DEFAULTS[f.key]) {
+          overrides[f.key] = val;
+          hasOverride = true;
+        }
+      });
+      _drafterOverrides = hasOverride ? overrides : null;
+      overlay.remove();
+      showNotification(
+        hasOverride
+          ? 'Drafter overrides applied for this session.'
+          : 'No changes from defaults. Overrides cleared.',
+        'success'
+      );
+    });
+    actions.appendChild(applyBtn);
+    body.appendChild(actions);
+    content.appendChild(body);
+    overlay.appendChild(content);
+
+    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+    overlay.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') overlay.remove(); });
+
+    document.body.appendChild(overlay);
+  }
+
   function handleDeleteBook(bookItem, index) {
     pushUndo('delete-book');
     const originalKey = myBooklist[index].key;
@@ -7501,6 +7641,15 @@ const BooklistApp = (function() {
 
     // Color palette popovers on the primary color pickers
     setupColorPopovers();
+
+    // Easter egg: Ctrl+Shift+D (or Cmd+Shift+D on Mac) opens the
+    // drafter settings modal for runtime config tweaking.
+    document.addEventListener('keydown', function(ev) {
+      if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && ev.key === 'D') {
+        ev.preventDefault();
+        if (window.LIBRARY_CONFIG) showDrafterSettingsModal();
+      }
+    });
 
     // Apply any library config that arrived before init() ran. On the
     // public tool this is a no-op; on branded instances the listener
