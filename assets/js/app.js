@@ -734,10 +734,15 @@ const BooklistApp = (function() {
     if (sourceText) {
       payload.sourceText = sourceText;
     }
-    // Easter egg: include runtime config overrides if active.
-    if (_drafterOverrides) {
-      payload.configOverrides = _drafterOverrides;
-    }
+    // Always send config values to the Apps Script. The tool's
+    // DRAFTER_DEFAULTS is the single source of truth for the
+    // pipeline's tuning knobs — the script uses whatever it
+    // receives, falling back to its own CONFIG only for direct
+    // GET diagnostic requests that bypass the tool entirely.
+    // When the easter egg modal is active, _drafterOverrides
+    // replaces specific values for testing.
+    const effectiveConfig = Object.assign({}, DRAFTER_DEFAULTS, _drafterOverrides || {});
+    payload.configOverrides = effectiveConfig;
     
     _pendingDescriptions.add(bookKey);
 
