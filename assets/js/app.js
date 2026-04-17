@@ -1921,10 +1921,21 @@ const BooklistApp = (function() {
   const _palettePopovers = [];
   let _activePopover = null;
 
-  // Library-friendly curated presets.
+  // Library-friendly curated presets. Hand-picked for booklist design:
+  // covers the full spectrum from neutral to vivid, warm to cool.
   const PRESET_COLORS = [
-    '#000000', '#ffffff', '#1a1a2e', '#2c3e50', '#34495e',
-    '#8b0000', '#1b5e20', '#0d47a1', '#4a148c', '#e65100',
+    '#ffffff',   // White
+    '#1a202c',   // Rich Black
+    '#4a5568',   // Warm Slate
+    '#c53030',   // Crimson Red
+    '#c05621',   // Burnt Orange
+    '#d69e2e',   // Warm Amber
+    '#2f855a',   // Forest Green
+    '#319795',   // Teal
+    '#2b6cb0',   // Marine Blue
+    '#63b3ed',   // Sky Blue
+    '#6b46c1',   // Royal Purple
+    '#d53f8c',   // Vibrant Pink
   ];
 
   function getUsedColors() {

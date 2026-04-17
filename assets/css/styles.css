@@ -992,6 +992,7 @@ input[type="color"]:hover {
   position: relative;
   display: inline-flex;
   align-items: center;
+  gap: 8px; /* match the .control-row gap so trigger spacing is consistent */
 }
 .color-palette-popover {
   position: absolute;
