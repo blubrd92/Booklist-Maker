@@ -143,9 +143,6 @@
           prepare: function() {
             BooklistApp.applyState(TOUR_SAMPLE_STATE, { silent: true });
             scrollPreviewTo('print-page-2');
-            // Start loading cover images in the background so they're
-            // warm by the time the collage generation step fires.
-            setTimeout(preloadBookCovers, 500);
           },
           padding: 4,
         },
@@ -247,13 +244,6 @@
             }
             const stretchToggle = document.getElementById('stretch-covers-toggle');
             if (stretchToggle) stretchToggle.checked = true;
-            // Start generating the collage NOW (while the user reads
-            // this step's text) so it's ready by the time they advance
-            // to the next step that shows the result. Without this,
-            // the collage generates on the result step and if cover
-            // images are still loading from Open Library, the user
-            // sees a partially-blank collage.
-            BooklistApp.generateCoverCollage();
           },
         },
         {
@@ -270,6 +260,7 @@
                 opt.classList.toggle('selected', opt.dataset.layout === 'classic');
               });
             }
+            BooklistApp.generateCoverCollage();
           },
         },
         {
@@ -706,17 +697,24 @@
     uploader.classList.remove('has-image');
   }
 
-  // Kick off background loading of all book cover images so they're
-  // warm in the browser cache by the time the collage step fires.
-  // The covers load from Open Library URLs and can take a few seconds
-  // on slow connections. Starting the loads early (when the sample
-  // state is first applied) gives them time to finish while the user
-  // reads the "Your Booklist" section steps.
-  function preloadBookCovers() {
-    document.querySelectorAll('#print-page-2 .cover-uploader img').forEach(function(img) {
-      if (img.src && img.naturalWidth === 0) {
-        const preload = new Image();
-        preload.src = img.src;
+  // Pre-warm cover images from the embedded TOUR_SAMPLE_STATE so
+  // they're in the browser cache by the time step 9 loads the sample
+  // booklist. Called at tour START (beginTour), giving 8 steps of
+  // reading time for the images to arrive. When renderBooklist later
+  // creates <img> elements with these URLs, the browser serves them
+  // from cache instantly instead of showing white placeholders.
+  function preloadTourCovers() {
+    if (!TOUR_SAMPLE_STATE || !TOUR_SAMPLE_STATE.books) return;
+    TOUR_SAMPLE_STATE.books.forEach(function(book) {
+      if (book.cover_ids && book.cover_ids.length > 0) {
+        const idx = book.currentCoverIndex || 0;
+        const coverId = book.cover_ids[idx];
+        if (coverId) {
+          const imgL = new Image();
+          imgL.src = 'https://covers.openlibrary.org/b/id/' + coverId + '-L.jpg';
+          const imgM = new Image();
+          imgM.src = 'https://covers.openlibrary.org/b/id/' + coverId + '-M.jpg';
+        }
       }
     });
   }
@@ -959,6 +957,12 @@
     } else if (BooklistApp.resetZoom) {
       BooklistApp.resetZoom();
     }
+
+    // Pre-warm cover images from the sample state so they're in the
+    // browser cache by the time step 9 loads the sample booklist.
+    // 8 steps of reading time before step 9 is plenty for the images
+    // to arrive from Open Library.
+    preloadTourCovers();
 
     // Reset UI to a known state
     const mainContent = document.querySelector('.main-content');
