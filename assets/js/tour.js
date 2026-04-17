@@ -390,7 +390,7 @@
             const qrText = document.getElementById('qr-code-text');
             const mainContent = document.querySelector('.main-content');
             if (qrText) {
-              qrText.innerText = "Welcome to the Discworld, a fantasy world carried through space on the back of a giant turtle, where Pratchett will make you laugh, and then make you think, and then quietly break your heart. Scan the code to meet the man, then come find the books waiting for you on the shelf.";
+              qrText.innerText = "Welcome to the Discworld, a world on the back of a giant turtle, where Pratchett will make you laugh, make you think, and quietly break your heart. Scan the code, then find the books on the shelf.";
               qrText.style.color = '';
               if (mainContent) scrollWithin(mainContent, qrText, { center: true });
             }
