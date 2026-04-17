@@ -1005,7 +1005,7 @@ input[type="color"]:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   padding: 10px;
   z-index: 100;
-  min-width: 150px;
+  width: max-content;
   display: none;
 }
 .color-palette-popover.open { display: block; }
@@ -1031,9 +1031,9 @@ input[type="color"]:hover {
 }
 .color-palette-section-label:not(:first-child) { margin-top: 10px; }
 .color-palette-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(6, 22px);
   gap: 6px;
-  flex-wrap: wrap;
   margin-bottom: 2px;
 }
 .color-palette-swatch {
