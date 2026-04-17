@@ -7368,11 +7368,14 @@ const BooklistApp = (function() {
     // When the library has disabled the autodrafter entirely, keep
     // the row hidden so staff don't see a toggle that does nothing.
     if (elements.autoDescriptionToggleRow && elements.autoDescriptionToggle) {
+      const hint = document.getElementById('auto-description-hint');
       if (config.disableAutodrafter) {
         elements.autoDescriptionToggleRow.hidden = true;
+        if (hint) hint.style.display = 'none';
       } else {
         elements.autoDescriptionToggleRow.hidden = false;
         elements.autoDescriptionToggle.checked = getAutoDescriptionPreference();
+        if (hint) hint.style.display = '';
       }
     }
 

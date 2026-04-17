@@ -164,7 +164,7 @@
         },
         {
           target: '#inside-left-panel .list-item:first-child .magic-button',
-          text: "The magic wand drafts a description for you. It's available on custom library instances and can also be disabled upon request. You can always edit a draft or write your own from scratch.",
+          text: "The magic wand drafts a description for you. It's available on custom library instances and can also be disabled upon request. Shift+click the wand to paste your own summary for the drafter to condense. You can always edit a draft or write your own from scratch.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-2');
