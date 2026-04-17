@@ -881,12 +881,16 @@
       return;
     }
 
-    // Fit preview to width so the tour looks good on small screens.
-    // fit-to-width keeps text readable (wider zoom than fit-to-screen)
-    // while ensuring the preview fills the horizontal space. Vertical
-    // content that extends below the fold is handled by the per-step
-    // scrollIntoView at line ~958.
-    if (BooklistApp.fitToWidth) {
+    // Use 100% zoom when the screen is wide enough to show the full
+    // page without horizontal overflow. On smaller screens, fit to
+    // width so the tour's spotlight targets are visible without
+    // horizontal scrolling.
+    const contentArea = document.querySelector('.main-content');
+    const pageWidth = 11 * 96 + 40; // 11in page + padding
+    const hasRoom = contentArea && contentArea.clientWidth >= pageWidth;
+    if (hasRoom && BooklistApp.resetZoom) {
+      BooklistApp.resetZoom();
+    } else if (BooklistApp.fitToWidth) {
       BooklistApp.fitToWidth();
     } else if (BooklistApp.resetZoom) {
       BooklistApp.resetZoom();
