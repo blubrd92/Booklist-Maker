@@ -1032,7 +1032,7 @@ input[type="color"]:hover {
 .color-palette-section-label:not(:first-child) { margin-top: 10px; }
 .color-palette-row {
   display: grid;
-  grid-template-columns: repeat(6, 22px);
+  grid-template-columns: repeat(5, 22px);
   gap: 6px;
   margin-bottom: 2px;
 }

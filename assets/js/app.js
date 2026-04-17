@@ -1926,12 +1926,10 @@ const BooklistApp = (function() {
   const PRESET_COLORS = [
     '#ffffff',   // White
     '#1a202c',   // Rich Black
-    '#4a5568',   // Warm Slate
     '#c53030',   // Crimson Red
     '#c05621',   // Burnt Orange
     '#d69e2e',   // Warm Amber
     '#2f855a',   // Forest Green
-    '#319795',   // Teal
     '#2b6cb0',   // Marine Blue
     '#63b3ed',   // Sky Blue
     '#6b46c1',   // Royal Purple
@@ -1948,7 +1946,7 @@ const BooklistApp = (function() {
     const unique = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
     // Filter out colors that are already in presets — they'd be
     // redundant in the "used" section.
-    return unique.filter(c => !PRESET_COLORS.includes(c)).slice(0, 6);
+    return unique.filter(c => !PRESET_COLORS.includes(c)).slice(0, 5);
   }
 
   function closeActivePopover() {
