@@ -7249,6 +7249,17 @@ const BooklistApp = (function() {
     return (containerW / contentW) * 0.98;
   }
 
+  function computeFitToHeightZoom() {
+    const container = document.querySelector('.main-content');
+    if (!container) return 1.0;
+    const toolbar = container.querySelector('.toolbar');
+    const toolbarH = toolbar ? toolbar.offsetHeight : 0;
+    const containerH = container.clientHeight - toolbarH;
+    // Single page height: 8.5in at 96 DPI + padding
+    const pageH = 8.5 * 96 + 40;
+    return (containerH / pageH) * 0.98;
+  }
+
   function initZoomControls() {
     const btnIn = document.getElementById('btn-zoom-in');
     const btnOut = document.getElementById('btn-zoom-out');
@@ -7284,6 +7295,12 @@ const BooklistApp = (function() {
       applyZoom();
       const container = document.querySelector('.main-content');
       if (container) { container.scrollLeft = 0; }
+    });
+    const btnFitH = document.getElementById('btn-zoom-fit-height');
+    if (btnFitH) btnFitH.addEventListener('click', function() {
+      currentZoom = computeFitToHeightZoom();
+      currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
+      applyZoom();
     });
 
     // Ctrl+scroll wheel zoom
