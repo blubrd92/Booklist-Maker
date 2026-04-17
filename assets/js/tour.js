@@ -304,7 +304,7 @@
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
-            scrollPreviewTo('print-page-1');
+            scrollPreviewTo('print-page-1', { alignEnd: true });
             // Apply the default branding image
             const uploader = document.getElementById('branding-uploader');
             if (uploader) {
@@ -366,7 +366,7 @@
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
-            scrollPreviewTo('print-page-1');
+            scrollPreviewTo('print-page-1', { alignEnd: true });
             // Set QR URL and generate
             const qrInput = document.getElementById('qr-url-input');
             if (qrInput) qrInput.value = 'https://en.wikipedia.org/wiki/Terry_Pratchett';
@@ -656,18 +656,30 @@
     });
   }
 
-  function scrollPreviewTo(elementId) {
+  function scrollPreviewTo(elementId, { alignEnd = false } = {}) {
     const el = document.getElementById(elementId);
     const scrollContainer = document.querySelector('.main-content');
-    if (el && scrollContainer) {
-      // Calculate offset relative to the scroll container
-      let offset = 0;
-      let node = el;
-      while (node && node !== scrollContainer) {
-        offset += node.offsetTop;
-        node = node.offsetParent;
-      }
-      scrollContainer.scrollTo({ top: Math.max(0, offset - 20), behavior: 'smooth' });
+    if (!el || !scrollContainer) return;
+    // Use getBoundingClientRect so the scroll accounts for CSS zoom
+    // on the preview area (fit-to-width on small screens).
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    if (alignEnd) {
+      // Scroll so the BOTTOM of the element is near the bottom of
+      // the viewport — useful for targets near the foot of a page
+      // (e.g. branding uploader at the bottom of print-page-1).
+      const elBottom = (elRect.bottom - containerRect.top) + scrollContainer.scrollTop;
+      scrollContainer.scrollTo({
+        top: Math.max(0, elBottom - scrollContainer.clientHeight + 40),
+        behavior: 'smooth'
+      });
+    } else {
+      // Scroll so the TOP of the element is near the top of the viewport.
+      const elTop = (elRect.top - containerRect.top) + scrollContainer.scrollTop;
+      scrollContainer.scrollTo({
+        top: Math.max(0, elTop - 20),
+        behavior: 'smooth'
+      });
     }
   }
 
