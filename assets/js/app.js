@@ -2009,6 +2009,7 @@ const BooklistApp = (function() {
   }
 
   function applySwatch(color, colorInput) {
+    clearPreEditSnapshot();
     capturePreEditSnapshot();
     colorInput.value = color;
     colorInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -2031,9 +2032,17 @@ const BooklistApp = (function() {
         if (seen.has(picker) || skipIds.has(picker.id)) return;
         seen.add(picker);
 
-        // Wrap the color input + trigger in a relative container
+        // Wrap the color input + trigger in a relative container.
+        // If the input was initially hidden (e.g. gradient-end color
+        // when gradient is off), transfer the hidden state to the
+        // wrap so the trigger button doesn't show as a stray icon.
+        const wasHidden = picker.style.display === 'none';
         const wrap = document.createElement('span');
         wrap.className = 'color-palette-wrap';
+        if (wasHidden) {
+          wrap.style.display = 'none';
+          picker.style.display = '';
+        }
         picker.parentNode.insertBefore(wrap, picker);
         wrap.appendChild(picker);
 
