@@ -881,8 +881,14 @@
       return;
     }
 
-    // Reset zoom to 100% so spotlight positioning is accurate
-    if (BooklistApp.resetZoom) {
+    // Fit preview to width so the tour looks good on small screens.
+    // fit-to-width keeps text readable (wider zoom than fit-to-screen)
+    // while ensuring the preview fills the horizontal space. Vertical
+    // content that extends below the fold is handled by the per-step
+    // scrollIntoView at line ~958.
+    if (BooklistApp.fitToWidth) {
+      BooklistApp.fitToWidth();
+    } else if (BooklistApp.resetZoom) {
       BooklistApp.resetZoom();
     }
 

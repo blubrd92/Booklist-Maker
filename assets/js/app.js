@@ -7130,6 +7130,14 @@ const BooklistApp = (function() {
     return Math.min(fitW, fitH) * 0.98;
   }
 
+  function computeFitToWidthZoom() {
+    const container = document.querySelector('.main-content');
+    if (!container) return 1.0;
+    const containerW = container.clientWidth;
+    const contentW = 11 * 96 + 40;
+    return (containerW / contentW) * 0.98;
+  }
+
   function initZoomControls() {
     const btnIn = document.getElementById('btn-zoom-in');
     const btnOut = document.getElementById('btn-zoom-out');
@@ -7153,12 +7161,18 @@ const BooklistApp = (function() {
     });
     if (btnFit) btnFit.addEventListener('click', function() {
       currentZoom = computeFitToScreenZoom();
-      // Clamp to valid range
       currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
       applyZoom();
-      // Reset scroll position
       const container = document.querySelector('.main-content');
       if (container) { container.scrollTop = 0; container.scrollLeft = 0; }
+    });
+    const btnFitW = document.getElementById('btn-zoom-fit-width');
+    if (btnFitW) btnFitW.addEventListener('click', function() {
+      currentZoom = computeFitToWidthZoom();
+      currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
+      applyZoom();
+      const container = document.querySelector('.main-content');
+      if (container) { container.scrollLeft = 0; }
     });
 
     // Ctrl+scroll wheel zoom
@@ -7410,12 +7424,22 @@ const BooklistApp = (function() {
     applyZoom();
   }
 
+  /** Fit preview to the width of the main content area. */
+  function fitToWidth() {
+    currentZoom = computeFitToWidthZoom();
+    currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
+    applyZoom();
+    const container = document.querySelector('.main-content');
+    if (container) container.scrollLeft = 0;
+  }
+
   return {
     init,
     showNotification,
     getAiDescription, // For testing
     updateBackCoverVisibility, // For tour: visual-only toggle update (no data trim)
     resetZoom, // For tour: reset zoom before spotlight positioning
+    fitToWidth, // For tour: fit preview to content width on small screens
     enterTourMode, // For tour: save state + blank the app
     exitTourMode,  // For tour: restore pre-tour state
     applyState,    // For tour: load sample booklist during tour
