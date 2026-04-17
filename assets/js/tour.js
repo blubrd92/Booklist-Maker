@@ -148,7 +148,7 @@
         },
         {
           target: '#inside-left-panel .list-item:first-child .star-button',
-          text: "The star icon marks a book for the front cover collage. Star at least 12 books if you want to auto-generate one. This sample list already has 12 starred.",
+          text: "The star icon marks a book for the front cover collage. Star at least 12 books if you want to create one. This sample list already has 12 starred.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-2');
@@ -196,7 +196,7 @@
       steps: [
         {
           target: '#front-cover-uploader',
-          text: "This is your front cover. You can upload a custom image here, or auto-generate a collage from your starred books. For generated covers, you can customize the title font, size, and background color, even add a gradient.",
+          text: "This is your front cover. You can upload a custom image here, or create a collage from your starred books. For created covers, you can customize the title font, size, and background color, even add a gradient.",
           state: 'evaluating',
           prepare: function() {
             // Reset to "no cover yet" state so the narration matches
@@ -207,7 +207,7 @@
         },
         {
           target: '#generate-cover-button',
-          text: "This button generates the collage. You can find it in the Front Cover section in the Settings tab, right under the title text inputs. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
+          text: "This button creates the collage. You can find it in the Front Cover section in the Settings tab, right under the title text inputs. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
           state: 'excited',
           prepare: function() {
             // Keep the "not yet generated" state so back-navigation is clean
@@ -265,7 +265,7 @@
         },
         {
           target: '#collage-layout-selector',
-          text: "This is where you switch between layouts. Pick one and regenerate to see the change. Let me switch to Tilted.",
+          text: "This is where you switch between layouts. Pick one and recreate the cover to see the change. Let me switch to Tilted.",
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');
@@ -290,7 +290,7 @@
         },
         {
           target: '.collage-cover-count-group',
-          text: "Pick 12, 16, or 20 covers for the auto-generated collage. The 16 and 20 modes open extra cover slots below where you can add supplementary images.",
+          text: "Pick 12, 16, or 20 covers for the cover collage. The 16 and 20 modes open extra cover slots below where you can add supplementary images.",
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');

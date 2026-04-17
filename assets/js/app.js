@@ -2518,7 +2518,9 @@ const BooklistApp = (function() {
   function generateCoverCollage() {
     const thisGenId = ++_collageGenId;
     const button = elements.generateCoverButton;
-    setLoading(button, true, 'Generating...');
+    // User-facing label says "Creating..."; the function name
+    // generateCoverCollage stays for code compatibility.
+    setLoading(button, true, 'Creating...');
     
     const shouldStretchCovers = elements.stretchCoversToggle.checked;
     const selectedLayout = elements.collageLayoutSelector?.querySelector('.layout-option.selected')?.dataset.layout || 'classic';
@@ -2658,7 +2660,7 @@ const BooklistApp = (function() {
       
     }).catch(err => {
       console.error('Cover generation failed:', err);
-      showNotification('Could not generate cover. Please try again.');
+      showNotification('Could not create cover. Please try again.');
       // Folio: worried about collage failure
       if (window.folio) {
         window.folio.react('wince');
@@ -4069,7 +4071,7 @@ const BooklistApp = (function() {
     }
     if (elements.collageCoverHint) {
       elements.collageCoverHint.textContent = isExtended
-        ? `Add covers 13-${count} below to generate collage`
+        ? `Add covers 13-${count} below to create collage`
         : 'Star 12 books to include in the collage';
     }
     if (elements.extraCoversLabel) {
@@ -4171,7 +4173,7 @@ const BooklistApp = (function() {
     }
 
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-' + total + ' using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Create Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-' + total + ' using the Additional Covers section)';
     }
 
     elements.frontCoverUploader?.classList.remove('has-image');
@@ -4183,7 +4185,7 @@ const BooklistApp = (function() {
   function restoreFrontCoverPlaceholderText() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Create Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)';
     }
   }
 
@@ -4196,7 +4198,7 @@ const BooklistApp = (function() {
       : getCollageCoverCount();
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-' + total + ' using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Create Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-' + total + ' using the Additional Covers section)';
     }
   }
   

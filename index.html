@@ -243,7 +243,9 @@
             <input type="text" class="cover-line-input" id="cover-line-3" placeholder="Line 3" aria-label="Cover line 3 text"/>
           </div>
 
-          <button id="generate-cover-button" class="btn btn-primary" style="margin-top: 10px; width: 100%;">Auto-Generate Cover</button>
+          <!-- User-facing label is "Create Cover"; the element ID
+               remains generate-cover-button for code compatibility. -->
+          <button id="generate-cover-button" class="btn btn-primary" style="margin-top: 10px; width: 100%;">Create Cover</button>
         </div>
 
         <div class="form-group" id="cover-title-style-group">
@@ -682,10 +684,10 @@
           </div>
 
           <div class="panel" id="front-cover-panel">
-            <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or generate front cover image">
+            <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or create front cover image">
               <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
-                Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)
+                Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Create Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)
               </div>
               <input type="file" accept="image/*" aria-hidden="true"/>
               <button type="button" class="cover-delete-btn" title="Remove cover image"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
