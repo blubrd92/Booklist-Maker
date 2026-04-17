@@ -684,6 +684,7 @@ const BooklistApp = (function() {
   // description backend automatically.
   function shouldAutoFetchDescription() {
     if (!window.LIBRARY_CONFIG) return false;
+    if (window.LIBRARY_CONFIG.disableAutodrafter) return false;
     return getAutoDescriptionPreference();
   }
 
@@ -1607,6 +1608,13 @@ const BooklistApp = (function() {
     if (!window.LIBRARY_CONFIG) {
       showNotification(
         'This feature is available on custom library instances only.',
+        'info'
+      );
+      return;
+    }
+    if (window.LIBRARY_CONFIG.disableAutodrafter) {
+      showNotification(
+        'Description drafting has been disabled for this library instance.',
         'info'
       );
       return;
@@ -7357,10 +7365,15 @@ const BooklistApp = (function() {
 
     // Auto-draft description toggle — only meaningful on branded
     // instances (where the description backend is actually wired up).
-    // Reveal the row and sync the checkbox from the persisted preference.
+    // When the library has disabled the autodrafter entirely, keep
+    // the row hidden so staff don't see a toggle that does nothing.
     if (elements.autoDescriptionToggleRow && elements.autoDescriptionToggle) {
-      elements.autoDescriptionToggleRow.hidden = false;
-      elements.autoDescriptionToggle.checked = getAutoDescriptionPreference();
+      if (config.disableAutodrafter) {
+        elements.autoDescriptionToggleRow.hidden = true;
+      } else {
+        elements.autoDescriptionToggleRow.hidden = false;
+        elements.autoDescriptionToggle.checked = getAutoDescriptionPreference();
+      }
     }
 
     // Role-aware Admin link. Only library admins (users whose memberships
