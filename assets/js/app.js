@@ -1948,7 +1948,7 @@ const BooklistApp = (function() {
     const unique = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
     // Filter out colors that are already in presets — they'd be
     // redundant in the "used" section.
-    return unique.filter(c => !PRESET_COLORS.includes(c)).slice(0, 5);
+    return unique.filter(c => !PRESET_COLORS.includes(c)).slice(0, 6);
   }
 
   function closeActivePopover() {
