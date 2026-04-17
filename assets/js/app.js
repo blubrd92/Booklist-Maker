@@ -687,15 +687,15 @@ const BooklistApp = (function() {
     return getAutoDescriptionPreference();
   }
 
-  function getAiDescription(bookKey, isTest = false) {
+  function getAiDescription(bookKey, isTest = false, sourceText = null) {
     const bookItem = myBooklist.find(b => b.key === bookKey);
     if (!bookItem && !isTest) {
       console.error("Description fetch failed: Could not find book with key:", bookKey);
       return;
     }
-    
+
     const googleAppScriptUrl = "https://script.google.com/macros/s/AKfycbyhqsRgjS7aoEbYwqgN-wyygjFtGNtFdGcUOnrqXmZ7P3Aubjjwlp-HydWp4MPJxXY/exec";
-    
+
     if (googleAppScriptUrl === "PASTE_YOUR_GOOGLE_APPS_SCRIPT_URL_HERE" || !googleAppScriptUrl) {
       const errorMsg = "Google Apps Script URL is not configured.";
       console.error(errorMsg);
@@ -709,10 +709,17 @@ const BooklistApp = (function() {
       }
       return;
     }
-    
-    const payload = isTest 
-      ? { title: "Test Title", author: "Test Author" } 
+
+    const payload = isTest
+      ? { title: "Test Title", author: "Test Author" }
       : { title: bookItem.title, author: bookItem.author };
+
+    // When the user shift-clicked the magic button and pasted a
+    // summary, include it so the Apps Script can skip the Tavily
+    // search and use the pasted text as the source material.
+    if (sourceText) {
+      payload.sourceText = sourceText;
+    }
     
     fetch(googleAppScriptUrl, {
       method: 'POST',
@@ -1507,7 +1514,7 @@ const BooklistApp = (function() {
     magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
     magicButton.title = 'Draft description';
     magicButton.setAttribute('aria-label', 'Draft description for this book');
-    magicButton.onclick = () => handleMagicButtonClick(bookItem);
+    magicButton.onclick = (e) => handleMagicButtonClick(bookItem, e);
     
     // Item number (editable input for reordering)
     const itemNumber = document.createElement('input');
@@ -1596,12 +1603,7 @@ const BooklistApp = (function() {
     return true;
   }
 
-  function handleMagicButtonClick(bookItem) {
-    // Description drafting is a custom-instance feature. On the public tool
-    // (or any instance without a library config loaded) the button
-    // shows a notice and bails instead of calling the Google Apps
-    // Script. The call itself costs real money per use, so public
-    // users can't trigger it.
+  function handleMagicButtonClick(bookItem, e) {
     if (!window.LIBRARY_CONFIG) {
       showNotification(
         'This feature is available on custom library instances only.',
@@ -1611,7 +1613,7 @@ const BooklistApp = (function() {
     }
     pushUndo('ai-description');
     const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
-    
+
     // Parse author from authorDisplay (lazy parsing for AI description)
     const displayText = (bookItem.authorDisplay || '').replace(/\u00a0/g, " ");
 
@@ -1629,23 +1631,30 @@ const BooklistApp = (function() {
     } else {
       currentAuthor = text.replace(/\n/g, ' ').trim();
     }
-    
+
     // Fallback to stored author field if authorDisplay not set
     if (!currentAuthor && bookItem.author) {
       currentAuthor = bookItem.author.replace(/\u00a0/g, " ").trim();
     }
-    
+
     if (currentAuthor.toLowerCase() === 'by') currentAuthor = '';
-    
+
     if (!currentTitle || currentTitle === CONFIG.PLACEHOLDERS.title ||
         !currentAuthor || currentAuthor === CONFIG.PLACEHOLDERS.author) {
       showNotification('Please enter a Title and Author first.', 'error');
       return;
     }
-    
+
     // Update bookItem.author with parsed value for getAiDescription
     bookItem.author = currentAuthor;
-    
+
+    // Shift+click (or Cmd+click on Mac): open a modal to paste a
+    // summary for the drafter to condense, instead of searching.
+    if (e && e.shiftKey) {
+      showSourceTextModal(bookItem);
+      return;
+    }
+
     bookItem.description = "Drafting title description... May take a few minutes.";
     updateDescriptionInPlace(bookItem.key);
     debouncedSave();
@@ -1655,6 +1664,98 @@ const BooklistApp = (function() {
       window.folio.setState('evaluating', 'description-fetching');
     }
     getAiDescription(bookItem.key);
+  }
+
+  function showSourceTextModal(bookItem) {
+    // Remove any existing modal
+    const existing = document.getElementById('source-text-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'source-text-modal';
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    content.style.maxWidth = '480px';
+
+    const header = document.createElement('div');
+    header.className = 'modal-header';
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Paste a summary to condense';
+    header.appendChild(h3);
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'modal-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.addEventListener('click', () => overlay.remove());
+    header.appendChild(closeBtn);
+    content.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+    body.style.padding = '16px';
+
+    const hint = document.createElement('p');
+    hint.style.cssText = 'font-size: 0.8rem; color: var(--text-light); margin: 0 0 10px 0;';
+    hint.textContent = 'Paste a book summary or description you found online. The drafter will condense it to fit the booklist format.';
+    body.appendChild(hint);
+
+    const textarea = document.createElement('textarea');
+    textarea.style.cssText = 'width: 100%; min-height: 120px; padding: 8px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); resize: vertical; font-family: inherit; box-sizing: border-box;';
+    textarea.placeholder = 'Paste summary here\u2026';
+    body.appendChild(textarea);
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-sm';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = 'padding: 6px 16px; background: var(--border-light); border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;';
+    cancelBtn.addEventListener('click', () => overlay.remove());
+    actions.appendChild(cancelBtn);
+
+    const draftBtn = document.createElement('button');
+    draftBtn.type = 'button';
+    draftBtn.className = 'btn btn-sm btn-primary';
+    draftBtn.textContent = 'Draft';
+    draftBtn.style.cssText = 'padding: 6px 16px;';
+    draftBtn.addEventListener('click', () => {
+      const sourceText = textarea.value.trim();
+      if (!sourceText) {
+        showNotification('Please paste a summary first.', 'error');
+        return;
+      }
+      overlay.remove();
+      bookItem.description = "Drafting title description... May take a few minutes.";
+      updateDescriptionInPlace(bookItem.key);
+      debouncedSave();
+      if (window.folio) {
+        window.folio.react('perk');
+        window.folio.setState('evaluating', 'description-fetching');
+      }
+      getAiDescription(bookItem.key, false, sourceText);
+    });
+    actions.appendChild(draftBtn);
+    body.appendChild(actions);
+    content.appendChild(body);
+    overlay.appendChild(content);
+
+    // Close on click outside content
+    overlay.addEventListener('click', (ev) => {
+      if (ev.target === overlay) overlay.remove();
+    });
+    // Close on Escape
+    overlay.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+    textarea.focus();
   }
   
   function handleDeleteBook(bookItem, index) {
