@@ -32,6 +32,13 @@ const BooklistApp = (function() {
   let _lastUndoTime = 0;
   let _isRestoring = false;  // Guard flag to prevent side effects during undo/redo restore
   let _tourActive = false;   // Guard flag: suppresses pushUndo and autosave during guided tour
+
+  // Tracks book keys with in-flight AI description requests so the
+  // magic button can be disabled per-book while a fetch is running.
+  // Prevents spam-clicking (each click costs real API money) and
+  // the race condition where multiple concurrent responses overwrite
+  // each other. renderBooklist checks this set when creating buttons.
+  const _pendingDescriptions = new Set();
   let _collageGenId = 0;     // Generation counter to discard stale async collage results
   // Pre-edit snapshot used by style inputs (color pickers, font selects, size
   // inputs, etc.) where the DOM value is mutated by the browser BEFORE the
@@ -722,6 +729,8 @@ const BooklistApp = (function() {
       payload.sourceText = sourceText;
     }
     
+    _pendingDescriptions.add(bookKey);
+
     fetch(googleAppScriptUrl, {
       method: 'POST',
       headers: {
@@ -737,6 +746,7 @@ const BooklistApp = (function() {
       return response.json();
     })
     .then(data => {
+      _pendingDescriptions.delete(bookKey);
       if (data.description) {
         if (isTest) {
           const successMsg = `Test Success: ${data.description}`;
@@ -754,6 +764,7 @@ const BooklistApp = (function() {
       }
     })
     .catch(error => {
+      _pendingDescriptions.delete(bookKey);
       console.error('Full error object from getAiDescription:', error);
       const errorMessage = error.message || "An unknown error occurred.";
       
@@ -1509,12 +1520,19 @@ const BooklistApp = (function() {
       }
     };
     
-    // Magic button (fetch description)
+    // Magic button (fetch description). Greyed out while an
+    // in-flight request is pending for this book to prevent
+    // spam-clicking (each click costs real API money).
     const magicButton = document.createElement('button');
     magicButton.className = 'magic-button';
     magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
     magicButton.title = 'Draft description';
     magicButton.setAttribute('aria-label', 'Draft description for this book');
+    if (_pendingDescriptions.has(bookItem.key)) {
+      magicButton.disabled = true;
+      magicButton.classList.add('disabled');
+      magicButton.title = 'Drafting in progress\u2026';
+    }
     magicButton.onclick = (e) => handleMagicButtonClick(bookItem, e);
     
     // Item number (editable input for reordering)
@@ -1617,6 +1635,10 @@ const BooklistApp = (function() {
         'Description drafting has been disabled for this library instance.',
         'info'
       );
+      return;
+    }
+    if (_pendingDescriptions.has(bookItem.key)) {
+      showNotification('A description is already being drafted for this book.', 'info');
       return;
     }
     pushUndo('ai-description');
