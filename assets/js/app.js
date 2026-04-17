@@ -7642,10 +7642,10 @@ const BooklistApp = (function() {
     // Color palette popovers on the primary color pickers
     setupColorPopovers();
 
-    // Easter egg: Ctrl+Shift+D (or Cmd+Shift+D on Mac) opens the
+    // Easter egg: Ctrl+Alt+D (or Cmd+Option+D on Mac) opens the
     // drafter settings modal for runtime config tweaking.
     document.addEventListener('keydown', function(ev) {
-      if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && ev.key === 'D') {
+      if ((ev.ctrlKey || ev.metaKey) && ev.altKey && (ev.key === 'd' || ev.key === 'D')) {
         ev.preventDefault();
         if (window.LIBRARY_CONFIG) showDrafterSettingsModal();
       }
