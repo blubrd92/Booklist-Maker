@@ -1535,20 +1535,26 @@ const BooklistApp = (function() {
       }
     };
     
-    // Magic button (fetch description). Greyed out while an
-    // in-flight request is pending for this book to prevent
-    // spam-clicking (each click costs real API money).
-    const magicButton = document.createElement('button');
-    magicButton.className = 'magic-button';
-    magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
-    magicButton.title = 'Draft description';
-    magicButton.setAttribute('aria-label', 'Draft description for this book');
-    if (_pendingDescriptions.has(bookItem.key)) {
-      magicButton.disabled = true;
-      magicButton.classList.add('disabled');
-      magicButton.title = 'Drafting in progress\u2026';
+    // Magic button (fetch description). Only rendered when the AI
+    // drafter is available (branded instance with autodrafter enabled).
+    // On the public tool or instances with the drafter disabled, the
+    // button simply doesn't appear — no notification, no hint that
+    // the feature exists.
+    let magicButton = null;
+    const drafterAvailable = window.LIBRARY_CONFIG && !window.LIBRARY_CONFIG.disableAutodrafter;
+    if (drafterAvailable) {
+      magicButton = document.createElement('button');
+      magicButton.className = 'magic-button';
+      magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
+      magicButton.title = 'Draft description';
+      magicButton.setAttribute('aria-label', 'Draft description for this book');
+      if (_pendingDescriptions.has(bookItem.key)) {
+        magicButton.disabled = true;
+        magicButton.classList.add('disabled');
+        magicButton.title = 'Drafting in progress\u2026';
+      }
+      magicButton.onclick = (e) => handleMagicButtonClick(bookItem, e);
     }
-    magicButton.onclick = (e) => handleMagicButtonClick(bookItem, e);
     
     // Item number (editable input for reordering)
     const itemNumber = document.createElement('input');
@@ -1596,7 +1602,7 @@ const BooklistApp = (function() {
     deleteButton.onclick = () => handleDeleteBook(bookItem, index);
     
     controlsDiv.appendChild(dragHandle);
-    controlsDiv.appendChild(magicButton);
+    if (magicButton) controlsDiv.appendChild(magicButton);
     controlsDiv.appendChild(starButton);
     controlsDiv.appendChild(itemNumber);
     controlsDiv.appendChild(deleteButton);
@@ -1638,18 +1644,10 @@ const BooklistApp = (function() {
   }
 
   function handleMagicButtonClick(bookItem, e) {
-    if (!window.LIBRARY_CONFIG) {
-      showNotification(
-        'This feature is available on custom library instances only.',
-        'info'
-      );
-      return;
-    }
-    if (window.LIBRARY_CONFIG.disableAutodrafter) {
-      showNotification(
-        'Description drafting has been disabled for this library instance.',
-        'info'
-      );
+    // The magic button is only rendered when the drafter is available
+    // (branded instance + autodrafter enabled), so these guards are
+    // defensive — they shouldn't fire in normal use.
+    if (!window.LIBRARY_CONFIG || window.LIBRARY_CONFIG.disableAutodrafter) {
       return;
     }
     if (_pendingDescriptions.has(bookItem.key)) {

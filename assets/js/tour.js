@@ -164,8 +164,14 @@
         },
         {
           target: '#inside-left-panel .list-item:first-child .magic-button',
-          text: "The magic wand drafts a description for you. It's available on custom library instances and can also be disabled upon request. Shift+click the wand to paste your own summary for the drafter to condense. You can always edit a draft or write your own from scratch.",
+          text: "The magic wand drafts a description for you. Shift+click the wand to paste your own summary for the drafter to condense. You can always edit a draft or write your own from scratch.",
           state: 'evaluating',
+          // Only show this step when the AI drafter is enabled.
+          // On the public tool or instances with it disabled, the
+          // magic button isn't rendered and this step is skipped.
+          condition: function() {
+            return window.LIBRARY_CONFIG && !window.LIBRARY_CONFIG.disableAutodrafter;
+          },
           prepare: function() {
             scrollPreviewTo('print-page-2');
           },
@@ -565,6 +571,7 @@
      ---------------------------------------------------------------- */
   let currentSectionId = null;
   let currentStepIndex = 0;
+  let _lastStepDirection = 1; // 1 = forward, -1 = backward
   let isFullTour = false;
   let fullTourSectionIndex = 0;
   let preTourFolioHidden = false;
@@ -1015,6 +1022,20 @@
     const section = SECTIONS[currentSectionId];
     const step = section.steps[currentStepIndex];
 
+    // Skip steps whose condition returns false (e.g. the magic
+    // button step when the AI drafter is disabled). Auto-skip in
+    // whichever direction the user is moving. _lastStepDirection
+    // is set by nextStep/prevStep; default forward.
+    if (step.condition && !step.condition()) {
+      const dir = _lastStepDirection || 1;
+      const nextIdx = currentStepIndex + dir;
+      if (nextIdx >= 0 && nextIdx < section.steps.length) {
+        currentStepIndex = nextIdx;
+        showCurrentStep();
+      }
+      return;
+    }
+
     // Run prepare if defined
     if (step.prepare) step.prepare();
 
@@ -1081,6 +1102,7 @@
 
   function nextStep() {
     if (!currentSectionId) return;
+    _lastStepDirection = 1;
     const section = SECTIONS[currentSectionId];
 
     if (currentStepIndex < section.steps.length - 1) {
@@ -1100,6 +1122,7 @@
 
   function prevStep() {
     if (!currentSectionId) return;
+    _lastStepDirection = -1;
 
     if (currentStepIndex > 0) {
       currentStepIndex--;

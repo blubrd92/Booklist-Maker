@@ -279,25 +279,6 @@ body.has-library-config .header-credit {
   display: none !important;
 }
 
-/* Per-library footer suppression.
-   sanrafael instance asked to run without the Booklister site footer.
-   When the footer is hidden, the app-container needs to reclaim the
-   32px height the footer was using, and the floating controls that
-   were positioned to sit above the footer (zoom controls at bottom:48px,
-   folio at bottom:32px) need to drop down accordingly. Folio's bottom
-   is overridden in assets/css/folio.css with the same body.library-sanrafael
-   selector. If another library later wants the same treatment, either
-   add them to this rule or promote the pattern to a library config field. */
-body.library-sanrafael .site-footer {
-  display: none;
-}
-body.library-sanrafael .app-container {
-  height: calc(100vh - 52px);
-}
-body.library-sanrafael .zoom-controls {
-  bottom: 16px;
-}
-
 /* Panel Toggle Buttons in Header */
 .header-panel-toggles {
   display: flex;

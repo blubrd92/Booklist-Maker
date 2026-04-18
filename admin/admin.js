@@ -620,8 +620,8 @@ function openLibraryModal(lib) {
     nameInput.value = '';
     brandingInput.value = '';
     autoDraftInput.checked = true;
-    disableAutodrafterInput.checked = false;
-    if (autoDraftDefaultRow) autoDraftDefaultRow.hidden = false;
+    disableAutodrafterInput.checked = true;
+    if (autoDraftDefaultRow) autoDraftDefaultRow.hidden = true;
   }
 
   // Live toggle: hide the auto-draft default row when disable is checked.
