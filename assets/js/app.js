@@ -7529,7 +7529,7 @@ const BooklistApp = (function() {
 
     // Document title + header credit byline.
     if (config.displayName) {
-      document.title = config.displayName + ' Booklister';
+      document.title = 'Booklister - ' + config.displayName;
       const credit = document.querySelector('.header-credit');
       if (credit) credit.textContent = 'for ' + config.displayName;
     }
