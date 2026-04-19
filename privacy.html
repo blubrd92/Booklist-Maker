@@ -42,7 +42,7 @@
 
       <h2>The short version</h2>
       <p>If you're using the public tool at <strong>booklister.org</strong>, nothing about your work leaves your browser. There are no accounts, no sign-in, and no server that stores your booklists. Your drafts live in your browser's local storage and go away when you clear site data.</p>
-      <p>If you're using a branded library instance at a subdomain like <strong>sonoma.booklister.org</strong>, you sign in with an email and password, and that sign-in information is stored in Firebase (a Google service). Your actual booklist work still stays in your browser.</p>
+      <p>If you're using a branded library instance at a subdomain like <strong>libraryname.booklister.org</strong>, you sign in with an email and password, and that sign-in information is stored in Firebase (a Google service). Your actual booklist work still stays in your browser.</p>
 
       <h2>What stays on your device</h2>
       <p>Booklister autosaves your work in progress (the books you've added, your styling choices, the current state of the tool) to your browser's IndexedDB storage. This never leaves your computer. It's there so you don't lose work if you reload the page.</p>
@@ -59,7 +59,7 @@
       </ul>
 
       <h2>What branded library instances store on Firebase</h2>
-      <p>If you're signing into a branded library instance (like <code>sonoma.booklister.org</code>), here's what ends up in Firebase:</p>
+      <p>If you're signing into a branded library instance (like <code>libraryname.booklister.org</code>), here's what ends up in Firebase:</p>
 
       <ul>
         <li><strong>Your account.</strong> An email address (as the login identifier) and your password. Firebase Authentication handles the password, which means I never see it in plain text; it's hashed before it's stored.</li>
