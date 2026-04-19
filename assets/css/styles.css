@@ -211,7 +211,7 @@ body.has-library-config .header-credit {
 .content-article::after {
   content: '';
   display: block;
-  height: 80px;
+  height: 40px;
 }
 .content-article h1 {
   font-family: 'EB Garamond', serif;
