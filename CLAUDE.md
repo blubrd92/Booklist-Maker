@@ -33,7 +33,7 @@ Lint and test should both pass before committing changes to JavaScript files.
 ```
 index.html                      Main tool UI, single page (semantic HTML5, ARIA)
 about.html                      Static "about" content page
-for-libraries.html              Static institutional offer content page
+for-libraries.html              Static branded-instance info content page
 contact.html                    Static contact content page
 privacy.html                    Privacy policy content page (CalOPPA-oriented)
 CNAME                           Custom domain (booklister.org)
@@ -385,8 +385,8 @@ Read rules: own doc, super-admin, or library admin of the same libraryId. Write 
 
 Four plain HTML pages live at the repo root alongside `index.html`:
 
-- **`about.html`** — first-person page explaining the tool, why it was built, the Folio mascot, and how the AI description feature works (vendor-neutral language)
-- **`for-libraries.html`** — institutional offer page with per-library pricing (not fixed), branded instance, subdomain, ongoing support, and catalog integrations as separate scoped projects
+- **`about.html`** — first-person page explaining the tool, why it was built, and the Folio mascot
+- **`for-libraries.html`** — branded-instance info page: what a branded instance looks like, catalog integrations, expectations, and winding-down process
 - **`contact.html`** — minimal contact page with mailto link and response-time expectations
 - **`privacy.html`** — privacy policy with CalOPPA-compliant disclosures: effective date, Do Not Track section, third-party collection disclosure, review/correct/delete process. Voice matches the other content pages. No em dashes (preference). If the policy text ever changes, update both "Effective" and "Last updated" dates at the top of the page.
 
