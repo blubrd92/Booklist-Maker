@@ -118,7 +118,7 @@
     // whitelist includes the field.
     DRAFTER_DEFAULTS: {
       MIN_CHARS: 280,
-      MAX_CHARS: 295,
+      MAX_CHARS: 290,
       LENGTH_TOLERANCE: 10,
       TEMPERATURE: 0.6,
       DRAFT_COUNT: 2,
