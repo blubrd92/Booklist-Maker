@@ -202,7 +202,16 @@ body.has-library-config .header-credit {
   color: var(--text-color);
   font-size: 16px;
   line-height: 1.65;
-  padding-bottom: 64px;
+}
+/* Explicit spacer block at the end of every article, to guarantee a
+   visible buffer between the last paragraph and the footer when the
+   page is scrolled to the bottom. Using a ::after pseudo-element
+   instead of padding/margin sidesteps the WebKit/Chromium quirk where
+   bottom padding on an overflow:auto scroll container gets clipped. */
+.content-article::after {
+  content: '';
+  display: block;
+  height: 80px;
 }
 .content-article h1 {
   font-family: 'EB Garamond', serif;
