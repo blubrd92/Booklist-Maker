@@ -7593,6 +7593,11 @@ const BooklistApp = (function() {
       }
     }
 
+    // Re-render the book list so magic buttons appear now that the
+    // drafter availability is known (books rendered before the config
+    // arrived won't have them).
+    renderBooklist();
+
     // Reveal the tool. An inline script in index.html added this class
     // synchronously at page load to hide everything until a valid config
     // was available, preventing a flash of the unbranded tool on gated
