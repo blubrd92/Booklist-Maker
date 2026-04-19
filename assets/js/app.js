@@ -698,6 +698,7 @@ const BooklistApp = (function() {
   function shouldAutoFetchDescription() {
     if (!window.LIBRARY_CONFIG) return false;
     if (window.LIBRARY_CONFIG.disableAutodrafter) return false;
+    if (window.LIBRARY_CONFIG.requireSourceText) return false;
     return getAutoDescriptionPreference();
   }
 
@@ -1693,7 +1694,9 @@ const BooklistApp = (function() {
 
     // Shift+click (or Cmd+click on Mac): open a modal to paste a
     // summary for the drafter to condense, instead of searching.
-    if (e && e.shiftKey) {
+    // When requireSourceText is set, every click opens the modal.
+    if ((e && e.shiftKey) ||
+        (window.LIBRARY_CONFIG && window.LIBRARY_CONFIG.requireSourceText)) {
       showSourceTextModal(bookItem);
       return;
     }
@@ -7553,7 +7556,7 @@ const BooklistApp = (function() {
     // the row hidden so staff don't see a toggle that does nothing.
     if (elements.autoDescriptionToggleRow && elements.autoDescriptionToggle) {
       const hint = document.getElementById('auto-description-hint');
-      if (config.disableAutodrafter) {
+      if (config.disableAutodrafter || config.requireSourceText) {
         elements.autoDescriptionToggleRow.hidden = true;
         if (hint) hint.style.display = 'none';
       } else {

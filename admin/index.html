@@ -165,6 +165,14 @@
             <p class="admin-field-hint">Completely removes the AI description drafting feature from this library's instance. The magic wand button will show a "feature disabled" message, auto-draft on add will be suppressed, and the auto-draft toggle will be hidden. Use when a library has explicitly requested no AI tools.</p>
           </div>
 
+          <div class="admin-field admin-field-checkbox" id="admin-require-source-text-row">
+            <label class="admin-checkbox-label">
+              <input type="checkbox" id="admin-field-require-source-text">
+              <span>Require source text for drafting</span>
+            </label>
+            <p class="admin-field-hint">When enabled, the magic wand button always opens a paste modal instead of auto-searching. Staff must provide their own summary text for the drafter to condense. The auto-draft-on-add toggle is also hidden. Use when a library wants the drafter available but wants staff to verify source material first.</p>
+          </div>
+
           <div class="admin-field admin-field-checkbox" id="admin-auto-draft-default-row">
             <label class="admin-checkbox-label">
               <input type="checkbox" id="admin-field-auto-draft-default" checked>
