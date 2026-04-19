@@ -423,7 +423,7 @@ code {
 .admin-btn-primary {
   background: var(--admin-primary);
   color: white;
-  border: none;
+  border: 1px solid var(--admin-primary);
   padding: 10px 18px;
   border-radius: var(--admin-radius);
   font-size: 0.9rem;
