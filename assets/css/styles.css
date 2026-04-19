@@ -202,6 +202,7 @@ body.has-library-config .header-credit {
   color: var(--text-color);
   font-size: 16px;
   line-height: 1.65;
+  padding-bottom: 32px;
 }
 .content-article h1 {
   font-family: 'EB Garamond', serif;
