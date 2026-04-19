@@ -108,6 +108,22 @@
       { value: "'Staatliches', system-ui", label: 'Staatliches' },
       { value: "'Times New Roman', serif", label: 'Times New Roman' },
     ],
+
+    // AI drafter configuration sent to the Apps Script with every
+    // request. The script treats these as the single source of truth;
+    // it only falls back to its own internal CONFIG for direct GET
+    // diagnostic calls. The easter egg modal (Ctrl+Shift+D) can
+    // override individual values for a single session.
+    // Whatever is sent only takes effect if the Apps Script's ALLOWED
+    // whitelist includes the field.
+    DRAFTER_DEFAULTS: {
+      MIN_CHARS: 280,
+      MAX_CHARS: 295,
+      LENGTH_TOLERANCE: 10,
+      TEMPERATURE: 0.6,
+      DRAFT_COUNT: 2,
+      MAX_RETRIES: 2,
+    },
   };
 
   // Expose globally

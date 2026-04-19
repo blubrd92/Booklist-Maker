@@ -742,7 +742,7 @@ const BooklistApp = (function() {
     // GET diagnostic requests that bypass the tool entirely.
     // When the easter egg modal is active, _drafterOverrides
     // replaces specific values for testing.
-    const effectiveConfig = Object.assign({}, DRAFTER_DEFAULTS, _drafterOverrides || {});
+    const effectiveConfig = Object.assign({}, CONFIG.DRAFTER_DEFAULTS, _drafterOverrides || {});
     payload.configOverrides = effectiveConfig;
     
     _pendingDescriptions.add(bookKey);
@@ -1805,17 +1805,9 @@ const BooklistApp = (function() {
   }
   
   // Easter egg: Ctrl+Shift+D opens a drafter settings modal.
-  // Defaults match the deployed Apps Script CONFIG. Overrides are
-  // sent as configOverrides in the request payload and reset on
+  // Defaults live in CONFIG.DRAFTER_DEFAULTS (config.js). Overrides
+  // are sent as configOverrides in the request payload and reset on
   // page refresh (in-memory only).
-  const DRAFTER_DEFAULTS = {
-    MIN_CHARS: 280,
-    MAX_CHARS: 295,
-    LENGTH_TOLERANCE: 10,
-    TEMPERATURE: 0.6,
-    DRAFT_COUNT: 1,
-    MAX_RETRIES: 2,
-  };
 
   function showDrafterSettingsModal() {
     const existing = document.getElementById('drafter-settings-modal');
@@ -1878,7 +1870,7 @@ const BooklistApp = (function() {
       input.step = f.step;
       if (f.min !== undefined) input.min = f.min;
       if (f.max !== undefined) input.max = f.max;
-      input.value = (current[f.key] !== undefined) ? current[f.key] : DRAFTER_DEFAULTS[f.key];
+      input.value = (current[f.key] !== undefined) ? current[f.key] : CONFIG.DRAFTER_DEFAULTS[f.key];
       input.style.cssText = 'width: 70px; text-align: center; padding: 4px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.85rem;';
       row.appendChild(input);
       body.appendChild(row);
@@ -1909,7 +1901,7 @@ const BooklistApp = (function() {
       let hasOverride = false;
       fields.forEach(f => {
         const val = parseFloat(inputs[f.key].value);
-        if (isFinite(val) && val !== DRAFTER_DEFAULTS[f.key]) {
+        if (isFinite(val) && val !== CONFIG.DRAFTER_DEFAULTS[f.key]) {
           overrides[f.key] = val;
           hasOverride = true;
         }
