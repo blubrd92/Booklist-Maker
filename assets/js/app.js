@@ -2346,7 +2346,17 @@ const BooklistApp = (function() {
           }
           closeActivePopover();
           buildPopoverContent(popover, picker);
+          popover.classList.remove('flip-up');
           popover.classList.add('open');
+          // Flip above trigger if the popover overflows the scroll container
+          const scrollParent = popover.closest('.tab-content') || popover.closest('.content-main');
+          if (scrollParent) {
+            const spRect = scrollParent.getBoundingClientRect();
+            const popRect = popover.getBoundingClientRect();
+            if (popRect.bottom > spRect.bottom) {
+              popover.classList.add('flip-up');
+            }
+          }
           _activePopover = popover;
         });
 
