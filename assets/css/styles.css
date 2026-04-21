@@ -1832,7 +1832,15 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 .print-mode .book-panel { padding-bottom: 27px; }
 .print-mode #back-cover-panel.all-books { padding-bottom: 27px; }
 .print-mode .list-item-controls, .print-mode .page-divider, .print-mode .placeholder-text { display: none !important; }
-.print-mode .cover-uploader, .print-mode .custom-uploader, .print-mode .editable-field, .print-mode #front-cover-uploader, .print-mode #qr-code-text, .print-mode .qr-code-container {
+.print-mode .cover-uploader, .print-mode .custom-uploader, .print-mode .editable-field, .print-mode #front-cover-uploader, .print-mode .qr-code-container {
+  border: none !important; outline: none !important; background: transparent !important;
+}
+/* QR text uses border-color: transparent instead of border: none so the
+   1px border width is still reserved in the box model. Without this,
+   left/right-aligned text shifts 1px between preview and PDF (the
+   content box grows when the border disappears on a box-sizing:
+   border-box element). */
+.print-mode #qr-code-text {
   border-color: transparent !important; outline: none !important; background: transparent !important;
 }
 
