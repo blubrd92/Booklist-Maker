@@ -2194,7 +2194,7 @@ const BooklistApp = (function() {
   // covers the full spectrum from neutral to vivid, warm to cool.
   const PRESET_COLORS = [
     '#ffffff',   // White
-    '#000000',   // Rich Black
+    '#1a202c',   // Rich Black
     '#c53030',   // Crimson Red
     '#c05621',   // Burnt Orange
     '#d69e2e',   // Warm Amber
