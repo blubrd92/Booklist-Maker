@@ -1833,7 +1833,7 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 .print-mode #back-cover-panel.all-books { padding-bottom: 27px; }
 .print-mode .list-item-controls, .print-mode .page-divider, .print-mode .placeholder-text { display: none !important; }
 .print-mode .cover-uploader, .print-mode .custom-uploader, .print-mode .editable-field, .print-mode #front-cover-uploader, .print-mode #qr-code-text, .print-mode .qr-code-container {
-  border: none !important; outline: none !important; background: transparent !important;
+  border-color: transparent !important; outline: none !important; background: transparent !important;
 }
 
 /* --- NOTIFICATION --- */
