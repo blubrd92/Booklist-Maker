@@ -1786,6 +1786,7 @@ input[type="color"]:hover {
 body.has-library-branding #branding-uploader:not(.has-image) .branding-default-btn {
   display: flex;
 }
+#branding-uploader.has-image { border: none; background: none; }
 #branding-uploader.has-image.drag-over { border: 2px solid var(--primary-color); border-style: solid; }
 
 #branding-uploader .placeholder-text {
