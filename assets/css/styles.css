@@ -1024,6 +1024,18 @@ input[type="color"]:hover {
   border-right: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
 }
+.color-palette-popover.flip-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.color-palette-popover.flip-up::before {
+  top: auto;
+  bottom: -6px;
+  border-left: none;
+  border-top: none;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
 .color-palette-section-label {
   font-size: 0.65rem;
   font-weight: 600;
