@@ -1809,10 +1809,10 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 }
 #qr-code-text {
   flex-grow: 1; height: 100%; display: flex; flex-direction: column;
-  justify-content: center; text-align: center;
+  justify-content: center; text-align: var(--qr-text-align, center);
   border: 1px solid #eee; padding: 4px; box-sizing: border-box;
-  font-family: var(--qr-font, 'Calibri'); 
-  font-size: var(--qr-font-size, 13pt); 
+  font-family: var(--qr-font, 'Calibri');
+  font-size: var(--qr-font-size, 13pt);
   color: var(--qr-color, #000);
   font-weight: var(--qr-font-weight, normal);
   font-style: var(--qr-font-style, normal);

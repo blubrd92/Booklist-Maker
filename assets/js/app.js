@@ -2401,6 +2401,12 @@ const BooklistApp = (function() {
       if (lineSpacingInput) {
         elements.previewArea.style.setProperty(`--${styleGroup}-line-height`, lineSpacingInput.value);
       }
+
+      // Apply text alignment if present (used by QR text)
+      const activeAlign = group.querySelector('.align-toggle.active');
+      if (activeAlign) {
+        elements.previewArea.style.setProperty(`--${styleGroup}-text-align`, activeAlign.dataset.align || 'center');
+      }
     });
   }
   
@@ -5147,6 +5153,7 @@ const BooklistApp = (function() {
     document.querySelectorAll('.export-controls .form-group[data-style-group]').forEach(group => {
       const k = group.dataset.styleGroup;
       const lineSpacingInput = group.querySelector('.line-spacing');
+      const activeAlign = group.querySelector('.align-toggle.active');
       styles[k] = {
         font: group.querySelector('.font-select')?.value ?? '',
         sizePt: parseFloat(group.querySelector('.font-size-input')?.value ?? '12'),
@@ -5154,6 +5161,7 @@ const BooklistApp = (function() {
         bold: !!group.querySelector('.bold-toggle')?.classList.contains('active'),
         italic: !!group.querySelector('.italic-toggle')?.classList.contains('active'),
         lineSpacing: lineSpacingInput ? parseFloat(lineSpacingInput.value ?? '1.3') : null,
+        textAlign: activeAlign ? (activeAlign.dataset.align || null) : null,
       };
     });
     
@@ -5307,6 +5315,18 @@ const BooklistApp = (function() {
       if (boldBtn) boldBtn.classList.toggle('active', !!s.bold);
       if (italicBtn) italicBtn.classList.toggle('active', !!s.italic);
       if (lineSpacingInp && s.lineSpacing != null) lineSpacingInp.value = s.lineSpacing;
+
+      // Text alignment (QR only today, but generic by design). Only apply
+      // when the saved state actually specifies an alignment, so files
+      // from before this setting round-trip cleanly with the default
+      // (center) still active.
+      if (s.textAlign) {
+        group.querySelectorAll('.align-toggle').forEach(btn => {
+          const isActive = btn.dataset.align === s.textAlign;
+          btn.classList.toggle('active', isActive);
+          btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+      }
     });
     
     // Cover title styles
@@ -6307,8 +6327,18 @@ const BooklistApp = (function() {
         }
         button.addEventListener('click', (e) => {
           pushUndo('change-style');
-          if (e.target.classList.contains('bold-toggle') || e.target.classList.contains('italic-toggle')) {
-            e.target.classList.toggle('active');
+          const btn = e.currentTarget;
+          if (btn.classList.contains('bold-toggle') || btn.classList.contains('italic-toggle')) {
+            btn.classList.toggle('active');
+            btn.setAttribute('aria-pressed', btn.classList.contains('active') ? 'true' : 'false');
+          } else if (btn.classList.contains('align-toggle')) {
+            // Mutex: only one align button active per group.
+            group.querySelectorAll('.align-toggle').forEach(b => {
+              b.classList.remove('active');
+              b.setAttribute('aria-pressed', 'false');
+            });
+            btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
           }
           debouncedSave();
           applyStyles();
