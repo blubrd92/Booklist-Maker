@@ -5098,23 +5098,30 @@ const BooklistApp = (function() {
         backgroundColor: '#FFFFFF'
       };
 
+      // Each canvas is ~135 MB at 600 DPI, and browsers are slow to
+      // GC large canvas buffers — repeated exports pile up hundreds
+      // of MB and slow subsequent runs. Setting width/height to 0
+      // after we're done with each one forces the browser to release
+      // the backing buffer immediately.
       const canvas1 = await html2canvas(document.getElementById('print-page-1'), options);
       pdf.addImage(canvas1.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
+      canvas1.width = 0; canvas1.height = 0;
       pdf.addPage();
 
       const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
       pdf.addImage(canvas2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
-      
+      canvas2.width = 0; canvas2.height = 0;
+
       pdf.save(suggestedName);
       showNotification('PDF download started.', 'success');
-      
+
       // Folio: excited about PDF
       if (window.folio) {
         window.folio.react('satisfied');
         window.folio.setState('excited', 'pdf-exported');
         setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
       }
-      
+
     } catch (err) {
       console.error("PDF Generation failed:", err);
       showNotification("An error occurred generating the PDF. Please check the console.", 'error');
