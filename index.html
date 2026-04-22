@@ -80,7 +80,7 @@
       <div class="logo">
         <i class="fa-solid fa-book-open" aria-hidden="true"></i> Booklister
       </div>
-      <span class="header-credit">Designed by Javier Morales</span>
+      <span class="header-credit"></span>
     </div>
 
     <div class="header-actions">
@@ -125,14 +125,6 @@
                 <label for="keywordInput" class="sr-only">Search keywords</label>
                 <input id="keywordInput" type="text" placeholder="Keyword..."/>
               </div>
-              <!-- Auto-draft description toggle. Hidden by default; app.js
-                   reveals it on branded instances (where the description
-                   backend is actually wired up) after library-config-ready.
-                   Does not appear on the public tool. -->
-              <div class="control-row checkbox-row" id="auto-description-toggle-row" hidden>
-                <input id="auto-description-toggle" type="checkbox" checked/>
-                <label for="auto-description-toggle" title="When on, Booklister drafts a short description for each book as you add it. Turn it off if you prefer to write every description yourself. You can still use the wand button on any individual book either way.">Auto-draft descriptions on add</label>
-              </div>
               <div class="advanced-search-toggle">
                 <details>
                   <summary>Advanced Fields</summary>
@@ -150,6 +142,15 @@
                     <label for="personInput" class="sr-only">Contributor</label>
                     <input id="personInput" type="text" placeholder="Contributor"/>
                   </div>
+                  <!-- Auto-draft description toggle. Hidden by default; app.js
+                       reveals it on branded instances (where the description
+                       backend is actually wired up) after library-config-ready.
+                       Does not appear on the public tool. -->
+                  <div class="control-row checkbox-row" id="auto-description-toggle-row" hidden style="margin-top: 8px;">
+                    <input id="auto-description-toggle" type="checkbox" checked/>
+                    <label for="auto-description-toggle" title="When on, Booklister drafts a short description for each book as you add it. Turn it off if you prefer to write every description yourself. You can still use the wand button on any individual book either way.">Auto-draft descriptions on add</label>
+                  </div>
+                  <p id="auto-description-hint" class="masonry-hint" style="display: none; font-size: 0.7rem; color: #888; margin: 2px 0 0 22px; font-style: italic;">Tip: Shift+click the wand button on any book to paste your own summary for the drafter to condense.</p>
                 </details>
               </div>
               <button id="fetchButton" type="submit" class="btn btn-primary btn-block">Search</button>
@@ -171,7 +172,7 @@
           <div class="control-row">
             <select class="font-select" aria-label="Title font family" data-default="'Georgia', serif">
               </select>
-            <input class="font-size-input" type="number" min="8" value="14" aria-label="Title font size"/>
+            <input class="font-size-input" type="number" min="8" value="13" aria-label="Title font size"/>
           </div>
           <div class="control-row">
             <button class="bold-toggle btn-icon" aria-label="Toggle bold" aria-pressed="false">B</button>
@@ -242,7 +243,9 @@
             <input type="text" class="cover-line-input" id="cover-line-3" placeholder="Line 3" aria-label="Cover line 3 text"/>
           </div>
 
-          <button id="generate-cover-button" class="btn btn-primary" style="margin-top: 10px; width: 100%;">Auto-Generate Cover</button>
+          <!-- User-facing label is "Create Cover"; the element ID
+               remains generate-cover-button for code compatibility. -->
+          <button id="generate-cover-button" class="btn btn-primary" style="margin-top: 10px; width: 100%;">Create Cover</button>
         </div>
 
         <div class="form-group" id="cover-title-style-group">
@@ -314,9 +317,11 @@
           <!-- Shared settings for both modes -->
           <div class="control-row" style="margin-top: 10px;">
             <div class="mini-label">Background:</div>
-            <input id="cover-title-bg-color" class="color-picker" type="color" value="#000000" aria-label="Cover title background color"/>
+            <input id="cover-title-bg-color" class="color-picker" type="color" value="#1a202c" aria-label="Cover title background color"/>
+          </div>
+          <div class="control-row checkbox-row" style="margin-top: 2px;">
             <input id="cover-title-gradient-toggle" type="checkbox" aria-label="Enable gradient background"/>
-            <label for="cover-title-gradient-toggle" class="mini-label">Gradient</label>
+            <label for="cover-title-gradient-toggle">Gradient</label>
             <input id="cover-title-bg-color2" class="color-picker" type="color" value="#333333" aria-label="Gradient end color" style="display: none;"/>
           </div>
 
@@ -334,11 +339,6 @@
             </div>
           </details>
 
-          <div class="control-row checkbox-row">
-            <input id="stretch-covers-toggle" type="checkbox" checked/>
-            <label for="stretch-covers-toggle">Stretch Header Covers</label>
-          </div>
-          <p id="masonry-stretch-hint" class="masonry-hint" style="display: none; font-size: 0.7rem; color: #888; margin: 4px 0 0 22px; font-style: italic; font-weight: bold;">Masonry uses actual cover proportions</p>
         </div>
 
           <div class="layout-settings" id="collage-layout-details">
@@ -523,23 +523,47 @@
                   <option value="horizontal">Horizontal</option>
                 </select>
               </div>
+              <div class="control-row" style="margin-top: 6px;">
+                <label for="tilt-cover-size" class="mini-label" style="white-space: nowrap;">Cover Size (%):</label>
+                <input id="tilt-cover-size" class="font-size-input" type="number" min="50" max="100" value="100" step="5" aria-label="Tilted cover size percentage"/>
+              </div>
             </div>
 
-            <!-- Extended collage mode toggle -->
+            <!-- Stretch Header Covers toggle -->
             <div class="control-row checkbox-row" style="margin-top: 12px;">
-              <input id="extended-collage-toggle" type="checkbox"/>
-              <label for="extended-collage-toggle">Extended collage (20 covers)</label>
+              <input id="stretch-covers-toggle" type="checkbox" checked/>
+              <label for="stretch-covers-toggle">Stretch Header Covers</label>
+            </div>
+            <p id="masonry-stretch-hint" class="masonry-hint" style="display: none; font-size: 0.7rem; color: #888; margin: 4px 0 0 22px; font-style: italic; font-weight: bold;">Masonry uses actual cover proportions</p>
+
+            <!-- Collage cover count selector -->
+            <div class="control-row" style="margin-top: 12px; gap: 8px; flex-wrap: wrap;">
+              <span class="mini-label" style="white-space: nowrap;">Cover count:</span>
+              <div class="collage-cover-count-group" role="radiogroup" aria-label="Collage cover count">
+                <label class="collage-cover-count-option">
+                  <input type="radio" name="collage-cover-count" value="12" checked/>
+                  <span>12</span>
+                </label>
+                <label class="collage-cover-count-option">
+                  <input type="radio" name="collage-cover-count" value="16"/>
+                  <span>16</span>
+                </label>
+                <label class="collage-cover-count-option">
+                  <input type="radio" name="collage-cover-count" value="20"/>
+                  <span>20</span>
+                </label>
+              </div>
             </div>
 
-            <!-- Extra Collage Covers Section (shown when extended mode enabled) -->
+            <!-- Extra Collage Covers Section (shown when cover count > 12) -->
             <div id="extra-covers-section" class="extra-covers-section" style="display: none;">
               <div class="extra-covers-header">
-                <span class="line-style-label">Additional Covers (Covers 13-20)</span>
+                <span class="line-style-label" id="extra-covers-label">Additional Covers</span>
                 <button type="button" id="extra-cover-search-btn" class="btn btn-sm btn-primary">
                   <i class="fa-solid fa-magnifying-glass"></i> Search
                 </button>
               </div>
-              <p class="extra-covers-hint"><span id="extra-covers-count">0</span> of 8 extra cover slots filled</p>
+              <p class="extra-covers-hint"><span id="extra-covers-count">0</span> of <span id="extra-covers-max">8</span> extra cover slots filled</p>
               <div id="extra-covers-grid" class="extra-covers-grid">
                 <!-- Slots will be generated by JS -->
               </div>
@@ -586,6 +610,12 @@
                   <input class="color-picker" type="color" value="#000000" aria-label="QR text color"/>
                   <span class="mini-label">Line Spacing:</span>
                   <input class="font-size-input line-spacing" id="qr-line-spacing" type="number" min="0.8" max="3" step="0.1" value="1.3" title="Line height multiplier" aria-label="QR text line spacing"/>
+              </div>
+              <div class="control-row">
+                  <span class="mini-label">Align:</span>
+                  <button class="align-toggle btn-icon" data-align="left" aria-label="Align left" aria-pressed="false"><i class="fa-solid fa-align-left" aria-hidden="true"></i></button>
+                  <button class="align-toggle active btn-icon" data-align="center" aria-label="Align center" aria-pressed="true"><i class="fa-solid fa-align-center" aria-hidden="true"></i></button>
+                  <button class="align-toggle btn-icon" data-align="right" aria-label="Align right" aria-pressed="false"><i class="fa-solid fa-align-right" aria-hidden="true"></i></button>
               </div>
           </div>
         </div>
@@ -660,10 +690,10 @@
           </div>
 
           <div class="panel" id="front-cover-panel">
-            <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or generate front cover image">
+            <div class="custom-uploader" id="front-cover-uploader" role="button" aria-label="Upload or create front cover image">
               <img alt="Cover Image Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
               <div class="placeholder-text">
-                Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)
+                Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Create Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)
               </div>
               <input type="file" accept="image/*" aria-hidden="true"/>
               <button type="button" class="cover-delete-btn" title="Remove cover image"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
@@ -690,11 +720,20 @@
             <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Redo
           </button>
         </div>
-        <!-- Row 2: Zoom controls -->
-        <div style="border-top: 1px solid var(--border-color); display: flex; align-items: center; gap: 2px; padding: 2px 4px 4px;">
-          <button id="btn-zoom-fit" class="zoom-btn" title="Fit to Page" aria-label="Fit to page">
+        <!-- Row 2: Fit controls -->
+        <div style="border-top: 1px solid var(--border-color); display: flex; justify-content: center; gap: 2px; padding: 2px 4px;">
+          <button id="btn-zoom-fit" class="zoom-btn" title="Fit All" aria-label="Fit all pages to screen">
             <i class="fa-solid fa-expand" aria-hidden="true"></i>
           </button>
+          <button id="btn-zoom-fit-width" class="zoom-btn" title="Fit to Width" aria-label="Fit to width">
+            <i class="fa-solid fa-arrows-left-right" aria-hidden="true"></i>
+          </button>
+          <button id="btn-zoom-fit-height" class="zoom-btn" title="Fit to Height" aria-label="Fit one page height to screen">
+            <i class="fa-solid fa-arrows-up-down" aria-hidden="true"></i>
+          </button>
+        </div>
+        <!-- Row 3: Zoom level -->
+        <div style="border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; gap: 2px; padding: 2px 4px 4px;">
           <button id="btn-zoom-out" class="zoom-btn" title="Zoom Out" aria-label="Zoom out">
             <i class="fa-solid fa-minus" aria-hidden="true"></i>
           </button>
@@ -1020,9 +1059,9 @@
       <span aria-hidden="true">·</span>
       <a href="for-libraries.html">For Libraries</a>
       <span aria-hidden="true">·</span>
-      <a href="contact.html">Contact</a>
-      <span aria-hidden="true">·</span>
       <a href="privacy.html">Privacy</a>
+      <span aria-hidden="true">·</span>
+      <a href="contact.html">Contact</a>
     </nav>
   </footer>
 

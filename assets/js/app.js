@@ -32,6 +32,19 @@ const BooklistApp = (function() {
   let _lastUndoTime = 0;
   let _isRestoring = false;  // Guard flag to prevent side effects during undo/redo restore
   let _tourActive = false;   // Guard flag: suppresses pushUndo and autosave during guided tour
+
+  // Tracks book keys with in-flight AI description requests so the
+  // magic button can be disabled per-book while a fetch is running.
+  const _pendingDescriptions = new Set();
+
+  // Easter egg: runtime overrides for the Apps Script drafter config.
+  // Ctrl+Shift+D opens a modal to tweak MIN_CHARS, MAX_CHARS, etc.
+  // Stored in-memory only — resets on page refresh so test settings
+  // can't accidentally persist. Sent as `configOverrides` in the
+  // request payload; the script merges them with its CONFIG for that
+  // request only.
+  let _drafterOverrides = null;
+
   let _collageGenId = 0;     // Generation counter to discard stale async collage results
   // Pre-edit snapshot used by style inputs (color pickers, font selects, size
   // inputs, etc.) where the DOM value is mutated by the browser BEFORE the
@@ -40,6 +53,19 @@ const BooklistApp = (function() {
   // useless. We capture on focus (pre-edit) and commit on the first change
   // event of that focus session. See capturePreEditSnapshot / commitPreEditSnapshot.
   let _pendingPreEditSnapshot = null;
+
+  // DOM-independent source of truth for the QR blurb text. The
+  // qrCodeTextArea is a contenteditable div inside #qr-code-area, which
+  // is toggled display:none when the user turns "Show QR Code" off. The
+  // browser's .innerText accessor returns '' for any element whose
+  // computed style is display:none, so reading innerText during
+  // serialization while the area is hidden would silently overwrite a
+  // real blurb with empty. Mirror the text into this module variable
+  // on every input event (and during applyState when loading), then
+  // have serializeState read from here instead of the DOM. This value
+  // never holds the placeholder sentinel — it's either the user's real
+  // content or empty.
+  let _currentQrText = '';
 
   // ---------------------------------------------------------------------------
   // IndexedDB Image Cache (deduplicates base64 images across undo snapshots)
@@ -296,6 +322,7 @@ const BooklistApp = (function() {
       tiltedSettings: document.getElementById('tilted-settings'),
       tiltDegree: document.getElementById('tilt-degree'),
       tiltOffsetDirection: document.getElementById('tilt-offset-direction'),
+      tiltCoverSize: document.getElementById('tilt-cover-size'),
       classicSettings: document.getElementById('classic-settings'),
       showShelvesToggle: document.getElementById('show-shelves-toggle'),
       
@@ -303,11 +330,13 @@ const BooklistApp = (function() {
       autoDescriptionToggle: document.getElementById('auto-description-toggle'),
       autoDescriptionToggleRow: document.getElementById('auto-description-toggle-row'),
 
-      // Extended collage mode
-      extendedCollageToggle: document.getElementById('extended-collage-toggle'),
+      // Collage cover count (12 / 16 / 20)
+      collageCoverCountRadios: document.querySelectorAll('input[name="collage-cover-count"]'),
       extraCoversSection: document.getElementById('extra-covers-section'),
       extraCoversGrid: document.getElementById('extra-covers-grid'),
       extraCoversCount: document.getElementById('extra-covers-count'),
+      extraCoversMax: document.getElementById('extra-covers-max'),
+      extraCoversLabel: document.getElementById('extra-covers-label'),
       extraCoverSearchModal: document.getElementById('extra-cover-search-modal'),
       collageCoverHint: document.getElementById('collage-cover-hint'),
       
@@ -668,18 +697,20 @@ const BooklistApp = (function() {
   // description backend automatically.
   function shouldAutoFetchDescription() {
     if (!window.LIBRARY_CONFIG) return false;
+    if (window.LIBRARY_CONFIG.disableAutodrafter) return false;
+    if (window.LIBRARY_CONFIG.requireSourceText) return false;
     return getAutoDescriptionPreference();
   }
 
-  function getAiDescription(bookKey, isTest = false) {
+  function getAiDescription(bookKey, isTest = false, sourceText = null) {
     const bookItem = myBooklist.find(b => b.key === bookKey);
     if (!bookItem && !isTest) {
       console.error("Description fetch failed: Could not find book with key:", bookKey);
       return;
     }
-    
+
     const googleAppScriptUrl = "https://script.google.com/macros/s/AKfycbyhqsRgjS7aoEbYwqgN-wyygjFtGNtFdGcUOnrqXmZ7P3Aubjjwlp-HydWp4MPJxXY/exec";
-    
+
     if (googleAppScriptUrl === "PASTE_YOUR_GOOGLE_APPS_SCRIPT_URL_HERE" || !googleAppScriptUrl) {
       const errorMsg = "Google Apps Script URL is not configured.";
       console.error(errorMsg);
@@ -693,11 +724,29 @@ const BooklistApp = (function() {
       }
       return;
     }
-    
-    const payload = isTest 
-      ? { title: "Test Title", author: "Test Author" } 
+
+    const payload = isTest
+      ? { title: "Test Title", author: "Test Author" }
       : { title: bookItem.title, author: bookItem.author };
+
+    // When the user shift-clicked the magic button and pasted a
+    // summary, include it so the Apps Script can skip the Tavily
+    // search and use the pasted text as the source material.
+    if (sourceText) {
+      payload.sourceText = sourceText;
+    }
+    // Always send config values to the Apps Script. The tool's
+    // DRAFTER_DEFAULTS is the single source of truth for the
+    // pipeline's tuning knobs — the script uses whatever it
+    // receives, falling back to its own CONFIG only for direct
+    // GET diagnostic requests that bypass the tool entirely.
+    // When the easter egg modal is active, _drafterOverrides
+    // replaces specific values for testing.
+    const effectiveConfig = Object.assign({}, CONFIG.DRAFTER_DEFAULTS, _drafterOverrides || {});
+    payload.configOverrides = effectiveConfig;
     
+    _pendingDescriptions.add(bookKey);
+
     fetch(googleAppScriptUrl, {
       method: 'POST',
       headers: {
@@ -713,6 +762,7 @@ const BooklistApp = (function() {
       return response.json();
     })
     .then(data => {
+      _pendingDescriptions.delete(bookKey);
       if (data.description) {
         if (isTest) {
           const successMsg = `Test Success: ${data.description}`;
@@ -730,6 +780,7 @@ const BooklistApp = (function() {
       }
     })
     .catch(error => {
+      _pendingDescriptions.delete(bookKey);
       console.error('Full error object from getAiDescription:', error);
       const errorMessage = error.message || "An unknown error occurred.";
       
@@ -1194,9 +1245,9 @@ const BooklistApp = (function() {
         // Auto-generate if this book has a cover, is starred, and completes the required count
         const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
         if (frontCoverImg?.dataset.isAutoGenerated === 'true' && newBook.includeInCollage && carouselState.allCoverIds.length > 0) {
-          const extendedMode = elements.extendedCollageToggle?.checked || false;
-          const totalCovers = BookUtils.countTotalCovers(myBooklist, extraCollageCovers, extendedMode);
-          const requiredCovers = BookUtils.getRequiredCovers(extendedMode);
+          const currentCount = getCollageCoverCount();
+          const totalCovers = BookUtils.countTotalCovers(myBooklist, extraCollageCovers, currentCount);
+          const requiredCovers = BookUtils.getRequiredCovers(currentCount);
 
           if (totalCovers === requiredCovers) {
             generateCoverCollage();
@@ -1438,19 +1489,20 @@ const BooklistApp = (function() {
     
     // Count currently starred books + extra collage covers
     const starredCount = BookUtils.getStarredBooks(myBooklist).length;
-    const extendedMode = elements.extendedCollageToggle?.checked || false;
-    const maxCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
-    const totalCollageCovers = starredCount + (extendedMode ? extraCollageCovers.length : 0);
+    const currentCoverCount = getCollageCoverCount();
+    const isExtended = currentCoverCount > CONFIG.MIN_COVERS_FOR_COLLAGE;
+    const maxCovers = currentCoverCount;
+    const totalCollageCovers = starredCount + (isExtended ? extraCollageCovers.length : 0);
     const isStarred = bookItem.includeInCollage;
     const atLimit = totalCollageCovers >= maxCovers;
-    
+
     if (isStarred) {
       starButton.classList.add('active');
     } else if (atLimit) {
       starButton.classList.add('disabled');
       starButton.disabled = true;
     }
-    
+
     starButton.innerHTML = '<i class="fa-solid fa-star"></i>';
     starButton.title = isStarred ? 'Remove from collage' : (atLimit ? `${maxCovers} covers already selected` : 'Include in collage');
     starButton.setAttribute('aria-label', 'Toggle inclusion in cover collage');
@@ -1462,28 +1514,48 @@ const BooklistApp = (function() {
       bookItem.includeInCollage = !bookItem.includeInCollage;
       debouncedSave();
       renderBooklist(); // Re-render to update all star states
+      // Refresh the extra covers grid so "from list" slots (13-15) stay in
+      // sync with the starred state. Without this, unstarring book 13 in
+      // the preview leaves its cover lingering in the extras grid until
+      // some other render is triggered. Guarded so 12-count mode stays
+      // a no-op (the extras grid is hidden anyway).
+      if (getCollageCoverCount() > CONFIG.MIN_COVERS_FOR_COLLAGE) {
+        renderExtraCoversGrid();
+      }
       updateExtraCoversCount(); // Update the extra covers section count
-      
+
       // Folio: nod at the star toggle
       if (window.folio) window.folio.react('nod');
-      
+
       // Auto-regenerate if there's already an auto-generated image and we have enough covers
       const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
       if (frontCoverImg?.dataset.isAutoGenerated === 'true') {
-        const currentExtendedMode = elements.extendedCollageToggle?.checked || false;
-        if (BookUtils.hasEnoughCoversForCollage(myBooklist, extraCollageCovers, currentExtendedMode)) {
+        if (BookUtils.hasEnoughCoversForCollage(myBooklist, extraCollageCovers, getCollageCoverCount())) {
           generateCoverCollage();
         }
       }
     };
     
-    // Magic button (fetch description)
-    const magicButton = document.createElement('button');
-    magicButton.className = 'magic-button';
-    magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
-    magicButton.title = 'Draft description';
-    magicButton.setAttribute('aria-label', 'Draft description for this book');
-    magicButton.onclick = () => handleMagicButtonClick(bookItem);
+    // Magic button (fetch description). Only rendered when the AI
+    // drafter is available (branded instance with autodrafter enabled).
+    // On the public tool or instances with the drafter disabled, the
+    // button simply doesn't appear — no notification, no hint that
+    // the feature exists.
+    let magicButton = null;
+    const drafterAvailable = window.LIBRARY_CONFIG && !window.LIBRARY_CONFIG.disableAutodrafter;
+    if (drafterAvailable) {
+      magicButton = document.createElement('button');
+      magicButton.className = 'magic-button';
+      magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
+      magicButton.title = 'Draft description';
+      magicButton.setAttribute('aria-label', 'Draft description for this book');
+      if (_pendingDescriptions.has(bookItem.key)) {
+        magicButton.disabled = true;
+        magicButton.classList.add('disabled');
+        magicButton.title = 'Drafting in progress\u2026';
+      }
+      magicButton.onclick = (e) => handleMagicButtonClick(bookItem, e);
+    }
     
     // Item number (editable input for reordering)
     const itemNumber = document.createElement('input');
@@ -1531,7 +1603,7 @@ const BooklistApp = (function() {
     deleteButton.onclick = () => handleDeleteBook(bookItem, index);
     
     controlsDiv.appendChild(dragHandle);
-    controlsDiv.appendChild(magicButton);
+    if (magicButton) controlsDiv.appendChild(magicButton);
     controlsDiv.appendChild(starButton);
     controlsDiv.appendChild(itemNumber);
     controlsDiv.appendChild(deleteButton);
@@ -1572,22 +1644,20 @@ const BooklistApp = (function() {
     return true;
   }
 
-  function handleMagicButtonClick(bookItem) {
-    // Description drafting is a custom-instance feature. On the public tool
-    // (or any instance without a library config loaded) the button
-    // shows a notice and bails instead of calling the Google Apps
-    // Script. The call itself costs real money per use, so public
-    // users can't trigger it.
-    if (!window.LIBRARY_CONFIG) {
-      showNotification(
-        'This feature is available on custom library instances only.',
-        'info'
-      );
+  function handleMagicButtonClick(bookItem, e) {
+    // The magic button is only rendered when the drafter is available
+    // (branded instance + autodrafter enabled), so these guards are
+    // defensive — they shouldn't fire in normal use.
+    if (!window.LIBRARY_CONFIG || window.LIBRARY_CONFIG.disableAutodrafter) {
+      return;
+    }
+    if (_pendingDescriptions.has(bookItem.key)) {
+      showNotification('A description is already being drafted for this book.', 'info');
       return;
     }
     pushUndo('ai-description');
     const currentTitle = (bookItem.title || '').replace(/\u00a0/g, " ").trim();
-    
+
     // Parse author from authorDisplay (lazy parsing for AI description)
     const displayText = (bookItem.authorDisplay || '').replace(/\u00a0/g, " ");
 
@@ -1605,23 +1675,32 @@ const BooklistApp = (function() {
     } else {
       currentAuthor = text.replace(/\n/g, ' ').trim();
     }
-    
+
     // Fallback to stored author field if authorDisplay not set
     if (!currentAuthor && bookItem.author) {
       currentAuthor = bookItem.author.replace(/\u00a0/g, " ").trim();
     }
-    
+
     if (currentAuthor.toLowerCase() === 'by') currentAuthor = '';
-    
+
     if (!currentTitle || currentTitle === CONFIG.PLACEHOLDERS.title ||
         !currentAuthor || currentAuthor === CONFIG.PLACEHOLDERS.author) {
       showNotification('Please enter a Title and Author first.', 'error');
       return;
     }
-    
+
     // Update bookItem.author with parsed value for getAiDescription
     bookItem.author = currentAuthor;
-    
+
+    // Shift+click (or Cmd+click on Mac): open a modal to paste a
+    // summary for the drafter to condense, instead of searching.
+    // When requireSourceText is set, every click opens the modal.
+    if ((e && e.shiftKey) ||
+        (window.LIBRARY_CONFIG && window.LIBRARY_CONFIG.requireSourceText)) {
+      showSourceTextModal(bookItem);
+      return;
+    }
+
     bookItem.description = "Drafting title description... May take a few minutes.";
     updateDescriptionInPlace(bookItem.key);
     debouncedSave();
@@ -1632,7 +1711,221 @@ const BooklistApp = (function() {
     }
     getAiDescription(bookItem.key);
   }
+
+  function showSourceTextModal(bookItem) {
+    // Remove any existing modal
+    const existing = document.getElementById('source-text-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'source-text-modal';
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    content.style.maxWidth = '480px';
+
+    const header = document.createElement('div');
+    header.className = 'modal-header';
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Paste a summary to condense';
+    header.appendChild(h3);
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'modal-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.addEventListener('click', () => overlay.remove());
+    header.appendChild(closeBtn);
+    content.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+    body.style.padding = '16px';
+
+    const hint = document.createElement('p');
+    hint.style.cssText = 'font-size: 0.8rem; color: var(--text-light); margin: 0 0 10px 0;';
+    hint.textContent = 'Paste a book summary or description you found online. The drafter will condense it to fit the booklist format.';
+    body.appendChild(hint);
+
+    const textarea = document.createElement('textarea');
+    textarea.style.cssText = 'width: 100%; min-height: 120px; padding: 8px; font-size: 0.85rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); resize: vertical; font-family: inherit; box-sizing: border-box;';
+    textarea.placeholder = 'Paste summary here\u2026';
+    body.appendChild(textarea);
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-sm';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = 'padding: 6px 16px; background: var(--border-light); border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;';
+    cancelBtn.addEventListener('click', () => overlay.remove());
+    actions.appendChild(cancelBtn);
+
+    const draftBtn = document.createElement('button');
+    draftBtn.type = 'button';
+    draftBtn.className = 'btn btn-sm btn-primary';
+    draftBtn.textContent = 'Draft';
+    draftBtn.style.cssText = 'padding: 6px 16px;';
+    draftBtn.addEventListener('click', () => {
+      const sourceText = textarea.value.trim();
+      if (!sourceText) {
+        showNotification('Please paste a summary first.', 'error');
+        return;
+      }
+      overlay.remove();
+      bookItem.description = "Drafting title description... May take a few minutes.";
+      updateDescriptionInPlace(bookItem.key);
+      debouncedSave();
+      if (window.folio) {
+        window.folio.react('perk');
+        window.folio.setState('evaluating', 'description-fetching');
+      }
+      getAiDescription(bookItem.key, false, sourceText);
+    });
+    actions.appendChild(draftBtn);
+    body.appendChild(actions);
+    content.appendChild(body);
+    overlay.appendChild(content);
+
+    // Close on click outside content
+    overlay.addEventListener('click', (ev) => {
+      if (ev.target === overlay) overlay.remove();
+    });
+    // Close on Escape
+    overlay.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+    textarea.focus();
+  }
   
+  // Easter egg: Ctrl+Shift+D opens a drafter settings modal.
+  // Defaults live in CONFIG.DRAFTER_DEFAULTS (config.js). Overrides
+  // are sent as configOverrides in the request payload and reset on
+  // page refresh (in-memory only).
+
+  function showDrafterSettingsModal() {
+    const existing = document.getElementById('drafter-settings-modal');
+    if (existing) existing.remove();
+
+    const current = _drafterOverrides || {};
+
+    const fields = [
+      { key: 'MIN_CHARS', label: 'Min Characters', type: 'number', step: 5 },
+      { key: 'MAX_CHARS', label: 'Max Characters', type: 'number', step: 5 },
+      { key: 'LENGTH_TOLERANCE', label: 'Length Tolerance', type: 'number', step: 1 },
+      { key: 'TEMPERATURE', label: 'Temperature', type: 'number', step: 0.1, min: 0, max: 1 },
+      { key: 'DRAFT_COUNT', label: 'Draft Count (2+ enables judge)', type: 'number', step: 1, min: 1, max: 5 },
+      { key: 'MAX_RETRIES', label: 'Max Length Retries', type: 'number', step: 1, min: 0, max: 5 },
+    ];
+
+    const overlay = document.createElement('div');
+    overlay.id = 'drafter-settings-modal';
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    content.style.maxWidth = '380px';
+
+    const header = document.createElement('div');
+    header.className = 'modal-header';
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Drafter Settings';
+    h3.style.fontSize = '0.95rem';
+    header.appendChild(h3);
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'modal-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.addEventListener('click', () => overlay.remove());
+    header.appendChild(closeBtn);
+    content.appendChild(header);
+
+    const body = document.createElement('div');
+    body.style.padding = '14px';
+
+    if (_drafterOverrides) {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'background: #FFF3CD; color: #856404; padding: 6px 10px; border-radius: 4px; font-size: 0.75rem; margin-bottom: 12px; font-weight: 500;';
+      badge.textContent = 'Custom overrides are active for this session.';
+      body.appendChild(badge);
+    }
+
+    const inputs = {};
+    fields.forEach(f => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;';
+      const label = document.createElement('label');
+      label.textContent = f.label;
+      label.style.cssText = 'font-size: 0.8rem; font-weight: 500; color: var(--text-color);';
+      row.appendChild(label);
+      const input = document.createElement('input');
+      input.type = f.type;
+      input.step = f.step;
+      if (f.min !== undefined) input.min = f.min;
+      if (f.max !== undefined) input.max = f.max;
+      input.value = (current[f.key] !== undefined) ? current[f.key] : CONFIG.DRAFTER_DEFAULTS[f.key];
+      input.style.cssText = 'width: 70px; text-align: center; padding: 4px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.85rem;';
+      row.appendChild(input);
+      body.appendChild(row);
+      inputs[f.key] = input;
+    });
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display: flex; justify-content: space-between; margin-top: 14px;';
+
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.textContent = 'Reset to Defaults';
+    resetBtn.style.cssText = 'padding: 6px 12px; font-size: 0.8rem; background: none; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer; color: var(--text-light);';
+    resetBtn.addEventListener('click', () => {
+      _drafterOverrides = null;
+      overlay.remove();
+      showNotification('Drafter settings reset to defaults.', 'success');
+    });
+    actions.appendChild(resetBtn);
+
+    const applyBtn = document.createElement('button');
+    applyBtn.type = 'button';
+    applyBtn.className = 'btn btn-sm btn-primary';
+    applyBtn.textContent = 'Apply';
+    applyBtn.style.padding = '6px 16px';
+    applyBtn.addEventListener('click', () => {
+      const overrides = {};
+      let hasOverride = false;
+      fields.forEach(f => {
+        const val = parseFloat(inputs[f.key].value);
+        if (isFinite(val) && val !== CONFIG.DRAFTER_DEFAULTS[f.key]) {
+          overrides[f.key] = val;
+          hasOverride = true;
+        }
+      });
+      _drafterOverrides = hasOverride ? overrides : null;
+      overlay.remove();
+      showNotification(
+        hasOverride
+          ? 'Drafter overrides applied for this session.'
+          : 'No changes from defaults. Overrides cleared.',
+        'success'
+      );
+    });
+    actions.appendChild(applyBtn);
+    body.appendChild(actions);
+    content.appendChild(body);
+    overlay.appendChild(content);
+
+    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+    overlay.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') overlay.remove(); });
+
+    document.body.appendChild(overlay);
+  }
+
   function handleDeleteBook(bookItem, index) {
     pushUndo('delete-book');
     const originalKey = myBooklist[index].key;
@@ -1723,8 +2016,8 @@ const BooklistApp = (function() {
           // Uploading a cover to a manual entry commits the slot as a real
           // book and auto-stars it if there's room in the collage. Mirrors
           // the search-add flow, where books added from search auto-star up
-          // to the collage minimum. Respects the active max (12 standard,
-          // 20 extended) so users who've already filled their collage won't
+          // to the collage minimum. Respects the active cover count (12,
+          // 16, or 20) so users who've already filled their collage won't
           // see new stars exceed the limit.
           const wasBlank = book.isBlank;
           const wasStarred = book.includeInCollage;
@@ -1733,10 +2026,10 @@ const BooklistApp = (function() {
           }
           if (!book.includeInCollage) {
             const starredCount = BookUtils.getStarredBooks(myBooklist).length;
-            const extendedMode = elements.extendedCollageToggle?.checked || false;
-            const maxCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
-            const totalCollageCovers = starredCount + (extendedMode ? extraCollageCovers.length : 0);
-            if (totalCollageCovers < maxCovers) {
+            const uploadCoverCount = getCollageCoverCount();
+            const isExtendedUpload = uploadCoverCount > CONFIG.MIN_COVERS_FOR_COLLAGE;
+            const totalCollageCovers = starredCount + (isExtendedUpload ? extraCollageCovers.length : 0);
+            if (totalCollageCovers < uploadCoverCount) {
               book.includeInCollage = true;
             }
           }
@@ -1762,8 +2055,8 @@ const BooklistApp = (function() {
           // Auto-generate if this book is starred and completes the required count
           const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
           if (frontCoverImg?.dataset.isAutoGenerated === 'true' && book.includeInCollage) {
-            const extendedMode = elements.extendedCollageToggle?.checked || false;
-            if (BookUtils.countTotalCovers(myBooklist, extraCollageCovers, extendedMode) === BookUtils.getRequiredCovers(extendedMode)) {
+            const uploadTotalCount = getCollageCoverCount();
+            if (BookUtils.countTotalCovers(myBooklist, extraCollageCovers, uploadTotalCount) === BookUtils.getRequiredCovers(uploadTotalCount)) {
               generateCoverCollage();
             }
           }
@@ -1803,9 +2096,17 @@ const BooklistApp = (function() {
     titleField.setAttribute('role', 'textbox');
     titleField.setAttribute('aria-label', 'Book title');
     titleField.addEventListener('paste', handlePastePlainText);
+    // Pre-edit snapshot pattern (see coverTitleInput / QR text for the
+    // rationale). Plain pushUndo on contenteditable input captures the
+    // POST-mutation DOM, making Ctrl+Z a no-op on the first coalesced
+    // edit and producing the "text doubles on undo/redo" quirk the
+    // user reported. Capture on focus, commit on first input of the
+    // focus session, clear on blur.
+    titleField.onfocus = capturePreEditSnapshot;
+    titleField.onblur = clearPreEditSnapshot;
     titleField.oninput = (e) => {
       sanitizeContentEditable(e.target);
-      pushUndo('edit-text');
+      commitPreEditSnapshot('edit-text');
       bookItem.title = e.target.innerText;
       if (bookItem.isBlank && bookItem.title !== CONFIG.PLACEHOLDERS.title) {
         bookItem.isBlank = false;
@@ -1828,9 +2129,11 @@ const BooklistApp = (function() {
     authorField.setAttribute('role', 'textbox');
     authorField.setAttribute('aria-label', 'Author and call number');
     authorField.addEventListener('paste', handlePastePlainText);
+    authorField.onfocus = capturePreEditSnapshot;
+    authorField.onblur = clearPreEditSnapshot;
     authorField.oninput = (e) => {
       sanitizeContentEditable(e.target);
-      pushUndo('edit-text');
+      commitPreEditSnapshot('edit-text');
       // Store the raw display text exactly as typed
       bookItem.authorDisplay = e.target.innerText;
       debouncedSave();
@@ -1844,9 +2147,11 @@ const BooklistApp = (function() {
     descriptionField.setAttribute('role', 'textbox');
     descriptionField.setAttribute('aria-label', 'Book description');
     descriptionField.addEventListener('paste', handlePastePlainText);
+    descriptionField.onfocus = capturePreEditSnapshot;
+    descriptionField.onblur = clearPreEditSnapshot;
     descriptionField.oninput = (e) => {
       sanitizeContentEditable(e.target);
-      pushUndo('edit-text');
+      commitPreEditSnapshot('edit-text');
       bookItem.description = e.target.innerText;
       debouncedSave();
     };
@@ -1879,6 +2184,201 @@ const BooklistApp = (function() {
   }
   
   // ---------------------------------------------------------------------------
+  // Color Palette Popover
+  // ---------------------------------------------------------------------------
+
+  const _palettePopovers = [];
+  let _activePopover = null;
+
+  // Library-friendly curated presets. Hand-picked for booklist design:
+  // covers the full spectrum from neutral to vivid, warm to cool.
+  const PRESET_COLORS = [
+    '#ffffff',   // White
+    '#1a202c',   // Rich Black
+    '#c53030',   // Crimson Red
+    '#c05621',   // Burnt Orange
+    '#d69e2e',   // Warm Amber
+    '#2f855a',   // Forest Green
+    '#2b6cb0',   // Marine Blue
+    '#63b3ed',   // Sky Blue
+    '#6b46c1',   // Royal Purple
+    '#d53f8c',   // Vibrant Pink
+  ];
+
+  function getUsedColors() {
+    const freq = {};
+    document.querySelectorAll('input[type="color"]').forEach(input => {
+      if (input.offsetParent === null) return;
+      const c = (input.value || '').toLowerCase();
+      if (c) freq[c] = (freq[c] || 0) + 1;
+    });
+    const unique = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);
+    // Filter out colors that are already in presets — they'd be
+    // redundant in the "used" section.
+    return unique.filter(c => !PRESET_COLORS.includes(c)).slice(0, 5);
+  }
+
+  function closeActivePopover() {
+    if (_activePopover) {
+      _activePopover.classList.remove('open');
+      _activePopover = null;
+    }
+  }
+
+  function buildPopoverContent(popover, colorInput) {
+    popover.innerHTML = '';
+    const currentColor = colorInput.value.toLowerCase();
+
+    // "Used in this booklist" section
+    const usedColors = getUsedColors();
+    if (usedColors.length > 0) {
+      const label1 = document.createElement('div');
+      label1.className = 'color-palette-section-label';
+      label1.textContent = 'Used in this booklist';
+      popover.appendChild(label1);
+
+      const row1 = document.createElement('div');
+      row1.className = 'color-palette-row';
+      usedColors.forEach(color => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'color-palette-swatch';
+        if (color === currentColor) btn.classList.add('active');
+        btn.style.backgroundColor = color;
+        btn.title = color.toUpperCase();
+        btn.setAttribute('aria-label', 'Apply ' + color);
+        btn.addEventListener('click', () => applySwatch(color, colorInput));
+        row1.appendChild(btn);
+      });
+      popover.appendChild(row1);
+    }
+
+    // "Presets" section
+    const label2 = document.createElement('div');
+    label2.className = 'color-palette-section-label';
+    label2.textContent = 'Presets';
+    popover.appendChild(label2);
+
+    const row2 = document.createElement('div');
+    row2.className = 'color-palette-row';
+    PRESET_COLORS.forEach(color => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'color-palette-swatch';
+      if (color === currentColor) btn.classList.add('active');
+      btn.style.backgroundColor = color;
+      btn.title = color.toUpperCase();
+      btn.setAttribute('aria-label', 'Apply ' + color);
+      btn.addEventListener('click', () => applySwatch(color, colorInput));
+      row2.appendChild(btn);
+    });
+    popover.appendChild(row2);
+
+    // "Custom..." button
+    const customBtn = document.createElement('button');
+    customBtn.type = 'button';
+    customBtn.className = 'color-palette-custom-btn';
+    customBtn.textContent = 'Custom\u2026';
+    customBtn.addEventListener('click', () => {
+      closeActivePopover();
+      colorInput.click();
+    });
+    popover.appendChild(customBtn);
+  }
+
+  function applySwatch(color, colorInput) {
+    clearPreEditSnapshot();
+    capturePreEditSnapshot();
+    colorInput.value = color;
+    colorInput.dispatchEvent(new Event('input', { bubbles: true }));
+    colorInput.dispatchEvent(new Event('change', { bubbles: true }));
+    closeActivePopover();
+  }
+
+  function setupColorPopovers() {
+    const selectors = [
+      '.export-controls .form-group[data-style-group] .color-picker',
+      '#cover-title-style-group .color-picker',
+      '#cover-title-bg-color',
+      '#cover-title-bg-color2',
+    ];
+    const skipIds = new Set();
+    const seen = new Set();
+
+    selectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(picker => {
+        if (seen.has(picker) || skipIds.has(picker.id)) return;
+        seen.add(picker);
+
+        // Wrap the color input + trigger in a relative container.
+        // If the input was initially hidden (e.g. gradient-end color
+        // when gradient is off), transfer the hidden state to the
+        // wrap so the trigger button doesn't show as a stray icon.
+        const wasHidden = picker.style.display === 'none';
+        const wrap = document.createElement('span');
+        wrap.className = 'color-palette-wrap';
+        if (wasHidden) {
+          wrap.style.display = 'none';
+          picker.style.display = '';
+        }
+        picker.parentNode.insertBefore(wrap, picker);
+        wrap.appendChild(picker);
+
+        // Trigger button (small palette icon)
+        const trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'color-palette-trigger';
+        trigger.innerHTML = '<i class="fa-solid fa-palette" style="font-size:0.6rem"></i>';
+        trigger.title = 'Color palette';
+        trigger.setAttribute('aria-label', 'Open color palette');
+        wrap.appendChild(trigger);
+
+        // Popover panel
+        const popover = document.createElement('div');
+        popover.className = 'color-palette-popover';
+        wrap.appendChild(popover);
+
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (_activePopover === popover) {
+            closeActivePopover();
+            return;
+          }
+          closeActivePopover();
+          buildPopoverContent(popover, picker);
+          popover.classList.remove('flip-up');
+          popover.classList.add('open');
+          // Flip above trigger if the popover overflows the scroll container
+          const scrollParent = popover.closest('.tab-content') || popover.closest('.content-main');
+          if (scrollParent) {
+            const spRect = scrollParent.getBoundingClientRect();
+            const popRect = popover.getBoundingClientRect();
+            if (popRect.bottom > spRect.bottom) {
+              popover.classList.add('flip-up');
+            }
+          }
+          _activePopover = popover;
+        });
+
+        _palettePopovers.push({ picker, popover, trigger });
+      });
+    });
+
+    // Close popover on click outside
+    document.addEventListener('click', (e) => {
+      if (_activePopover && !e.target.closest('.color-palette-wrap')) {
+        closeActivePopover();
+      }
+    });
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && _activePopover) {
+        closeActivePopover();
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Style Application
   // ---------------------------------------------------------------------------
   function applyStyles() {
@@ -1900,6 +2400,12 @@ const BooklistApp = (function() {
       const lineSpacingInput = group.querySelector('.line-spacing');
       if (lineSpacingInput) {
         elements.previewArea.style.setProperty(`--${styleGroup}-line-height`, lineSpacingInput.value);
+      }
+
+      // Apply text alignment if present (used by QR text)
+      const activeAlign = group.querySelector('.align-toggle.active');
+      if (activeAlign) {
+        elements.previewArea.style.setProperty(`--${styleGroup}-text-align`, activeAlign.dataset.align || 'center');
       }
     });
   }
@@ -2188,7 +2694,9 @@ const BooklistApp = (function() {
   function generateCoverCollage() {
     const thisGenId = ++_collageGenId;
     const button = elements.generateCoverButton;
-    setLoading(button, true, 'Generating...');
+    // User-facing label says "Creating..."; the function name
+    // generateCoverCollage stays for code compatibility.
+    setLoading(button, true, 'Creating...');
     
     const shouldStretchCovers = elements.stretchCoversToggle.checked;
     const selectedLayout = elements.collageLayoutSelector?.querySelector('.layout-option.selected')?.dataset.layout || 'classic';
@@ -2197,11 +2705,17 @@ const BooklistApp = (function() {
     // Tilted layout specific settings
     const tiltDegree = parseFloat(elements.tiltDegree?.value ?? '-25');
     const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
+    // Cover Size slider is a percentage (50–100). Convert to the
+    // 0.5–1.0 multiplier used by drawLayoutTilted. Default 100% =
+    // 1.0 = no shrink.
+    const tiltCoverSizePct = parseFloat(elements.tiltCoverSize?.value ?? '100');
+    const tiltCoverSize = Math.max(0.5, Math.min(1.0, (isFinite(tiltCoverSizePct) ? tiltCoverSizePct : 100) / 100));
     
-    // Check if extended mode is enabled
-    const extendedMode = elements.extendedCollageToggle?.checked || false;
-    const maxCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
-    
+    // Read the active cover count (12 / 16 / 20)
+    const collageCoverCount = getCollageCoverCount();
+    const isExtended = collageCoverCount > CONFIG.MIN_COVERS_FOR_COLLAGE;
+    const maxCovers = collageCoverCount;
+
     // Gather books with covers that are marked for inclusion
     const booksWithCovers = BookUtils.getStarredBooksWithCovers(myBooklist);
 
@@ -2216,8 +2730,8 @@ const BooklistApp = (function() {
       return { large: BookUtils.getBookCoverUrl(book, 'L'), medium: BookUtils.getBookCoverUrl(book, 'M') };
     });
 
-    // Get URLs from extra collage covers (only if extended mode)
-    const extraCoverUrls = extendedMode
+    // Get URLs from extra collage covers (only if extended mode — 16 or 20)
+    const extraCoverUrls = isExtended
       ? extraCollageCovers
           .filter(ec => ec.coverData && !ec.coverData.includes('placehold.co'))
           .map(ec => ec.coverData)
@@ -2228,14 +2742,14 @@ const BooklistApp = (function() {
       ...bookBlockCovers,
       ...extraCoverUrls.map(url => ({ large: url, medium: url }))
     ].slice(0, maxCovers);
-    
-    // In extended mode, require exactly 20 covers; otherwise require 12
-    const requiredCovers = extendedMode ? CONFIG.MAX_COVERS_FOR_COLLAGE : CONFIG.MIN_COVERS_FOR_COLLAGE;
-    
+
+    // Require exactly the active cover count (12, 16, or 20)
+    const requiredCovers = collageCoverCount;
+
     if (allCovers.length < requiredCovers) {
       const starredCount = BookUtils.getStarredBooks(myBooklist).length;
       const totalWithCovers = booksWithCovers.length + extraCoverUrls.length;
-      const totalSelected = starredCount + (extendedMode ? extraCollageCovers.length : 0);
+      const totalSelected = starredCount + (isExtended ? extraCollageCovers.length : 0);
       
       if (totalSelected < requiredCovers) {
         showNotification(`Need ${requiredCovers} covers. Currently ${totalSelected} selected.`);
@@ -2262,6 +2776,7 @@ const BooklistApp = (function() {
       titleBarPosition,
       tiltDegree,
       tiltOffsetDirection,
+      tiltCoverSize,
       coverCount: coversToDraw.length
     };
     
@@ -2321,7 +2836,7 @@ const BooklistApp = (function() {
       
     }).catch(err => {
       console.error('Cover generation failed:', err);
-      showNotification('Could not generate cover. Please try again.');
+      showNotification('Could not create cover. Please try again.');
       // Folio: worried about collage failure
       if (window.folio) {
         window.folio.react('wince');
@@ -2455,15 +2970,17 @@ const BooklistApp = (function() {
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
     const position = options.titleBarPosition || 'classic';
-    
-    const margin = styles.outerMarginPx;
+
+    // `margin` is the gap around the title bar. Mutable so the 16-count
+    // rescue below can grow it to absorb leftover vertical space.
+    let margin = styles.outerMarginPx;
     const bookAspect = 0.75; // width / height
     
-    // Binary: 12 or 20 covers
+    // 12 covers = 3×4, 16 covers = 4×4, 20 covers = 4×5
     const coverCount = images.length;
     const numCols = coverCount <= 12 ? 3 : 4;
-    const numRows = coverCount <= 12 ? 4 : 5;
-    
+    const numRows = coverCount <= 12 ? 4 : (coverCount <= 16 ? 4 : 5);
+
     // Determine row distribution based on position
     let rowsAbove, rowsBelow;
     switch (position) {
@@ -2520,10 +3037,64 @@ const BooklistApp = (function() {
       slotWidth = slotWidthFromHorizontal;
       slotHeight = slotHeightFromHorizontal;
     }
-    
+
+    // Horizontally-constrained rescue: if the slot hit its canvas-width
+    // cap before it hit the vertical cap (16-count Classic is the only
+    // count where this happens), let it grow toward the vertical ideal
+    // by tightening horizontal gutters. This absorbs some of the
+    // vertical leftover into slot size instead of dumping it all into
+    // vGutter, which was making the rows look floaty at short title
+    // bars. Stops growing when hGutter hits a minimum so covers never
+    // touch. For 12 and 20 counts slotWidthFromVertical is already
+    // <= slotWidthFromHorizontal so this branch is a no-op.
+    if (slotWidthFromHorizontal < slotWidthFromVertical) {
+      const minHGutter = 4 * (CONFIG.PDF_DPI / 72); // ~33 px at 600 DPI
+      const maxSlotWidth = (canvasWidth - (numCols + 1) * minHGutter) / numCols;
+      const grownSlotWidth = Math.min(slotWidthFromVertical, maxSlotWidth);
+      if (grownSlotWidth > slotWidth) {
+        slotWidth = grownSlotWidth;
+        slotHeight = slotWidth / bookAspect;
+      }
+    }
+
     // Calculate actual gutters
-    const vGutter = slotHeight * vGutterRatio;
+    let vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
+
+    // Balanced leftover redistribution (targets the 16-count case).
+    // After the horizontal rescue above, there may still be vertical
+    // space unaccounted for between the rows, the title bar, and its
+    // margins. Split that leftover between inter-row vGutters and
+    // title-bar margins.
+    //
+    // The split skews toward vGutters (60/40 instead of 50/50) so
+    // 16-count Classic rows feel less tightly packed — per user
+    // feedback the pre-skew balance left the rows visually cramped
+    // against each other. The 60/40 ratio scales with the leftover
+    // amount, so at short title bars (large leftover) the extra
+    // breathing room is more pronounced; at tall title bars (small
+    // leftover) the shift is subtle. For 12 and 20 counts the
+    // leftover is ~0 (vertically-constrained slot fills exactly)
+    // and the guard below skips entirely.
+    if (numVGutters > 0 && marginCount > 0) {
+      const availableHeight = canvasHeight - bgH;
+      const usedHeight = numRows * slotHeight + numVGutters * vGutter + marginCount * margin;
+      const leftover = availableHeight - usedHeight;
+      if (leftover > 1) {
+        const gutterShare = leftover * 0.6;
+        const marginShare = leftover * 0.4;
+        vGutter += gutterShare / numVGutters;
+        margin += marginShare / marginCount;
+      }
+    } else if (numVGutters > 0) {
+      // Fallback for exotic position/row counts where there are no
+      // title bar margins to absorb half. Dump it all into vGutters.
+      const usedHeight = numRows * slotHeight + numVGutters * vGutter;
+      const leftover = totalVerticalSpace - usedHeight;
+      if (leftover > 1) {
+        vGutter += leftover / numVGutters;
+      }
+    }
     
     // Calculate title bar position based on uniform slot height
     let titleY;
@@ -2587,23 +3158,25 @@ const BooklistApp = (function() {
     const shelfLineWidth = 6 * (CONFIG.PDF_DPI / 72);
     const shelfColor = '#5D4037';
     const shelfOverhang = 20 * (CONFIG.PDF_DPI / 72);
-    const margin = styles.outerMarginPx;
-    
+    // `margin` is the gap around the title bar. Mutable so the 16-count
+    // rescue below can grow it to absorb leftover vertical space.
+    let margin = styles.outerMarginPx;
+
     const bookAspect = 0.75;
     
-    // Binary: 12 or 20 covers
+    // 12 covers = 3×4, 16 covers = 4×4, 20 covers = 4×5
     const coverCount = images.length;
     const numCols = coverCount <= 12 ? 3 : 4;
-    const numRows = coverCount <= 12 ? 4 : 5;
-    
+    const numRows = coverCount <= 12 ? 4 : (coverCount <= 16 ? 4 : 5);
+
     // Determine row distribution
     let rowsAbove, rowsBelow;
     switch (position) {
       case 'top': rowsAbove = 0; rowsBelow = numRows; break;
       case 'classic': rowsAbove = 1; rowsBelow = numRows - 1; break;
-      case 'center': 
-        rowsAbove = Math.floor(numRows / 2); 
-        rowsBelow = numRows - rowsAbove; 
+      case 'center':
+        rowsAbove = Math.floor(numRows / 2);
+        rowsBelow = numRows - rowsAbove;
         break;
       case 'lower': rowsAbove = numRows - 1; rowsBelow = 1; break;
       case 'bottom': rowsAbove = numRows; rowsBelow = 0; break;
@@ -2648,10 +3221,51 @@ const BooklistApp = (function() {
       slotWidth = slotWidthFromHorizontal;
       slotHeight = slotHeightFromHorizontal;
     }
-    
-    const vGutter = slotHeight * vGutterRatio;
+
+    // Horizontally-constrained rescue for 16-count (see drawLayoutClassic
+    // for the full rationale). Same mechanism: let the slot grow toward
+    // the vertical ideal by tightening hGutter, stopping at a minimum
+    // so covers don't touch. No-op for 12 and 20 counts.
+    if (slotWidthFromHorizontal < slotWidthFromVertical) {
+      const minHGutter = 4 * (CONFIG.PDF_DPI / 72); // ~33 px at 600 DPI
+      const maxSlotWidth = (canvasWidth - (numCols + 1) * minHGutter) / numCols;
+      const grownSlotWidth = Math.min(slotWidthFromVertical, maxSlotWidth);
+      if (grownSlotWidth > slotWidth) {
+        slotWidth = grownSlotWidth;
+        slotHeight = slotWidth / bookAspect;
+      }
+    }
+
+    let vGutter = slotHeight * vGutterRatio;
     const hGutter = (canvasWidth - numCols * slotWidth) / (numCols + 1);
-    
+
+    // Balanced leftover redistribution (see drawLayoutClassic for the
+    // full rationale). Split any remaining vertical space between
+    // inter-row vGutters and title-bar margins. Uses the same 60/40
+    // skew toward vGutters as Classic does, so 16-count Bookshelf
+    // rows feel less tightly packed to match. Shelves are added to
+    // usedHeight here since they're a real vertical cost (each row
+    // pairs its slot with a shelf underneath). No-op for 12 and 20
+    // counts.
+    if (numVGutters > 0 && marginCount > 0) {
+      const availableHeight = canvasHeight - bgH;
+      const usedHeight = numRows * slotHeight + numVGutters * vGutter + marginCount * margin + totalShelfHeight;
+      const leftover = availableHeight - usedHeight;
+      if (leftover > 1) {
+        const gutterShare = leftover * 0.6;
+        const marginShare = leftover * 0.4;
+        vGutter += gutterShare / numVGutters;
+        margin += marginShare / marginCount;
+      }
+    } else if (numVGutters > 0) {
+      // Fallback for exotic positions with no title bar margins.
+      const usedHeight = numRows * slotHeight + numVGutters * vGutter;
+      const leftover = totalVerticalSpace - usedHeight;
+      if (leftover > 1) {
+        vGutter += leftover / numVGutters;
+      }
+    }
+
     // Helper to draw a row with shelf (handles partial rows)
     let globalImageIndex = 0;
     const drawRowWithShelf = (rowY, height) => {
@@ -2721,7 +3335,9 @@ const BooklistApp = (function() {
     const vGutter = 6 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
     
-    // Dynamic rows: 4 for 12 covers, 5 for 20 covers
+    // Dynamic rows: 4 for 12 covers, 5 for 16 or 20 covers.
+    // 16-count uses 5 rows (like 20) so the rows are denser and the
+    // visual reads more like the higher-count mode the user wanted.
     const coverCount = images.length;
     const numRows = coverCount <= 12 ? 4 : 5;
     
@@ -2739,26 +3355,117 @@ const BooklistApp = (function() {
       default: rowsAbove = Math.floor(numRows / 2); rowsBelow = numRows - rowsAbove;
     }
     
-    // Calculate offset per row to ensure all covers appear
-    const imageOffsetPerRow = Math.ceil(images.length / numRows);
+    // Calculate offset per row to ensure all covers appear.
+    // Floor instead of ceil matters for 16-count specifically: with
+    // ceil(16/5)=4, row 4's offset (4*4=16) wraps to 0, making rows
+    // 0 and 4 identical. With floor(16/5)=3 the offsets are 0,3,6,9,12
+    // — all distinct mod 16. For 12 and 20 counts floor == ceil
+    // (integer division: 12/4=3, 20/5=4), so this is a no-op.
+    const imageOffsetPerRow = Math.floor(images.length / numRows);
     
     // Helper to draw a row filling edge-to-edge with partial covers bleeding off both edges
     const drawBrickRow = (y, h, useOffset, imgOffset) => {
-      const w = h * bookAspect;
-      const spacing = w + hGutter;
-      
-      const coversNeeded = Math.ceil(canvasWidth / spacing) + 2;
-      const totalWidth = coversNeeded * w + (coversNeeded - 1) * hGutter;
-      
-      let startX = (canvasWidth - totalWidth) / 2;
-      if (useOffset) {
-        startX -= spacing / 2;
-      }
-      
-      for (let i = 0; i < coversNeeded; i++) {
-        const imgIdx = (imgOffset + i) % images.length;
-        const x = startX + i * spacing;
-        drawCoverImage(ctx, images[imgIdx], x, y, w, h, shouldStretch);
+      if (shouldStretch) {
+        // === LEGACY STRETCHED PATH ===
+        // Uniform cover width (h * bookAspect), fixed count, centered
+        // with optional stagger offset. Unchanged from pre-feature.
+        const w = h * bookAspect;
+        const spacing = w + hGutter;
+
+        const coversNeeded = Math.ceil(canvasWidth / spacing) + 2;
+        const totalWidth = coversNeeded * w + (coversNeeded - 1) * hGutter;
+
+        let startX = (canvasWidth - totalWidth) / 2;
+        if (useOffset) {
+          startX -= spacing / 2;
+        }
+
+        for (let i = 0; i < coversNeeded; i++) {
+          const imgIdx = (imgOffset + i) % images.length;
+          const x = startX + i * spacing;
+          drawCoverImage(ctx, images[imgIdx], x, y, w, h, shouldStretch);
+        }
+      } else {
+        // === MASONRY-PACK PATH ===
+        //
+        // --- TUNING NOTES ------------------------------------------------
+        // If a library gives feedback on how the masonry-pack mode looks
+        // in Staggered, these are the knobs worth touching (in order of
+        // likelihood):
+        //
+        // hGutter (6pt, near top of drawLayoutStaggered): horizontal
+        //   spacing between packed covers in a row. Tighten to 3-4pt for
+        //   a denser "pinboard" feel; loosen to 8-10pt for more breathing
+        //   room.
+        //
+        // Left bleed start (`cursor = -h`): one row-height of bleed past
+        //   the left edge. Tighten to `-h * 0.5` to pull the leftmost
+        //   cover onto the canvas; loosen to `-h * 1.5` for more bleed.
+        //
+        // Right bleed end (`canvasWidth + h`): same idea on the right.
+        //   Both edges should usually be adjusted symmetrically.
+        //
+        // maxIterPerRow (200): safety cap, not a tuning knob. Only trips
+        //   if the dimension fallback fails, which shouldn't happen in
+        //   practice.
+        //
+        // The motivating use case is children's / YA collections where
+        // cover aspect ratios vary widely (square picture books, tall
+        // middle-grade paperbacks, slim YA). Adult fiction lists with
+        // uniform trade-paperback covers will look nearly identical to
+        // stretch-on mode. Staggered in particular tends to look better
+        // with stretch-on for uniform-aspect collections; the masonry
+        // path is mainly valuable when cover sizes vary.
+        // ------------------------------------------------------------------
+        //
+        // Each cover in the row has a variable width derived from its
+        // natural aspect ratio; row height stays uniform at h. Alternate
+        // rows get a half-cover-width stagger offset to preserve the
+        // brick pattern. Covers bleed off left and right edges via a
+        // cursor-based loop.
+        //
+        // Cycling logic (imgOffset + i pattern) is preserved identically
+        // from the stretched path above: cover at position i in the row
+        // is the same book regardless of stretch mode — just packed
+        // tighter with aspect-ratio-preserving width.
+        const fallbackW = h * bookAspect;
+        let cursor = -h; // one row-height of bleed past the left edge
+        // Apply a half-cover-width offset on alternate rows to
+        // preserve the brick-pattern stagger, even with variable-
+        // width masonry covers. Uses the uniform slot width
+        // (h * bookAspect) as the offset basis — same as the
+        // stretch path — since per-cover widths vary.
+        if (useOffset) {
+          cursor -= (fallbackW + hGutter) / 2;
+        }
+        let i = 0;
+        const maxIterPerRow = 200;
+
+        while (cursor < canvasWidth + h && i < maxIterPerRow) {
+          const imgIdx = (imgOffset + i) % images.length;
+          const img = images[imgIdx];
+
+          // Per-cover width from natural aspect ratio. Defensive fallback
+          // to fallbackW if the image isn't loaded or has zero natural
+          // dimensions — prevents infinite loops on pathological covers.
+          let drawW;
+          if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+            drawW = h * (img.naturalWidth / img.naturalHeight);
+          } else {
+            drawW = fallbackW;
+          }
+          if (!(drawW > 0)) drawW = fallbackW;
+
+          // drawW was computed to match the cover's natural aspect at row
+          // height h, so stretch-to-fit into (drawW, h) is equivalent to
+          // aspect-fit. Pass shouldStretch=true here so drawCoverImage
+          // uses the cheap 4-arg draw path and the fallback-on-missing
+          // branch still fires for unloaded images.
+          drawCoverImage(ctx, img, cursor, y, drawW, h, true);
+
+          cursor += drawW + hGutter;
+          i++;
+        }
       }
     };
     
@@ -2881,10 +3588,25 @@ const BooklistApp = (function() {
         titleY = (canvasHeight - bgH) / 2;
     }
     
-    // Calculate cover size
+    // Calculate cover size.
+    //
+    // The base formula sizes slots to fill two "sections" (above and
+    // below the title bar) with 2.5 rows each. tiltedShrinkFactor is
+    // a uniform post-scale that tightens every cover in both
+    // dimensions — 0.95 = 5% smaller per dimension (~9.75% smaller
+    // in area), 1.0 = full size. The user exposes this as a "Cover
+    // Size (%)" setting in the Tilted Layout Settings panel (50–100
+    // percent, default 100). Shrinking can help maximize the number
+    // of unique books visible in the rotated grid since smaller
+    // slots mean more cells fit on screen at a given tilt angle.
+    // Applies uniformly across 12/16/20 counts and all title bar
+    // positions.
     const sectionHeight = (canvasHeight - bgH - 2 * titleGutter) / 2;
     const rowsPerSection = 2.5;
-    const slotHeight = (sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection;
+    const tiltedShrinkFactor = (typeof options.tiltCoverSize === 'number' && options.tiltCoverSize > 0)
+      ? options.tiltCoverSize
+      : 1.0;
+    const slotHeight = ((sectionHeight - (rowsPerSection - 1) * vGutter) / rowsPerSection) * tiltedShrinkFactor;
     const slotWidth = slotHeight * bookAspect;
     
     // Spacing between cover centers
@@ -2973,31 +3695,79 @@ const BooklistApp = (function() {
     const gridOriginX = centerX - (numCols * hStep) / 2;
     const gridOriginY = centerY - (numRows * vStep) / 2;
     
-    // Deterministic image selection based on offset direction and bar position
-    // Supports both 12 and 20 image counts
+    // Deterministic image selection based on cover count, offset
+    // direction, and title bar position. 16-count and 20-count share
+    // the same overall shape: a sequential pattern for horizontal
+    // non-center, a doubled-row pattern for horizontal center, and a
+    // col-shuffled pattern for vertical. The only differences are
+    // books-per-row (4 for 16-count, 5 for 20-count) and the choice
+    // to use 12-count-style vertical for 16-count. 12-count has its
+    // own 3×4 patterns. The outer `% totalImages` wrap at the bottom
+    // is a defensive safety net.
     const totalImages = images.length;
-    // Only use sequential order for 20-image covers with horizontal offset and non-center position
-    const useRegularSequential = totalImages > 12 && position !== 'center' && offsetDirection === 'horizontal';
+    const useRegularSequential = (totalImages === 20 || totalImages === 16)
+      && position !== 'center'
+      && offsetDirection === 'horizontal';
 
     const getImageForCell = (row, col) => {
-      // For non-center positions with horizontal offset and 20 images, use 4 rows of 5 in a loop
-      // Each row shows only its 5 books, columns cycle within that set
+      let idx;
+      // Sequential row-group order for 16 and 20 count horizontal
+      // non-center. 4 rows of N books (N=5 for 20-count, N=4 for
+      // 16-count) cycle through the full list, then the pattern
+      // repeats every 4 rows. For 16-count specifically, add a
+      // period-3 coprime col offset so row 0 and row 4 contain the
+      // same 4 books in a DIFFERENT order, extending the visual
+      // cycle from 4 rows to LCM(4,3)=12 rows. 20-count doesn't
+      // need the offset (5 books per row is enough variety for the
+      // visible row count in Tilted).
       if (useRegularSequential) {
-        const rowGroup = (row % 4) * 5;  // 0, 5, 10, 15, then repeats
-        return rowGroup + (col % 5);
-      }
-
-      if (totalImages <= 12) {
-        // Original 12-image logic
+        const booksPerRow = totalImages === 20 ? 5 : 4;
+        const rowGroup = (row % 4) * booksPerRow;
+        const colOffset = totalImages === 16 ? row % 3 : 0;
+        idx = rowGroup + ((col + colOffset) % booksPerRow);
+      } else if (totalImages <= 12) {
+        // 12-count: 3 row groups of 4 horizontal, or 4 col groups of
+        // 3 vertical.
         if (offsetDirection === 'horizontal') {
           const rowGroup = (row % 3) * 4;
-          return rowGroup + (col % 4);
+          idx = rowGroup + (col % 4);
         } else {
-          // Vertical: 4 column groups, each cycles through 3 books
           const colGroup = (col % 4) * 3;
           const rowOffset = col % 3;
-          return colGroup + ((row + rowOffset) % 3);
+          idx = colGroup + ((row + rowOffset) % 3);
         }
+      } else if (totalImages === 16 && offsetDirection === 'vertical') {
+        // 16-count vertical (any position): 12-count-style col-group
+        // pattern, adapted with 4-book col groups and period-3 row
+        // offset (coprime). Kept from the previous revision — the
+        // user explicitly asked for vertical to stay on 12-count-style
+        // loop while horizontal moves to 20-count-style.
+        const colGroup = (col % 4) * 4;
+        const rowOffset = col % 3;
+        idx = colGroup + ((row + rowOffset) % 4);
+      } else if (totalImages === 16) {
+        // 16-count horizontal CENTER position: adapted from the
+        // 20-count center-horizontal doubled 6-row pattern, with
+        // 4-book row groups instead of 5. Double-visibility rows
+        // land on the same visible bands around the title bar to
+        // keep the primary books in the reader's eye.
+        //   rowMod 0,2 → books 0-3  (double)
+        //   rowMod 1   → books 4-7
+        //   rowMod 3,5 → books 8-11 (double)
+        //   rowMod 4   → books 12-15
+        // Repeats every 6 rows.
+        const rowMod = row % 6;
+        let rowGroup;
+        if (rowMod === 0 || rowMod === 2) {
+          rowGroup = 0;   // books 0-3
+        } else if (rowMod === 1) {
+          rowGroup = 4;   // books 4-7
+        } else if (rowMod === 3 || rowMod === 5) {
+          rowGroup = 8;   // books 8-11
+        } else {
+          rowGroup = 12;  // books 12-15
+        }
+        idx = rowGroup + (col % 4);
       } else {
         // 20-image logic
         if (offsetDirection === 'horizontal') {
@@ -3018,7 +3788,7 @@ const BooklistApp = (function() {
           } else {
             rowGroup = 15; // books 15-19
           }
-          return rowGroup + (col % 5);
+          idx = rowGroup + (col % 5);
         } else {
           // Vertical: each column cycles through 4 books
           // 5 column groups to show all 20: 0-3, 4-7, 8-11, 12-15, 16-19
@@ -3026,37 +3796,195 @@ const BooklistApp = (function() {
           const cycleNum = Math.floor(col / 5);
           const colGroup = (col % 5) * 4;  // 0, 4, 8, 12, 16
           const rowOffset = (col % 4 + cycleNum * 2) % 4;
-          return colGroup + ((row + rowOffset) % 4);
+          idx = colGroup + ((row + rowOffset) % 4);
         }
       }
+      // Defensive wrap: every branch above is supposed to return an
+      // in-bounds index, but clamp anyway in case a future count is
+      // added that slips through. Double-modulo handles any edge case
+      // where idx could theoretically go negative.
+      return ((idx % totalImages) + totalImages) % totalImages;
     };
     
     // === DRAW FULL GRID ===
-    // Draw everything, title bar will cover the appropriate region
-    for (let row = 0; row < numRows; row++) {
-      for (let col = 0; col < numCols; col++) {
-        let gridX, gridY;
+    // Draw everything, title bar will cover the appropriate region.
+    //
+    // Branch:
+    //   shouldStretch === true  → fixed-slot grid with stagger (legacy path,
+    //                             byte-for-byte identical to pre-feature)
+    //   shouldStretch === false → masonry-pack: columns (vertical offset) or
+    //                             rows (horizontal offset) packed with
+    //                             aspect-ratio-preserving cover dimensions.
+    //                             Stagger offsets are dropped in this mode
+    //                             (pure masonry look), individual tilt
+    //                             rotation is preserved, books cycle
+    //                             monotonically, covers bleed off edges.
+    const masonryMode = !shouldStretch;
+    if (!masonryMode) {
+      for (let row = 0; row < numRows; row++) {
+        for (let col = 0; col < numCols; col++) {
+          let gridX, gridY;
 
-        if (offsetDirection === 'vertical') {
-          // Vertical stagger: odd COLUMNS shift down
-          const isOddCol = col % 2 === 1;
-          const colStagger = isOddCol ? staggerOffset : 0;
-          gridX = gridOriginX + col * hStep + slotWidth / 2;
-          gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
-        } else {
-          // Horizontal stagger: odd ROWS shift right
-          const isOddRow = row % 2 === 1;
-          const rowStagger = isOddRow ? staggerOffset : 0;
-          gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
-          gridY = gridOriginY + row * vStep + slotHeight / 2;
+          if (offsetDirection === 'vertical') {
+            // Vertical stagger: odd COLUMNS shift down
+            const isOddCol = col % 2 === 1;
+            const colStagger = isOddCol ? staggerOffset : 0;
+            gridX = gridOriginX + col * hStep + slotWidth / 2;
+            gridY = gridOriginY + row * vStep + colStagger + slotHeight / 2;
+          } else {
+            // Horizontal stagger: odd ROWS shift right
+            const isOddRow = row % 2 === 1;
+            const rowStagger = isOddRow ? staggerOffset : 0;
+            gridX = gridOriginX + col * hStep + rowStagger + slotWidth / 2;
+            gridY = gridOriginY + row * vStep + slotHeight / 2;
+          }
+
+          const rotated = rotatePoint(gridX, gridY);
+
+          // Draw if cover intersects the canvas at all
+          if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
+            const imgIdx = getImageForCell(row, col) % images.length;
+            drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
+          }
         }
+      }
+    } else {
+      // === MASONRY-PACK MODE ===
+      //
+      // --- TUNING NOTES --------------------------------------------------
+      // If a library gives feedback on how the masonry-pack mode looks in
+      // Tilted, these are the knobs worth touching (in order of likelihood):
+      //
+      // gridExtent factor (see `canvasDiag * 0.8` a few dozen lines up):
+      //   controls how far past canvas edges the pattern extends. Tighten
+      //   to 0.6 if bleed feels excessive on a particular collection;
+      //   loosen to 1.0 if you see gaps near rotated corners.
+      //
+      // hGutter / vGutter (6pt, near top of function): horizontal and
+      //   vertical spacing between packed covers. Tighten to 3-4pt for a
+      //   denser "pinboard" feel; loosen to 8-10pt for more breathing room.
+      //
+      // maxIterPerLine (200): safety cap, not a tuning knob. Only trips
+      //   if the dimension fallback fails, which shouldn't happen in
+      //   practice.
+      //
+      // The motivating use case is children's / YA collections where cover
+      // aspect ratios vary widely (square picture books, tall middle-grade
+      // paperbacks, slim YA). Adult fiction lists with uniform trade-
+      // paperback covers will look nearly identical to stretch-on mode.
+      // ------------------------------------------------------------------
+      //
+      // Packing bounds: symmetric around canvas center on the pack axis,
+      // using the same gridExtent the tilted layout already uses for its
+      // bleed calculations. Covers start before the canvas and continue
+      // past it so the pattern looks continuous through rotation.
+      const packStart = offsetDirection === 'vertical'
+        ? centerY - gridExtent
+        : centerX - gridExtent;
+      const packEnd = offsetDirection === 'vertical'
+        ? centerY + gridExtent
+        : centerX + gridExtent;
 
-        const rotated = rotatePoint(gridX, gridY);
+      // Number of lines (columns for vertical mode, rows for horizontal).
+      // Vertical uses the existing numCols. Horizontal needs an analogous
+      // numRows sized from gridExtent (the existing numRows = 12 is fixed
+      // for the stretched path and not wide enough here).
+      const numLines = offsetDirection === 'vertical'
+        ? numCols
+        : Math.ceil(gridExtent * 2 / vStep) + 2;
 
-        // Draw if cover intersects the canvas at all
-        if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
-          const imgIdx = getImageForCell(row, col) % images.length;
-          drawRotatedCover(images[imgIdx], rotated.x, rotated.y);
+      // Cover selection reuses the existing getImageForCell() formulas so
+      // the masonry packing picks books with the same per-line patterns the
+      // stretched tilted path uses. getImageForCell expects (row, col):
+      //   vertical mode walks down a column, so depth → row, line → col
+      //   horizontal mode walks across a row, so line → row, depth → col
+
+      // Belt-and-suspenders iteration cap per line. With a defensive
+      // non-zero dimension fallback below, this should never trip in
+      // practice. 200 iterations is ~60,000 px of packing at a typical
+      // cover size, far beyond any reasonable gridExtent.
+      const maxIterPerLine = 200;
+
+      for (let line = 0; line < numLines; line++) {
+        let cursor = packStart;
+        // Restore the brick-pattern stagger in masonry mode: shift
+        // odd lines by half a step along the pack axis (same offset
+        // as the stretch path). This gives the characteristic flair
+        // of Staggered/Tilted even with variable-dimension covers.
+        if (line % 2 === 1) {
+          cursor += staggerOffset;
+        }
+        let depth = 0;
+
+        while (cursor < packEnd && depth < maxIterPerLine) {
+          const imgIdx = offsetDirection === 'vertical'
+            ? getImageForCell(depth, line) % images.length
+            : getImageForCell(line, depth) % images.length;
+          const img = images[imgIdx];
+
+          // Per-cover dimensions from natural aspect ratio. If the image
+          // isn't ready (no naturalWidth/Height), fall back to the fixed
+          // slot dims so the loop always makes forward progress and
+          // doesn't infinite-loop on a zero-dimension cover.
+          let drawW, drawH;
+          if (offsetDirection === 'vertical') {
+            drawW = slotWidth;
+            if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              drawH = slotWidth * (img.naturalHeight / img.naturalWidth);
+            } else {
+              drawH = slotHeight;
+            }
+            if (!(drawH > 0)) drawH = slotHeight;
+          } else {
+            drawH = slotHeight;
+            if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+              drawW = slotHeight * (img.naturalWidth / img.naturalHeight);
+            } else {
+              drawW = slotWidth;
+            }
+            if (!(drawW > 0)) drawW = slotWidth;
+          }
+
+          // Unrotated grid-space center of the cover. Same grid origin as
+          // the stretched path, with stagger restored via cursor offset.
+          let gridX, gridY;
+          if (offsetDirection === 'vertical') {
+            gridX = gridOriginX + line * hStep + slotWidth / 2;
+            gridY = cursor + drawH / 2;
+          } else {
+            gridX = cursor + drawW / 2;
+            gridY = gridOriginY + line * vStep + slotHeight / 2;
+          }
+
+          const rotated = rotatePoint(gridX, gridY);
+
+          // Reuse the existing cull. It computes corners from fixed
+          // slotWidth/slotHeight rather than the per-cover dimensions, so
+          // the check is slightly conservative (may keep a few covers
+          // whose variable dimensions actually place them off-canvas).
+          // Harmless — at worst a few extra drawImage calls on the margin.
+          if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
+            ctx.save();
+            ctx.translate(rotated.x, rotated.y);
+            ctx.rotate(rotationRad);
+            if (img && img.complete && img.naturalWidth > 0) {
+              ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+            } else {
+              ctx.fillStyle = '#ddd';
+              ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH);
+            }
+            ctx.restore();
+          }
+
+          // Advance along the packing axis by the variable dimension plus
+          // the standard gutter.
+          if (offsetDirection === 'vertical') {
+            cursor += drawH + vGutter;
+          } else {
+            cursor += drawW + hGutter;
+          }
+
+          depth++;
         }
       }
     }
@@ -3099,7 +4027,7 @@ const BooklistApp = (function() {
     const baseGutter = 6 * (CONFIG.PDF_DPI / 72);
     const titleGutter = 8 * (CONFIG.PDF_DPI / 72);
     
-    // Column count based on cover count: 5 for 12, 6 for 20
+    // Column count based on cover count: 5 for 12, 6 for 16 or 20
     const imageCount = images.length;
     const numCols = imageCount <= 12 ? 5 : 6;
     console.log('[Masonry] Using numCols =', numCols, 'for', imageCount, 'covers');
@@ -3246,17 +4174,66 @@ const BooklistApp = (function() {
   }
   
   // ---------------------------------------------------------------------------
-  // Extra Collage Covers (Extended Mode)
+  // Collage cover count (12 / 16 / 20) + Extra Collage Covers
   // ---------------------------------------------------------------------------
-  const MAX_EXTRA_COVERS = 8;
+
+  /**
+   * Reads the currently selected collage cover count from the radio group.
+   * Returns 12 if nothing is selected or the group is missing.
+   */
+  function getCollageCoverCount() {
+    const radios = elements.collageCoverCountRadios;
+    if (!radios || !radios.length) return CONFIG.MIN_COVERS_FOR_COLLAGE;
+    for (const radio of radios) {
+      if (radio.checked) {
+        const n = parseInt(radio.value, 10);
+        if (CONFIG.COLLAGE_COVER_COUNTS.indexOf(n) !== -1) return n;
+      }
+    }
+    return CONFIG.MIN_COVERS_FOR_COLLAGE;
+  }
+
+  /**
+   * Writes a new collage cover count to the radio group without firing
+   * the change event. Caller is responsible for any follow-up work
+   * (e.g. calling setCollageCoverCount to apply the mode change).
+   */
+  function setCollageCoverCountUI(count) {
+    const radios = elements.collageCoverCountRadios;
+    if (!radios || !radios.length) return;
+    for (const radio of radios) {
+      radio.checked = parseInt(radio.value, 10) === count;
+    }
+  }
+
+  /**
+   * Derived maximum number of "extra" cover slots in the extras grid,
+   * computed from the current cover count. 12 → 0, 16 → 4, 20 → 8.
+   */
+  function getMaxExtraCovers() {
+    return Math.max(0, getCollageCoverCount() - CONFIG.MIN_COVERS_FOR_COLLAGE);
+  }
   
   /**
-   * Toggles extended collage mode visibility
+   * Applies the given collage cover count (12, 16, or 20). Shows/hides
+   * the extras section, auto-stars books up to the allowed cap when
+   * switching into extended mode (16 or 20), trims starred books and
+   * user-added extras when switching down, and auto-regenerates the
+   * collage when enough covers are present.
+   *
+   * When called with isRestoring=true, skips side effects that would
+   * stomp loaded state (placeholder text, auto-generation, debouncedSave).
    */
-  function toggleExtendedCollageMode(enabled, isRestoring = false) {
+  function setCollageCoverCount(count, isRestoring = false) {
+    if (CONFIG.COLLAGE_COVER_COUNTS.indexOf(count) === -1) {
+      count = CONFIG.MIN_COVERS_FOR_COLLAGE;
+    }
+    const isExtended = count > CONFIG.MIN_COVERS_FOR_COLLAGE;
+    setCollageCoverCountUI(count);
+
     if (elements.extraCoversSection) {
-      elements.extraCoversSection.style.display = enabled ? 'block' : 'none';
-      
+      elements.extraCoversSection.style.display = isExtended ? 'block' : 'none';
+
       // Force scroll recalculation for settings tab
       const settingsTab = document.getElementById('tab-settings');
       if (settingsTab) {
@@ -3269,18 +4246,26 @@ const BooklistApp = (function() {
       }
     }
     if (elements.collageCoverHint) {
-      elements.collageCoverHint.textContent = enabled 
-        ? 'Add covers 13-20 below to generate collage'
+      elements.collageCoverHint.textContent = isExtended
+        ? `Add covers 13-${count} below to create collage`
         : 'Star 12 books to include in the collage';
     }
-    
-    if (enabled) {
+    if (elements.extraCoversLabel) {
+      elements.extraCoversLabel.textContent = isExtended
+        ? `Additional Covers (Covers 13-${count})`
+        : 'Additional Covers';
+    }
+
+    if (isExtended) {
       // Only do these things when NOT restoring from saved state
       if (!isRestoring) {
-        // Clear existing front cover and show placeholder (need 20 covers message)
-        clearFrontCoverForExtendedMode();
+        // Clear existing front cover and show placeholder (need more covers message)
+        clearFrontCoverForExtendedMode(count);
 
-        // Auto-star all books with covers (not just first 12) up to position 15
+        // Auto-star books with covers up to the star cap (TOTAL_SLOTS or count,
+        // whichever is smaller). Cap at TOTAL_SLOTS (15) so the extras grid
+        // retains room for user-added uploads above the starred range.
+        const starCap = Math.min(CONFIG.TOTAL_SLOTS, count);
         let starredCount = 0;
         for (let i = 0; i < myBooklist.length; i++) {
           const book = myBooklist[i];
@@ -3288,27 +4273,44 @@ const BooklistApp = (function() {
 
           const hasCover = BookUtils.hasValidCover(book);
 
-          if (hasCover && starredCount < 15) {
+          if (hasCover && starredCount < starCap) {
             book.includeInCollage = true;
             starredCount++;
           }
         }
+
+        // NOTE: previous revisions trimmed extraCollageCovers on
+        // downgrade (20→16, or 16/20→12) to keep the in-memory array
+        // in sync with the visible grid slots. That has been removed
+        // per user request so extras survive mode switches: a user
+        // who has 8 extras in 20-count and drops to 12 keeps all 8
+        // extras hidden in memory, and flipping back to 20 brings
+        // them back unchanged. renderExtraCoversGrid already caps
+        // visible slots at getMaxExtraCovers(), and
+        // generateCoverCollage caps rendered covers at maxCovers
+        // via slice(0, maxCovers), so the hidden entries don't
+        // cause orphan slots or over-full collages.
       } else {
         // When restoring, just update the placeholder text (don't clear cover)
-        updateExtendedModePlaceholderText();
+        updateExtendedModePlaceholderText(count);
       }
-      
+
       // Always render booklist and extra covers grid
       renderBooklist();
       renderExtraCoversGrid();
     } else {
-      // When disabling extended mode, unstar books beyond 12
+      // When switching back to 12, unstar books beyond 12. Leave the
+      // user-added extraCollageCovers array intact in memory so a
+      // subsequent switch back to 16 or 20 brings them right back.
+      // The grid is hidden (display:none) in 12-count mode and the
+      // count functions ignore extras when count === 12, so keeping
+      // them around has no side effect.
       let starredCount = 0;
       for (let i = 0; i < myBooklist.length; i++) {
         const book = myBooklist[i];
         if (!book.isBlank && book.includeInCollage) {
           starredCount++;
-          if (starredCount > 12) {
+          if (starredCount > CONFIG.MIN_COVERS_FOR_COLLAGE) {
             book.includeInCollage = false;
           }
         }
@@ -3317,14 +4319,14 @@ const BooklistApp = (function() {
       restoreFrontCoverPlaceholderText();
       renderBooklist();
     }
-    
+
     // Auto-generate if we have enough covers (and not restoring from saved state)
     if (!isRestoring) {
-      if (BookUtils.hasEnoughCoversForCollage(myBooklist, extraCollageCovers, enabled)) {
+      if (BookUtils.hasEnoughCoversForCollage(myBooklist, extraCollageCovers, count)) {
         generateCoverCollage();
       }
     }
-    
+
     if (!isRestoring) {
       debouncedSave();
     }
@@ -3333,20 +4335,23 @@ const BooklistApp = (function() {
   /**
    * Clears the front cover when switching to extended mode
    */
-  function clearFrontCoverForExtendedMode() {
+  function clearFrontCoverForExtendedMode(count) {
+    const total = (typeof count === 'number' && count > CONFIG.MIN_COVERS_FOR_COLLAGE)
+      ? count
+      : getCollageCoverCount();
     const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
-    
+
     if (frontCoverImg) {
       // Use transparent gif instead of placehold.co URL
       frontCoverImg.src = CONFIG.TRANSPARENT_GIF;
       frontCoverImg.dataset.isPlaceholder = "true";
     }
-    
+
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-20 using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Create Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-' + total + ' using the Additional Covers section)';
     }
-    
+
     elements.frontCoverUploader?.classList.remove('has-image');
   }
   
@@ -3356,17 +4361,20 @@ const BooklistApp = (function() {
   function restoreFrontCoverPlaceholderText() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Create Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)';
     }
   }
 
   /**
-   * Updates placeholder text for 20-cover extended mode (without clearing cover)
+   * Updates placeholder text for extended mode (16/20) without clearing cover
    */
-  function updateExtendedModePlaceholderText() {
+  function updateExtendedModePlaceholderText(count) {
+    const total = (typeof count === 'number' && count > CONFIG.MIN_COVERS_FOR_COLLAGE)
+      ? count
+      : getCollageCoverCount();
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Auto-Generate Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-20 using the Additional Covers section)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Create Cover tool<br/>in Settings &gt; Front Cover<br/>(Add covers 13-' + total + ' using the Additional Covers section)';
     }
   }
   
@@ -3374,42 +4382,53 @@ const BooklistApp = (function() {
    * Updates the extra covers count display in both section and modal
    */
   function updateExtraCoversCount() {
+    const maxExtras = getMaxExtraCovers();
     // Count starred books beyond 12
     const booksWithCovers = BookUtils.getStarredBooksWithCovers(myBooklist);
-    const starredBeyond12 = Math.max(0, booksWithCovers.length - 12);
+    const starredBeyond12 = Math.min(
+      maxExtras,
+      Math.max(0, booksWithCovers.length - CONFIG.MIN_COVERS_FOR_COLLAGE)
+    );
     const extraCount = extraCollageCovers.length;
-    const totalExtra = starredBeyond12 + extraCount;
-    
+    const totalExtra = Math.min(maxExtras, starredBeyond12 + extraCount);
+
     if (elements.extraCoversCount) {
       elements.extraCoversCount.textContent = totalExtra;
+    }
+    if (elements.extraCoversMax) {
+      elements.extraCoversMax.textContent = maxExtras;
     }
     const modalCount = document.getElementById('modal-cover-count');
     if (modalCount) {
       if (starredBeyond12 > 0) {
-        modalCount.textContent = `${totalExtra} of 8 slots filled (${starredBeyond12} from list, ${extraCount} added)`;
+        modalCount.textContent = `${totalExtra} of ${maxExtras} slots filled (${starredBeyond12} from list, ${extraCount} added)`;
       } else {
-        modalCount.textContent = `${totalExtra} of 8 extra slots filled`;
+        modalCount.textContent = `${totalExtra} of ${maxExtras} extra slots filled`;
       }
     }
   }
   
   /**
-   * Renders the extra covers grid with 8 slots
-   * Shows starred books 13-15 first (from list, not removable), then extra covers
+   * Renders the extra covers grid. Slot count is derived from the
+   * current collage cover count: 4 for 16-mode, 8 for 20-mode, 0 for
+   * 12-mode (the section is hidden but this function still renders 0
+   * slots defensively). Shows starred books 13+ first (from list, not
+   * removable), then user-added extras.
    */
   function renderExtraCoversGrid() {
     if (!elements.extraCoversGrid) return;
-    
+    const maxExtras = getMaxExtraCovers();
+
     elements.extraCoversGrid.innerHTML = '';
-    
+
     // Get starred books with covers, take those beyond position 12
     const booksWithCovers = BookUtils.getStarredBooksWithCovers(myBooklist);
-    const starredBeyond12 = booksWithCovers.slice(12); // Books 13, 14, 15...
-    
+    const starredBeyond12 = booksWithCovers.slice(CONFIG.MIN_COVERS_FOR_COLLAGE); // Books 13, 14, 15...
+
     let slotIndex = 0;
-    
+
     // First: show covers from starred books beyond 12 (from list, not removable)
-    for (let i = 0; i < starredBeyond12.length && slotIndex < MAX_EXTRA_COVERS; i++) {
+    for (let i = 0; i < starredBeyond12.length && slotIndex < maxExtras; i++) {
       const book = starredBeyond12[i];
       const slot = document.createElement('div');
       slot.className = 'extra-cover-slot has-cover from-list';
@@ -3436,7 +4455,7 @@ const BooklistApp = (function() {
     }
     
     // Second: show extra covers added via search/upload (removable and draggable)
-    for (let i = 0; i < extraCollageCovers.length && slotIndex < MAX_EXTRA_COVERS; i++) {
+    for (let i = 0; i < extraCollageCovers.length && slotIndex < maxExtras; i++) {
       const existingCover = extraCollageCovers[i];
       
       if (existingCover && existingCover.coverData) {
@@ -3477,27 +4496,28 @@ const BooklistApp = (function() {
     }
     
     // Third: show empty slots for remaining positions
-    while (slotIndex < MAX_EXTRA_COVERS) {
+    while (slotIndex < maxExtras) {
       const slot = document.createElement('div');
       slot.className = 'extra-cover-slot';
       slot.dataset.slotIndex = slotIndex;
-      
+
       const placeholder = document.createElement('span');
       placeholder.className = 'slot-placeholder';
       placeholder.innerHTML = '<i class="fa-solid fa-plus"></i>';
       slot.appendChild(placeholder);
-      
+
       // File input for upload
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
       fileInput.accept = 'image/*';
       const currentSlotIndex = slotIndex;
-      
+
       // Shared handler for processing an image file (used by both file input and drag-drop)
       const processExtraCoverFile = (file) => {
         // Check if at max covers total
-        if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, CONFIG.MAX_COVERS_FOR_COLLAGE)) {
-          showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
+        const currentCount = getCollageCoverCount();
+        if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, currentCount)) {
+          showNotification(`Maximum ${currentCount} covers reached.`);
           return;
         }
 
@@ -3537,38 +4557,40 @@ const BooklistApp = (function() {
    */
   function addExtraCover(coverData, preferredSlot = null) {
     pushUndo('add-extra-cover');
+    const currentCount = getCollageCoverCount();
+    const maxExtras = getMaxExtraCovers();
     // Check if at max
-    if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, CONFIG.MAX_COVERS_FOR_COLLAGE)) {
-      showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
+    if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, currentCount)) {
+      showNotification(`Maximum ${currentCount} covers reached.`);
       return null;
     }
-    
+
     const newCover = {
       id: `extra-${crypto.randomUUID()}`,
       coverData: coverData
     };
-    
-    if (preferredSlot !== null && preferredSlot < MAX_EXTRA_COVERS) {
+
+    if (preferredSlot !== null && preferredSlot < maxExtras) {
       // Insert at specific slot
       if (extraCollageCovers.length <= preferredSlot) {
         extraCollageCovers.push(newCover);
       } else {
         extraCollageCovers.splice(preferredSlot, 0, newCover);
         // Trim if over max slots
-        if (extraCollageCovers.length > MAX_EXTRA_COVERS) {
-          extraCollageCovers = extraCollageCovers.slice(0, MAX_EXTRA_COVERS);
+        if (extraCollageCovers.length > maxExtras) {
+          extraCollageCovers = extraCollageCovers.slice(0, maxExtras);
         }
       }
     } else {
       // Add to end if room
-      if (extraCollageCovers.length < MAX_EXTRA_COVERS) {
+      if (extraCollageCovers.length < maxExtras) {
         extraCollageCovers.push(newCover);
       } else {
         showNotification('All extra cover slots are full.');
         return null;
       }
     }
-    
+
     renderExtraCoversGrid();
     debouncedSave();
 
@@ -3579,11 +4601,11 @@ const BooklistApp = (function() {
       setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
     }
 
-    // Auto-generate cover when 20th cover is added (if auto-generated image exists)
+    // Auto-generate cover when the last slot is filled (if auto-generated image exists)
     const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
     if (frontCoverImg?.dataset.isAutoGenerated === 'true') {
       const starredAfterAdd = BookUtils.getStarredBooks(myBooklist).length;
-      if (starredAfterAdd + extraCollageCovers.length === CONFIG.MAX_COVERS_FOR_COLLAGE) {
+      if (starredAfterAdd + extraCollageCovers.length === currentCount) {
         generateCoverCollage();
       }
     }
@@ -3797,9 +4819,12 @@ const BooklistApp = (function() {
       }
       
       // Check if at limit
-      if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, CONFIG.MAX_COVERS_FOR_COLLAGE)) {
-        showNotification(`Maximum ${CONFIG.MAX_COVERS_FOR_COLLAGE} covers reached.`);
-        return;
+      {
+        const currentCount = getCollageCoverCount();
+        if (BookUtils.isAtCoverLimit(myBooklist, extraCollageCovers, currentCount)) {
+          showNotification(`Maximum ${currentCount} covers reached.`);
+          return;
+        }
       }
       
       addButton.disabled = true;
@@ -3877,13 +4902,20 @@ const BooklistApp = (function() {
    * Binds events for extra covers feature
    */
   function bindExtraCoversEvents() {
-    // Extended mode toggle
-    if (elements.extendedCollageToggle) {
-      elements.extendedCollageToggle.addEventListener('change', () => {
-        pushUndo('toggle-extended');
-        toggleExtendedCollageMode(elements.extendedCollageToggle.checked);
-        // Folio: perk at the mode switch
-        if (window.folio) window.folio.react('perk');
+    // Collage cover count radio group (12 / 16 / 20). Radios flip
+    // their DOM state BEFORE the `change` event fires, so capture
+    // pre-change state via mousedown/keydown on each radio input.
+    if (elements.collageCoverCountRadios && elements.collageCoverCountRadios.length) {
+      elements.collageCoverCountRadios.forEach(function(radio) {
+        bindPreChangeCapture(radio, 'set-collage-cover-count');
+        radio.addEventListener('change', function() {
+          if (!radio.checked) return;
+          const newCount = parseInt(radio.value, 10);
+          if (CONFIG.COLLAGE_COVER_COUNTS.indexOf(newCount) === -1) return;
+          setCollageCoverCount(newCount);
+          // Folio: perk at the mode switch
+          if (window.folio) window.folio.react('perk');
+        });
       });
     }
     
@@ -4066,23 +5098,30 @@ const BooklistApp = (function() {
         backgroundColor: '#FFFFFF'
       };
 
+      // Each canvas is ~135 MB at 600 DPI, and browsers are slow to
+      // GC large canvas buffers — repeated exports pile up hundreds
+      // of MB and slow subsequent runs. Setting width/height to 0
+      // after we're done with each one forces the browser to release
+      // the backing buffer immediately.
       const canvas1 = await html2canvas(document.getElementById('print-page-1'), options);
       pdf.addImage(canvas1.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
+      canvas1.width = 0; canvas1.height = 0;
       pdf.addPage();
 
       const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
       pdf.addImage(canvas2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
-      
+      canvas2.width = 0; canvas2.height = 0;
+
       pdf.save(suggestedName);
       showNotification('PDF download started.', 'success');
-      
+
       // Folio: excited about PDF
       if (window.folio) {
         window.folio.react('satisfied');
         window.folio.setState('excited', 'pdf-exported');
         setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
       }
-      
+
     } catch (err) {
       console.error("PDF Generation failed:", err);
       showNotification("An error occurred generating the PDF. Please check the console.", 'error');
@@ -4105,6 +5144,13 @@ const BooklistApp = (function() {
     if (img.src.includes('placehold.co')) return null;
     // Filter out transparent placeholder GIF used when image is cleared
     if (img.src === CONFIG.TRANSPARENT_GIF) return null;
+    // If img.src is an absolute URL on the current origin, return just the
+    // path portion so saved files travel correctly between booklister.org
+    // instances. Absolute cross-origin URLs taint the html2canvas capture
+    // during PDF export, leaving the brand block blank in the output.
+    if (img.src.startsWith(window.location.origin + '/')) {
+      return img.src.slice(window.location.origin.length);
+    }
     return img.src;
   }
   
@@ -4114,6 +5160,7 @@ const BooklistApp = (function() {
     document.querySelectorAll('.export-controls .form-group[data-style-group]').forEach(group => {
       const k = group.dataset.styleGroup;
       const lineSpacingInput = group.querySelector('.line-spacing');
+      const activeAlign = group.querySelector('.align-toggle.active');
       styles[k] = {
         font: group.querySelector('.font-select')?.value ?? '',
         sizePt: parseFloat(group.querySelector('.font-size-input')?.value ?? '12'),
@@ -4121,6 +5168,7 @@ const BooklistApp = (function() {
         bold: !!group.querySelector('.bold-toggle')?.classList.contains('active'),
         italic: !!group.querySelector('.italic-toggle')?.classList.contains('active'),
         lineSpacing: lineSpacingInput ? parseFloat(lineSpacingInput.value ?? '1.3') : null,
+        textAlign: activeAlign ? (activeAlign.dataset.align || null) : null,
       };
     });
     
@@ -4179,6 +5227,10 @@ const BooklistApp = (function() {
     // Get tilted layout settings
     const tiltDegree = parseFloat(elements.tiltDegree?.value ?? '-25');
     const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
+    const tiltCoverSizePctRaw = parseFloat(elements.tiltCoverSize?.value ?? '100');
+    const tiltCoverSizePct = isFinite(tiltCoverSizePctRaw)
+      ? Math.max(50, Math.min(100, tiltCoverSizePctRaw))
+      : 100;
     
     // Get list name (used for filename)
     const listName = (elements.listNameInput?.value || '').trim();
@@ -4187,7 +5239,12 @@ const BooklistApp = (function() {
     const isAdvancedMode = elements.coverAdvancedToggle?.checked || false;
     const coverTitle = elements.coverTitleInput?.value || ''; // Simple mode text
     const coverLineTexts = elements.coverLines.map(line => line.input?.value || ''); // Advanced mode texts
-    const qrTextContent = (elements.qrCodeTextArea?.innerText || '').trim();
+    // Read the QR blurb from the DOM-independent mirror (_currentQrText)
+    // rather than elements.qrCodeTextArea.innerText. innerText returns
+    // '' on any display:none element, so when the user has Show QR Code
+    // toggled off, serializing would silently wipe their saved blurb.
+    // _currentQrText is kept in sync via the input handler and applyState.
+    const qrTextContent = (_currentQrText || '').trim();
 
     return {
       schema: 'booklist-v1',
@@ -4213,7 +5270,8 @@ const BooklistApp = (function() {
         titleBarPosition,
         tiltDegree,
         tiltOffsetDirection,
-        extendedCollageMode: !!elements.extendedCollageToggle?.checked,
+        tiltCoverSizePct,
+        collageCoverCount: getCollageCoverCount(),
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: (qrTextContent !== CONFIG.PLACEHOLDERS.qrText) ? qrTextContent : '',
       },
@@ -4264,6 +5322,18 @@ const BooklistApp = (function() {
       if (boldBtn) boldBtn.classList.toggle('active', !!s.bold);
       if (italicBtn) italicBtn.classList.toggle('active', !!s.italic);
       if (lineSpacingInp && s.lineSpacing != null) lineSpacingInp.value = s.lineSpacing;
+
+      // Text alignment (QR only today, but generic by design). Only apply
+      // when the saved state actually specifies an alignment, so files
+      // from before this setting round-trip cleanly with the default
+      // (center) still active.
+      if (s.textAlign) {
+        group.querySelectorAll('.align-toggle').forEach(btn => {
+          const isActive = btn.dataset.align === s.textAlign;
+          btn.classList.toggle('active', isActive);
+          btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+      }
     });
     
     // Cover title styles
@@ -4282,7 +5352,10 @@ const BooklistApp = (function() {
     if (gradToggle) gradToggle.checked = !!ct.bgGradient;
     setStr('cover-title-bg-color2', ct.bgColor2 || '#333333');
     const bgColor2El = document.getElementById('cover-title-bg-color2');
-    if (bgColor2El) bgColor2El.style.display = ct.bgGradient ? '' : 'none';
+    // If the gradient input was wrapped by setupColorPopovers, hide/show
+    // the wrapper so the palette trigger hides along with the input.
+    const bgColor2Target = bgColor2El?.closest('.color-palette-wrap') || bgColor2El;
+    if (bgColor2Target) bgColor2Target.style.display = ct.bgGradient ? '' : 'none';
 
     // Simple mode styling
     const simple = ct.simple || {};
@@ -4323,6 +5396,33 @@ const BooklistApp = (function() {
     });
   }
   
+  /**
+   * Normalize a saved branding image URL so it loads from the current origin
+   * when possible. Old .booklist files baked absolute URLs into the branding
+   * src (see getUploaderImageSrc history), and loading an absolute
+   * booklister.org URL on a different booklister.org subdomain produces a
+   * cross-origin image that renders in the DOM preview but taints the
+   * html2canvas capture during PDF export. Stripping the origin turns the
+   * reference back into a same-origin relative path, which every deployment
+   * resolves locally.
+   */
+  function normalizeBrandingUrl(rawSrc) {
+    if (!rawSrc || typeof rawSrc !== 'string') return rawSrc;
+    // Data URLs have no origin and no CORS issues.
+    if (rawSrc.startsWith('data:')) return rawSrc;
+    // Only rewrite absolute HTTP(S) URLs on known booklister.org hosts.
+    try {
+      const u = new URL(rawSrc);
+      if (u.hostname === 'booklister.org' || u.hostname.endsWith('.booklister.org')) {
+        return u.pathname + u.search + u.hash;
+      }
+      return rawSrc;
+    } catch {
+      // Not a valid absolute URL — probably already a relative path.
+      return rawSrc;
+    }
+  }
+
   function applyUploaderImage(uploaderEl, dataUrl) {
     if (!uploaderEl) return;
     const img = uploaderEl.querySelector('img');
@@ -4406,16 +5506,33 @@ const BooklistApp = (function() {
     if (elements.tiltOffsetDirection) {
       elements.tiltOffsetDirection.value = loaded.ui?.tiltOffsetDirection || 'vertical';
     }
+    if (elements.tiltCoverSize) {
+      // Back-compat: older saves don't have this field. Default to
+      // 100 (no shrink) so existing drafts open unchanged.
+      const loadedPct = loaded.ui?.tiltCoverSizePct;
+      const pct = (typeof loadedPct === 'number' && isFinite(loadedPct))
+        ? Math.max(50, Math.min(100, loadedPct))
+        : 100;
+      elements.tiltCoverSize.value = pct;
+    }
     
     // Show/hide tilted settings based on layout
     updateTiltedSettingsVisibility();
     
-    // Restore extended collage mode and extra covers
-    const isExtendedMode = !!loaded.ui?.extendedCollageMode;
-    if (elements.extendedCollageToggle) {
-      elements.extendedCollageToggle.checked = isExtendedMode;
+    // Restore collage cover count (12 / 16 / 20) with backward compat
+    // for the legacy boolean `extendedCollageMode` field.
+    let loadedCoverCount = loaded.ui?.collageCoverCount;
+    if (typeof loadedCoverCount !== 'number') {
+      loadedCoverCount = loaded.ui?.extendedCollageMode
+        ? CONFIG.MAX_COVERS_FOR_COLLAGE
+        : CONFIG.MIN_COVERS_FOR_COLLAGE;
     }
-    
+    if (CONFIG.COLLAGE_COVER_COUNTS.indexOf(loadedCoverCount) === -1) {
+      loadedCoverCount = CONFIG.MIN_COVERS_FOR_COLLAGE;
+    }
+    const isExtendedMode = loadedCoverCount > CONFIG.MIN_COVERS_FOR_COLLAGE;
+    setCollageCoverCountUI(loadedCoverCount);
+
     // Load extra collage covers (will be rendered after books are loaded)
     extraCollageCovers = Array.isArray(loaded.extraCollageCovers)
       ? loaded.extraCollageCovers.map(ec => ({
@@ -4433,9 +5550,14 @@ const BooklistApp = (function() {
       if (loadedText && loadedText !== CONFIG.PLACEHOLDERS.qrText) {
         elements.qrCodeTextArea.innerText = loadedText;
         elements.qrCodeTextArea.style.color = '';
+        // Mirror into the DOM-independent source of truth so a later
+        // serializeState call reads it correctly even if the QR area
+        // is hidden (Show QR Code toggled off).
+        _currentQrText = loadedText;
       } else {
         elements.qrCodeTextArea.innerText = CONFIG.PLACEHOLDERS.qrText;
         elements.qrCodeTextArea.style.color = CONFIG.PLACEHOLDER_COLOR;
+        _currentQrText = '';
       }
     }
     
@@ -4470,13 +5592,15 @@ const BooklistApp = (function() {
     if (frontCoverImg) {
       frontCoverImg.dataset.isAutoGenerated = loaded.images?.frontCoverIsAutoGenerated ? 'true' : 'false';
     }
-    applyUploaderImage(elements.brandingUploader, loaded.images?.branding || null);
+    applyUploaderImage(elements.brandingUploader, normalizeBrandingUrl(loaded.images?.branding || null));
     
     // Books
     const incoming = Array.isArray(loaded.books) ? loaded.books : [];
     let starCount = 0;
-    // Allow up to 15 starred books when extended mode is enabled, otherwise 12
-    const maxStars = isExtendedMode ? 15 : CONFIG.MIN_COVERS_FOR_COLLAGE;
+    // In extended mode (16 or 20), allow up to TOTAL_SLOTS (15) starred
+    // books so the extras grid can show "from list" entries above the
+    // standard 12. In 12-count mode, cap at 12.
+    const maxStars = isExtendedMode ? CONFIG.TOTAL_SLOTS : CONFIG.MIN_COVERS_FOR_COLLAGE;
     myBooklist = incoming.slice(0, CONFIG.TOTAL_SLOTS).map(b => {
       const wasStarred = b.includeInCollage !== false;
       const shouldStar = wasStarred && !b.isBlank && starCount < maxStars;
@@ -4507,8 +5631,8 @@ const BooklistApp = (function() {
     applyBlockCoverStyle();
     updateBackCoverVisibility();
 
-    // Toggle extended mode AFTER books are loaded so renderExtraCoversGrid sees the correct data
-    toggleExtendedCollageMode(isExtendedMode, true);
+    // Apply collage cover count AFTER books are loaded so renderExtraCoversGrid sees the correct data
+    setCollageCoverCount(loadedCoverCount, true);
 
     // Auto-generate cover collage if:
     // 1. All required covers are present
@@ -4518,7 +5642,7 @@ const BooklistApp = (function() {
     const hasFrontCover = elements.frontCoverUploader?.classList.contains('has-image');
     const wasAutoGenerated = loaded.images?.frontCoverIsAutoGenerated === true;
 
-    if (!silent && BookUtils.hasEnoughCoversForCollage(myBooklist, extraCollageCovers, isExtendedMode) && !hasFrontCover && wasAutoGenerated) {
+    if (!silent && BookUtils.hasEnoughCoversForCollage(myBooklist, extraCollageCovers, loadedCoverCount) && !hasFrontCover && wasAutoGenerated) {
       // Small delay to ensure DOM is ready
       setTimeout(() => generateCoverCollage(), 150);
     }
@@ -4822,10 +5946,15 @@ const BooklistApp = (function() {
       });
     }
     
-    // List name input (triggers autosave)
+    // List name input (triggers autosave). Uses the same pre-edit
+    // snapshot pattern as QR URL and the style inputs: text inputs
+    // have their .value mutated by the browser BEFORE the input event
+    // fires, so a plain pushUndo call would capture post-edit state.
     if (elements.listNameInput) {
+      elements.listNameInput.addEventListener('focus', capturePreEditSnapshot);
+      elements.listNameInput.addEventListener('blur', clearPreEditSnapshot);
       elements.listNameInput.addEventListener('input', () => {
-        pushUndo('edit-list-name');
+        commitPreEditSnapshot('edit-list-name');
         debouncedSave();
       });
     }
@@ -4835,13 +5964,16 @@ const BooklistApp = (function() {
       pushUndo('generate-collage');
       generateCoverCollage();
     });
+    // Stretch toggles: capture BEFORE the change event (which fires
+    // after the checkbox is already flipped). mousedown/keydown both
+    // fire pre-mutation.
+    bindPreChangeCapture(elements.stretchCoversToggle, 'change-style');
     elements.stretchCoversToggle.addEventListener('change', () => {
-      pushUndo('change-style');
       autoRegenerateCoverIfAble();
       debouncedSave();
     });
+    bindPreChangeCapture(elements.stretchBlockCoversToggle, 'change-style');
     elements.stretchBlockCoversToggle.addEventListener('change', () => {
-      pushUndo('change-style');
       applyBlockCoverStyle();
       debouncedSave();
     });
@@ -4876,82 +6008,130 @@ const BooklistApp = (function() {
     
     // Show shelves toggle for classic layout
     if (elements.showShelvesToggle) {
+      bindPreChangeCapture(elements.showShelvesToggle, 'change-style');
       elements.showShelvesToggle.addEventListener('change', () => {
-        pushUndo('change-style');
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
     }
-    
+
     // Title bar position dropdown
     if (elements.titleBarPosition) {
+      bindPreChangeCapture(elements.titleBarPosition, 'change-style');
       elements.titleBarPosition.addEventListener('change', () => {
-        pushUndo('change-style');
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
     }
-    
-    // Tilted layout settings
+
+    // Tilted layout settings. tiltDegree is a number input — use the
+    // pre-edit snapshot pattern with focus/blur so typing captures the
+    // state before the first keystroke, matching other style inputs.
     if (elements.tiltDegree) {
+      elements.tiltDegree.addEventListener('focus', capturePreEditSnapshot);
+      elements.tiltDegree.addEventListener('blur', clearPreEditSnapshot);
       elements.tiltDegree.addEventListener('input', () => {
-        pushUndo('change-style');
+        commitPreEditSnapshot('change-style');
         debouncedSave();
         debouncedCoverRegen();
       });
       elements.tiltDegree.addEventListener('change', () => {
-        pushUndo('change-style');
+        commitPreEditSnapshot('change-style');
         debouncedSave();
         debouncedCoverRegen();
       });
     }
     if (elements.tiltOffsetDirection) {
+      bindPreChangeCapture(elements.tiltOffsetDirection, 'change-style');
       elements.tiltOffsetDirection.addEventListener('change', () => {
-        pushUndo('change-style');
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
     }
-    
-    // Margins & Padding inputs
+    // Tilted cover size (percent) — number input, same pre-edit
+    // snapshot pattern as tiltDegree.
+    if (elements.tiltCoverSize) {
+      elements.tiltCoverSize.addEventListener('focus', capturePreEditSnapshot);
+      elements.tiltCoverSize.addEventListener('blur', () => {
+        clearPreEditSnapshot();
+        // Snap out-of-range values back to valid range on blur so the
+        // field always shows a value the user can trust. The HTML
+        // min/max attributes are advisory — users can type anything.
+        const raw = parseFloat(elements.tiltCoverSize.value);
+        if (!isFinite(raw)) {
+          elements.tiltCoverSize.value = 100;
+        } else {
+          elements.tiltCoverSize.value = Math.max(50, Math.min(100, raw));
+        }
+      });
+      elements.tiltCoverSize.addEventListener('input', () => {
+        commitPreEditSnapshot('change-style');
+        debouncedSave();
+        debouncedCoverRegen();
+      });
+      elements.tiltCoverSize.addEventListener('change', () => {
+        commitPreEditSnapshot('change-style');
+        debouncedSave();
+        debouncedCoverRegen();
+      });
+    }
+
+
+    // Margins & Padding inputs. Number inputs mutate BEFORE the input
+    // event, so use the pre-edit snapshot pattern (focus → capture,
+    // first input → commit, blur → clear) so undo captures the state
+    // before the user started typing.
     ['cover-title-outer-margin', 'cover-title-side-margin', 'cover-title-pad-x', 'cover-title-pad-y'].forEach(id => {
       const input = document.getElementById(id);
       if (input) {
+        input.addEventListener('focus', capturePreEditSnapshot);
+        input.addEventListener('blur', clearPreEditSnapshot);
         input.addEventListener('input', () => {
-          pushUndo('change-cover-style');
+          commitPreEditSnapshot('change-cover-style');
           debouncedSave();
         });
         input.addEventListener('change', autoRegenerateCoverIfAble);
       }
     });
 
-    // BG Color picker
+    // BG Color picker. Color pickers mutate BEFORE input fires, so
+    // same pre-edit snapshot pattern.
     const bgColorPicker = document.getElementById('cover-title-bg-color');
     if (bgColorPicker) {
+      bgColorPicker.addEventListener('focus', capturePreEditSnapshot);
+      bgColorPicker.addEventListener('blur', clearPreEditSnapshot);
       bgColorPicker.addEventListener('input', () => {
-        pushUndo('change-cover-style');
+        commitPreEditSnapshot('change-cover-style');
         debouncedSave();
       });
       bgColorPicker.addEventListener('change', autoRegenerateCoverIfAble);
     }
 
-    // Gradient toggle checkbox
+    // Gradient toggle checkbox. Pre-change capture (mousedown/keydown)
+    // so undo/redo sees the pre-flip state.
     const gradToggle = document.getElementById('cover-title-gradient-toggle');
     if (gradToggle) {
+      bindPreChangeCapture(gradToggle, 'change-cover-style');
       gradToggle.addEventListener('change', () => {
         const bgColor2El = document.getElementById('cover-title-bg-color2');
-        if (bgColor2El) bgColor2El.style.display = gradToggle.checked ? '' : 'none';
-        pushUndo('change-cover-style');
+        // Target the palette wrapper if it exists so the trigger
+        // button hides/shows alongside the color input.
+        const target = bgColor2El?.closest('.color-palette-wrap') || bgColor2El;
+        if (target) target.style.display = gradToggle.checked ? '' : 'none';
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
     }
 
-    // Gradient end color picker
+    // Gradient end color picker. Color inputs mutate BEFORE input
+    // fires, so use the focus/blur pre-edit snapshot pattern to
+    // capture the pre-interaction color.
     const bgColor2Picker = document.getElementById('cover-title-bg-color2');
     if (bgColor2Picker) {
+      bgColor2Picker.addEventListener('focus', capturePreEditSnapshot);
+      bgColor2Picker.addEventListener('blur', clearPreEditSnapshot);
       bgColor2Picker.addEventListener('input', () => {
-        pushUndo('change-cover-style');
+        commitPreEditSnapshot('change-cover-style');
         debouncedSave();
       });
       bgColor2Picker.addEventListener('change', autoRegenerateCoverIfAble);
@@ -4959,8 +6139,8 @@ const BooklistApp = (function() {
 
     // Cover mode toggle
     if (elements.coverAdvancedToggle) {
+      bindPreChangeCapture(elements.coverAdvancedToggle, 'change-style');
       elements.coverAdvancedToggle.addEventListener('change', (e) => {
-        pushUndo('change-style');
         toggleCoverMode(e.target.checked);
         debouncedSave();
         autoRegenerateCoverIfAble();
@@ -4972,8 +6152,17 @@ const BooklistApp = (function() {
     // style-groups loop below doesn't catch it and a dedicated handler is
     // needed.
     if (elements.coverTitleInput) {
+      // Pre-edit snapshot pattern for the simple-mode cover title
+      // textarea. The previous plain pushUndo() path captured the
+      // post-mutation DOM state (the textarea's .value has already
+      // been updated by the browser before `input` fires), which
+      // made Ctrl+Z a no-op for the first coalesced edit and could
+      // visually manifest as undo/redo "doubling" the text. Same
+      // pattern used by the advanced-mode line inputs and qr text.
+      elements.coverTitleInput.addEventListener('focus', capturePreEditSnapshot);
+      elements.coverTitleInput.addEventListener('blur', clearPreEditSnapshot);
       elements.coverTitleInput.addEventListener('input', () => {
-        pushUndo('edit-cover-text');
+        commitPreEditSnapshot('edit-cover-text');
         debouncedSave();
         debouncedCoverRegen();
       });
@@ -5070,13 +6259,14 @@ const BooklistApp = (function() {
       }
     });
     
-    // Layout toggles
+    // Layout toggles. Same pre-change capture pattern — change fires
+    // after the checkbox is already flipped, so hook mousedown/keydown.
+    bindPreChangeCapture(elements.toggleQrCode, 'toggle-ui');
     elements.toggleQrCode.addEventListener('change', () => {
-      pushUndo('toggle-ui');
       handleLayoutChange();
     });
+    bindPreChangeCapture(elements.toggleBranding, 'toggle-ui');
     elements.toggleBranding.addEventListener('change', () => {
-      pushUndo('toggle-ui');
       handleLayoutChange();
     });
     
@@ -5086,13 +6276,18 @@ const BooklistApp = (function() {
       generateQrCode();
     });
     
-    // Spacing inputs and background color for cover auto-regen
+    // Spacing inputs and background color for cover auto-regen.
+    // Undo capture for these is handled by the dedicated focus/blur
+    // pre-edit snapshot handlers higher up (margins, bg colors); this
+    // loop only triggers live regeneration on input/change so the
+    // preview updates as the user drags a slider or edits a number.
+    // Do NOT call pushUndo here — the event fires post-mutation and
+    // would create duplicate undo entries on top of the pre-edit ones.
     const coverLayoutInputIds = ['cover-title-outer-margin', 'cover-title-pad-x', 'cover-title-pad-y', 'cover-title-side-margin', 'cover-title-bg-color', 'cover-title-bg-color2'];
     coverLayoutInputIds.forEach(id => {
       const el = document.getElementById(id);
       if (el) {
         ['input', 'change'].forEach(evt => el.addEventListener(evt, () => {
-          pushUndo('change-cover-style');
           debouncedSave();
           debouncedCoverRegen();
         }));
@@ -5139,8 +6334,18 @@ const BooklistApp = (function() {
         }
         button.addEventListener('click', (e) => {
           pushUndo('change-style');
-          if (e.target.classList.contains('bold-toggle') || e.target.classList.contains('italic-toggle')) {
-            e.target.classList.toggle('active');
+          const btn = e.currentTarget;
+          if (btn.classList.contains('bold-toggle') || btn.classList.contains('italic-toggle')) {
+            btn.classList.toggle('active');
+            btn.setAttribute('aria-pressed', btn.classList.contains('active') ? 'true' : 'false');
+          } else if (btn.classList.contains('align-toggle')) {
+            // Mutex: only one align button active per group.
+            group.querySelectorAll('.align-toggle').forEach(b => {
+              b.classList.remove('active');
+              b.setAttribute('aria-pressed', 'false');
+            });
+            btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
           }
           debouncedSave();
           applyStyles();
@@ -5184,7 +6389,17 @@ const BooklistApp = (function() {
         const parsed = JSON.parse(text);
         clearUndoHistory();
         applyState(parsed);
-        debouncedSave(); // Sync browser draft with loaded file
+        // Direct save (not debounced) so the IndexedDB draft reflects
+        // the just-loaded file immediately. The previous code used
+        // debouncedSave() which scheduled a write 400ms later — if the
+        // user refreshed within that window (or the browser killed the
+        // pending setTimeout on beforeunload), the IDB draft still
+        // held the PREVIOUS draft and refresh would revert to it,
+        // losing everything from the loaded file including the QR
+        // blurb text. The save-file path at the button handler uses
+        // saveDraftLocal() directly for the same reason; the load path
+        // was just never updated to match.
+        saveDraftLocal();
         hasUnsavedFile = false; // File was just loaded from disk
         updateSaveIndicator();
         // Folio: greet on file load (guard suppresses cascading hooks)
@@ -5276,24 +6491,41 @@ const BooklistApp = (function() {
     
     // Strip formatting on paste (same as other editable fields)
     elements.qrCodeTextArea.addEventListener('paste', handlePastePlainText);
-    
-    // Safety net: sanitize any formatting that sneaks through on input
+
+    // Pre-edit snapshot pattern for undo. The QR blurb text is a
+    // contenteditable div, so its DOM content is mutated BEFORE the
+    // input event fires. serializeState reads the blurb text directly
+    // from the DOM via innerText (no intermediate JS store), so plain
+    // pushUndo on input would capture the post-edit state and Ctrl+Z
+    // would be a no-op. Capture on focus, commit on first input, clear
+    // on blur — same pattern used by style inputs.
+    elements.qrCodeTextArea.addEventListener('focus', capturePreEditSnapshot);
+
     elements.qrCodeTextArea.addEventListener('input', () => {
       sanitizeContentEditable(elements.qrCodeTextArea);
-      pushUndo('edit-qr-text');
+      // Mirror current DOM text into the module-level source of truth
+      // so serializeState can read it even if the QR area gets hidden
+      // later (via Show QR Code toggle). Never store the placeholder
+      // sentinel — that's managed separately by setupPlaceholderField.
+      const txt = (elements.qrCodeTextArea.innerText || '').trim();
+      _currentQrText = (txt && txt !== CONFIG.PLACEHOLDERS.qrText) ? txt : '';
+      commitPreEditSnapshot('edit-qr-text');
       debouncedSave();
     });
-    
-    // Save on blur
+
     elements.qrCodeTextArea.addEventListener('blur', () => {
-      pushUndo('edit-qr-text');
-      debouncedSave();
+      clearPreEditSnapshot();
     });
-    
-    // Save QR URL input on change
+
+    // Save QR URL input on change — uses the same pre-edit snapshot
+    // pattern. The <input type="text"> value is mutated by the browser
+    // before the input event fires, so without the pattern, pushUndo
+    // captures post-edit state.
     if (elements.qrUrlInput) {
+      elements.qrUrlInput.addEventListener('focus', capturePreEditSnapshot);
+      elements.qrUrlInput.addEventListener('blur', clearPreEditSnapshot);
       elements.qrUrlInput.addEventListener('input', () => {
-        pushUndo('edit-qr');
+        commitPreEditSnapshot('edit-qr');
         debouncedSave();
       });
     }
@@ -5414,21 +6646,49 @@ const BooklistApp = (function() {
     
     // Commit selection
     function commitSelection(value) {
+      // Capture the pre-edit snapshot BEFORE mutating the hidden select.
+      // The custom dropdown handles user clicks on its own UI (trigger
+      // button and option list), so the hidden <select> element never
+      // receives a focus event from real interaction. The pre-edit
+      // pattern attached to the hidden select in the main style-groups
+      // loop therefore never fires, and the change event below ends up
+      // in commitPreEditSnapshot with nothing to commit. Capturing here
+      // keeps the undo semantics correct for font changes.
+      //
+      // clearPreEditSnapshot first discards any stale snapshot that
+      // might still be pending from a previously focused input. In
+      // normal browser flow the blur on that input would have fired
+      // already (clicking the custom dropdown transfers focus away),
+      // but this is defensive insurance: if a snapshot somehow leaks
+      // across focus transitions, we want the font change's undo
+      // entry to reflect the state immediately before the font change,
+      // not the state before some unrelated earlier edit.
+      //
+      // capturePreEditSnapshot is a no-op during state restoration and
+      // tour mode (guarded internally), so this is safe to call even
+      // when commitSelection is invoked programmatically outside user
+      // interaction.
+      clearPreEditSnapshot();
+      capturePreEditSnapshot();
+
       committedValue = value;
       select.value = value;
-      
+
       // Update selected state in list
       list.querySelectorAll('.custom-font-dropdown-option').forEach(li => {
         const isSelected = li.dataset.value === value;
         li.classList.toggle('selected', isSelected);
         li.setAttribute('aria-selected', isSelected ? 'true' : 'false');
       });
-      
+
       updateTrigger();
-      
-      // Trigger change event on original select for any listeners
+
+      // Trigger change event on original select for any listeners. The
+      // change event handlers in the main style-groups and cover-lines
+      // loops will call commitPreEditSnapshot, which will find the
+      // snapshot we just captured and push it to the undo stack.
       select.dispatchEvent(new Event('change', { bubbles: true }));
-      
+
       // Save state
       debouncedSave();
     }
@@ -5720,6 +6980,85 @@ const BooklistApp = (function() {
   }
 
   /**
+   * Wire pre-change undo capture onto an element whose `change` event
+   * fires AFTER the browser has already mutated the DOM state
+   * (checkboxes, radios, selects).
+   *
+   * The tricky part: for `<input type="checkbox">`, the browser runs
+   * "pre-click activation steps" that flip `.checked` BEFORE the
+   * click event is dispatched to the element (HTML spec). So a
+   * `click` listener on the input sees the ALREADY-TOGGLED state —
+   * it's useless for pre-change capture. `mousedown`, by contrast,
+   * fires strictly before any click activation and sees pre-toggle
+   * state, so it's the right hook for direct mouse clicks on the
+   * input itself.
+   *
+   * Label clicks are even trickier: when a user clicks a
+   * `<label for="...">`, the mousedown event fires on the LABEL, not
+   * on the associated input — mousedown does NOT forward through the
+   * label. The label's click handler runs, its default action
+   * dispatches a synthetic click on the input, the input's pre-click
+   * activation steps toggle the checkbox, and finally the input's
+   * click handlers run with `.checked` already flipped. So neither
+   * `mousedown` nor `click` on the input catches a label click
+   * pre-toggle. The ONLY reliable pre-toggle event is `mousedown` or
+   * `click` on the LABEL itself (both fire before the label's
+   * default action runs the synthetic click on the input).
+   *
+   * Keyboard interactions (space/enter/arrow keys on focused
+   * element) fire `keydown` before the browser's default action,
+   * and don't involve any click dispatch, so `keydown` is
+   * straightforwardly pre-mutation.
+   *
+   * Events attached:
+   *   - input element: `mousedown` (pre-toggle, direct clicks),
+   *     filtered `keydown` (pre-mutation, keyboard). NOT `click`
+   *     (post-toggle, wrong).
+   *   - associated label(s): `mousedown` (pre-toggle, label clicks).
+   *     Both `label[for="id"]` siblings and `element.closest('label')`
+   *     wrappers are covered.
+   *
+   * pushUndo's coalescing handles rapid repeated interactions and
+   * same-tick duplicate captures.
+   */
+  function bindPreChangeCapture(element, group) {
+    if (!element) return;
+    const capture = () => pushUndo(group);
+
+    // Direct interactions with the input itself.
+    element.addEventListener('mousedown', capture);
+
+    // Allow-list of keys that can actually mutate a checkbox, radio,
+    // or select. Ctrl+Z/Cmd+Z and other non-mutating keys must skip
+    // — otherwise they'd pollute the undo stack with no-op snapshots
+    // right before undo() runs and race it into a no-op pop.
+    const MUTATING_KEYS = new Set([
+      ' ', 'Enter', 'Spacebar',
+      'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+      'PageUp', 'PageDown', 'Home', 'End',
+    ]);
+    element.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!MUTATING_KEYS.has(e.key)) return;
+      capture();
+    });
+
+    // Associated labels: mousedown on either a sibling `<label for>`
+    // or a wrapping `<label>` fires pre-toggle for label clicks,
+    // which is the only reliable pre-mutation signal available when
+    // the user clicks label text instead of the checkbox itself.
+    const labels = new Set();
+    if (element.id) {
+      document.querySelectorAll(`label[for="${element.id}"]`).forEach((l) => labels.add(l));
+    }
+    const ancestorLabel = element.closest && element.closest('label');
+    if (ancestorLabel) labels.add(ancestorLabel);
+    labels.forEach((label) => {
+      label.addEventListener('mousedown', capture);
+    });
+  }
+
+  /**
    * Capture the current state as a pre-edit snapshot, to be committed later
    * when a style input actually changes. Used for inputs where the browser
    * updates the DOM value BEFORE the change/input event fires (color pickers,
@@ -5792,15 +7131,51 @@ const BooklistApp = (function() {
     });
   }
 
+  /**
+   * Semantic equality check for two serialized snapshots, ignoring
+   * the `savedAt` timestamp that serializeState stamps on every call.
+   * Without this, two snapshots taken milliseconds apart with
+   * IDENTICAL logical state would compare unequal purely because
+   * their savedAt strings differ, which defeats the undo/redo dedup
+   * loop and was one of the causes of "undo flashes but doesn't do
+   * anything" on toggles.
+   */
+  function _snapshotsEqual(a, b) {
+    if (a === b) return true;
+    // Strip the savedAt timestamp before comparing. serializeState
+    // stamps a fresh `"savedAt":"..."` on every call, so two
+    // snapshots with logically identical state can still differ
+    // byte-for-byte. A simple regex replace avoids the overhead and
+    // error-handling of JSON.parse — the snapshot format is
+    // controlled internally so the field name is stable.
+    const SAVED_AT_RE = /"savedAt":"[^"]*"/;
+    return a.replace(SAVED_AT_RE, '') === b.replace(SAVED_AT_RE, '');
+  }
+
   function undo() {
     if (_undoStack.length === 0 || _tourActive) return;
 
-    // Push current state onto redo stack
+    // Compute current state once so we can skip no-op entries and
+    // avoid calling serializeState multiple times.
     const currentState = serializeState();
     const currentSnapshot = _extractImages(currentState);
-    _redoStack.push(JSON.stringify(currentSnapshot));
+    const currentJson = JSON.stringify(currentSnapshot);
 
-    // Pop from undo stack and restore
+    // Skip any top-of-stack entries that equal the current state.
+    // See _snapshotsEqual for why string equality alone isn't
+    // enough — savedAt timestamps differ even when logical state
+    // is identical.
+    while (_undoStack.length > 0 && _snapshotsEqual(_undoStack[_undoStack.length - 1], currentJson)) {
+      _undoStack.pop();
+    }
+
+    if (_undoStack.length === 0) {
+      updateUndoRedoButtons();
+      return;
+    }
+
+    // Push current state onto redo stack, pop real undo entry, restore.
+    _redoStack.push(currentJson);
     const snapshot = _undoStack.pop();
     restoreSnapshot(snapshot);
   }
@@ -5808,12 +7183,22 @@ const BooklistApp = (function() {
   function redo() {
     if (_redoStack.length === 0 || _tourActive) return;
 
-    // Push current state onto undo stack
+    // Same de-dup dance as undo() — skip any top-of-stack redo
+    // entries that already match current, so redo doesn't flash.
     const currentState = serializeState();
     const currentSnapshot = _extractImages(currentState);
-    _undoStack.push(JSON.stringify(currentSnapshot));
+    const currentJson = JSON.stringify(currentSnapshot);
 
-    // Pop from redo stack and restore
+    while (_redoStack.length > 0 && _snapshotsEqual(_redoStack[_redoStack.length - 1], currentJson)) {
+      _redoStack.pop();
+    }
+
+    if (_redoStack.length === 0) {
+      updateUndoRedoButtons();
+      return;
+    }
+
+    _undoStack.push(currentJson);
     const snapshot = _redoStack.pop();
     restoreSnapshot(snapshot);
   }
@@ -5835,11 +7220,27 @@ const BooklistApp = (function() {
     if (btnUndo) btnUndo.addEventListener('click', undo);
     if (btnRedo) btnRedo.addEventListener('click', redo);
 
-    // Keyboard shortcuts
+    // Keyboard shortcuts. Only skip our undo/redo when focus is in
+    // a text-editable form field that has its own native undo history
+    // (typing should use browser undo for character-by-character
+    // granularity, not our snapshot-based undo). Checkboxes, radios,
+    // color pickers, selects, and buttons do NOT have native undo, so
+    // our handler needs to run for them — otherwise Ctrl+Z after
+    // clicking e.g. "Stretch Book Covers" does nothing because the
+    // checkbox is still focused and the old early-return stole the
+    // keypress without routing it anywhere.
+    const TEXT_INPUT_TYPES = new Set([
+      'text', 'search', 'url', 'email', 'tel', 'password', 'number',
+      'date', 'datetime-local', 'month', 'time', 'week'
+    ]);
     document.addEventListener('keydown', (e) => {
-      const tag = document.activeElement?.tagName;
-      // Skip when focus is in INPUT, TEXTAREA, or SELECT
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const el = document.activeElement;
+      const tag = el?.tagName;
+      const type = (el?.type || '').toLowerCase();
+      const isTextField =
+        tag === 'TEXTAREA' ||
+        (tag === 'INPUT' && TEXT_INPUT_TYPES.has(type));
+      if (isTextField) return;
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -5904,10 +7305,8 @@ const BooklistApp = (function() {
       elements.coverAdvancedToggle.checked = false;
       toggleCoverMode(false);
     }
-    if (elements.extendedCollageToggle) {
-      elements.extendedCollageToggle.checked = false;
-      toggleExtendedCollageMode(false, true);
-    }
+    setCollageCoverCountUI(CONFIG.MIN_COVERS_FOR_COLLAGE);
+    setCollageCoverCount(CONFIG.MIN_COVERS_FOR_COLLAGE, true);
     extraCollageCovers = [];
 
     // Reset collage layout to classic
@@ -5920,6 +7319,7 @@ const BooklistApp = (function() {
     if (elements.titleBarPosition) elements.titleBarPosition.value = 'classic';
     if (elements.tiltDegree) elements.tiltDegree.value = -25;
     if (elements.tiltOffsetDirection) elements.tiltOffsetDirection.value = 'vertical';
+    if (elements.tiltCoverSize) elements.tiltCoverSize.value = 100;
     updateTiltedSettingsVisibility();
 
     // Clear front cover and branding images
@@ -5935,6 +7335,7 @@ const BooklistApp = (function() {
       elements.qrCodeTextArea.innerText = CONFIG.PLACEHOLDERS.qrText;
       elements.qrCodeTextArea.style.color = CONFIG.PLACEHOLDER_COLOR;
     }
+    _currentQrText = '';
 
     // Disable undo/redo buttons
     updateUndoRedoButtons();
@@ -6047,6 +7448,25 @@ const BooklistApp = (function() {
     return Math.min(fitW, fitH) * 0.98;
   }
 
+  function computeFitToWidthZoom() {
+    const container = document.querySelector('.main-content');
+    if (!container) return 1.0;
+    const containerW = container.clientWidth;
+    const contentW = 11 * 96 + 40;
+    return (containerW / contentW) * 0.98;
+  }
+
+  function computeFitToHeightZoom() {
+    const container = document.querySelector('.main-content');
+    if (!container) return 1.0;
+    const toolbar = container.querySelector('.toolbar');
+    const toolbarH = toolbar ? toolbar.offsetHeight : 0;
+    const containerH = container.clientHeight - toolbarH;
+    // Single page height: 8.5in at 96 DPI + padding
+    const pageH = 8.5 * 96 + 40;
+    return (containerH / pageH) * 0.98;
+  }
+
   function initZoomControls() {
     const btnIn = document.getElementById('btn-zoom-in');
     const btnOut = document.getElementById('btn-zoom-out');
@@ -6070,12 +7490,24 @@ const BooklistApp = (function() {
     });
     if (btnFit) btnFit.addEventListener('click', function() {
       currentZoom = computeFitToScreenZoom();
-      // Clamp to valid range
       currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
       applyZoom();
-      // Reset scroll position
       const container = document.querySelector('.main-content');
       if (container) { container.scrollTop = 0; container.scrollLeft = 0; }
+    });
+    const btnFitW = document.getElementById('btn-zoom-fit-width');
+    if (btnFitW) btnFitW.addEventListener('click', function() {
+      currentZoom = computeFitToWidthZoom();
+      currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
+      applyZoom();
+      const container = document.querySelector('.main-content');
+      if (container) { container.scrollLeft = 0; }
+    });
+    const btnFitH = document.getElementById('btn-zoom-fit-height');
+    if (btnFitH) btnFitH.addEventListener('click', function() {
+      currentZoom = computeFitToHeightZoom();
+      currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
+      applyZoom();
     });
 
     // Ctrl+scroll wheel zoom
@@ -6137,7 +7569,7 @@ const BooklistApp = (function() {
 
     // Document title + header credit byline.
     if (config.displayName) {
-      document.title = config.displayName + ' Booklister';
+      document.title = 'Booklister \u00B7 ' + config.displayName;
       const credit = document.querySelector('.header-credit');
       if (credit) credit.textContent = 'for ' + config.displayName;
     }
@@ -6159,10 +7591,18 @@ const BooklistApp = (function() {
 
     // Auto-draft description toggle — only meaningful on branded
     // instances (where the description backend is actually wired up).
-    // Reveal the row and sync the checkbox from the persisted preference.
+    // When the library has disabled the autodrafter entirely, keep
+    // the row hidden so staff don't see a toggle that does nothing.
     if (elements.autoDescriptionToggleRow && elements.autoDescriptionToggle) {
-      elements.autoDescriptionToggleRow.hidden = false;
-      elements.autoDescriptionToggle.checked = getAutoDescriptionPreference();
+      const hint = document.getElementById('auto-description-hint');
+      if (config.disableAutodrafter || config.requireSourceText) {
+        elements.autoDescriptionToggleRow.hidden = true;
+        if (hint) hint.style.display = 'none';
+      } else {
+        elements.autoDescriptionToggleRow.hidden = false;
+        elements.autoDescriptionToggle.checked = getAutoDescriptionPreference();
+        if (hint) hint.style.display = '';
+      }
     }
 
     // Role-aware Admin link. Only library admins (users whose memberships
@@ -6191,6 +7631,11 @@ const BooklistApp = (function() {
         }
       }
     }
+
+    // Re-render the book list so magic buttons appear now that the
+    // drafter availability is known (books rendered before the config
+    // arrived won't have them).
+    renderBooklist();
 
     // Reveal the tool. An inline script in index.html added this class
     // synchronously at page load to hide everything until a valid config
@@ -6243,7 +7688,19 @@ const BooklistApp = (function() {
     
     // Set initial tilted settings visibility
     updateTiltedSettingsVisibility();
-    
+
+    // Color palette popovers on the primary color pickers
+    setupColorPopovers();
+
+    // Easter egg: Ctrl+Alt+D (or Cmd+Option+D on Mac) opens the
+    // drafter settings modal for runtime config tweaking.
+    document.addEventListener('keydown', function(ev) {
+      if ((ev.ctrlKey || ev.metaKey) && ev.altKey && (ev.key === 'd' || ev.key === 'D')) {
+        ev.preventDefault();
+        if (window.LIBRARY_CONFIG) showDrafterSettingsModal();
+      }
+    });
+
     // Apply any library config that arrived before init() ran. On the
     // public tool this is a no-op; on branded instances the listener
     // either stashed the config here (if it arrived early) or has already
@@ -6324,12 +7781,22 @@ const BooklistApp = (function() {
     applyZoom();
   }
 
+  /** Fit preview to the width of the main content area. */
+  function fitToWidth() {
+    currentZoom = computeFitToWidthZoom();
+    currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
+    applyZoom();
+    const container = document.querySelector('.main-content');
+    if (container) container.scrollLeft = 0;
+  }
+
   return {
     init,
     showNotification,
     getAiDescription, // For testing
     updateBackCoverVisibility, // For tour: visual-only toggle update (no data trim)
     resetZoom, // For tour: reset zoom before spotlight positioning
+    fitToWidth, // For tour: fit preview to content width on small screens
     enterTourMode, // For tour: save state + blank the app
     exitTourMode,  // For tour: restore pre-tour state
     applyState,    // For tour: load sample booklist during tour

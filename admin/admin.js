@@ -572,6 +572,10 @@ function openLibraryModal(lib) {
   const nameInput = document.getElementById('admin-field-display-name');
   const brandingInput = document.getElementById('admin-field-branding-path');
   const autoDraftInput = document.getElementById('admin-field-auto-draft-default');
+  const disableAutodrafterInput = document.getElementById('admin-field-disable-autodrafter');
+  const requireSourceTextInput = document.getElementById('admin-field-require-source-text');
+  const requireSourceTextRow = document.getElementById('admin-require-source-text-row');
+  const autoDraftDefaultRow = document.getElementById('admin-auto-draft-default-row');
   const errorEl = document.getElementById('admin-library-form-error');
 
   errorEl.hidden = true;
@@ -603,6 +607,12 @@ function openLibraryModal(lib) {
     // libraries that predate this setting), default to true — matches
     // the behavior the library had before the toggle existed.
     autoDraftInput.checked = d.autoDraftDescriptionsDefault !== false;
+    disableAutodrafterInput.checked = !!d.disableAutodrafter;
+    requireSourceTextInput.checked = !!d.requireSourceText;
+    // Hide dependent rows when the autodrafter is entirely disabled.
+    const drafterOff = !!d.disableAutodrafter;
+    if (autoDraftDefaultRow) autoDraftDefaultRow.hidden = drafterOff || !!d.requireSourceText;
+    if (requireSourceTextRow) requireSourceTextRow.hidden = drafterOff;
   } else {
     // Create mode
     title.textContent = 'Add Library';
@@ -615,7 +625,20 @@ function openLibraryModal(lib) {
     nameInput.value = '';
     brandingInput.value = '';
     autoDraftInput.checked = true;
+    disableAutodrafterInput.checked = true;
+    requireSourceTextInput.checked = false;
+    if (autoDraftDefaultRow) autoDraftDefaultRow.hidden = true;
+    if (requireSourceTextRow) requireSourceTextRow.hidden = true;
   }
+
+  function updateDrafterRowVisibility() {
+    const drafterOff = disableAutodrafterInput.checked;
+    const sourceRequired = requireSourceTextInput.checked;
+    if (requireSourceTextRow) requireSourceTextRow.hidden = drafterOff;
+    if (autoDraftDefaultRow) autoDraftDefaultRow.hidden = drafterOff || sourceRequired;
+  }
+  disableAutodrafterInput.onchange = updateDrafterRowVisibility;
+  requireSourceTextInput.onchange = updateDrafterRowVisibility;
 
   // Memberships section: only visible when editing an existing gated
   // library. Public libraries don't use memberships, and you can't add
@@ -652,16 +675,17 @@ async function handleLibraryFormSubmit(evt) {
   const idInput = document.getElementById('admin-field-library-id');
   const nameInput = document.getElementById('admin-field-display-name');
   const autoDraftInput = document.getElementById('admin-field-auto-draft-default');
+  const disableAutodrafterInput = document.getElementById('admin-field-disable-autodrafter');
+  const requireSourceTextInput = document.getElementById('admin-field-require-source-text');
   const saveBtn = document.getElementById('admin-library-save-btn');
 
   const libraryId = idInput.value.trim().toLowerCase();
   const type = document.querySelector('input[name="library-type"]:checked').value;
   const displayName = nameInput.value.trim();
-  // Branding path is always derived from the library ID, not read
-  // from the form input (which is a read-only mirror of the derived
-  // value). This enforces the canonical path convention.
   const brandingImagePath = brandingPathFromId(libraryId);
   const autoDraftDescriptionsDefault = autoDraftInput.checked;
+  const disableAutodrafter = disableAutodrafterInput.checked;
+  const requireSourceText = requireSourceTextInput.checked;
 
   // Validation
   if (!libraryId) {
@@ -690,6 +714,8 @@ async function handleLibraryFormSubmit(evt) {
     displayName,
     brandingImagePath,
     autoDraftDescriptionsDefault,
+    disableAutodrafter,
+    requireSourceText,
   };
 
   const collectionName = type === 'public' ? 'libraries-public' : 'libraries';

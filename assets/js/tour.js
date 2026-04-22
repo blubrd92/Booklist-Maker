@@ -46,7 +46,7 @@
           prepare: function() {
             openSidebarTab('tab-search');
             const mainContent = document.querySelector('.main-content');
-            if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+            if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'instant' });
           },
         },
         {
@@ -148,7 +148,7 @@
         },
         {
           target: '#inside-left-panel .list-item:first-child .star-button',
-          text: "The star icon marks a book for the front cover collage. Star at least 12 books if you want to auto-generate one. This sample list already has 12 starred.",
+          text: "The star icon marks a book for the front cover collage. Star at least 12 books if you want to create one. This sample list already has 12 starred.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-2');
@@ -164,8 +164,14 @@
         },
         {
           target: '#inside-left-panel .list-item:first-child .magic-button',
-          text: "The magic wand drafts a description for you. It's reserved for custom library instances; on the public tool, clicking it just tells you so. You can always edit a draft or write your own from scratch.",
+          text: "The magic wand drafts a description for you. Shift+click the wand to paste your own summary for the drafter to condense. You can always edit a draft or write your own from scratch.",
           state: 'evaluating',
+          // Only show this step when the AI drafter is enabled.
+          // On the public tool or instances with it disabled, the
+          // magic button isn't rendered and this step is skipped.
+          condition: function() {
+            return window.LIBRARY_CONFIG && !window.LIBRARY_CONFIG.disableAutodrafter;
+          },
           prepare: function() {
             scrollPreviewTo('print-page-2');
           },
@@ -196,7 +202,7 @@
       steps: [
         {
           target: '#front-cover-uploader',
-          text: "This is your front cover. You can upload a custom image here, or auto-generate a collage from your starred books. For generated covers, you can customize the title font, size, and background color, even add a gradient.",
+          text: "This is your front cover. You can upload a custom image here, or create a collage from your starred books. For created covers, you can customize the title font, size, and background color, even add a gradient.",
           state: 'evaluating',
           prepare: function() {
             // Reset to "no cover yet" state so the narration matches
@@ -207,7 +213,7 @@
         },
         {
           target: '#generate-cover-button',
-          text: "This button generates the collage. You can find it in the Front Cover section in the Settings tab, right under the title text inputs. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
+          text: "This button creates the collage. You can find it in the Front Cover section in the Settings tab, right under the title text inputs. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
           state: 'excited',
           prepare: function() {
             // Keep the "not yet generated" state so back-navigation is clean
@@ -265,7 +271,7 @@
         },
         {
           target: '#collage-layout-selector',
-          text: "This is where you switch between layouts. Pick one and regenerate to see the change. Let me switch to Tilted.",
+          text: "This is where you switch between layouts. Pick one and recreate the cover to see the change. Let me switch to Tilted.",
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');
@@ -289,12 +295,12 @@
           },
         },
         {
-          target: '#extended-collage-toggle',
-          text: "Flip this on to expand from 12 to 20 covers. Extra cover slots appear below where you can add supplementary images.",
+          target: '.collage-cover-count-group',
+          text: "Pick 12, 16, or 20 covers for the cover collage. The 16 and 20 modes open extra cover slots below where you can add supplementary images.",
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-settings');
-            openSettingsSection('Front Cover', '#extended-collage-toggle');
+            openSettingsSection('Front Cover', '.collage-cover-count-group');
           },
         },
         {
@@ -304,7 +310,7 @@
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
-            scrollPreviewTo('print-page-1');
+            scrollPreviewTo('print-page-1', { alignEnd: true });
             // Apply the default branding image
             const uploader = document.getElementById('branding-uploader');
             if (uploader) {
@@ -343,7 +349,7 @@
           state: 'idle',
           prepare: function() {
             const mainContent = document.querySelector('.main-content');
-            if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+            if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'instant' });
             // Set the sample list name
             const nameInput = document.getElementById('list-name-input');
             if (nameInput) nameInput.value = 'The Disc and Beyond';
@@ -361,12 +367,12 @@
         },
         {
           target: '#qr-code-area',
-          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. Let me add one linking to Terry Pratchett's Wikipedia page.",
+          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. You can enter the QR Code url in the Back Cover section in the Settings tab. Let me add one linking to Terry Pratchett's Wikipedia page.",
           state: 'idle',
           prepare: function() {
             openSidebarTab('tab-settings');
             openSettingsSection('Back Cover');
-            scrollPreviewTo('print-page-1');
+            scrollPreviewTo('print-page-1', { alignEnd: true });
             // Set QR URL and generate
             const qrInput = document.getElementById('qr-url-input');
             if (qrInput) qrInput.value = 'https://en.wikipedia.org/wiki/Terry_Pratchett';
@@ -383,14 +389,14 @@
         },
         {
           target: '#qr-code-text',
-          text: "This text area is your back cover blurb, next to the QR code. Write a short description, reading prompt, or instructions for patrons.",
+          text: "This text area is your back cover blurb, next to the QR code. Write a short description, reading prompt, or friendly message for patrons.",
           state: 'idle',
           prepare: function() {
             // Set the sample QR text
             const qrText = document.getElementById('qr-code-text');
             const mainContent = document.querySelector('.main-content');
             if (qrText) {
-              qrText.innerText = "Welcome to the Discworld, a fantasy world carried through space on the back of a giant turtle, where Pratchett will make you laugh, and then make you think, and then quietly break your heart. Scan the code to meet the man, then come find the books waiting for you on the shelf.";
+              qrText.innerText = "Welcome to the Discworld, a world on the back of a giant turtle, where Pratchett will make you laugh, make you think, and quietly break your heart. Scan the code to learn more about the author, then find the books on the shelf.";
               qrText.style.color = '';
               if (mainContent) scrollWithin(mainContent, qrText, { center: true });
             }
@@ -470,7 +476,7 @@
       coverLineTexts: ['', '', ''],
       collageLayout: 'classic', showShelves: false,
       titleBarPosition: 'classic', tiltDegree: -25, tiltOffsetDirection: 'vertical',
-      extendedCollageMode: false,
+      collageCoverCount: 12,
       qrCodeUrl: '',
       qrCodeText: '',
     },
@@ -565,6 +571,7 @@
      ---------------------------------------------------------------- */
   let currentSectionId = null;
   let currentStepIndex = 0;
+  let _lastStepDirection = 1; // 1 = forward, -1 = backward
   let isFullTour = false;
   let fullTourSectionIndex = 0;
   let preTourFolioHidden = false;
@@ -656,18 +663,30 @@
     });
   }
 
-  function scrollPreviewTo(elementId) {
+  function scrollPreviewTo(elementId, { alignEnd = false } = {}) {
     const el = document.getElementById(elementId);
     const scrollContainer = document.querySelector('.main-content');
-    if (el && scrollContainer) {
-      // Calculate offset relative to the scroll container
-      let offset = 0;
-      let node = el;
-      while (node && node !== scrollContainer) {
-        offset += node.offsetTop;
-        node = node.offsetParent;
-      }
-      scrollContainer.scrollTo({ top: Math.max(0, offset - 20), behavior: 'smooth' });
+    if (!el || !scrollContainer) return;
+    // Use getBoundingClientRect so the scroll accounts for CSS zoom
+    // on the preview area (fit-to-width on small screens).
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    if (alignEnd) {
+      // Scroll so the BOTTOM of the element is near the bottom of
+      // the viewport — useful for targets near the foot of a page
+      // (e.g. branding uploader at the bottom of print-page-1).
+      const elBottom = (elRect.bottom - containerRect.top) + scrollContainer.scrollTop;
+      scrollContainer.scrollTo({
+        top: Math.max(0, elBottom - scrollContainer.clientHeight + 40),
+        behavior: 'instant'
+      });
+    } else {
+      // Scroll so the TOP of the element is near the top of the viewport.
+      const elTop = (elRect.top - containerRect.top) + scrollContainer.scrollTop;
+      scrollContainer.scrollTo({
+        top: Math.max(0, elTop - 20),
+        behavior: 'instant'
+      });
     }
   }
 
@@ -683,6 +702,56 @@
       img.dataset.isAutoGenerated = 'false';
     }
     uploader.classList.remove('has-image');
+  }
+
+  // Pre-warm cover images from the embedded TOUR_SAMPLE_STATE so
+  // they're in the browser cache by the time step 9 loads the sample
+  // booklist. Called at tour START (beginTour), giving 8 steps of
+  // reading time for the images to arrive. When renderBooklist later
+  // creates <img> elements with these URLs, the browser serves them
+  // from cache instantly instead of showing white placeholders.
+  function preloadTourCovers() {
+    if (!TOUR_SAMPLE_STATE || !TOUR_SAMPLE_STATE.books) return;
+    TOUR_SAMPLE_STATE.books.forEach(function(book) {
+      if (book.cover_ids && book.cover_ids.length > 0) {
+        const idx = book.currentCoverIndex || 0;
+        const coverId = book.cover_ids[idx];
+        if (coverId) {
+          const imgL = new Image();
+          imgL.src = 'https://covers.openlibrary.org/b/id/' + coverId + '-L.jpg';
+          const imgM = new Image();
+          imgM.src = 'https://covers.openlibrary.org/b/id/' + coverId + '-M.jpg';
+        }
+      }
+    });
+  }
+
+  // Universal backstop: ensure the spotlight target is scrolled into
+  // view inside its scroll container (preview or sidebar) before
+  // positioning the spotlight overlay.
+  function ensureTargetVisible(target) {
+    if (!target) return;
+
+    // Preview area
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent && mainContent.contains(target)) {
+      const cRect = mainContent.getBoundingClientRect();
+      const tRect = target.getBoundingClientRect();
+      if (tRect.top < cRect.top || tRect.bottom > cRect.bottom) {
+        scrollWithin(mainContent, target);
+      }
+      return;
+    }
+
+    // Sidebar tab content
+    const tabContent = target.closest('.tab-content');
+    if (tabContent) {
+      const cRect = tabContent.getBoundingClientRect();
+      const tRect = target.getBoundingClientRect();
+      if (tRect.top < cRect.top || tRect.bottom > cRect.bottom) {
+        scrollWithin(tabContent, target, { center: true });
+      }
+    }
   }
 
   function totalSteps() {
@@ -881,14 +950,30 @@
       return;
     }
 
-    // Reset zoom to 100% so spotlight positioning is accurate
-    if (BooklistApp.resetZoom) {
+    // Use 100% zoom when the screen is wide enough to show the full
+    // page without horizontal overflow. On smaller screens, fit to
+    // width so the tour's spotlight targets are visible without
+    // horizontal scrolling.
+    const contentArea = document.querySelector('.main-content');
+    const pageWidth = 11 * 96 + 40; // 11in page + padding
+    const hasRoom = contentArea && contentArea.clientWidth >= pageWidth;
+    if (hasRoom && BooklistApp.resetZoom) {
+      BooklistApp.resetZoom();
+    } else if (BooklistApp.fitToWidth) {
+      BooklistApp.fitToWidth();
+    } else if (BooklistApp.resetZoom) {
       BooklistApp.resetZoom();
     }
 
+    // Pre-warm cover images from the sample state so they're in the
+    // browser cache by the time step 9 loads the sample booklist.
+    // 8 steps of reading time before step 9 is plenty for the images
+    // to arrive from Open Library.
+    preloadTourCovers();
+
     // Reset UI to a known state
     const mainContent = document.querySelector('.main-content');
-    if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'instant' });
 
     // Open sidebar on Search tab
     openSidebarTab('tab-search');
@@ -937,6 +1022,20 @@
     const section = SECTIONS[currentSectionId];
     const step = section.steps[currentStepIndex];
 
+    // Skip steps whose condition returns false (e.g. the magic
+    // button step when the AI drafter is disabled). Auto-skip in
+    // whichever direction the user is moving. _lastStepDirection
+    // is set by nextStep/prevStep; default forward.
+    if (step.condition && !step.condition()) {
+      const dir = _lastStepDirection || 1;
+      const nextIdx = currentStepIndex + dir;
+      if (nextIdx >= 0 && nextIdx < section.steps.length) {
+        currentStepIndex = nextIdx;
+        showCurrentStep();
+      }
+      return;
+    }
+
     // Run prepare if defined
     if (step.prepare) step.prepare();
 
@@ -955,7 +1054,7 @@
 
       // Scroll target into view only if step didn't handle its own scrolling via prepare
       if (target && !step.prepare) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        target.scrollIntoView({ behavior: 'instant', block: 'nearest' });
       }
 
       // Toggle interaction blocker
@@ -992,6 +1091,7 @@
         prevBtn.disabled = (gIdx === 0);
         nextBtn.textContent = (gIdx === total - 1) ? 'Finish' : 'Next';
 
+        ensureTargetVisible(target);
         positionSpotlight(target, step.padding);
         positionPanel(target);
         spotlight.classList.add('visible');
@@ -1002,6 +1102,7 @@
 
   function nextStep() {
     if (!currentSectionId) return;
+    _lastStepDirection = 1;
     const section = SECTIONS[currentSectionId];
 
     if (currentStepIndex < section.steps.length - 1) {
@@ -1021,6 +1122,7 @@
 
   function prevStep() {
     if (!currentSectionId) return;
+    _lastStepDirection = -1;
 
     if (currentStepIndex > 0) {
       currentStepIndex--;

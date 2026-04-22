@@ -150,12 +150,36 @@ describe('BookUtils.countTotalCovers', () => {
 });
 
 describe('BookUtils.getRequiredCovers', () => {
-  it('returns MAX_COVERS_FOR_COLLAGE in extended mode', () => {
+  it('returns MAX_COVERS_FOR_COLLAGE in extended mode (legacy boolean true)', () => {
     expect(globalThis.BookUtils.getRequiredCovers(true)).toBe(20);
   });
 
-  it('returns MIN_COVERS_FOR_COLLAGE in standard mode', () => {
+  it('returns MIN_COVERS_FOR_COLLAGE in standard mode (legacy boolean false)', () => {
     expect(globalThis.BookUtils.getRequiredCovers(false)).toBe(12);
+  });
+
+  it('returns 12 when passed numeric 12', () => {
+    expect(globalThis.BookUtils.getRequiredCovers(12)).toBe(12);
+  });
+
+  it('returns 16 when passed numeric 16', () => {
+    expect(globalThis.BookUtils.getRequiredCovers(16)).toBe(16);
+  });
+
+  it('returns 20 when passed numeric 20', () => {
+    expect(globalThis.BookUtils.getRequiredCovers(20)).toBe(20);
+  });
+
+  it('falls back to MIN_COVERS_FOR_COLLAGE for unknown numeric values', () => {
+    expect(globalThis.BookUtils.getRequiredCovers(0)).toBe(12);
+    expect(globalThis.BookUtils.getRequiredCovers(15)).toBe(12);
+    expect(globalThis.BookUtils.getRequiredCovers(99)).toBe(12);
+  });
+
+  it('falls back to MIN_COVERS_FOR_COLLAGE for null / undefined / non-numeric', () => {
+    expect(globalThis.BookUtils.getRequiredCovers(null)).toBe(12);
+    expect(globalThis.BookUtils.getRequiredCovers(undefined)).toBe(12);
+    expect(globalThis.BookUtils.getRequiredCovers('20')).toBe(12);
   });
 });
 
@@ -241,6 +265,54 @@ describe('BookUtils.hasEnoughCoversForCollage', () => {
     const books = Array(15).fill(null).map(() => makeBook({ cover_ids: [1] }));
     const extras = [{ coverData: 'data:image/jpeg;base64,a' }];
     expect(globalThis.BookUtils.hasEnoughCoversForCollage(books, extras, true)).toBe(false);
+  });
+
+  it('returns true when 16-count mode has 16+ covers', () => {
+    const books = Array(15).fill(null).map(() => makeBook({ cover_ids: [1] }));
+    const extras = [{ coverData: 'data:image/jpeg;base64,a' }];
+    expect(globalThis.BookUtils.hasEnoughCoversForCollage(books, extras, 16)).toBe(true);
+  });
+
+  it('returns false when 16-count mode has <16 covers', () => {
+    const books = Array(13).fill(null).map(() => makeBook({ cover_ids: [1] }));
+    const extras = [{ coverData: 'data:image/jpeg;base64,a' }];
+    expect(globalThis.BookUtils.hasEnoughCoversForCollage(books, extras, 16)).toBe(false);
+  });
+
+  it('returns true when 12-count mode has exactly 12 starred books with covers (extras ignored)', () => {
+    const books = Array(12).fill(null).map(() => makeBook({ cover_ids: [1] }));
+    const extras = [{ coverData: 'data:image/jpeg;base64,a' }];
+    expect(globalThis.BookUtils.hasEnoughCoversForCollage(books, extras, 12)).toBe(true);
+  });
+});
+
+describe('BookUtils.countTotalCovers (numeric mode)', () => {
+  it('counts books only when passed numeric 12', () => {
+    const books = Array(12).fill(null).map(() => makeBook({ cover_ids: [1] }));
+    const extras = [
+      { coverData: 'data:image/jpeg;base64,a' },
+      { coverData: 'data:image/jpeg;base64,b' },
+    ];
+    expect(globalThis.BookUtils.countTotalCovers(books, extras, 12)).toBe(12);
+  });
+
+  it('counts books + extras when passed numeric 16', () => {
+    const books = Array(13).fill(null).map(() => makeBook({ cover_ids: [1] }));
+    const extras = [
+      { coverData: 'data:image/jpeg;base64,a' },
+      { coverData: 'data:image/jpeg;base64,b' },
+    ];
+    expect(globalThis.BookUtils.countTotalCovers(books, extras, 16)).toBe(15);
+  });
+
+  it('counts books + extras when passed numeric 20', () => {
+    const books = Array(15).fill(null).map(() => makeBook({ cover_ids: [1] }));
+    const extras = [
+      { coverData: 'data:image/jpeg;base64,a' },
+      { coverData: 'data:image/jpeg;base64,b' },
+      { coverData: 'data:image/jpeg;base64,c' },
+    ];
+    expect(globalThis.BookUtils.countTotalCovers(books, extras, 20)).toBe(18);
   });
 });
 
@@ -398,14 +470,18 @@ describe('BookUtils.countTotalCovers edge cases', () => {
 });
 
 describe('BookUtils.getRequiredCovers edge cases', () => {
-  it('returns MAX for truthy non-boolean extendedMode values', () => {
-    expect(globalThis.BookUtils.getRequiredCovers(1)).toBe(20);
-    expect(globalThis.BookUtils.getRequiredCovers('yes')).toBe(20);
-    expect(globalThis.BookUtils.getRequiredCovers({})).toBe(20);
-    expect(globalThis.BookUtils.getRequiredCovers([])).toBe(20);
+  // The function now strictly accepts either a boolean (legacy) or a
+  // numeric value from CONFIG.COLLAGE_COVER_COUNTS. Anything else falls
+  // back to MIN_COVERS_FOR_COLLAGE so a buggy caller can't accidentally
+  // request a 20-cover collage by passing junk.
+  it('returns MIN for non-boolean truthy values that are not allowed counts', () => {
+    expect(globalThis.BookUtils.getRequiredCovers(1)).toBe(12);
+    expect(globalThis.BookUtils.getRequiredCovers('yes')).toBe(12);
+    expect(globalThis.BookUtils.getRequiredCovers({})).toBe(12);
+    expect(globalThis.BookUtils.getRequiredCovers([])).toBe(12);
   });
 
-  it('returns MIN for falsy non-boolean extendedMode values', () => {
+  it('returns MIN for falsy non-boolean values', () => {
     expect(globalThis.BookUtils.getRequiredCovers(0)).toBe(12);
     expect(globalThis.BookUtils.getRequiredCovers('')).toBe(12);
     expect(globalThis.BookUtils.getRequiredCovers(null)).toBe(12);

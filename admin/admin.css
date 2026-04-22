@@ -363,10 +363,11 @@ body {
   padding: 10px 18px;
   border-radius: var(--admin-radius);
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
   transition: all var(--admin-transition);
-  margin-top: 8px;
 }
 
 .admin-btn-secondary:hover {
@@ -423,7 +424,7 @@ code {
 .admin-btn-primary {
   background: var(--admin-primary);
   color: white;
-  border: none;
+  border: 1px solid var(--admin-primary);
   padding: 10px 18px;
   border-radius: var(--admin-radius);
   font-size: 0.9rem;

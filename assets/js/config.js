@@ -25,6 +25,7 @@
     // Collage generation
     MIN_COVERS_FOR_COLLAGE: 12,
     MAX_COVERS_FOR_COLLAGE: 20,
+    COLLAGE_COVER_COUNTS: [12, 16, 20],
     COLLAGE_GRID_COLS: 3,
     COLLAGE_TOP_ROW_COUNT: 3,
     COLLAGE_BOTTOM_ROWS: 3,
@@ -47,7 +48,7 @@
     NOTIFICATION_DURATION_MS: 3000,
     NOTIFICATION_DURATION_SUCCESS_MS: 1500,
     AUTOSAVE_DEBOUNCE_MS: 400,
-    PDF_RENDER_DELAY_MS: 100,
+    PDF_RENDER_DELAY_MS: 300,
 
     // Search
     SEARCH_RESULTS_PER_PAGE: 20,
@@ -107,6 +108,22 @@
       { value: "'Staatliches', system-ui", label: 'Staatliches' },
       { value: "'Times New Roman', serif", label: 'Times New Roman' },
     ],
+
+    // AI drafter configuration sent to the Apps Script with every
+    // request. The script treats these as the single source of truth;
+    // it only falls back to its own internal CONFIG for direct GET
+    // diagnostic calls. The easter egg modal (Ctrl+Shift+D) can
+    // override individual values for a single session.
+    // Whatever is sent only takes effect if the Apps Script's ALLOWED
+    // whitelist includes the field.
+    DRAFTER_DEFAULTS: {
+      MIN_CHARS: 280,
+      MAX_CHARS: 290,
+      LENGTH_TOLERANCE: 10,
+      TEMPERATURE: 0.6,
+      DRAFT_COUNT: 2,
+      MAX_RETRIES: 2,
+    },
   };
 
   // Expose globally

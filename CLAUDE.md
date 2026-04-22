@@ -33,7 +33,7 @@ Lint and test should both pass before committing changes to JavaScript files.
 ```
 index.html                      Main tool UI, single page (semantic HTML5, ARIA)
 about.html                      Static "about" content page
-for-libraries.html              Static institutional offer content page
+for-libraries.html              Static branded-instance info content page
 contact.html                    Static contact content page
 privacy.html                    Privacy policy content page (CalOPPA-oriented)
 CNAME                           Custom domain (booklister.org)
@@ -154,11 +154,11 @@ Pure functions that eliminate duplicated logic. All are tested:
 - `BookUtils.getStarredBooks(booklist)` - Filters `!isBlank && includeInCollage`
 - `BookUtils.getStarredBooksWithCovers(booklist)` - Starred books with valid covers
 - `BookUtils.isAtCoverLimit(booklist, extras, max)` - Whether cover count >= limit
-- `BookUtils.countTotalCovers(booklist, extras, extendedMode)` - Total valid covers
-- `BookUtils.getRequiredCovers(extendedMode)` - Returns 12 (standard) or 20 (extended)
+- `BookUtils.countTotalCovers(booklist, extras, modeOrCount)` - Total valid covers. Accepts either a legacy boolean (true=20, false=12) or a numeric count (12/16/20)
+- `BookUtils.getRequiredCovers(modeOrCount)` - Returns 12, 16, or 20 based on the input. Accepts a boolean (legacy) or a numeric value from `CONFIG.COLLAGE_COVER_COUNTS`. Anything else falls back to 12
 - `BookUtils.getCoverUrl(coverId, size)` - Builds Open Library cover URL
 - `BookUtils.getBookCoverUrl(book, size)` - Best cover URL: custom > Open Library > placeholder
-- `BookUtils.hasEnoughCoversForCollage(booklist, extras, extendedMode)` - Collage readiness check
+- `BookUtils.hasEnoughCoversForCollage(booklist, extras, modeOrCount)` - Collage readiness check; accepts the same legacy-or-numeric input as the helpers above
 
 ### Data Structures
 
@@ -228,30 +228,41 @@ Uploaded images are compressed on capture to reduce `.booklist` file size:
 7. **AI Descriptions**: "Magic button" on each book calls Google Apps Script with title+author, receives generated description
 8. **Branded library auth (gated instances only)**: Login modal, email/password sign-in with visibility toggle, password reset via email. See the Firebase Integration section below for the full flow.
 
-## Extended Collage Mode
+## Collage Cover Count (12 / 16 / 20)
 
-Supports 20-cover collages instead of the standard 12.
+Supports three collage cover counts: 12 (standard), 16 (4×4), and 20 (extended). Selected via a 3-way radio group in the Front Cover settings section. The set of allowed values lives in `CONFIG.COLLAGE_COVER_COUNTS`.
 
 ### Cover Flow
 - Covers 1-12: From starred books in the main booklist
-- Covers 13-15: Auto-filled from starred books with covers (non-removable in extra grid)
-- Covers 16-20: Added via search modal or upload (removable, reorderable)
+- Covers 13-15: Auto-filled from starred books with covers (non-removable in extras grid; only visible in 16/20-count modes when the booklist has 13+ starred entries)
+- Covers 16-20: Added via search modal or upload in the extras grid (removable, reorderable). 16-count mode shows 4 extras slots, 20-count shows 8
 
 ### Key Functions
-- `toggleExtendedCollageMode(enabled, isRestoring)` - Switches between 12/20 cover modes
-- `renderExtraCoversGrid()` - Renders 8 extra cover slots (from-list + added + empty)
+- `getCollageCoverCount()` - Reads the active count from the radio group; returns 12 if missing
+- `setCollageCoverCount(count, isRestoring)` - Applies a new count, shows/hides the extras section, auto-stars books up to the cap, trims user-added extras when downgrading, and triggers auto-regeneration. Replaces the older `toggleExtendedCollageMode`
+- `setCollageCoverCountUI(count)` - Updates the radio buttons without firing change events (used during state restore and reset)
+- `getMaxExtraCovers()` - Derived: returns `count - 12` (so 0 / 4 / 8)
+- `renderExtraCoversGrid()` - Renders `getMaxExtraCovers()` slots (from-list + added + empty)
 - `searchExtraCovers()` / `openExtraCoverSearchModal()` - Modal search for additional covers
 - `addExtraCover(coverData, preferredSlot)` / `removeExtraCover(index)` - Manage extra covers
 - `loadImageAsDataUrl(url)` - Converts remote URLs to base64 so they persist in the IndexedDB draft
 
 ### Dynamic Grid Sizing
-- 12 covers: 3x4 grid layout
-- 20 covers: 4x5 grid layout
-- Layout drawing functions dynamically calculate rows/columns based on cover count
+- Classic / Bookshelf: 12=3×4, 16=4×4, 20=4×5
+- Staggered: 12=4 rows, 16=4 rows, 20=5 rows
+- Masonry: 12=5 cols, 16=5 cols, 20=6 cols
+- Tilted: 16-count routes through the existing 20-count `getImageForCell` patterns. The function wraps the final index with `% totalImages` so 20-count row groups (which can resolve to indices up to 19) wrap cleanly when there are only 16 books. If 16-count Tilted ever needs its own hand-tuned pattern, add a `totalImages === 16` branch alongside the existing `<= 12` and `else` blocks
+- Layout drawing functions still iterate `images[imageIndex++]` (Classic, Bookshelf) or use `step % imageCount` cycling (Masonry, Staggered) — the loops are count-agnostic; only the grid dimension ternaries change per count
+
+### State Persistence
+- `serializeState()` writes `ui.collageCoverCount: 12 | 16 | 20`
+- `applyState()` reads `ui.collageCoverCount` first, falls back to the legacy boolean `ui.extendedCollageMode` (true → 20, false → 12), then clamps to a value in `CONFIG.COLLAGE_COVER_COUNTS`. Old `.booklist` files round-trip cleanly
 
 ### UI Components
-- `#extended-collage-toggle` - Checkbox in the Front Cover settings section (merged Cover Header + Cover Layout)
-- `#extra-covers-section` - Hidden section showing 8 extra cover slots
+- `input[name="collage-cover-count"]` - 3-way radio group in the Front Cover settings section. CSS class `collage-cover-count-group` for the segmented-control styling
+- `#extra-covers-section` - Section that holds the dynamic extras grid; visibility is gated on `count > 12`
+- `#extra-covers-max` - Span inside the extras hint that displays the current max (4 in 16-mode, 8 in 20-mode)
+- `#extra-covers-label` - Span in the extras header that shows "Additional Covers (Covers 13-N)" with N from the current mode
 - Extra Cover Search Modal - Search form with results grid and "Add to Collage" buttons
 
 ## Folio (Cat Mascot)
@@ -374,8 +385,8 @@ Read rules: own doc, super-admin, or library admin of the same libraryId. Write 
 
 Four plain HTML pages live at the repo root alongside `index.html`:
 
-- **`about.html`** — first-person page explaining the tool, why it was built, the Folio mascot, and how the AI description feature works (vendor-neutral language)
-- **`for-libraries.html`** — institutional offer page with per-library pricing (not fixed), branded instance, subdomain, ongoing support, and catalog integrations as separate scoped projects
+- **`about.html`** — first-person page explaining the tool, why it was built, and the Folio mascot
+- **`for-libraries.html`** — branded-instance info page: what a branded instance looks like, catalog integrations, expectations, and winding-down process
 - **`contact.html`** — minimal contact page with mailto link and response-time expectations
 - **`privacy.html`** — privacy policy with CalOPPA-compliant disclosures: effective date, Do Not Track section, third-party collection disclosure, review/correct/delete process. Voice matches the other content pages. No em dashes (preference). If the policy text ever changes, update both "Effective" and "Last updated" dates at the top of the page.
 
@@ -443,7 +454,7 @@ These patterns exist in the codebase but should not be replicated:
 1. **Hardcoded `12` in layout functions** — Several layout functions in app.js use raw `12` instead of `CONFIG.MIN_COVERS_FOR_COLLAGE`. If you touch these functions, replace with the constant.
 2. **Inline `placehold.co` checks** — The pattern `.includes('placehold.co')` appears in both `book-utils.js` and `app.js`. Prefer using `BookUtils.hasValidCover(book)` when checking book objects.
 3. **Folio state timeout pattern** — The pattern `setTimeout(() => folio.setState('excited', ...), 300); setTimeout(() => folio.setState('idle'), 4000);` is copy-pasted ~10 times in app.js. If adding a new folio reaction, follow the existing pattern but be aware this is a duplication hotspot.
-4. **`MAX_EXTRA_COVERS = 8`** is a local constant in app.js, not in CONFIG. If you need this value elsewhere, reference the app.js local for now.
+4. **`MAX_EXTRA_COVERS` no longer exists.** It used to be a local `const = 8` in app.js. The replacement is the `getMaxExtraCovers()` helper, which returns `getCollageCoverCount() - CONFIG.MIN_COVERS_FOR_COLLAGE` (so 0 / 4 / 8 depending on the active mode). If you need this value elsewhere, call the helper.
 5. **Font list duplication** — `admin/admin.js` used to carry its own copy of the FONTS array but no longer does (per-library font defaults were removed from the schema). If font choices come back per-library, don't re-duplicate; figure out a way to share `config.js`'s FONTS array with the admin module.
 6. **Legacy `branding-default.png`** — still on disk at `assets/img/branding-default.png` but no longer referenced by any current code path. Kept for backward compatibility with pre-existing IndexedDB drafts or saved `.booklist` files that point at it. Can be deleted once you're confident nobody has a stale draft.
 

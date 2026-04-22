@@ -203,6 +203,16 @@ body.has-library-config .header-credit {
   font-size: 16px;
   line-height: 1.65;
 }
+/* Explicit spacer block at the end of every article, to guarantee a
+   visible buffer between the last paragraph and the footer when the
+   page is scrolled to the bottom. Using a ::after pseudo-element
+   instead of padding/margin sidesteps the WebKit/Chromium quirk where
+   bottom padding on an overflow:auto scroll container gets clipped. */
+.content-article::after {
+  content: '';
+  display: block;
+  height: 40px;
+}
 .content-article h1 {
   font-family: 'EB Garamond', serif;
   font-size: 2.4rem;
@@ -277,25 +287,6 @@ body.has-library-config .header-credit {
 /* Hide in print mode */
 .print-mode .site-footer {
   display: none !important;
-}
-
-/* Per-library footer suppression.
-   sanrafael instance asked to run without the Booklister site footer.
-   When the footer is hidden, the app-container needs to reclaim the
-   32px height the footer was using, and the floating controls that
-   were positioned to sit above the footer (zoom controls at bottom:48px,
-   folio at bottom:32px) need to drop down accordingly. Folio's bottom
-   is overridden in assets/css/folio.css with the same body.library-sanrafael
-   selector. If another library later wants the same treatment, either
-   add them to this rule or promote the pattern to a library config field. */
-body.library-sanrafael .site-footer {
-  display: none;
-}
-body.library-sanrafael .app-container {
-  height: calc(100vh - 52px);
-}
-body.library-sanrafael .zoom-controls {
-  bottom: 16px;
 }
 
 /* Panel Toggle Buttons in Header */
@@ -383,6 +374,7 @@ body.library-sanrafael .zoom-controls {
   transition: all var(--transition-fast);
   min-width: 75px;
   justify-content: center;
+  white-space: nowrap;
 }
 .btn-header:hover {
   background-color: rgba(255,255,255,0.2);
@@ -424,6 +416,7 @@ body.library-sanrafael .zoom-controls {
   justify-content: center;
   font-weight: 600;
   box-shadow: 0 2px 4px rgba(67, 160, 71, 0.3);
+  white-space: nowrap;
 }
 .btn-header-primary:hover {
   background-color: var(--success-hover);
@@ -894,6 +887,55 @@ input[type="color"]:hover {
   cursor: pointer;
   font-size: 0.9rem;
 }
+/* Segmented radio group used for the collage cover count selector. */
+.collage-cover-count-group {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.collage-cover-count-option {
+  margin: 0;
+  cursor: pointer;
+  /* Containing block for the absolutely-positioned input below.
+     Without this, the input falls back to the initial containing
+     block (viewport), which can cause subtle layout side effects. */
+  position: relative;
+  display: inline-flex;
+}
+.collage-cover-count-option input[type="radio"] {
+  /* Visually-hidden but accessible. Confined to the label via
+     inset:0 so its absolute positioning never escapes the segment. */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.collage-cover-count-option span {
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-color);
+  background: #fff;
+  border-right: 1px solid var(--border-color);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.collage-cover-count-option:last-child span { border-right: none; }
+.collage-cover-count-option input[type="radio"]:checked + span {
+  background: var(--primary-color);
+  color: #fff;
+}
+.collage-cover-count-option input[type="radio"]:focus-visible + span {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
+}
 .btn-icon {
   width: 32px;
   height: 32px;
@@ -915,6 +957,120 @@ input[type="color"]:hover {
 .font-select { flex-grow: 2; }
 .font-size-input { width: 58px; text-align: center; }
 .mini-label { font-size: 0.75rem; color: var(--text-light); font-weight: 500; }
+
+/* --- COLOR PALETTE POPOVER --- */
+.color-palette-trigger {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--text-light);
+  padding: 0;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+.color-palette-trigger:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+.color-palette-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px; /* match the .control-row gap so trigger spacing is consistent */
+}
+.color-palette-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 10px;
+  z-index: 100;
+  width: max-content;
+  display: none;
+}
+.color-palette-popover.open { display: block; }
+.color-palette-popover::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-left: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-color);
+}
+.color-palette-popover.flip-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.color-palette-popover.flip-up::before {
+  top: auto;
+  bottom: -6px;
+  border-left: none;
+  border-top: none;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.color-palette-section-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+}
+.color-palette-section-label:not(:first-child) { margin-top: 10px; }
+.color-palette-row {
+  display: grid;
+  grid-template-columns: repeat(5, 22px);
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.color-palette-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-color);
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+.color-palette-swatch:hover {
+  transform: scale(1.2);
+  border-color: var(--primary-color);
+}
+.color-palette-swatch.active {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-color);
+}
+.color-palette-custom-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 4px 0;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--primary-color);
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.color-palette-custom-btn:hover { background: var(--border-light); }
 
 .advanced-settings summary {
   font-size: 0.9rem;
@@ -1116,8 +1272,12 @@ input[type="color"]:hover {
   border-left: 1px dashed #ccc; transform: translateX(-0.5px);
 }
 
-.book-panel { display: flex; flex-direction: column; height: 100%; justify-content: space-between; }
-#back-cover-panel.all-books { box-sizing: border-box; }
+/* padding-bottom: 27px is 3px more than .panel's default 24px. The
+   extra 3px is a buffer so the last line of the bottom book's
+   description isn't clipped at the page edge by subpixel rendering
+   differences. Applied to both preview and PDF so they match. */
+.book-panel { display: flex; flex-direction: column; height: 100%; justify-content: space-between; padding-bottom: 27px; }
+#back-cover-panel.all-books { box-sizing: border-box; padding-bottom: 27px; }
 #inside-left-panel { align-items: flex-start; }
 #inside-right-panel { align-items: flex-end; }
 #back-cover-panel { display: flex; flex-direction: column; justify-content: space-between; }
@@ -1427,6 +1587,13 @@ input[type="color"]:hover {
 .line-style-group .font-size-input {
   width: 60px;
 }
+/* Tighten the gap between the "Line Spacing:" label and the spacing
+   input so there's room for the palette trigger button on the same
+   row. The label + input pair are visually one unit; the rest of the
+   row uses the normal 8px gap. */
+.line-style-group .mini-label + .line-spacing {
+  margin-left: -4px;
+}
 
 /* --- LAYOUT SELECTOR (in Settings tab) --- */
 #collage-layout-details {
@@ -1623,6 +1790,7 @@ input[type="color"]:hover {
 body.has-library-branding #branding-uploader:not(.has-image) .branding-default-btn {
   display: flex;
 }
+#branding-uploader.has-image { border: none; background: none; }
 #branding-uploader.has-image.drag-over { border: 2px solid var(--primary-color); border-style: solid; }
 
 #branding-uploader .placeholder-text {
@@ -1646,10 +1814,10 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 }
 #qr-code-text {
   flex-grow: 1; height: 100%; display: flex; flex-direction: column;
-  justify-content: center; text-align: center;
+  justify-content: center; text-align: var(--qr-text-align, center);
   border: 1px solid #eee; padding: 4px; box-sizing: border-box;
-  font-family: var(--qr-font, 'Calibri'); 
-  font-size: var(--qr-font-size, 13pt); 
+  font-family: var(--qr-font, 'Calibri');
+  font-size: var(--qr-font-size, 13pt);
   color: var(--qr-color, #000);
   font-weight: var(--qr-font-weight, normal);
   font-style: var(--qr-font-style, normal);
@@ -1666,11 +1834,19 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 /* --- PRINT MODE --- */
 .print-mode .page { box-shadow: none; border: none !important; outline: none; }
 .print-mode .panel { padding: 24px; border: none !important; }
-.print-mode .book-panel { padding-bottom: 27px; }
-.print-mode #back-cover-panel.all-books { padding-bottom: 27px; }
 .print-mode .list-item-controls, .print-mode .page-divider, .print-mode .placeholder-text { display: none !important; }
-.print-mode .cover-uploader, .print-mode .custom-uploader, .print-mode .editable-field, .print-mode #front-cover-uploader, .print-mode #qr-code-text, .print-mode .qr-code-container {
+.print-mode .cover-uploader, .print-mode .custom-uploader, .print-mode .editable-field:not(#qr-code-text), .print-mode #front-cover-uploader {
   border: none !important; outline: none !important; background: transparent !important;
+}
+/* QR text and its container use border-color: transparent instead of
+   border: none so their 1px border width stays reserved in the box
+   model. Without this, left/right-aligned text shifts 1px between
+   preview and PDF (the content box grows when the border disappears
+   on a box-sizing: border-box element). Applies to both the inner
+   #qr-code-text and its .qr-code-container parent — either one
+   shifting independently causes the text to land 1px off. */
+.print-mode #qr-code-text, .print-mode .qr-code-container {
+  border-color: transparent !important; outline: none !important; background: transparent !important;
 }
 
 /* --- NOTIFICATION --- */
