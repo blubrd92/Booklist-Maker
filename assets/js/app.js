@@ -709,7 +709,7 @@ const BooklistApp = (function() {
       return;
     }
 
-    const googleAppScriptUrl = "https://script.google.com/macros/s/AKfycbwZesofNh2i5fKGOHbN6UxfhG3kpq5MewyaPz6Q9sURFdIbo19EYxq0mKhtUhqQXJb2/exec";
+    const googleAppScriptUrl = "https://script.google.com/macros/s/AKfycbyhqsRgjS7aoEbYwqgN-wyygjFtGNtFdGcUOnrqXmZ7P3Aubjjwlp-HydWp4MPJxXY/exec";
 
     if (googleAppScriptUrl === "PASTE_YOUR_GOOGLE_APPS_SCRIPT_URL_HERE" || !googleAppScriptUrl) {
       const errorMsg = "Google Apps Script URL is not configured.";
