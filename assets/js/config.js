@@ -116,9 +116,20 @@
     // override individual values for a single session.
     // Whatever is sent only takes effect if the Apps Script's ALLOWED
     // whitelist includes the field.
+    //
+    // Two length-related concerns, deliberately decoupled:
+    //   TARGET_WORDS_{MIN,MAX} — what the writer is told to aim for.
+    //     LLMs follow word targets reliably; they can't count chars.
+    //     This is the user-facing knob (exposed in the modal).
+    //   MIN_CHARS / MAX_CHARS / LENGTH_TOLERANCE — the server-side
+    //     acceptance contract. The Apps Script validates in chars and
+    //     triggers a word-based revision pass if outside the band.
+    //     Not exposed in the modal (internal precision knob).
     DRAFTER_DEFAULTS: {
-      MIN_CHARS: 280,
-      MAX_CHARS: 290,
+      TARGET_WORDS_MIN: 45,
+      TARGET_WORDS_MAX: 50,
+      MIN_CHARS: 275,
+      MAX_CHARS: 285,
       LENGTH_TOLERANCE: 10,
       TEMPERATURE: 0.6,
       DRAFT_COUNT: 2,

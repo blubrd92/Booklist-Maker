@@ -1816,9 +1816,8 @@ const BooklistApp = (function() {
     const current = _drafterOverrides || {};
 
     const fields = [
-      { key: 'MIN_CHARS', label: 'Min Characters', type: 'number', step: 5 },
-      { key: 'MAX_CHARS', label: 'Max Characters', type: 'number', step: 5 },
-      { key: 'LENGTH_TOLERANCE', label: 'Length Tolerance', type: 'number', step: 1 },
+      { key: 'TARGET_WORDS_MIN', label: 'Min Words', type: 'number', step: 1, min: 20, max: 80 },
+      { key: 'TARGET_WORDS_MAX', label: 'Max Words', type: 'number', step: 1, min: 20, max: 80 },
       { key: 'TEMPERATURE', label: 'Temperature', type: 'number', step: 0.1, min: 0, max: 1 },
       { key: 'DRAFT_COUNT', label: 'Draft Count (2+ enables judge)', type: 'number', step: 1, min: 1, max: 5 },
       { key: 'MAX_RETRIES', label: 'Max Length Retries', type: 'number', step: 1, min: 0, max: 5 },
