@@ -735,13 +735,11 @@ const BooklistApp = (function() {
     if (sourceText) {
       payload.sourceText = sourceText;
     }
-    // Always send config values to the Apps Script. The tool's
-    // DRAFTER_DEFAULTS is the single source of truth for the
-    // pipeline's tuning knobs — the script uses whatever it
-    // receives, falling back to its own CONFIG only for direct
-    // GET diagnostic requests that bypass the tool entirely.
-    // When the easter egg modal is active, _drafterOverrides
-    // replaces specific values for testing.
+    // Send DRAFTER_DEFAULTS (plus any easter-egg modal overrides) to
+    // the Apps Script. The tool owns the knobs it defines here; the
+    // script owns anything not sent (notably the char acceptance band
+    // MIN_CHARS / MAX_CHARS / LENGTH_TOLERANCE, which lives only in
+    // the Apps Script so it can be tuned there without a client push).
     const effectiveConfig = Object.assign({}, CONFIG.DRAFTER_DEFAULTS, _drafterOverrides || {});
     payload.configOverrides = effectiveConfig;
     

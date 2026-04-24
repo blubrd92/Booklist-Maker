@@ -110,27 +110,25 @@
     ],
 
     // AI drafter configuration sent to the Apps Script with every
-    // request. The script treats these as the single source of truth;
-    // it only falls back to its own internal CONFIG for direct GET
-    // diagnostic calls. The easter egg modal (Ctrl+Shift+D) can
-    // override individual values for a single session.
-    // Whatever is sent only takes effect if the Apps Script's ALLOWED
-    // whitelist includes the field.
+    // request. Values here override the script's defaults for
+    // production calls (the script's CONFIG only applies to direct
+    // GET diagnostic requests that bypass the tool). The easter egg
+    // modal (Ctrl+Shift+D) can override individual values for a
+    // single session. Whatever is sent only takes effect if the
+    // Apps Script's ALLOWED whitelist includes the field.
     //
-    // Two length-related concerns, deliberately decoupled:
-    //   TARGET_WORDS_{MIN,MAX} — what the writer is told to aim for.
-    //     LLMs follow word targets reliably; they can't count chars.
-    //     This is the user-facing knob (exposed in the modal).
-    //   MIN_CHARS / MAX_CHARS / LENGTH_TOLERANCE — the server-side
-    //     acceptance contract. The Apps Script validates in chars and
-    //     triggers a word-based revision pass if outside the band.
-    //     Not exposed in the modal (internal precision knob).
+    // Length: deliberately split across tool and script.
+    //   TARGET_WORDS_{MIN,MAX} (here) — what the writer is told to
+    //     aim for. LLMs follow word targets reliably; they can't
+    //     count chars. Owned by the tool so it's tunable via the
+    //     modal and shippable via a client push.
+    //   MIN_CHARS / MAX_CHARS / LENGTH_TOLERANCE (Apps Script only)
+    //     — the server-side acceptance contract. Owned by the Apps
+    //     Script so the precision band can be tuned there without
+    //     needing a matching client change. Not sent from here.
     DRAFTER_DEFAULTS: {
       TARGET_WORDS_MIN: 45,
       TARGET_WORDS_MAX: 50,
-      MIN_CHARS: 275,
-      MAX_CHARS: 285,
-      LENGTH_TOLERANCE: 10,
       TEMPERATURE: 0.6,
       DRAFT_COUNT: 2,
       MAX_RETRIES: 2,
