@@ -130,7 +130,7 @@
       TARGET_WORDS_MIN: 42,
       TARGET_WORDS_MAX: 47,
       TEMPERATURE: 0.6,
-      DRAFT_COUNT: 2,
+      DRAFT_COUNT: 1,
       MAX_RETRIES: 2,
     },
   };
