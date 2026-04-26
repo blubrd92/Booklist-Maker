@@ -33,14 +33,19 @@ function isPagesDevHost(host) {
 const hostname = window.location.hostname;
 const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
 
-// Local-dev override: `?library=sanrafael` on localhost makes the page behave
-// as if it were loaded on sanrafael.booklister.org. The override is ignored
-// on any real domain so nobody can force a config load on the public tool.
+// `?library=<id>` override: on localhost AND on Cloudflare Pages preview
+// hosts, this query param makes the page behave as if it were loaded on
+// `<id>.booklister.org`. Lets you test branded-instance flows (login,
+// drafter, branding) from a preview deploy without spinning up a real
+// subdomain. Ignored on any real domain (production booklister.org,
+// www, GitHub Pages) so nobody can force a config load there. Mirror
+// the host check in the inline head script in index.html.
+const allowLibraryOverride = isLocalHost || isPagesDevHost(hostname);
 const urlParams = new URLSearchParams(window.location.search);
-const libraryOverride = isLocalHost ? urlParams.get('library') : null;
+const libraryOverride = allowLibraryOverride ? urlParams.get('library') : null;
 
 const isPublicHost = PUBLIC_HOSTS.has(hostname) || isPagesDevHost(hostname);
-const isBrandedInstance = !isPublicHost || (isLocalHost && !!libraryOverride);
+const isBrandedInstance = !isPublicHost || (allowLibraryOverride && !!libraryOverride);
 
 let app = null;
 let auth = null;

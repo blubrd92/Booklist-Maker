@@ -41,12 +41,16 @@
       var PUBLIC_HOSTS = ['booklister.org', 'www.booklister.org', 'blubrd92.github.io', 'localhost', '127.0.0.1'];
       var h = window.location.hostname;
       var isLocal = h === 'localhost' || h === '127.0.0.1';
-      var hasOverride = isLocal && /[?&]library=/.test(window.location.search);
       // Cloudflare Pages previews (`<branch>.<project>.pages.dev`) are
       // treated as public so non-production deploys render the public
-      // tool, not a library-instance login modal. Mirror this in
-      // assets/js/firebase-init.js.
-      var isPublic = PUBLIC_HOSTS.indexOf(h) !== -1 || h.endsWith('.pages.dev');
+      // tool, not a library-instance login modal. The `?library=<id>`
+      // override is also accepted on previews (in addition to localhost)
+      // so branded-instance flows can be tested from a preview URL.
+      // Mirror these rules in assets/js/firebase-init.js.
+      var isPagesDev = h.endsWith('.pages.dev');
+      var allowOverride = isLocal || isPagesDev;
+      var hasOverride = allowOverride && /[?&]library=/.test(window.location.search);
+      var isPublic = PUBLIC_HOSTS.indexOf(h) !== -1 || isPagesDev;
       if (!isPublic || hasOverride) {
         document.documentElement.classList.add('awaiting-library-config');
       }
