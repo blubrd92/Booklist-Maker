@@ -5,29 +5,36 @@
    hidden by `html.awaiting-library-config` so a failed library
    config can still be escaped via the chip. */
 
+/* Centered horizontally inside the 52px-tall header so it sits in
+   the empty middle space between the logo on the left and any
+   header controls on the right. Vertically inset by ~14px so the
+   chip's bottom edge lines up roughly with the header's baseline. */
 .preview-helper-chip {
   position: fixed;
-  top: 8px;
-  right: 16px;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 950;
-  background: #1f2937;
-  color: white;
-  padding: 6px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(245, 158, 11, 0.95); /* amber — flags as dev tooling */
+  color: #1f2937;
+  padding: 5px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 14px;
-  font: 600 11px/1 'Inter', system-ui, sans-serif;
-  letter-spacing: 0.02em;
+  font: 700 11px/1 'Inter', system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   user-select: none;
-  transition: background 150ms ease;
+  transition: background 150ms ease, transform 150ms ease;
 }
 
 .preview-helper-chip:hover {
-  background: #374151;
+  background: rgba(252, 176, 64, 1);
+  transform: translateX(-50%) translateY(-1px);
 }
 
 .preview-helper-chip:focus-visible {
@@ -37,15 +44,16 @@
 
 .preview-helper-panel {
   position: fixed;
-  top: 44px;
-  right: 16px;
+  top: 56px; /* immediately below the 52px header */
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 950;
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  min-width: 260px;
-  max-width: 320px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  min-width: 280px;
+  max-width: 360px;
   padding: 12px;
   font: 13px/1.4 'Inter', system-ui, sans-serif;
   color: #111827;
