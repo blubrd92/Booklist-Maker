@@ -848,6 +848,38 @@ code {
   color: var(--admin-text);
 }
 
+/* Type-to-confirm field used in destructive-action modals (delete
+   library, remove staff). The label shows the exact string the user
+   has to retype, the input stays empty until they do, and the danger
+   button is disabled until the input matches (case-insensitive). */
+.admin-confirm-typing-field code {
+  font-size: 0.9em;
+  padding: 1px 6px;
+  background: white;
+  border: 1px solid var(--admin-border);
+  border-radius: 4px;
+  color: var(--admin-text);
+}
+
+.admin-confirm-typing-field input[type="text"] {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: white;
+  color: var(--admin-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  box-sizing: border-box;
+  transition: border-color var(--admin-transition), box-shadow var(--admin-transition);
+}
+
+.admin-confirm-typing-field input[type="text"]:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+
 /* --- MEMBERSHIPS (embedded in the library edit modal) --- */
 
 .admin-memberships {

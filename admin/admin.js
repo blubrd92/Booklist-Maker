@@ -773,13 +773,34 @@ function openDeleteModal(lib) {
   deletingLibrary = lib;
   document.getElementById('admin-delete-library-name').textContent =
     (lib.data.displayName || lib.id) + ' (' + lib.id + ')';
+  document.getElementById('admin-delete-confirm-target').textContent = lib.id;
+  const input = document.getElementById('admin-delete-confirm-input');
+  input.value = '';
+  document.getElementById('admin-delete-confirm-btn').disabled = true;
   document.getElementById('admin-delete-error').hidden = true;
   document.getElementById('admin-delete-modal').hidden = false;
+  // Focus the input so the user lands ready to type the confirmation.
+  input.focus();
 }
 
 function closeDeleteModal() {
   document.getElementById('admin-delete-modal').hidden = true;
+  document.getElementById('admin-delete-confirm-input').value = '';
+  document.getElementById('admin-delete-confirm-btn').disabled = true;
   deletingLibrary = null;
+}
+
+// Enable the danger button only when the typed text matches the
+// library ID exactly (case-insensitive). Library IDs are lowercase by
+// convention but tolerate uppercase typing — the only point of this
+// check is to make sure the user looked at WHICH library they're
+// deleting, not to police capitalization.
+function updateDeleteConfirmEnabled() {
+  if (!deletingLibrary) return;
+  const input = document.getElementById('admin-delete-confirm-input');
+  const confirmBtn = document.getElementById('admin-delete-confirm-btn');
+  const matches = input.value.trim().toLowerCase() === deletingLibrary.id.toLowerCase();
+  confirmBtn.disabled = !matches;
 }
 
 async function handleDeleteConfirm() {
@@ -787,6 +808,13 @@ async function handleDeleteConfirm() {
   const confirmBtn = document.getElementById('admin-delete-confirm-btn');
   const errorEl = document.getElementById('admin-delete-error');
   const collectionName = deletingLibrary.type === 'public' ? 'libraries-public' : 'libraries';
+
+  // Defense in depth: even if the button somehow got clicked while the
+  // typed text doesn't match, refuse to proceed.
+  const input = document.getElementById('admin-delete-confirm-input');
+  if (input.value.trim().toLowerCase() !== deletingLibrary.id.toLowerCase()) {
+    return;
+  }
 
   confirmBtn.disabled = true;
   confirmBtn.textContent = 'Deleting…';
@@ -927,6 +955,11 @@ document.getElementById('admin-library-cancel-btn').addEventListener('click', cl
 document.getElementById('admin-library-form').addEventListener('submit', handleLibraryFormSubmit);
 document.getElementById('admin-delete-cancel-btn').addEventListener('click', closeDeleteModal);
 document.getElementById('admin-delete-confirm-btn').addEventListener('click', handleDeleteConfirm);
+document.getElementById('admin-delete-confirm-input').addEventListener('input', updateDeleteConfirmEnabled);
+
+document.getElementById('admin-remove-staff-cancel-btn').addEventListener('click', closeRemoveStaffModal);
+document.getElementById('admin-remove-staff-confirm-btn').addEventListener('click', handleRemoveStaffConfirm);
+document.getElementById('admin-remove-staff-confirm-input').addEventListener('input', updateRemoveStaffConfirmEnabled);
 
 document.getElementById('admin-library-convert-btn').addEventListener('click', () => {
   if (editingLibrary) openConvertModal(editingLibrary);
@@ -938,7 +971,13 @@ document.getElementById('admin-convert-confirm-btn').addEventListener('click', h
 // Library admins can't dismiss the library modal because it IS their
 // entire admin UI; dismissing it would leave them staring at a blank
 // page. To exit, they sign out via the header button.
-for (const modalId of ['admin-library-modal', 'admin-delete-modal', 'admin-convert-modal', 'admin-move-staff-modal']) {
+for (const modalId of [
+  'admin-library-modal',
+  'admin-delete-modal',
+  'admin-convert-modal',
+  'admin-move-staff-modal',
+  'admin-remove-staff-modal',
+]) {
   const overlay = document.getElementById(modalId);
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
@@ -949,17 +988,23 @@ for (const modalId of ['admin-library-modal', 'admin-delete-modal', 'admin-conve
         closeDeleteModal();
       } else if (modalId === 'admin-convert-modal') {
         closeConvertModal();
-      } else {
+      } else if (modalId === 'admin-move-staff-modal') {
         closeMoveStaffModal();
+      } else {
+        closeRemoveStaffModal();
       }
     }
   });
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    // Inner modals (convert, move-staff) are layered above the library
-    // modal — close them first so the underlying library modal stays
-    // visible.
+    // Inner modals (convert, move-staff, remove-staff) are layered
+    // above the library modal — close them first so the underlying
+    // library modal stays visible.
+    if (!document.getElementById('admin-remove-staff-modal').hidden) {
+      closeRemoveStaffModal();
+      return;
+    }
     if (!document.getElementById('admin-move-staff-modal').hidden) {
       closeMoveStaffModal();
       return;
@@ -1232,7 +1277,7 @@ async function loadMemberships(libraryId) {
         removeBtn.className = 'admin-row-btn admin-row-btn-danger';
         removeBtn.type = 'button';
         removeBtn.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i> Remove';
-        removeBtn.addEventListener('click', () => removeMembership(row.uid, libraryId));
+        removeBtn.addEventListener('click', () => openRemoveStaffModal(row, libraryId));
         actionsWrap.appendChild(removeBtn);
       }
 
@@ -1443,15 +1488,91 @@ async function handleAddMembership(evt) {
   }
 }
 
-async function removeMembership(uid, libraryId) {
+// ---------------------------------------------------------------------------
+// Remove staff confirmation modal (type-to-confirm)
+//
+// Used by both super-admins (removing any staff or library-admin) and
+// library-admins (removing only their library's staff). Forces the user
+// to retype the email (or UID, as a fallback for legacy memberships
+// without an email field) so wrong-row clicks don't silently delete the
+// wrong membership. The actual delete happens in
+// handleRemoveStaffConfirm — `removeMembership` is the underlying call.
+// ---------------------------------------------------------------------------
+
+let removingStaff = null; // { uid, libraryId, label }
+
+function openRemoveStaffModal(row, libraryId) {
+  // Defense in depth: the row-render code already gates the Remove
+  // button on canRemove, so this branch shouldn't fire for unauthorized
+  // users — but check again here so a programmatic call can't bypass it.
+  const isAdminRow = row.data.role === 'admin';
+  const allowed =
+    currentUserRole === 'super-admin'
+    || (currentUserRole === 'library-admin' && !isAdminRow);
+  if (!allowed) return;
+
+  // Type the email if we have it; fall back to the UID for legacy
+  // memberships that predate the email field.
+  const confirmTarget = row.data.email || row.uid;
+  removingStaff = {
+    uid: row.uid,
+    libraryId,
+    label: row.data.email || row.uid,
+    confirmTarget,
+  };
+
+  document.getElementById('admin-remove-staff-name').textContent =
+    (row.data.email || row.uid) + (isAdminRow ? ' (library admin)' : '');
+  document.getElementById('admin-remove-staff-confirm-target').textContent = confirmTarget;
+  const input = document.getElementById('admin-remove-staff-confirm-input');
+  input.value = '';
+  document.getElementById('admin-remove-staff-confirm-btn').disabled = true;
+  document.getElementById('admin-remove-staff-error').hidden = true;
+  document.getElementById('admin-remove-staff-modal').hidden = false;
+  input.focus();
+}
+
+function closeRemoveStaffModal() {
+  document.getElementById('admin-remove-staff-modal').hidden = true;
+  document.getElementById('admin-remove-staff-confirm-input').value = '';
+  document.getElementById('admin-remove-staff-confirm-btn').disabled = true;
+  removingStaff = null;
+}
+
+function updateRemoveStaffConfirmEnabled() {
+  if (!removingStaff) return;
+  const input = document.getElementById('admin-remove-staff-confirm-input');
+  const confirmBtn = document.getElementById('admin-remove-staff-confirm-btn');
+  const matches = input.value.trim().toLowerCase()
+                === removingStaff.confirmTarget.toLowerCase();
+  confirmBtn.disabled = !matches;
+}
+
+async function handleRemoveStaffConfirm() {
+  if (!removingStaff) return;
+  const input = document.getElementById('admin-remove-staff-confirm-input');
+  if (input.value.trim().toLowerCase() !== removingStaff.confirmTarget.toLowerCase()) {
+    return;
+  }
+
+  const { uid, libraryId } = removingStaff;
+  const confirmBtn = document.getElementById('admin-remove-staff-confirm-btn');
+  const errorEl = document.getElementById('admin-remove-staff-error');
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Removing…';
+  errorEl.hidden = true;
+
   try {
     await deleteDoc(doc(db, 'memberships', uid));
+    closeRemoveStaffModal();
     await loadMemberships(libraryId);
   } catch (err) {
     console.warn('[admin] remove membership failed:', err);
-    const errorEl = document.getElementById('admin-memberships-error');
-    errorEl.textContent = 'Failed to remove membership: ' + (err.message || err.code || 'unknown error');
+    errorEl.textContent = 'Failed to remove: ' + (err.message || err.code || 'unknown error');
     errorEl.hidden = false;
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Remove';
   }
 }
 

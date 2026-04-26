@@ -290,11 +290,52 @@
           page load. Memberships for this library are NOT deleted — manage those
           separately.
         </p>
+        <div class="admin-field admin-confirm-typing-field">
+          <label for="admin-delete-confirm-input">
+            To confirm, type the library ID
+            <code id="admin-delete-confirm-target"></code>
+            below.
+          </label>
+          <input type="text" id="admin-delete-confirm-input" autocomplete="off" spellcheck="false">
+        </div>
         <p id="admin-delete-error" class="admin-error" hidden></p>
       </div>
       <div class="admin-modal-footer">
         <button type="button" class="admin-btn-secondary" id="admin-delete-cancel-btn">Cancel</button>
-        <button type="button" class="admin-btn-danger" id="admin-delete-confirm-btn">Delete library</button>
+        <button type="button" class="admin-btn-danger" id="admin-delete-confirm-btn" disabled>Delete library</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remove staff confirmation modal — used by both super-admins and
+       library-admins. Type-to-confirm so wrong-row clicks don't silently
+       delete the wrong membership. -->
+  <div id="admin-remove-staff-modal" class="admin-modal-overlay" hidden>
+    <div class="admin-modal admin-modal-small">
+      <div class="admin-modal-header">
+        <h3>Remove staff member?</h3>
+      </div>
+      <div class="admin-modal-body">
+        <p>Remove <strong id="admin-remove-staff-name"></strong> from this library?</p>
+        <p class="admin-note admin-note-warning" id="admin-remove-staff-warning">
+          This deletes their <code>memberships</code> document so they lose access. Their
+          Firebase Auth account is NOT deleted (the admin console can't do that) — the
+          email stays held by Firebase Auth. To free the email for reuse elsewhere,
+          delete the user from the Firebase Auth console after removing them here.
+        </p>
+        <div class="admin-field admin-confirm-typing-field">
+          <label for="admin-remove-staff-confirm-input">
+            To confirm, type
+            <code id="admin-remove-staff-confirm-target"></code>
+            below.
+          </label>
+          <input type="text" id="admin-remove-staff-confirm-input" autocomplete="off" spellcheck="false">
+        </div>
+        <p id="admin-remove-staff-error" class="admin-error" hidden></p>
+      </div>
+      <div class="admin-modal-footer">
+        <button type="button" class="admin-btn-secondary" id="admin-remove-staff-cancel-btn">Cancel</button>
+        <button type="button" class="admin-btn-danger" id="admin-remove-staff-confirm-btn" disabled>Remove</button>
       </div>
     </div>
   </div>
