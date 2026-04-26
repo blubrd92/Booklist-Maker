@@ -583,7 +583,6 @@ function openLibraryModal(lib) {
   errorEl.textContent = '';
 
   const convertBtn = document.getElementById('admin-library-convert-btn');
-  const convertTargetSpan = document.getElementById('admin-library-convert-target');
 
   if (lib) {
     // Edit mode
@@ -603,9 +602,14 @@ function openLibraryModal(lib) {
       // handles via a confirmation modal. Super-admins only.
       r.disabled = true;
     }
-    if (convertBtn && convertTargetSpan) {
+    if (convertBtn) {
       if (currentUserRole === 'super-admin') {
-        convertTargetSpan.textContent = lib.type === 'public' ? 'gated' : 'public';
+        // Set the full button label from JS in one shot. The button is
+        // display: inline-flex (from .admin-btn-secondary), which
+        // collapses whitespace between flex items — mixing a static
+        // text node with a child <span> would render as e.g.
+        // "Convert topublic" because the trailing space gets eaten.
+        convertBtn.textContent = 'Convert to ' + (lib.type === 'public' ? 'gated' : 'public');
         convertBtn.hidden = false;
       } else {
         convertBtn.hidden = true;
