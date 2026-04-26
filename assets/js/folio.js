@@ -5,6 +5,8 @@
    Public API (available after DOM ready):
      window.folio.setState(state, event?)
      window.folio.react(name)
+     window.folio.celebrate(opts)
+     window.folio.guard(duration)
      window.folio.stopWatch()
      window.folio.showBubble(text)
      window.folio.clickFolio()
@@ -28,6 +30,17 @@
   let currentState = 'idle';
   let bubbleTimer = null;
   let droopTimer = null;
+
+  // Bubble pacing: bubbles must be visible for at least MIN_VISIBLE_MS
+  // before another can replace them. New bubbles arriving inside that
+  // window are deferred (only the most recent deferred text fires, so
+  // rapid hovers/cascades collapse to the last quip rather than
+  // flickering through several). A pending defer is tracked here so
+  // a fresh showBubble can replace it.
+  const MIN_VISIBLE_MS = 1500;
+  let bubbleStartTime = 0;
+  let pendingBubbleTimer = null;
+  let pendingBubbleText = null;
 
   /* ----------------------------------------------------------------
      QUIP SYSTEM
@@ -299,20 +312,84 @@
       });
     }
 
-    // Pick quip: triggered if event matches, otherwise ambient.
-    // Triggered values can be a string (single line) or array (rotating pool).
-    let line;
-    const triggered = event && quips[state]?.triggered[event];
-    if (triggered) {
-      if (Array.isArray(triggered)) {
-        line = pickTriggered(state, event);
-      } else {
-        line = triggered;
-      }
-    } else {
-      line = pickAmbient(state);
-    }
+    // Pick quip: triggered ONLY when an event is supplied.
+    //
+    // setState calls without an event are "transition home" calls
+    // (e.g. setState('idle') after an action completes, or a hover
+    // mouseleave). Those used to fall through to pickAmbient and
+    // fire a random ambient bubble immediately after the action's
+    // triggered bubble — the source of the rushed back-to-back
+    // bubble effect. We now stay silent on bare transitions and let
+    // the click-to-pet path remain the only on-demand ambient
+    // trigger. Triggered values can be a string (single line) or an
+    // array (rotating pool, shuffle-bagged).
+    if (!event) return;
+    const triggered = quips[state]?.triggered[event];
+    if (!triggered) return;
+    const line = Array.isArray(triggered)
+      ? pickTriggered(state, event)
+      : triggered;
     if (line) showBubble(line);
+  }
+
+  /* ----------------------------------------------------------------
+     CELEBRATE: One-shot helper for the very common pattern of
+     "react + transition to a state with a triggered quip + return
+     to idle after a beat." Replaces ~14 hand-rolled triples in
+     app.js that each set their own setTimeout chain.
+
+     Single rolling return timer means a NEW celebrate cancels the
+     previous one's pending return-to-idle, so back-to-back actions
+     don't have an old timer firing into the middle of the next
+     celebration.
+
+     Options (all optional):
+       reaction      micro-reaction name fired immediately ('nod', 'wince', etc.)
+       state         state to transition into (default 'excited')
+       event         triggered event name for the bubble quip
+       reactionDelay ms before the state change fires (default 300 if a
+                     reaction was given; 0 otherwise — matches the
+                     existing call patterns where the nod/wince
+                     animation gets a head-start before the bubble)
+       returnAfter   ms after the celebrate call before snapping back
+                     to idle (default 4000). Pass 0/null to skip the
+                     auto-return (e.g. for evaluating-while-awaiting
+                     where the caller manages the return itself).
+     ---------------------------------------------------------------- */
+  let celebrateReturnTimer = null;
+
+  function celebrate(opts) {
+    opts = opts || {};
+    const reaction = opts.reaction || null;
+    const state = opts.state || 'excited';
+    const event = opts.event || null;
+    const reactionDelay = (typeof opts.reactionDelay === 'number')
+      ? opts.reactionDelay
+      : (reaction ? 300 : 0);
+    const returnAfter = (typeof opts.returnAfter === 'number')
+      ? opts.returnAfter
+      : 4000;
+
+    // Cancel any prior celebration's return-to-idle so it can't fire
+    // mid-display of the new celebration. setTimeout with a falsy
+    // handle is a no-op, so this is safe on the first call too.
+    clearTimeout(celebrateReturnTimer);
+    celebrateReturnTimer = null;
+
+    if (reaction) react(reaction);
+
+    if (reactionDelay > 0) {
+      setTimeout(() => setState(state, event), reactionDelay);
+    } else {
+      setState(state, event);
+    }
+
+    if (returnAfter && returnAfter > 0) {
+      celebrateReturnTimer = setTimeout(() => {
+        celebrateReturnTimer = null;
+        setState('idle');
+      }, returnAfter);
+    }
   }
 
   /* ----------------------------------------------------------------
@@ -411,9 +488,45 @@
 
   /* ----------------------------------------------------------------
      SPEECH BUBBLE: Pop in, hold, shrink out.
+
+     Pacing rule: a new bubble cannot replace a current one until the
+     current one has been visible for MIN_VISIBLE_MS. Inside that
+     window the new text is deferred and any prior pending text is
+     dropped, so a burst of rapid setState calls (hover spam, fast
+     async returns) collapses to the latest single quip rather than
+     flashing through every one.
      ---------------------------------------------------------------- */
   function showBubble(text) {
+    if (!text) return;
+
+    const now = Date.now();
+    const elapsed = bubbleStartTime ? now - bubbleStartTime : Infinity;
+
+    if (elapsed < MIN_VISIBLE_MS) {
+      // Defer: replace any existing pending text with the new one.
+      pendingBubbleText = text;
+      clearTimeout(pendingBubbleTimer);
+      pendingBubbleTimer = setTimeout(() => {
+        const next = pendingBubbleText;
+        pendingBubbleText = null;
+        pendingBubbleTimer = null;
+        if (next) showBubbleNow(next);
+      }, MIN_VISIBLE_MS - elapsed);
+      return;
+    }
+
+    // Any pending defer is now stale — this bubble is allowed through
+    // immediately, so its text supersedes whatever was queued.
+    clearTimeout(pendingBubbleTimer);
+    pendingBubbleTimer = null;
+    pendingBubbleText = null;
+
+    showBubbleNow(text);
+  }
+
+  function showBubbleNow(text) {
     clearTimeout(bubbleTimer);
+    bubbleStartTime = Date.now();
     bubble.className = 'speech-bubble';
     bubble.textContent = text;
     void bubble.offsetWidth;
@@ -608,6 +721,7 @@
   window.folio = {
     setState: setState,
     react: react,
+    celebrate: celebrate,
     guard: guard,
     stopWatch: stopWatch,
     showBubble: showBubble,

@@ -792,11 +792,10 @@ const BooklistApp = (function() {
         updateDescriptionInPlace(bookKey);
         debouncedSave();
         // Folio: worried about fetch failure
-        if (window.folio) {
-          window.folio.react('wince');
-          setTimeout(function() { if (window.folio) window.folio.setState('worried', 'fetch-failed'); }, 500);
-          setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 5500);
-        }
+        if (window.folio) window.folio.celebrate({
+          reaction: 'wince', state: 'worried', event: 'fetch-failed',
+          reactionDelay: 500, returnAfter: 5500,
+        });
       }
     });
   }
@@ -897,10 +896,9 @@ const BooklistApp = (function() {
         if (books.length === 0) {
           resultsContainer.innerHTML = '<p>No results found.</p>';
           // Folio: worried about empty results
-          if (window.folio) {
-            window.folio.setState('worried', 'search-empty');
-            setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 5000);
-          }
+          if (window.folio) window.folio.celebrate({
+            state: 'worried', event: 'search-empty', returnAfter: 5000,
+          });
           return;
         }
 
@@ -920,11 +918,10 @@ const BooklistApp = (function() {
         console.error('There was a problem:', error);
         resultsContainer.innerHTML = '<p class="error-message">Sorry, could not connect to the book server. Please check your network connection and try again.</p>';
         // Folio: worried about network error
-        if (window.folio) {
-          window.folio.react('wince');
-          setTimeout(function() { if (window.folio) window.folio.setState('worried', 'network-error'); }, 500);
-          setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 5500);
-        }
+        if (window.folio) window.folio.celebrate({
+          reaction: 'wince', state: 'worried', event: 'network-error',
+          reactionDelay: 500, returnAfter: 5500,
+        });
       })
       .finally(() => {
         setLoading(elements.fetchButton, false);
@@ -1211,11 +1208,9 @@ const BooklistApp = (function() {
         addButton.setAttribute('aria-label', `Remove "${book.title}" from booklist`);
 
         // Folio: excited about the new book
-        if (window.folio) {
-          window.folio.react('nod');
-          setTimeout(function() { if (window.folio) window.folio.setState('excited', 'book-added'); }, 300);
-          setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
-        }
+        if (window.folio) window.folio.celebrate({
+          reaction: 'nod', state: 'excited', event: 'book-added',
+        });
 
         renderBooklist();
         debouncedSave();
@@ -1229,13 +1224,18 @@ const BooklistApp = (function() {
           getAiDescription(newBook.key);
         }
         
-        // Folio: check if all slots are now filled
+        // Folio: check if all slots are now filled. Wait past the
+        // book-added celebration's auto-return so the two beats don't
+        // collide. (celebrate would also internally guard against
+        // overlap by clearing the prior return timer, but the bubble
+        // pacing reads better with the explicit space.)
         if (window.folio) {
           const allFilled = myBooklist.every(function(b) { return !b.isBlank; });
           if (allFilled) {
             setTimeout(function() {
-              if (window.folio) window.folio.setState('excited', 'slots-full');
-              setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 5000);
+              if (window.folio) window.folio.celebrate({
+                state: 'excited', event: 'slots-full', returnAfter: 5000,
+              });
             }, 4200);
           }
         }
@@ -1702,11 +1702,13 @@ const BooklistApp = (function() {
     bookItem.description = "Drafting title description... May take a few minutes.";
     updateDescriptionInPlace(bookItem.key);
     debouncedSave();
-    // Folio: evaluating while fetching description
-    if (window.folio) {
-      window.folio.react('perk');
-      window.folio.setState('evaluating', 'description-fetching');
-    }
+    // Folio: evaluating while fetching description. No auto-return —
+    // getAiDescription's success/failure handlers explicitly transition
+    // back to idle (or to worried on error).
+    if (window.folio) window.folio.celebrate({
+      reaction: 'perk', state: 'evaluating', event: 'description-fetching',
+      reactionDelay: 0, returnAfter: 0,
+    });
     getAiDescription(bookItem.key);
   }
 
@@ -1778,10 +1780,10 @@ const BooklistApp = (function() {
       bookItem.description = "Drafting title description... May take a few minutes.";
       updateDescriptionInPlace(bookItem.key);
       debouncedSave();
-      if (window.folio) {
-        window.folio.react('perk');
-        window.folio.setState('evaluating', 'description-fetching');
-      }
+      if (window.folio) window.folio.celebrate({
+        reaction: 'perk', state: 'evaluating', event: 'description-fetching',
+        reactionDelay: 0, returnAfter: 0,
+      });
       getAiDescription(bookItem.key, false, sourceText);
     });
     actions.appendChild(draftBtn);
@@ -2043,11 +2045,9 @@ const BooklistApp = (function() {
           }
 
           // Folio: acknowledge cover upload
-          if (window.folio) {
-            window.folio.react('nod');
-            setTimeout(function() { if (window.folio) window.folio.setState('excited', 'cover-uploaded'); }, 300);
-            setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
-          }
+          if (window.folio) window.folio.celebrate({
+            reaction: 'nod', state: 'excited', event: 'cover-uploaded',
+          });
 
           // Auto-generate if this book is starred and completes the required count
           const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
@@ -2754,10 +2754,9 @@ const BooklistApp = (function() {
         showNotification(`Need ${requiredCovers} covers with images. ${totalWithCovers} have covers.`);
       }
       // Folio: worried about missing covers
-      if (window.folio) {
-        window.folio.setState('worried', 'covers-needed');
-        setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 5000);
-      }
+      if (window.folio) window.folio.celebrate({
+        state: 'worried', event: 'covers-needed', returnAfter: 5000,
+      });
       setLoading(button, false);
       return;
     }
@@ -2826,20 +2825,18 @@ const BooklistApp = (function() {
       debouncedSave();
       
       // Folio: excited about the collage
-      if (window.folio) {
-        window.folio.setState('excited', 'collage-generated');
-        setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
-      }
-      
+      if (window.folio) window.folio.celebrate({
+        state: 'excited', event: 'collage-generated',
+      });
+
     }).catch(err => {
       console.error('Cover generation failed:', err);
       showNotification('Could not create cover. Please try again.');
       // Folio: worried about collage failure
-      if (window.folio) {
-        window.folio.react('wince');
-        setTimeout(function() { if (window.folio) window.folio.setState('worried', 'network-error'); }, 500);
-        setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 5500);
-      }
+      if (window.folio) window.folio.celebrate({
+        reaction: 'wince', state: 'worried', event: 'network-error',
+        reactionDelay: 500, returnAfter: 5500,
+      });
     }).finally(() => {
       setLoading(button, false);
     });
@@ -4592,11 +4589,9 @@ const BooklistApp = (function() {
     debouncedSave();
 
     // Folio: acknowledge extra cover upload
-    if (window.folio) {
-      window.folio.react('nod');
-      setTimeout(function() { if (window.folio) window.folio.setState('excited', 'cover-uploaded'); }, 300);
-      setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
-    }
+    if (window.folio) window.folio.celebrate({
+      reaction: 'nod', state: 'excited', event: 'cover-uploaded',
+    });
 
     // Auto-generate cover when the last slot is filled (if auto-generated image exists)
     const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
@@ -5112,12 +5107,13 @@ const BooklistApp = (function() {
       pdf.save(suggestedName);
       showNotification('PDF download started.', 'success');
 
-      // Folio: excited about PDF
-      if (window.folio) {
-        window.folio.react('satisfied');
-        window.folio.setState('excited', 'pdf-exported');
-        setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
-      }
+      // Folio: excited about PDF. The 'satisfied' reaction overlays
+      // the 'excited' state immediately (no animation head-start) —
+      // matches the original timing.
+      if (window.folio) window.folio.celebrate({
+        reaction: 'satisfied', state: 'excited', event: 'pdf-exported',
+        reactionDelay: 0,
+      });
 
     } catch (err) {
       console.error("PDF Generation failed:", err);
@@ -5805,11 +5801,9 @@ const BooklistApp = (function() {
           debouncedSave(); // Save draft with updated flag
 
           // Folio: excited about front cover upload
-          if (window.folio) {
-            window.folio.react('nod');
-            setTimeout(function() { if (window.folio) window.folio.setState('excited', 'cover-uploaded'); }, 300);
-            setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
-          }
+          if (window.folio) window.folio.celebrate({
+            reaction: 'nod', state: 'excited', event: 'cover-uploaded',
+          });
         });
       };
       reader.onerror = () => showNotification('Failed to read image file.', 'error');
@@ -6365,12 +6359,12 @@ const BooklistApp = (function() {
         isDirtyLocal = false;    // Nothing unsaved anywhere
         hasUnsavedFile = false;  // File has been downloaded
         updateSaveIndicator();
-        // Folio: save complete
-        if (window.folio) {
-          window.folio.react('satisfied');
-          window.folio.setState('excited', 'save-complete');
-          setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 3000);
-        }
+        // Folio: save complete. Same simultaneous reaction+state
+        // shape as the PDF celebration.
+        if (window.folio) window.folio.celebrate({
+          reaction: 'satisfied', state: 'excited', event: 'save-complete',
+          reactionDelay: 0, returnAfter: 3000,
+        });
       }
     });
     
@@ -6399,11 +6393,15 @@ const BooklistApp = (function() {
         saveDraftLocal();
         hasUnsavedFile = false; // File was just loaded from disk
         updateSaveIndicator();
-        // Folio: greet on file load (guard suppresses cascading hooks)
+        // Folio: greet on file load (guard suppresses cascading hooks
+        // — only 'greeting' state changes are allowed through during
+        // the guarded window, so applyState's many side-effect hooks
+        // can't stomp this transition).
         if (window.folio) {
           window.folio.guard(3500);
-          window.folio.setState('greeting', 'file-loaded');
-          setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
+          window.folio.celebrate({
+            state: 'greeting', event: 'file-loaded', reactionDelay: 0,
+          });
         }
       } catch (err) {
         console.error('Import failed:', err);
@@ -7716,12 +7714,11 @@ const BooklistApp = (function() {
       window.folio.guard(3500);
       let hasDraft = false;
       try { hasDraft = !!localStorage.getItem('has-draft'); } catch { /* private browsing */ }
-      if (hasDraft) {
-        window.folio.setState('greeting', 'draft-restored');
-      } else {
-        window.folio.setState('greeting', 'page-load');
-      }
-      setTimeout(function() { if (window.folio) window.folio.setState('idle'); }, 4000);
+      window.folio.celebrate({
+        state: 'greeting',
+        event: hasDraft ? 'draft-restored' : 'page-load',
+        reactionDelay: 0,
+      });
     }
     
     // Warn before leaving with unsaved changes (only if localStorage hasn't caught up)
