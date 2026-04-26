@@ -677,6 +677,18 @@ function closeLibraryModal() {
   editingLibrary = null;
   // Hide memberships section so it doesn't flash when opening create mode next
   document.getElementById('admin-memberships-section').hidden = true;
+  // Clear the staff list so reopening the modal (possibly for a
+  // different library) is treated as a fresh render — no stale rows,
+  // no carried-over scroll position or filter value.
+  const listEl = document.getElementById('admin-memberships-list');
+  if (listEl) listEl.innerHTML = '';
+  const filterInput = document.getElementById('admin-memberships-filter');
+  if (filterInput) {
+    filterInput.value = '';
+    filterInput.hidden = true;
+  }
+  const filterStatus = document.getElementById('admin-memberships-filter-status');
+  if (filterStatus) filterStatus.hidden = true;
 }
 
 function showLibraryFormError(msg) {
@@ -1013,17 +1025,37 @@ async function createAuthUserViaSecondaryApp(email, password) {
   }
 }
 
+// Threshold above which the staff list shows a client-side filter
+// input. Below this, the list is short enough to scan visually and the
+// filter would just be visual noise.
+const MEMBERSHIPS_FILTER_THRESHOLD = 6;
+
 async function loadMemberships(libraryId) {
   const loadingEl = document.getElementById('admin-memberships-loading');
   const errorEl = document.getElementById('admin-memberships-error');
   const emptyEl = document.getElementById('admin-memberships-empty');
   const listEl = document.getElementById('admin-memberships-list');
+  const headingEl = document.getElementById('admin-memberships-heading');
+  const filterInput = document.getElementById('admin-memberships-filter');
+  const filterStatus = document.getElementById('admin-memberships-filter-status');
+  const scrollArea = document.querySelector('#admin-library-modal .admin-modal-scroll-area');
+
+  // Capture state from the previous render so add/remove/move/promote
+  // actions don't yank the user back to the top of the list and don't
+  // erase an active filter. If this is the FIRST render (list was
+  // empty), we skip the restore and let the user land at the top.
+  const isReRender = listEl.children.length > 0;
+  const previousScrollTop = isReRender && scrollArea ? scrollArea.scrollTop : null;
+  const previousFilter = isReRender && filterInput && !filterInput.hidden ? filterInput.value : '';
 
   loadingEl.hidden = false;
   errorEl.hidden = true;
   emptyEl.hidden = true;
   listEl.hidden = true;
   listEl.innerHTML = '';
+  if (filterInput) filterInput.hidden = true;
+  if (filterStatus) filterStatus.hidden = true;
+  if (headingEl) headingEl.textContent = 'Staff with access';
 
   try {
     const q = query(collection(db, 'memberships'), where('libraryId', '==', libraryId));
@@ -1050,12 +1082,46 @@ async function loadMemberships(libraryId) {
       return aLabel.localeCompare(bLabel);
     });
 
+    // Counts for the heading.
+    let adminCount = 0;
+    let staffCount = 0;
+    for (const r of rows) {
+      if (r.data.role === 'admin') adminCount++;
+      else staffCount++;
+    }
+    if (headingEl) {
+      const parts = [];
+      if (adminCount > 0) parts.push(adminCount + (adminCount === 1 ? ' admin' : ' admins'));
+      parts.push(staffCount + (staffCount === 1 ? ' staff' : ' staff'));
+      headingEl.textContent = 'Staff with access (' + parts.join(', ') + ')';
+    }
+
     const currentUid = auth.currentUser ? auth.currentUser.uid : null;
+    let lastGroup = null;
 
     for (const row of rows) {
-      const li = document.createElement('li');
       const isAdminRow = row.data.role === 'admin';
       const isSelf = row.uid === currentUid;
+      const group = isAdminRow ? 'admin' : 'staff';
+
+      // Insert a group separator row before the first row of each group.
+      // Only render separators when both groups exist — a single-group
+      // list doesn't need them.
+      if (group !== lastGroup && adminCount > 0 && staffCount > 0) {
+        const sep = document.createElement('li');
+        sep.className = 'admin-membership-group-header';
+        sep.dataset.group = group;
+        sep.textContent = isAdminRow ? 'Library admins' : 'Staff';
+        listEl.appendChild(sep);
+        lastGroup = group;
+      }
+
+      const li = document.createElement('li');
+      li.className = 'admin-membership-row';
+      // data-search powers the client-side filter — match against email
+      // and UID together, lowercased so the filter input is
+      // case-insensitive.
+      li.dataset.search = ((row.data.email || '') + ' ' + row.uid).toLowerCase();
 
       // Left side: identity block (email + UID) + role badge + "you"
       // indicator if it's the current user.
@@ -1174,11 +1240,73 @@ async function loadMemberships(libraryId) {
       listEl.appendChild(li);
     }
     listEl.hidden = false;
+
+    // Show the filter input only when the list is long enough to make
+    // filtering useful. For short lists the filter is just visual noise.
+    if (filterInput && rows.length >= MEMBERSHIPS_FILTER_THRESHOLD) {
+      filterInput.hidden = false;
+      filterInput.value = previousFilter;
+      if (previousFilter) applyMembershipFilter();
+    }
+
+    // Restore the scroll position only if this was a re-render. First
+    // renders should land at the top. requestAnimationFrame so the
+    // browser settles layout before we set scrollTop.
+    if (previousScrollTop !== null && scrollArea) {
+      requestAnimationFrame(() => {
+        scrollArea.scrollTop = previousScrollTop;
+      });
+    }
   } catch (err) {
     console.warn('[admin] loadMemberships failed:', err);
     loadingEl.hidden = true;
     errorEl.textContent = 'Failed to load memberships: ' + (err.message || err.code || 'unknown error');
     errorEl.hidden = false;
+  }
+}
+
+// Filter the staff list by the current filter input value. Hides
+// non-matching rows and any group separator whose group has no visible
+// rows after filtering. Updates a "Showing X of Y" status line under
+// the input.
+function applyMembershipFilter() {
+  const filterInput = document.getElementById('admin-memberships-filter');
+  const filterStatus = document.getElementById('admin-memberships-filter-status');
+  const listEl = document.getElementById('admin-memberships-list');
+  if (!filterInput || filterInput.hidden) return;
+
+  const filter = filterInput.value.trim().toLowerCase();
+  const rows = listEl.querySelectorAll('.admin-membership-row');
+  const separators = listEl.querySelectorAll('.admin-membership-group-header');
+
+  let visibleCount = 0;
+  for (const row of rows) {
+    const matches = filter === '' || (row.dataset.search || '').includes(filter);
+    row.hidden = !matches;
+    if (matches) visibleCount++;
+  }
+
+  // Hide a separator if every row in its group (rows between this
+  // separator and the next one, or the end of the list) is hidden.
+  for (const sep of separators) {
+    let groupHasVisible = false;
+    let cursor = sep.nextElementSibling;
+    while (cursor && !cursor.classList.contains('admin-membership-group-header')) {
+      if (cursor.classList.contains('admin-membership-row') && !cursor.hidden) {
+        groupHasVisible = true;
+        break;
+      }
+      cursor = cursor.nextElementSibling;
+    }
+    sep.hidden = !groupHasVisible;
+  }
+
+  if (filter === '') {
+    filterStatus.hidden = true;
+    filterStatus.textContent = '';
+  } else {
+    filterStatus.textContent = 'Showing ' + visibleCount + ' of ' + rows.length;
+    filterStatus.hidden = false;
   }
 }
 
@@ -1464,5 +1592,6 @@ async function handleMoveStaffConfirm() {
 }
 
 document.getElementById('admin-add-membership-form').addEventListener('submit', handleAddMembership);
+document.getElementById('admin-memberships-filter').addEventListener('input', applyMembershipFilter);
 document.getElementById('admin-move-staff-cancel-btn').addEventListener('click', closeMoveStaffModal);
 document.getElementById('admin-move-staff-confirm-btn').addEventListener('click', handleMoveStaffConfirm);

@@ -869,6 +869,66 @@ code {
   margin-bottom: 12px;
 }
 
+/* Filter input that appears above the staff list when the list grows
+   past a threshold. Client-side filter only — hides non-matching rows
+   without re-querying Firestore. */
+.admin-memberships-filter {
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: white;
+  color: var(--admin-text);
+  box-sizing: border-box;
+  transition: border-color var(--admin-transition), box-shadow var(--admin-transition);
+}
+
+.admin-memberships-filter:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+
+.admin-memberships-filter[hidden] {
+  display: none;
+}
+
+.admin-memberships-filter-status {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-memberships-filter-status[hidden] {
+  display: none;
+}
+
+/* Group separator rows inside the staff list. Render as a styled row
+   between admin and staff blocks. They sit inside the same <ul> as
+   member rows but use a different class so the flex layout doesn't
+   apply. */
+.admin-memberships-list .admin-membership-group-header {
+  display: block;
+  padding: 6px 14px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--admin-text-muted);
+  background: #f0f2f5;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-memberships-list .admin-membership-group-header[hidden] {
+  display: none;
+}
+
+.admin-memberships-list .admin-membership-row[hidden] {
+  display: none;
+}
+
 .admin-memberships-list {
   list-style: none;
   margin: 12px 0;
@@ -973,7 +1033,17 @@ code {
 .admin-add-membership {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 16px;
+  /* Sticky to the bottom of the modal scroll area so the invite form
+     stays one-click away even when the staff list is long. The
+     padding + border + matching background act as a visual anchor when
+     it docks against the bottom edge. */
+  position: sticky;
+  bottom: 0;
+  background: #fafbfc;
+  padding: 12px 0;
+  border-top: 1px solid var(--admin-border);
+  z-index: 1;
 }
 
 .admin-add-membership input[type="text"] {

@@ -92,6 +92,14 @@ export default [
         document: "readonly",
         console: "readonly",
         URLSearchParams: "readonly",
+        // Browser globals legitimately used across module files
+        // (admin console, library-config, auth). Mirror as needed
+        // when adding new files; keep this list narrow.
+        crypto: "readonly",
+        fetch: "readonly",
+        confirm: "readonly",
+        location: "readonly",
+        requestAnimationFrame: "readonly",
       },
     },
     rules: {

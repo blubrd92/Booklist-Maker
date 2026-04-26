@@ -192,7 +192,7 @@
              read them), and you can't add members to a library until its
              doc exists, so this is hidden in create mode. -->
         <div id="admin-memberships-section" class="admin-modal-body admin-memberships" hidden>
-          <h4>Staff with access</h4>
+          <h4 id="admin-memberships-heading">Staff with access</h4>
           <p class="admin-field-hint">
             Enter the new staff member's email. The admin console will create a Firebase Auth
             account for them and send a password reset email so they can set their own password.
@@ -204,6 +204,15 @@
           <div id="admin-memberships-empty" class="admin-empty admin-empty-compact" hidden>
             No staff yet. Invite someone below to grant access.
           </div>
+          <input
+            type="search"
+            id="admin-memberships-filter"
+            class="admin-memberships-filter"
+            placeholder="Filter by email or UID…"
+            autocomplete="off"
+            spellcheck="false"
+            hidden>
+          <p id="admin-memberships-filter-status" class="admin-memberships-filter-status" hidden></p>
           <ul id="admin-memberships-list" class="admin-memberships-list" hidden></ul>
 
           <form id="admin-add-membership-form" class="admin-add-membership">
