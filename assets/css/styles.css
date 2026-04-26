@@ -640,7 +640,7 @@ body.has-library-config .header-credit {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 6px 0 4px;
+  margin: 2px 0;
   color: var(--text-light);
   font-size: 0.75rem;
   text-transform: uppercase;
