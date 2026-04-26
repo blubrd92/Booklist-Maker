@@ -16,6 +16,7 @@ export default [
         localStorage: "readonly",
         fetch: "readonly",
         URL: "readonly",
+        URLSearchParams: "readonly",
         Blob: "readonly",
         File: "readonly",
         FileReader: "readonly",

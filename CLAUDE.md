@@ -45,12 +45,23 @@ assets/
     folio.css                   Folio cat mascot animations and styling
     tour.css                    Guided tour modal and spotlight styling
     auth.css                    Login modal styles for gated library instances
+    preview-helper.css          Cloudflare Pages preview mode-picker chip styles
   js/
     config.js                   CONFIG constants (loaded first as global)
     book-utils.js               BookUtils shared pure functions (loaded second)
     app.js                      Core application logic (IIFE, ~6100 lines)
     folio.js                    Animated cat mascot companion
     tour.js                     Guided tour system
+    preview-helper.js           IIFE. Cloudflare Pages preview-only mode-picker
+                                chip. Self-gates on `*.pages.dev` hosts; on
+                                every other host the IIFE returns immediately.
+                                Renders a small fixed top-right chip that
+                                shows the current mode (public or
+                                ?library=<id>) and lets you switch with one
+                                click. Fetches the public-branded library list
+                                via Firestore REST (no SDK, no auth) — see
+                                "Constraints worth protecting" for the
+                                documented invariant exception.
     firebase-init.js            ES module. Host-gated Firebase App/Auth/Firestore
                                 initialization for branded library subdomains.
                                 No-op on the public tool.
@@ -101,6 +112,7 @@ Two phases. The first is the legacy IIFE stack that handles the tool itself. The
 4. `app.js` → exposes `BooklistApp` IIFE. Attaches `DOMContentLoaded` listener that calls `init()`. Also attaches `window.addEventListener('library-config-ready', ...)` synchronously at IIFE top level so the listener is in place before any ES module can dispatch.
 5. `folio.js` → exposes `window.folio` API
 6. `tour.js` → exposes `window.startTour()` / `window.startTourSection()`
+7. `preview-helper.js` → IIFE, no public API. On `*.pages.dev` hosts only, injects the preview mode-picker chip. On every other host the IIFE returns at line 1 — zero DOM, zero network.
 
 **Phase 3 — Deferred module scripts (execute after HTML parsing completes, in order):**
 1. `assets/js/firebase-init.js` → checks hostname. On the public tool it exports nulls and returns without touching the Firebase SDK. On branded hosts it dynamically imports Firebase App/Auth/Firestore from gstatic.com and exposes `window.firebaseAuth` / `window.firebaseDb`.
@@ -113,7 +125,7 @@ The public tool never loads Firebase SDK code into the network tab. Only branded
 
 Two layers coexist:
 
-**Tool layer** (config.js, book-utils.js, app.js, folio.js, tour.js): IIFEs exposing globals. No ES6 imports. No build step. This is the original architecture and should be preserved; adding new JS files to this layer adds load-order dependencies in `index.html`.
+**Tool layer** (config.js, book-utils.js, app.js, folio.js, tour.js, preview-helper.js): IIFEs exposing globals. No ES6 imports. No build step. This is the original architecture and should be preserved; adding new JS files to this layer adds load-order dependencies in `index.html`.
 
 ```javascript
 const BooklistApp = (function() {
@@ -581,7 +593,7 @@ Not urgent at the current scale.
 
 These are the architectural invariants that have earned their keep. Breaking any of them should be a deliberate decision, not a side effect of another change.
 
-1. **The public tool at `booklister.org` stays unauthenticated and Firebase-free.** No Firebase SDK ever loaded, no accounts, no sign-in, no network traffic to gstatic or firebasestore on the public domain. Everything about the public tool stays in the browser. Cloudflare Pages preview hosts (`*.pages.dev`) fall under the same rule — they're treated as public deploys, render the public tool with no Firebase, and must stay that way.
+1. **The public tool at `booklister.org` stays unauthenticated and Firebase-free.** No Firebase SDK ever loaded, no accounts, no sign-in, no network traffic to gstatic or firebasestore on the public domain. Everything about the public tool stays in the browser. Cloudflare Pages preview hosts (`*.pages.dev`) fall under the same rule with **one documented exception**: `preview-helper.js` makes a single Firestore REST call (no SDK, no auth, just a `fetch` to `firestore.googleapis.com/v1/projects/.../documents/libraries-public`) to populate the preview mode-picker chip's library dropdown with a live list. This violation was deliberate, made because the alternative (a hardcoded library list maintained by hand in the chip's source) goes stale every time a public-branded library is added or renamed, and the freshness was judged worth one cheap REST call **on previews only**. The call is gated by the chip's `endsWith('.pages.dev')` self-check at the top of the IIFE, so production booklister.org still makes zero Firebase requests. If a future change needs to extend this — e.g., reading another public collection from previews — document it here and keep the production-host check at the top of the gating module.
 2. **The tool state is serializable through `serializeState()` / `applyState()`.** Any new storage backend (IndexedDB, file, cloud, whatever) goes through this same pair of functions. Don't couple new features to IndexedDB directly.
 3. **IIFE layer and ES module layer stay separated.** Main tool is IIFE + globals. Firebase layer and admin console are ES modules. No cross-imports. Communication via `window.*` globals and custom events.
 4. **Firestore rules are the security boundary.** The admin UI enforces the same access model client-side for UX purposes (buttons are hidden when you can't perform the action), but the rules are what actually protect data. Never weaken rules based on "the UI prevents this anyway."

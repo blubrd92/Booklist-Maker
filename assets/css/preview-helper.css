@@ -1,0 +1,139 @@
+/* Preview deploy mode-picker chip. Only rendered on Cloudflare Pages
+   preview hosts (`*.pages.dev`); preview-helper.js bails out on every
+   other host. Hidden during PDF export and the guided tour (the chip
+   would distract from the spotlight). Stays visible when the body is
+   hidden by `html.awaiting-library-config` so a failed library
+   config can still be escaped via the chip. */
+
+.preview-helper-chip {
+  position: fixed;
+  top: 8px;
+  right: 16px;
+  z-index: 950;
+  background: #1f2937;
+  color: white;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  font: 600 11px/1 'Inter', system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  user-select: none;
+  transition: background 150ms ease;
+}
+
+.preview-helper-chip:hover {
+  background: #374151;
+}
+
+.preview-helper-chip:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.preview-helper-panel {
+  position: fixed;
+  top: 44px;
+  right: 16px;
+  z-index: 950;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  min-width: 260px;
+  max-width: 320px;
+  padding: 12px;
+  font: 13px/1.4 'Inter', system-ui, sans-serif;
+  color: #111827;
+}
+
+.preview-helper-panel h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.preview-helper-help {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.preview-helper-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.preview-helper-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+}
+
+.preview-helper-option:hover {
+  background: #f3f4f6;
+}
+
+.preview-helper-option-active {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.preview-helper-option-active:hover {
+  background: #e0e7ff;
+}
+
+.preview-helper-option-main {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.preview-helper-option-sub {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* Stay visible when the body is hidden by the awaiting-library-config
+   guard. Without this, a preview that loaded a non-existent library
+   would show only the auth modal with no way back to public mode. */
+html.awaiting-library-config .preview-helper-chip,
+html.awaiting-library-config .preview-helper-panel {
+  visibility: visible;
+}
+
+/* Hide during PDF export. html2canvas captures `#print-page-1` /
+   `#print-page-2` (descendants of `#preview-area`), not the body, so
+   a body-level chip would already be excluded from the capture — but
+   this is a belt-and-suspenders rule in case a future export path
+   captures the body. */
+body:has(#preview-area.print-mode) .preview-helper-chip,
+body:has(#preview-area.print-mode) .preview-helper-panel {
+  display: none;
+}
+
+/* Hide during the guided tour. */
+body.tour-active .preview-helper-chip,
+body.tour-active .preview-helper-panel {
+  display: none;
+}
+
+@media print {
+  .preview-helper-chip,
+  .preview-helper-panel { display: none; }
+}
