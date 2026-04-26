@@ -4973,7 +4973,147 @@ const BooklistApp = (function() {
       }
     });
   }
-  
+
+  // ---------------------------------------------------------------------------
+  // Quick-add by paste
+  //
+  // A textarea-based alternative to Open Library search. The user pastes a
+  // block of text (labeled "Title: X / Author: Y / Call Number: Z" OR three
+  // bare lines in that order) and the tool fills the next blank book in the
+  // preview. Author names like "Smith, John" get flipped to "John Smith"
+  // when there is exactly one comma.
+  //
+  // The Open Library "Add to List" flow stays untouched — Quick-add is a
+  // parallel path that sets the same fields (title, author, callNumber,
+  // authorDisplay) on the same book schema. Books added via Quick-add are
+  // indistinguishable from search-added books once they're in the list.
+  // ---------------------------------------------------------------------------
+
+  function openQuickAddModal() {
+    const modal = document.getElementById('quick-add-modal');
+    const textarea = document.getElementById('quick-add-textarea');
+    const errorEl = document.getElementById('quick-add-error');
+    if (!modal || !textarea) return;
+    textarea.value = '';
+    errorEl.hidden = true;
+    errorEl.textContent = '';
+    modal.style.display = 'flex';
+    // Focus on next tick so the modal is visible first (some browsers
+    // refuse focus on display:none → flex transitions in the same tick).
+    setTimeout(function() { textarea.focus(); }, 0);
+  }
+
+  function closeQuickAddModal() {
+    const modal = document.getElementById('quick-add-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function submitQuickAdd() {
+    const textarea = document.getElementById('quick-add-textarea');
+    const errorEl = document.getElementById('quick-add-error');
+    if (!textarea || !errorEl) return;
+
+    const parsed = BookUtils.parseQuickAddInput(textarea.value);
+    if (!parsed || !parsed.title) {
+      errorEl.textContent = 'Please paste at least a title. Use "Title: ...", "Author: ...", "Call Number: ..." labels OR three lines in that order.';
+      errorEl.hidden = false;
+      return;
+    }
+
+    // Find the next blank slot, mirroring handleAddToList's logic.
+    const firstBlankIndex = myBooklist.findIndex(function(item, index) {
+      return item.isBlank && index < MAX_BOOKS;
+    });
+    if (firstBlankIndex === -1) {
+      errorEl.textContent = 'No empty book slots left. Remove a book first, or turn off the QR/branding toggles to free up a slot.';
+      errorEl.hidden = false;
+      return;
+    }
+
+    const author = parsed.author || CONFIG.PLACEHOLDERS.author;
+    const callNumber = parsed.callNumber || CONFIG.PLACEHOLDERS.callNumber;
+    // Build authorDisplay so the byline renders "By <author> - <callNumber>"
+    // when an author is present, matching the search-added pattern. If no
+    // author was pasted, fall back to the placeholder display so the user
+    // sees the prompt to fill it in.
+    const authorDisplay = parsed.author
+      ? 'By ' + author + ' - ' + callNumber
+      : author + ' - ' + callNumber;
+    const currentStarredCount = BookUtils.getStarredBooks(myBooklist).length;
+
+    const newBook = {
+      key: 'quickadd-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      isBlank: false,
+      title: parsed.title,
+      author: author,
+      callNumber: callNumber,
+      authorDisplay: authorDisplay,
+      description: CONFIG.PLACEHOLDERS.description,
+      cover_ids: [],
+      currentCoverIndex: 0,
+      customCoverData: CONFIG.PLACEHOLDER_COVER_URL,
+      includeInCollage: currentStarredCount < CONFIG.MIN_COVERS_FOR_COLLAGE,
+    };
+
+    pushUndo('add-book');
+    myBooklist[firstBlankIndex] = newBook;
+
+    if (window.folio) {
+      window.folio.celebrate({ reaction: 'nod', state: 'excited', event: 'book-added' });
+    }
+
+    closeQuickAddModal();
+    renderBooklist();
+    debouncedSave();
+  }
+
+  function bindQuickAddEvents() {
+    const openBtn = document.getElementById('quickAddBtn');
+    const closeBtn = document.getElementById('quick-add-close-btn');
+    const cancelBtn = document.getElementById('quick-add-cancel-btn');
+    const submitBtn = document.getElementById('quick-add-submit-btn');
+    const modal = document.getElementById('quick-add-modal');
+    const textarea = document.getElementById('quick-add-textarea');
+
+    if (openBtn) openBtn.addEventListener('click', openQuickAddModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeQuickAddModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeQuickAddModal);
+    if (submitBtn) submitBtn.addEventListener('click', submitQuickAdd);
+
+    // Click-outside to dismiss.
+    if (modal) {
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeQuickAddModal();
+      });
+    }
+
+    // Escape closes the modal; Cmd/Ctrl+Enter submits from the textarea.
+    document.addEventListener('keydown', function(e) {
+      if (!modal || modal.style.display === 'none') return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeQuickAddModal();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        submitQuickAdd();
+      }
+    });
+
+    // Textarea is a real <textarea>, so it strips formatting from pasted
+    // rich text automatically — no extra paste handler needed. (Unlike
+    // the contenteditable book fields which need handlePastePlainText.)
+    if (textarea) {
+      textarea.addEventListener('input', function() {
+        // Clear stale error as soon as the user starts editing.
+        const errorEl = document.getElementById('quick-add-error');
+        if (errorEl && !errorEl.hidden) {
+          errorEl.hidden = true;
+          errorEl.textContent = '';
+        }
+      });
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // QR Code Generation
   // ---------------------------------------------------------------------------
@@ -7667,6 +7807,7 @@ const BooklistApp = (function() {
     populateFontSelects();
     bindEvents();
     bindExtraCoversEvents();
+    bindQuickAddEvents();
     setupQrPlaceholder();
     initializeBooklist();
     applyStyles();

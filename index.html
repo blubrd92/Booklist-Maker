@@ -163,6 +163,10 @@
                 </details>
               </div>
               <button id="fetchButton" type="submit" class="btn btn-primary btn-block">Search</button>
+              <div class="quick-add-divider"><span>or</span></div>
+              <button id="quickAddBtn" type="button" class="btn btn-secondary btn-block" title="Paste title, author, and call number to add a book without searching Open Library">
+                <i class="fa-solid fa-paste" aria-hidden="true"></i> Quick add by paste
+              </button>
             </form>
           </div>
         </div>
@@ -634,6 +638,37 @@
 
       </div>
     </aside>
+
+    <!-- Quick-add Modal -->
+    <div id="quick-add-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content modal-content-narrow">
+        <div class="modal-header">
+          <h3>Quick add a book</h3>
+          <button type="button" class="modal-close" id="quick-add-close-btn" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="quick-add-help">
+            Paste the title, author, and (optionally) call number. The tool will fill in the next blank book in your preview.
+            Author names like <code>Smith, John</code> get flipped to <code>John Smith</code> automatically.
+          </p>
+          <label for="quick-add-textarea" class="sr-only">Paste book details</label>
+          <textarea id="quick-add-textarea" rows="6" placeholder="Title: The Color of Magic
+Author: Pratchett, Terry
+Call Number: PR6066.R34
+
+— or just three lines —
+
+The Color of Magic
+Pratchett, Terry
+PR6066.R34"></textarea>
+          <p id="quick-add-error" class="quick-add-error" hidden></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" id="quick-add-cancel-btn">Cancel</button>
+          <button type="button" class="btn btn-primary" id="quick-add-submit-btn">Add to list</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Extra Cover Search Modal -->
     <div id="extra-cover-search-modal" class="modal-overlay" style="display: none;">

@@ -161,6 +161,61 @@
     },
 
     /**
+     * Parse a Quick-add textarea blob into { title, author, callNumber }.
+     * Accepts either a labeled format ("Title: X / Author: Y / Call Number: Z"
+     * in any order, case-insensitive) or three positional lines in
+     * Title / Author / Call Number order. Author names with exactly one
+     * comma get flipped from "Last, First" to "First Last"; multi-comma
+     * strings (e.g. "Smith, John, and Doe, Jane") are left as-is to avoid
+     * mangling multi-author cases. Returns null when nothing usable was
+     * found in the input.
+     * @param {string} rawText
+     * @returns {{title: string|null, author: string|null, callNumber: string|null} | null}
+     */
+    parseQuickAddInput: function(rawText) {
+      if (!rawText) return null;
+      const lines = rawText.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+      if (lines.length === 0) return null;
+
+      const labeledRe = /^(title|author|authors|author\(s\)|call(?:\s*number|\s*#|\s*no\.?)?)\s*:\s*(.+)$/i;
+      const labeled = {};
+      let allLabeled = true;
+      for (const line of lines) {
+        const m = line.match(labeledRe);
+        if (!m) { allLabeled = false; break; }
+        const label = m[1].toLowerCase().replace(/[\s().#]/g, '').replace(/no$/, '');
+        const value = m[2].trim();
+        if (label === 'title') labeled.title = value;
+        else if (label === 'author' || label === 'authors') labeled.author = value;
+        else if (label.startsWith('call')) labeled.callNumber = value;
+      }
+
+      let title, author, callNumber;
+      if (allLabeled && (labeled.title || labeled.author || labeled.callNumber)) {
+        title = labeled.title || null;
+        author = labeled.author || null;
+        callNumber = labeled.callNumber || null;
+      } else {
+        title = lines[0] || null;
+        author = lines[1] || null;
+        callNumber = lines[2] || null;
+      }
+
+      if (author) {
+        const commaCount = (author.match(/,/g) || []).length;
+        if (commaCount === 1) {
+          const parts = author.split(',').map(function(p) { return p.trim(); });
+          if (parts[0] && parts[1]) {
+            author = parts[1] + ' ' + parts[0];
+          }
+        }
+      }
+
+      if (!title && !author && !callNumber) return null;
+      return { title: title, author: author, callNumber: callNumber };
+    },
+
+    /**
      * Create a blank book object with placeholder fields.
      * Used for empty slots in a new booklist or after deletion.
      * @returns {Object} A blank book object

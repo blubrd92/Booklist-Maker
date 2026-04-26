@@ -622,6 +622,79 @@ body.has-library-config .header-credit {
 }
 .btn-sm { padding: 6px 10px; font-size: 0.8rem; }
 .btn-block { width: 100%; }
+.btn-secondary {
+  background-color: white;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+.btn-secondary:hover {
+  background-color: #f7f8fa;
+  border-color: var(--text-light);
+  transform: translateY(-1px);
+}
+
+/* Divider between the primary Search button and the secondary Quick-add
+   button in the Search tab. Mirrors the "or" divider on the admin sign-in
+   screen so the two related actions feel grouped. */
+.quick-add-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 8px;
+  color: var(--text-light);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.quick-add-divider::before,
+.quick-add-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+/* Quick-add modal-specific tweaks. Re-uses .modal-overlay / .modal-content. */
+.modal-content-narrow { max-width: 460px; }
+.quick-add-help {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+.quick-add-help code {
+  background: var(--bg-color);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+#quick-add-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  resize: vertical;
+  min-height: 140px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+#quick-add-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+.quick-add-error {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  background: rgba(229, 57, 53, 0.08);
+  border-left: 3px solid #e53935;
+  color: #c62828;
+  font-size: 0.85rem;
+  border-radius: 4px;
+}
+.quick-add-error[hidden] { display: none; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn:active { transform: translateY(0); }
 

@@ -613,3 +613,95 @@ describe('BookUtils.hasEnoughCoversForCollage edge cases', () => {
     expect(globalThis.BookUtils.hasEnoughCoversForCollage([], [], true)).toBe(false);
   });
 });
+
+describe('BookUtils.parseQuickAddInput', () => {
+  it('returns null for empty/null/whitespace input', () => {
+    expect(globalThis.BookUtils.parseQuickAddInput('')).toBeNull();
+    expect(globalThis.BookUtils.parseQuickAddInput(null)).toBeNull();
+    expect(globalThis.BookUtils.parseQuickAddInput('   \n  \n  ')).toBeNull();
+  });
+
+  it('parses three positional lines into title/author/callNumber', () => {
+    const result = globalThis.BookUtils.parseQuickAddInput('The Color of Magic\nTerry Pratchett\nPR6066.R34');
+    expect(result).toEqual({
+      title: 'The Color of Magic',
+      author: 'Terry Pratchett',
+      callNumber: 'PR6066.R34',
+    });
+  });
+
+  it('flips "Last, First" to "First Last" with single comma', () => {
+    const result = globalThis.BookUtils.parseQuickAddInput('Mort\nPratchett, Terry\nPR6066');
+    expect(result.author).toBe('Terry Pratchett');
+  });
+
+  it('flips with multi-word first name / initials', () => {
+    const result = globalThis.BookUtils.parseQuickAddInput('Title\nTolkien, J.R.R.\nCN');
+    expect(result.author).toBe('J.R.R. Tolkien');
+  });
+
+  it('does NOT flip multi-comma names (multi-author / suffix ambiguity)', () => {
+    const result = globalThis.BookUtils.parseQuickAddInput('Title\nSmith, John, and Doe, Jane\nCN');
+    expect(result.author).toBe('Smith, John, and Doe, Jane');
+  });
+
+  it('does NOT flip single-name authors', () => {
+    const result = globalThis.BookUtils.parseQuickAddInput('Title\nMadonna\nCN');
+    expect(result.author).toBe('Madonna');
+  });
+
+  it('parses labeled format in any order, case-insensitive', () => {
+    const result = globalThis.BookUtils.parseQuickAddInput(
+      'Call Number: PR6066\nauthor: Pratchett, Terry\nTITLE: Mort'
+    );
+    expect(result).toEqual({
+      title: 'Mort',
+      author: 'Terry Pratchett',
+      callNumber: 'PR6066',
+    });
+  });
+
+  it('accepts "Call #:" / "Call No.:" label variants', () => {
+    expect(globalThis.BookUtils.parseQuickAddInput('Title: T\nCall #: 123').callNumber).toBe('123');
+    expect(globalThis.BookUtils.parseQuickAddInput('Title: T\nCall No.: 123').callNumber).toBe('123');
+  });
+
+  it('falls through to positional parsing when any line lacks a label', () => {
+    // Mixed labeled + bare line → positional. (Line 1 = title, line 2 = author, line 3 = call #)
+    const result = globalThis.BookUtils.parseQuickAddInput('Title: Mort\nPratchett, Terry\nPR6066');
+    expect(result).toEqual({
+      title: 'Title: Mort',
+      author: 'Terry Pratchett',
+      callNumber: 'PR6066',
+    });
+  });
+
+  it('handles missing call number gracefully', () => {
+    const result = globalThis.BookUtils.parseQuickAddInput('Mort\nPratchett, Terry');
+    expect(result).toEqual({
+      title: 'Mort',
+      author: 'Terry Pratchett',
+      callNumber: null,
+    });
+  });
+
+  it('handles missing author and call number', () => {
+    const result = globalThis.BookUtils.parseQuickAddInput('Solo Title');
+    expect(result).toEqual({ title: 'Solo Title', author: null, callNumber: null });
+  });
+
+  it('trims whitespace from values', () => {
+    const result = globalThis.BookUtils.parseQuickAddInput('Title:    Mort   \nAuthor:   Pratchett, Terry  ');
+    expect(result.title).toBe('Mort');
+    expect(result.author).toBe('Terry Pratchett');
+  });
+
+  it('handles \\r\\n line endings (Windows-pasted text)', () => {
+    const result = globalThis.BookUtils.parseQuickAddInput('Mort\r\nPratchett, Terry\r\nPR6066');
+    expect(result).toEqual({
+      title: 'Mort',
+      author: 'Terry Pratchett',
+      callNumber: 'PR6066',
+    });
+  });
+});

@@ -171,6 +171,7 @@ Pure functions that eliminate duplicated logic. All are tested:
 - `BookUtils.getCoverUrl(coverId, size)` - Builds Open Library cover URL
 - `BookUtils.getBookCoverUrl(book, size)` - Best cover URL: custom > Open Library > placeholder
 - `BookUtils.hasEnoughCoversForCollage(booklist, extras, modeOrCount)` - Collage readiness check; accepts the same legacy-or-numeric input as the helpers above
+- `BookUtils.parseQuickAddInput(rawText)` - Parses a textarea blob into `{ title, author, callNumber }` for the Quick-add by paste flow. Accepts labeled format ("Title: X / Author: Y / Call Number: Z" in any order, case-insensitive) or three positional lines (title / author / call number). Flips "Last, First" → "First Last" only when the author has exactly one comma — multi-comma strings stay as-is to avoid mangling multi-author cases. Returns null on no usable input.
 
 ### Data Structures
 
@@ -232,13 +233,14 @@ Uploaded images are compressed on capture to reduce `.booklist` file size:
 ## Key Functional Areas
 
 1. **Search**: `getBooks()` queries Open Library; supports keyword, title, author, ISBN, subject, publisher filters
-2. **Book Management**: Add/delete/edit entries, drag-and-drop reorder, star books for collage, cover carousel for alternate editions
-3. **Cover Collage**: `generateCoverCollage()` renders starred books in 4 layouts: Classic, Masonry (Bookshelf), Staggered, Tilted. Title bar with 5 position options.
-4. **PDF Export**: `exportPdf()` pipeline: html2canvas captures at 6.25x scale, jsPDF outputs 11"x8.5" at 600 DPI. Awaits `waitForFonts()` and `waitForImagesDecoded()` before capture to guard against empty branding/cover captures from in-flight image loads.
-5. **Styling**: Per-element font/size/weight/color/line-spacing controls for title, author, description. Cover header has simple (unified) and advanced (per-line) modes.
-6. **QR/Branding**: QR code generation from URL (900px for 600 DPI), custom branding image upload, both toggleable. Front cover and branding uploaders have delete buttons (`.cover-delete-btn`, `.branding-delete-btn`) hidden in print mode. **On the public tool the branding uploader ships blank** (no default image, no "Use Default" button). On branded instances, `applyLibraryConfig()` populates the branding from the library's config, and the "Use Default" button becomes a fallback that reloads the library's logo.
-7. **AI Descriptions**: "Magic button" on each book calls Google Apps Script with title+author, receives generated description
-8. **Branded library auth (gated instances only)**: Login modal, email/password sign-in with visibility toggle, password reset via email. See the Firebase Integration section below for the full flow.
+2. **Quick add by paste**: `submitQuickAdd()` (in `bindQuickAddEvents()`) is an alternative to Open Library search. The "Quick add by paste" button below the Search button opens a modal with a textarea; the user pastes "Title / Author / Call Number" (labeled or positional) and the next blank book in the preview is filled in. Uses `BookUtils.parseQuickAddInput()` for parsing (handles label variants + Last,First → First Last name flip on single-comma authors). Sets the same fields a search-add sets (title, author, callNumber, authorDisplay), so Quick-add and search-add produce indistinguishable books once in the list. The textarea inherently strips formatting on paste (it's a real `<textarea>`, not a contenteditable). Goes through `pushUndo('add-book')` so undo/redo works the same as search-add.
+3. **Book Management**: Add/delete/edit entries, drag-and-drop reorder, star books for collage, cover carousel for alternate editions
+4. **Cover Collage**: `generateCoverCollage()` renders starred books in 4 layouts: Classic, Masonry (Bookshelf), Staggered, Tilted. Title bar with 5 position options.
+5. **PDF Export**: `exportPdf()` pipeline: html2canvas captures at 6.25x scale, jsPDF outputs 11"x8.5" at 600 DPI. Awaits `waitForFonts()` and `waitForImagesDecoded()` before capture to guard against empty branding/cover captures from in-flight image loads.
+6. **Styling**: Per-element font/size/weight/color/line-spacing controls for title, author, description. Cover header has simple (unified) and advanced (per-line) modes.
+7. **QR/Branding**: QR code generation from URL (900px for 600 DPI), custom branding image upload, both toggleable. Front cover and branding uploaders have delete buttons (`.cover-delete-btn`, `.branding-delete-btn`) hidden in print mode. **On the public tool the branding uploader ships blank** (no default image, no "Use Default" button). On branded instances, `applyLibraryConfig()` populates the branding from the library's config, and the "Use Default" button becomes a fallback that reloads the library's logo.
+8. **AI Descriptions**: "Magic button" on each book calls Google Apps Script with title+author, receives generated description
+9. **Branded library auth (gated instances only)**: Login modal, email/password sign-in with visibility toggle, password reset via email. See the Firebase Integration section below for the full flow.
 
 ## Collage Cover Count (12 / 16 / 20)
 
