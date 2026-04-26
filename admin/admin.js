@@ -926,7 +926,7 @@ document.getElementById('admin-convert-confirm-btn').addEventListener('click', h
 // Library admins can't dismiss the library modal because it IS their
 // entire admin UI; dismissing it would leave them staring at a blank
 // page. To exit, they sign out via the header button.
-for (const modalId of ['admin-library-modal', 'admin-delete-modal', 'admin-convert-modal']) {
+for (const modalId of ['admin-library-modal', 'admin-delete-modal', 'admin-convert-modal', 'admin-move-staff-modal']) {
   const overlay = document.getElementById(modalId);
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
@@ -935,16 +935,23 @@ for (const modalId of ['admin-library-modal', 'admin-delete-modal', 'admin-conve
         closeLibraryModal();
       } else if (modalId === 'admin-delete-modal') {
         closeDeleteModal();
-      } else {
+      } else if (modalId === 'admin-convert-modal') {
         closeConvertModal();
+      } else {
+        closeMoveStaffModal();
       }
     }
   });
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    // Convert modal is layered above the library modal — close it
-    // first so the underlying library modal stays visible.
+    // Inner modals (convert, move-staff) are layered above the library
+    // modal — close them first so the underlying library modal stays
+    // visible.
+    if (!document.getElementById('admin-move-staff-modal').hidden) {
+      closeMoveStaffModal();
+      return;
+    }
     if (!document.getElementById('admin-convert-modal').hidden) {
       closeConvertModal();
       return;
@@ -1120,6 +1127,27 @@ async function loadMemberships(libraryId) {
         }
       }
 
+      // Move-to-another-library button — super-admin only. Updates the
+      // membership doc's libraryId in place rather than going through
+      // remove + re-invite, which would fail with email-already-in-use
+      // because removing a membership doesn't delete the Firebase Auth
+      // account.
+      if (currentUserRole === 'super-admin' && !isSelf) {
+        const otherLibCount = librariesCache.filter((l) => l.id !== libraryId).length;
+        const moveBtn = document.createElement('button');
+        moveBtn.className = 'admin-row-btn';
+        moveBtn.type = 'button';
+        moveBtn.innerHTML = '<i class="fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i> Move';
+        if (otherLibCount === 0) {
+          moveBtn.disabled = true;
+          moveBtn.title = 'No other libraries to move this user to';
+        } else {
+          moveBtn.title = 'Move this user to a different library (demotes to staff)';
+          moveBtn.addEventListener('click', () => openMoveStaffModal(row, libraryId));
+        }
+        actionsWrap.appendChild(moveBtn);
+      }
+
       // Remove button — visibility rules:
       //   - Super-admin: can remove any row EXCEPT their own (they
       //     shouldn't accidentally sign themselves out, and they're
@@ -1199,9 +1227,13 @@ async function handleAddMembership(evt) {
       if (err.code === 'auth/email-already-in-use') {
         errorEl.textContent =
           'An account with that email already exists in Firebase Auth. ' +
-          'Each user can only be a member of one library at a time. If they ' +
-          'should be moved here from another library, remove them from that ' +
-          'library first. If they already have access here, no action needed.';
+          'If they currently belong to another library, open that library ' +
+          'and use the Move button on their row to move them here (this ' +
+          'preserves their password and demotes them to staff). If they ' +
+          'have no current library membership but the Auth account lingers, ' +
+          'delete the user from Firebase Console → Authentication → Users ' +
+          'first, then retry. The admin console cannot delete Auth users ' +
+          'directly.';
         errorEl.hidden = false;
         return;
       }
@@ -1326,4 +1358,111 @@ async function demoteToStaff(uid, libraryId) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Move a staff member to another library (super-admin only)
+//
+// Updates memberships/<uid>'s libraryId in place and forces role back to
+// 'staff' — moving across libraries is treated as starting fresh, so any
+// prior library-admin status doesn't follow the user. Promote them again
+// in the new library if you want them to be a library admin there.
+//
+// This avoids the email-already-in-use trap that bites a remove +
+// re-invite workflow: removing a membership doesn't delete the Firebase
+// Auth account, so re-inviting the same email fails. By updating in
+// place we keep the existing Auth UID and credentials.
+// ---------------------------------------------------------------------------
+
+let movingStaff = null; // { uid, fromLibraryId, email }
+
+function openMoveStaffModal(row, fromLibraryId) {
+  if (currentUserRole !== 'super-admin') return;
+  movingStaff = {
+    uid: row.uid,
+    fromLibraryId,
+    email: row.data.email || null,
+  };
+
+  const nameEl = document.getElementById('admin-move-staff-name');
+  const targetSelect = document.getElementById('admin-move-staff-target');
+  const errorEl = document.getElementById('admin-move-staff-error');
+  const confirmBtn = document.getElementById('admin-move-staff-confirm-btn');
+
+  nameEl.textContent = row.data.email || row.uid;
+
+  // Populate the dropdown with every library other than the current
+  // one, sorted by display name. Show display name + (id) so the
+  // super-admin can disambiguate libraries with similar names.
+  targetSelect.innerHTML = '';
+  const otherLibs = librariesCache
+    .filter((l) => l.id !== fromLibraryId)
+    .slice()
+    .sort((a, b) => {
+      const an = (a.data.displayName || a.id).toLowerCase();
+      const bn = (b.data.displayName || b.id).toLowerCase();
+      return an.localeCompare(bn);
+    });
+  for (const lib of otherLibs) {
+    const opt = document.createElement('option');
+    opt.value = lib.id;
+    opt.textContent = (lib.data.displayName || lib.id) + ' (' + lib.id + ', ' + lib.type + ')';
+    targetSelect.appendChild(opt);
+  }
+
+  errorEl.hidden = true;
+  errorEl.textContent = '';
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = 'Move';
+
+  document.getElementById('admin-move-staff-modal').hidden = false;
+  targetSelect.focus();
+}
+
+function closeMoveStaffModal() {
+  document.getElementById('admin-move-staff-modal').hidden = true;
+  movingStaff = null;
+}
+
+async function handleMoveStaffConfirm() {
+  if (!movingStaff) return;
+  if (currentUserRole !== 'super-admin') return;
+
+  const targetSelect = document.getElementById('admin-move-staff-target');
+  const errorEl = document.getElementById('admin-move-staff-error');
+  const confirmBtn = document.getElementById('admin-move-staff-confirm-btn');
+  const newLibraryId = targetSelect.value;
+
+  if (!newLibraryId) {
+    errorEl.textContent = 'Pick a target library.';
+    errorEl.hidden = false;
+    return;
+  }
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Moving…';
+  errorEl.hidden = true;
+
+  const { uid, fromLibraryId } = movingStaff;
+
+  try {
+    // Always demote to staff on move. The rules permit this for
+    // super-admins; library admins can't see the Move button.
+    await updateDoc(doc(db, 'memberships', uid), {
+      libraryId: newLibraryId,
+      role: 'staff',
+    });
+    closeMoveStaffModal();
+    // Refresh the staff list of the library we're still editing —
+    // the moved user should now disappear from this list.
+    await loadMemberships(fromLibraryId);
+  } catch (err) {
+    console.warn('[admin] move staff failed:', err);
+    errorEl.textContent = 'Move failed: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Move';
+  }
+}
+
 document.getElementById('admin-add-membership-form').addEventListener('submit', handleAddMembership);
+document.getElementById('admin-move-staff-cancel-btn').addEventListener('click', closeMoveStaffModal);
+document.getElementById('admin-move-staff-confirm-btn').addEventListener('click', handleMoveStaffConfirm);

@@ -224,6 +224,31 @@
     </div>
   </div>
 
+  <!-- Move staff to a different library modal (super-admin only) -->
+  <div id="admin-move-staff-modal" class="admin-modal-overlay" hidden>
+    <div class="admin-modal admin-modal-small">
+      <div class="admin-modal-header">
+        <h3>Move staff to another library</h3>
+      </div>
+      <div class="admin-modal-body">
+        <p>Move <strong id="admin-move-staff-name"></strong> to:</p>
+        <div class="admin-field">
+          <label for="admin-move-staff-target">Target library</label>
+          <select id="admin-move-staff-target"></select>
+        </div>
+        <p class="admin-note admin-note-warning">
+          The user will be demoted to <strong>staff</strong> in the new library, even if
+          they were a library admin here. Promote them again from the new library if needed.
+        </p>
+        <p id="admin-move-staff-error" class="admin-error" hidden></p>
+      </div>
+      <div class="admin-modal-footer">
+        <button type="button" class="admin-btn-secondary" id="admin-move-staff-cancel-btn">Cancel</button>
+        <button type="button" class="admin-btn-primary" id="admin-move-staff-confirm-btn">Move</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Convert library type confirmation modal (super-admin only) -->
   <div id="admin-convert-modal" class="admin-modal-overlay" hidden>
     <div class="admin-modal admin-modal-small">
