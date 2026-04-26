@@ -34,6 +34,7 @@ import {
   collection,
   query,
   where,
+  writeBatch,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 // Libraries hold only the fields that are genuinely per-library:
@@ -581,6 +582,9 @@ function openLibraryModal(lib) {
   errorEl.hidden = true;
   errorEl.textContent = '';
 
+  const convertBtn = document.getElementById('admin-library-convert-btn');
+  const convertTargetSpan = document.getElementById('admin-library-convert-target');
+
   if (lib) {
     // Edit mode
     if (currentUserRole === 'library-admin') {
@@ -594,7 +598,18 @@ function openLibraryModal(lib) {
     idInput.disabled = true; // ID is immutable
     for (const r of typeRadios) {
       r.checked = r.value === lib.type;
-      r.disabled = true; // Type is immutable (would require a collection move)
+      // The radios stay disabled in edit mode — switching public/gated
+      // requires a collection move, which the convert button below
+      // handles via a confirmation modal. Super-admins only.
+      r.disabled = true;
+    }
+    if (convertBtn && convertTargetSpan) {
+      if (currentUserRole === 'super-admin') {
+        convertTargetSpan.textContent = lib.type === 'public' ? 'gated' : 'public';
+        convertBtn.hidden = false;
+      } else {
+        convertBtn.hidden = true;
+      }
     }
     const d = lib.data || {};
     nameInput.value = d.displayName || '';
@@ -622,6 +637,7 @@ function openLibraryModal(lib) {
       r.disabled = false;
       r.checked = r.value === 'public';
     }
+    if (convertBtn) convertBtn.hidden = true;
     nameInput.value = '';
     brandingInput.value = '';
     autoDraftInput.checked = true;
@@ -777,6 +793,110 @@ async function handleDeleteConfirm() {
 }
 
 // ---------------------------------------------------------------------------
+// Convert library type modal (super-admin only)
+//
+// The public/gated distinction is which collection a library's doc lives
+// in (libraries-public vs libraries), not a field on the doc. Switching
+// modes therefore means moving the document between collections. The
+// admin UI gates this behind a confirmation; the actual security
+// boundary is the Firestore rules, which only allow super-admins to
+// write to either collection.
+// ---------------------------------------------------------------------------
+
+let convertingLibrary = null;
+
+function openConvertModal(lib) {
+  if (currentUserRole !== 'super-admin' || !lib) return;
+  convertingLibrary = lib;
+
+  const targetType = lib.type === 'public' ? 'gated' : 'public';
+  const titleEl = document.getElementById('admin-convert-modal-title');
+  const summaryEl = document.getElementById('admin-convert-modal-summary');
+  const warningEl = document.getElementById('admin-convert-modal-warning');
+  const errorEl = document.getElementById('admin-convert-error');
+  const confirmBtn = document.getElementById('admin-convert-confirm-btn');
+
+  titleEl.textContent = 'Convert to ' + targetType + '?';
+  summaryEl.innerHTML = '';
+  const summaryStrong = document.createElement('strong');
+  summaryStrong.textContent = (lib.data.displayName || lib.id) + ' (' + lib.id + ')';
+  summaryEl.appendChild(document.createTextNode('Convert '));
+  summaryEl.appendChild(summaryStrong);
+  summaryEl.appendChild(document.createTextNode(' from ' + lib.type + ' to ' + targetType + '?'));
+
+  if (targetType === 'gated') {
+    warningEl.textContent =
+      'After this change, visitors will be required to sign in with a member account. ' +
+      'Add staff in this modal’s Staff section after converting. Until at least one ' +
+      'membership exists, nobody will be able to access the library.';
+  } else {
+    warningEl.textContent =
+      'After this change, anyone with the URL can access the library without signing in. ' +
+      'Existing memberships are kept so you can convert back to gated later without losing ' +
+      'the staff list, but they have no effect while the library is public.';
+  }
+
+  errorEl.hidden = true;
+  errorEl.textContent = '';
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = 'Convert to ' + targetType;
+
+  document.getElementById('admin-convert-modal').hidden = false;
+}
+
+function closeConvertModal() {
+  document.getElementById('admin-convert-modal').hidden = true;
+  convertingLibrary = null;
+}
+
+async function handleConvertConfirm() {
+  if (!convertingLibrary) return;
+  if (currentUserRole !== 'super-admin') return;
+
+  const lib = convertingLibrary;
+  const sourceCollection = lib.type === 'public' ? 'libraries-public' : 'libraries';
+  const targetCollection = lib.type === 'public' ? 'libraries' : 'libraries-public';
+  const targetType = lib.type === 'public' ? 'gated' : 'public';
+
+  const confirmBtn = document.getElementById('admin-convert-confirm-btn');
+  const errorEl = document.getElementById('admin-convert-error');
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Converting…';
+  errorEl.hidden = true;
+
+  try {
+    // Re-read the source doc right before the move so the write reflects
+    // the latest persisted state (in case another super-admin edited the
+    // displayName since this modal was opened).
+    const sourceRef = doc(db, sourceCollection, lib.id);
+    const sourceSnap = await getDoc(sourceRef);
+    if (!sourceSnap.exists()) {
+      throw new Error('Source library document no longer exists.');
+    }
+    const data = sourceSnap.data();
+
+    const batch = writeBatch(db);
+    batch.set(doc(db, targetCollection, lib.id), data);
+    batch.delete(sourceRef);
+    await batch.commit();
+
+    // The library object the edit modal was opened with is now stale
+    // (wrong collection). Close both modals and reload the list so the
+    // user sees the conversion reflected.
+    closeConvertModal();
+    closeLibraryModal();
+    await loadLibraries();
+  } catch (err) {
+    console.warn('[admin] convert library type failed:', err);
+    errorEl.textContent = 'Convert failed: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Convert to ' + targetType;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Wire up static event listeners (these elements exist on page load)
 // ---------------------------------------------------------------------------
 
@@ -796,25 +916,39 @@ document.getElementById('admin-library-form').addEventListener('submit', handleL
 document.getElementById('admin-delete-cancel-btn').addEventListener('click', closeDeleteModal);
 document.getElementById('admin-delete-confirm-btn').addEventListener('click', handleDeleteConfirm);
 
+document.getElementById('admin-library-convert-btn').addEventListener('click', () => {
+  if (editingLibrary) openConvertModal(editingLibrary);
+});
+document.getElementById('admin-convert-cancel-btn').addEventListener('click', closeConvertModal);
+document.getElementById('admin-convert-confirm-btn').addEventListener('click', handleConvertConfirm);
+
 // Close modal on Escape or click outside — but only for super-admins.
 // Library admins can't dismiss the library modal because it IS their
 // entire admin UI; dismissing it would leave them staring at a blank
 // page. To exit, they sign out via the header button.
-for (const modalId of ['admin-library-modal', 'admin-delete-modal']) {
+for (const modalId of ['admin-library-modal', 'admin-delete-modal', 'admin-convert-modal']) {
   const overlay = document.getElementById(modalId);
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
       if (modalId === 'admin-library-modal') {
         if (currentUserRole === 'library-admin') return;
         closeLibraryModal();
-      } else {
+      } else if (modalId === 'admin-delete-modal') {
         closeDeleteModal();
+      } else {
+        closeConvertModal();
       }
     }
   });
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    // Convert modal is layered above the library modal — close it
+    // first so the underlying library modal stays visible.
+    if (!document.getElementById('admin-convert-modal').hidden) {
+      closeConvertModal();
+      return;
+    }
     if (!document.getElementById('admin-library-modal').hidden) {
       if (currentUserRole !== 'library-admin') closeLibraryModal();
     }

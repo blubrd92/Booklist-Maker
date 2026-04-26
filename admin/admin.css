@@ -834,6 +834,14 @@ code {
   font-size: 0.85em;
 }
 
+#admin-library-convert-btn {
+  margin-top: 10px;
+}
+
+#admin-library-convert-btn[hidden] {
+  display: none;
+}
+
 .admin-note-warning {
   background: rgba(251, 140, 0, 0.12);
   border-left-color: #fb8c00;

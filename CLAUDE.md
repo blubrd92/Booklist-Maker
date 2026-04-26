@@ -330,7 +330,8 @@ A separate app at `/admin/` in the same repo, served at `admin.booklister.org` v
 **Initial super-admin bootstrap is manual**: go to Firebase console, create an `admins` collection, add a doc with the super-admin's Firebase Auth UID as the doc ID. This is the ONLY manual Firestore write in the whole system; everything else happens through the admin UI.
 
 **Key admin features:**
-- Libraries CRUD: list (with "no library admins" warning badge on gated libraries that currently have zero library admins), create, edit (library ID and type are immutable after creation), delete
+- Libraries CRUD: list (with "no library admins" warning badge on gated libraries that currently have zero library admins), create, edit (library ID is immutable after creation; type is changed via the dedicated Convert button, not the disabled radios), delete
+- Convert library type (super-admin only): a "Convert to public/gated" button in the library edit modal moves the doc between `libraries-public` and `libraries` atomically via a Firestore `writeBatch`. Memberships are kept intact (dormant on public, active on gated) so a public→gated→public round trip doesn't lose the staff list. Library admins don't see the convert button, and the Firestore rules already restrict writes to both collections to super-admins regardless.
 - Memberships management per library: list staff with email + UID + role badge, invite new staff by email (creates Firebase Auth user via a secondary Firebase app instance so the admin's session isn't disrupted, then sends a password reset email as the invite), remove staff, promote to library admin, demote to staff
 - Library-admin restricted mode: when a library admin signs in, `body.admin-mode-library` is set and CSS hides the library config form, the close button, the footer save/cancel buttons, and the libraries table. Only the memberships section remains.
 
