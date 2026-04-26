@@ -1044,10 +1044,12 @@ code {
   padding: 12px 0;
   border-top: 1px solid var(--admin-border);
   z-index: 1;
+  justify-content: center;
 }
 
-.admin-add-membership input[type="text"] {
-  flex: 1;
+.admin-add-membership input[type="email"] {
+  width: 320px;
+  max-width: 100%;
   padding: 10px 12px;
   font-size: 0.9rem;
   border: 1px solid var(--admin-border);
@@ -1058,7 +1060,7 @@ code {
   transition: border-color var(--admin-transition), box-shadow var(--admin-transition);
 }
 
-.admin-add-membership input[type="text"]:focus {
+.admin-add-membership input[type="email"]:focus {
   outline: none;
   border-color: var(--admin-primary);
   box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
