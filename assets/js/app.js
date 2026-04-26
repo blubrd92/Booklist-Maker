@@ -1765,12 +1765,7 @@ const BooklistApp = (function() {
     cancelBtn.addEventListener('click', () => overlay.remove());
     actions.appendChild(cancelBtn);
 
-    const draftBtn = document.createElement('button');
-    draftBtn.type = 'button';
-    draftBtn.className = 'btn btn-sm btn-primary';
-    draftBtn.textContent = 'Draft';
-    draftBtn.style.cssText = 'padding: 6px 16px;';
-    draftBtn.addEventListener('click', () => {
+    function submitDraft() {
       const sourceText = textarea.value.trim();
       if (!sourceText) {
         showNotification('Please paste a summary first.', 'error');
@@ -1785,8 +1780,26 @@ const BooklistApp = (function() {
         reactionDelay: 0, returnAfter: 0,
       });
       getAiDescription(bookItem.key, false, sourceText);
-    });
+    }
+
+    const draftBtn = document.createElement('button');
+    draftBtn.type = 'button';
+    draftBtn.className = 'btn btn-sm btn-primary';
+    draftBtn.textContent = 'Draft';
+    draftBtn.style.cssText = 'padding: 6px 16px;';
+    draftBtn.addEventListener('click', submitDraft);
     actions.appendChild(draftBtn);
+
+    // Enter submits, Shift+Enter inserts a newline (default textarea
+    // behavior). Matches the convention people expect from chat-style
+    // composers and keeps the modal usable without reaching for the
+    // mouse.
+    textarea.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' && !ev.shiftKey && !ev.metaKey && !ev.ctrlKey) {
+        ev.preventDefault();
+        submitDraft();
+      }
+    });
     body.appendChild(actions);
     content.appendChild(body);
     overlay.appendChild(content);
