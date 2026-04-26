@@ -34,6 +34,7 @@ import {
   collection,
   query,
   where,
+  writeBatch,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 // Libraries hold only the fields that are genuinely per-library:
@@ -581,6 +582,9 @@ function openLibraryModal(lib) {
   errorEl.hidden = true;
   errorEl.textContent = '';
 
+  const convertBtn = document.getElementById('admin-library-convert-btn');
+  const convertTargetSpan = document.getElementById('admin-library-convert-target');
+
   if (lib) {
     // Edit mode
     if (currentUserRole === 'library-admin') {
@@ -594,7 +598,18 @@ function openLibraryModal(lib) {
     idInput.disabled = true; // ID is immutable
     for (const r of typeRadios) {
       r.checked = r.value === lib.type;
-      r.disabled = true; // Type is immutable (would require a collection move)
+      // The radios stay disabled in edit mode — switching public/gated
+      // requires a collection move, which the convert button below
+      // handles via a confirmation modal. Super-admins only.
+      r.disabled = true;
+    }
+    if (convertBtn && convertTargetSpan) {
+      if (currentUserRole === 'super-admin') {
+        convertTargetSpan.textContent = lib.type === 'public' ? 'gated' : 'public';
+        convertBtn.hidden = false;
+      } else {
+        convertBtn.hidden = true;
+      }
     }
     const d = lib.data || {};
     nameInput.value = d.displayName || '';
@@ -622,6 +637,7 @@ function openLibraryModal(lib) {
       r.disabled = false;
       r.checked = r.value === 'public';
     }
+    if (convertBtn) convertBtn.hidden = true;
     nameInput.value = '';
     brandingInput.value = '';
     autoDraftInput.checked = true;
@@ -661,6 +677,18 @@ function closeLibraryModal() {
   editingLibrary = null;
   // Hide memberships section so it doesn't flash when opening create mode next
   document.getElementById('admin-memberships-section').hidden = true;
+  // Clear the staff list so reopening the modal (possibly for a
+  // different library) is treated as a fresh render — no stale rows,
+  // no carried-over scroll position or filter value.
+  const listEl = document.getElementById('admin-memberships-list');
+  if (listEl) listEl.innerHTML = '';
+  const filterInput = document.getElementById('admin-memberships-filter');
+  if (filterInput) {
+    filterInput.value = '';
+    filterInput.hidden = true;
+  }
+  const filterStatus = document.getElementById('admin-memberships-filter-status');
+  if (filterStatus) filterStatus.hidden = true;
 }
 
 function showLibraryFormError(msg) {
@@ -777,6 +805,110 @@ async function handleDeleteConfirm() {
 }
 
 // ---------------------------------------------------------------------------
+// Convert library type modal (super-admin only)
+//
+// The public/gated distinction is which collection a library's doc lives
+// in (libraries-public vs libraries), not a field on the doc. Switching
+// modes therefore means moving the document between collections. The
+// admin UI gates this behind a confirmation; the actual security
+// boundary is the Firestore rules, which only allow super-admins to
+// write to either collection.
+// ---------------------------------------------------------------------------
+
+let convertingLibrary = null;
+
+function openConvertModal(lib) {
+  if (currentUserRole !== 'super-admin' || !lib) return;
+  convertingLibrary = lib;
+
+  const targetType = lib.type === 'public' ? 'gated' : 'public';
+  const titleEl = document.getElementById('admin-convert-modal-title');
+  const summaryEl = document.getElementById('admin-convert-modal-summary');
+  const warningEl = document.getElementById('admin-convert-modal-warning');
+  const errorEl = document.getElementById('admin-convert-error');
+  const confirmBtn = document.getElementById('admin-convert-confirm-btn');
+
+  titleEl.textContent = 'Convert to ' + targetType + '?';
+  summaryEl.innerHTML = '';
+  const summaryStrong = document.createElement('strong');
+  summaryStrong.textContent = (lib.data.displayName || lib.id) + ' (' + lib.id + ')';
+  summaryEl.appendChild(document.createTextNode('Convert '));
+  summaryEl.appendChild(summaryStrong);
+  summaryEl.appendChild(document.createTextNode(' from ' + lib.type + ' to ' + targetType + '?'));
+
+  if (targetType === 'gated') {
+    warningEl.textContent =
+      'After this change, visitors will be required to sign in with a member account. ' +
+      'Add staff in this modal’s Staff section after converting. Until at least one ' +
+      'membership exists, nobody will be able to access the library.';
+  } else {
+    warningEl.textContent =
+      'After this change, anyone with the URL can access the library without signing in. ' +
+      'Existing memberships are kept so you can convert back to gated later without losing ' +
+      'the staff list, but they have no effect while the library is public.';
+  }
+
+  errorEl.hidden = true;
+  errorEl.textContent = '';
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = 'Convert to ' + targetType;
+
+  document.getElementById('admin-convert-modal').hidden = false;
+}
+
+function closeConvertModal() {
+  document.getElementById('admin-convert-modal').hidden = true;
+  convertingLibrary = null;
+}
+
+async function handleConvertConfirm() {
+  if (!convertingLibrary) return;
+  if (currentUserRole !== 'super-admin') return;
+
+  const lib = convertingLibrary;
+  const sourceCollection = lib.type === 'public' ? 'libraries-public' : 'libraries';
+  const targetCollection = lib.type === 'public' ? 'libraries' : 'libraries-public';
+  const targetType = lib.type === 'public' ? 'gated' : 'public';
+
+  const confirmBtn = document.getElementById('admin-convert-confirm-btn');
+  const errorEl = document.getElementById('admin-convert-error');
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Converting…';
+  errorEl.hidden = true;
+
+  try {
+    // Re-read the source doc right before the move so the write reflects
+    // the latest persisted state (in case another super-admin edited the
+    // displayName since this modal was opened).
+    const sourceRef = doc(db, sourceCollection, lib.id);
+    const sourceSnap = await getDoc(sourceRef);
+    if (!sourceSnap.exists()) {
+      throw new Error('Source library document no longer exists.');
+    }
+    const data = sourceSnap.data();
+
+    const batch = writeBatch(db);
+    batch.set(doc(db, targetCollection, lib.id), data);
+    batch.delete(sourceRef);
+    await batch.commit();
+
+    // The library object the edit modal was opened with is now stale
+    // (wrong collection). Close both modals and reload the list so the
+    // user sees the conversion reflected.
+    closeConvertModal();
+    closeLibraryModal();
+    await loadLibraries();
+  } catch (err) {
+    console.warn('[admin] convert library type failed:', err);
+    errorEl.textContent = 'Convert failed: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Convert to ' + targetType;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Wire up static event listeners (these elements exist on page load)
 // ---------------------------------------------------------------------------
 
@@ -796,25 +928,46 @@ document.getElementById('admin-library-form').addEventListener('submit', handleL
 document.getElementById('admin-delete-cancel-btn').addEventListener('click', closeDeleteModal);
 document.getElementById('admin-delete-confirm-btn').addEventListener('click', handleDeleteConfirm);
 
+document.getElementById('admin-library-convert-btn').addEventListener('click', () => {
+  if (editingLibrary) openConvertModal(editingLibrary);
+});
+document.getElementById('admin-convert-cancel-btn').addEventListener('click', closeConvertModal);
+document.getElementById('admin-convert-confirm-btn').addEventListener('click', handleConvertConfirm);
+
 // Close modal on Escape or click outside — but only for super-admins.
 // Library admins can't dismiss the library modal because it IS their
 // entire admin UI; dismissing it would leave them staring at a blank
 // page. To exit, they sign out via the header button.
-for (const modalId of ['admin-library-modal', 'admin-delete-modal']) {
+for (const modalId of ['admin-library-modal', 'admin-delete-modal', 'admin-convert-modal', 'admin-move-staff-modal']) {
   const overlay = document.getElementById(modalId);
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
       if (modalId === 'admin-library-modal') {
         if (currentUserRole === 'library-admin') return;
         closeLibraryModal();
-      } else {
+      } else if (modalId === 'admin-delete-modal') {
         closeDeleteModal();
+      } else if (modalId === 'admin-convert-modal') {
+        closeConvertModal();
+      } else {
+        closeMoveStaffModal();
       }
     }
   });
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    // Inner modals (convert, move-staff) are layered above the library
+    // modal — close them first so the underlying library modal stays
+    // visible.
+    if (!document.getElementById('admin-move-staff-modal').hidden) {
+      closeMoveStaffModal();
+      return;
+    }
+    if (!document.getElementById('admin-convert-modal').hidden) {
+      closeConvertModal();
+      return;
+    }
     if (!document.getElementById('admin-library-modal').hidden) {
       if (currentUserRole !== 'library-admin') closeLibraryModal();
     }
@@ -872,17 +1025,37 @@ async function createAuthUserViaSecondaryApp(email, password) {
   }
 }
 
+// Threshold above which the staff list shows a client-side filter
+// input. Below this, the list is short enough to scan visually and the
+// filter would just be visual noise.
+const MEMBERSHIPS_FILTER_THRESHOLD = 6;
+
 async function loadMemberships(libraryId) {
   const loadingEl = document.getElementById('admin-memberships-loading');
   const errorEl = document.getElementById('admin-memberships-error');
   const emptyEl = document.getElementById('admin-memberships-empty');
   const listEl = document.getElementById('admin-memberships-list');
+  const headingEl = document.getElementById('admin-memberships-heading');
+  const filterInput = document.getElementById('admin-memberships-filter');
+  const filterStatus = document.getElementById('admin-memberships-filter-status');
+  const scrollArea = document.querySelector('#admin-library-modal .admin-modal-scroll-area');
+
+  // Capture state from the previous render so add/remove/move/promote
+  // actions don't yank the user back to the top of the list and don't
+  // erase an active filter. If this is the FIRST render (list was
+  // empty), we skip the restore and let the user land at the top.
+  const isReRender = listEl.children.length > 0;
+  const previousScrollTop = isReRender && scrollArea ? scrollArea.scrollTop : null;
+  const previousFilter = isReRender && filterInput && !filterInput.hidden ? filterInput.value : '';
 
   loadingEl.hidden = false;
   errorEl.hidden = true;
   emptyEl.hidden = true;
   listEl.hidden = true;
   listEl.innerHTML = '';
+  if (filterInput) filterInput.hidden = true;
+  if (filterStatus) filterStatus.hidden = true;
+  if (headingEl) headingEl.textContent = 'Staff with access';
 
   try {
     const q = query(collection(db, 'memberships'), where('libraryId', '==', libraryId));
@@ -909,12 +1082,46 @@ async function loadMemberships(libraryId) {
       return aLabel.localeCompare(bLabel);
     });
 
+    // Counts for the heading.
+    let adminCount = 0;
+    let staffCount = 0;
+    for (const r of rows) {
+      if (r.data.role === 'admin') adminCount++;
+      else staffCount++;
+    }
+    if (headingEl) {
+      const parts = [];
+      if (adminCount > 0) parts.push(adminCount + (adminCount === 1 ? ' admin' : ' admins'));
+      parts.push(staffCount + (staffCount === 1 ? ' staff' : ' staff'));
+      headingEl.textContent = 'Staff with access (' + parts.join(', ') + ')';
+    }
+
     const currentUid = auth.currentUser ? auth.currentUser.uid : null;
+    let lastGroup = null;
 
     for (const row of rows) {
-      const li = document.createElement('li');
       const isAdminRow = row.data.role === 'admin';
       const isSelf = row.uid === currentUid;
+      const group = isAdminRow ? 'admin' : 'staff';
+
+      // Insert a group separator row before the first row of each group.
+      // Only render separators when both groups exist — a single-group
+      // list doesn't need them.
+      if (group !== lastGroup && adminCount > 0 && staffCount > 0) {
+        const sep = document.createElement('li');
+        sep.className = 'admin-membership-group-header';
+        sep.dataset.group = group;
+        sep.textContent = isAdminRow ? 'Library admins' : 'Staff';
+        listEl.appendChild(sep);
+        lastGroup = group;
+      }
+
+      const li = document.createElement('li');
+      li.className = 'admin-membership-row';
+      // data-search powers the client-side filter — match against email
+      // and UID together, lowercased so the filter input is
+      // case-insensitive.
+      li.dataset.search = ((row.data.email || '') + ' ' + row.uid).toLowerCase();
 
       // Left side: identity block (email + UID) + role badge + "you"
       // indicator if it's the current user.
@@ -986,6 +1193,27 @@ async function loadMemberships(libraryId) {
         }
       }
 
+      // Move-to-another-library button — super-admin only. Updates the
+      // membership doc's libraryId in place rather than going through
+      // remove + re-invite, which would fail with email-already-in-use
+      // because removing a membership doesn't delete the Firebase Auth
+      // account.
+      if (currentUserRole === 'super-admin' && !isSelf) {
+        const otherLibCount = librariesCache.filter((l) => l.id !== libraryId).length;
+        const moveBtn = document.createElement('button');
+        moveBtn.className = 'admin-row-btn';
+        moveBtn.type = 'button';
+        moveBtn.innerHTML = '<i class="fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i> Move';
+        if (otherLibCount === 0) {
+          moveBtn.disabled = true;
+          moveBtn.title = 'No other libraries to move this user to';
+        } else {
+          moveBtn.title = 'Move this user to a different library (demotes to staff)';
+          moveBtn.addEventListener('click', () => openMoveStaffModal(row, libraryId));
+        }
+        actionsWrap.appendChild(moveBtn);
+      }
+
       // Remove button — visibility rules:
       //   - Super-admin: can remove any row EXCEPT their own (they
       //     shouldn't accidentally sign themselves out, and they're
@@ -1012,11 +1240,73 @@ async function loadMemberships(libraryId) {
       listEl.appendChild(li);
     }
     listEl.hidden = false;
+
+    // Show the filter input only when the list is long enough to make
+    // filtering useful. For short lists the filter is just visual noise.
+    if (filterInput && rows.length >= MEMBERSHIPS_FILTER_THRESHOLD) {
+      filterInput.hidden = false;
+      filterInput.value = previousFilter;
+      if (previousFilter) applyMembershipFilter();
+    }
+
+    // Restore the scroll position only if this was a re-render. First
+    // renders should land at the top. requestAnimationFrame so the
+    // browser settles layout before we set scrollTop.
+    if (previousScrollTop !== null && scrollArea) {
+      requestAnimationFrame(() => {
+        scrollArea.scrollTop = previousScrollTop;
+      });
+    }
   } catch (err) {
     console.warn('[admin] loadMemberships failed:', err);
     loadingEl.hidden = true;
     errorEl.textContent = 'Failed to load memberships: ' + (err.message || err.code || 'unknown error');
     errorEl.hidden = false;
+  }
+}
+
+// Filter the staff list by the current filter input value. Hides
+// non-matching rows and any group separator whose group has no visible
+// rows after filtering. Updates a "Showing X of Y" status line under
+// the input.
+function applyMembershipFilter() {
+  const filterInput = document.getElementById('admin-memberships-filter');
+  const filterStatus = document.getElementById('admin-memberships-filter-status');
+  const listEl = document.getElementById('admin-memberships-list');
+  if (!filterInput || filterInput.hidden) return;
+
+  const filter = filterInput.value.trim().toLowerCase();
+  const rows = listEl.querySelectorAll('.admin-membership-row');
+  const separators = listEl.querySelectorAll('.admin-membership-group-header');
+
+  let visibleCount = 0;
+  for (const row of rows) {
+    const matches = filter === '' || (row.dataset.search || '').includes(filter);
+    row.hidden = !matches;
+    if (matches) visibleCount++;
+  }
+
+  // Hide a separator if every row in its group (rows between this
+  // separator and the next one, or the end of the list) is hidden.
+  for (const sep of separators) {
+    let groupHasVisible = false;
+    let cursor = sep.nextElementSibling;
+    while (cursor && !cursor.classList.contains('admin-membership-group-header')) {
+      if (cursor.classList.contains('admin-membership-row') && !cursor.hidden) {
+        groupHasVisible = true;
+        break;
+      }
+      cursor = cursor.nextElementSibling;
+    }
+    sep.hidden = !groupHasVisible;
+  }
+
+  if (filter === '') {
+    filterStatus.hidden = true;
+    filterStatus.textContent = '';
+  } else {
+    filterStatus.textContent = 'Showing ' + visibleCount + ' of ' + rows.length;
+    filterStatus.hidden = false;
   }
 }
 
@@ -1065,9 +1355,13 @@ async function handleAddMembership(evt) {
       if (err.code === 'auth/email-already-in-use') {
         errorEl.textContent =
           'An account with that email already exists in Firebase Auth. ' +
-          'Each user can only be a member of one library at a time. If they ' +
-          'should be moved here from another library, remove them from that ' +
-          'library first. If they already have access here, no action needed.';
+          'If they currently belong to another library, open that library ' +
+          'and use the Move button on their row to move them here (this ' +
+          'preserves their password and demotes them to staff). If they ' +
+          'have no current library membership but the Auth account lingers, ' +
+          'delete the user from Firebase Console → Authentication → Users ' +
+          'first, then retry. The admin console cannot delete Auth users ' +
+          'directly.';
         errorEl.hidden = false;
         return;
       }
@@ -1192,4 +1486,112 @@ async function demoteToStaff(uid, libraryId) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Move a staff member to another library (super-admin only)
+//
+// Updates memberships/<uid>'s libraryId in place and forces role back to
+// 'staff' — moving across libraries is treated as starting fresh, so any
+// prior library-admin status doesn't follow the user. Promote them again
+// in the new library if you want them to be a library admin there.
+//
+// This avoids the email-already-in-use trap that bites a remove +
+// re-invite workflow: removing a membership doesn't delete the Firebase
+// Auth account, so re-inviting the same email fails. By updating in
+// place we keep the existing Auth UID and credentials.
+// ---------------------------------------------------------------------------
+
+let movingStaff = null; // { uid, fromLibraryId, email }
+
+function openMoveStaffModal(row, fromLibraryId) {
+  if (currentUserRole !== 'super-admin') return;
+  movingStaff = {
+    uid: row.uid,
+    fromLibraryId,
+    email: row.data.email || null,
+  };
+
+  const nameEl = document.getElementById('admin-move-staff-name');
+  const targetSelect = document.getElementById('admin-move-staff-target');
+  const errorEl = document.getElementById('admin-move-staff-error');
+  const confirmBtn = document.getElementById('admin-move-staff-confirm-btn');
+
+  nameEl.textContent = row.data.email || row.uid;
+
+  // Populate the dropdown with every library other than the current
+  // one, sorted by display name. Show display name + (id) so the
+  // super-admin can disambiguate libraries with similar names.
+  targetSelect.innerHTML = '';
+  const otherLibs = librariesCache
+    .filter((l) => l.id !== fromLibraryId)
+    .slice()
+    .sort((a, b) => {
+      const an = (a.data.displayName || a.id).toLowerCase();
+      const bn = (b.data.displayName || b.id).toLowerCase();
+      return an.localeCompare(bn);
+    });
+  for (const lib of otherLibs) {
+    const opt = document.createElement('option');
+    opt.value = lib.id;
+    opt.textContent = (lib.data.displayName || lib.id) + ' (' + lib.id + ', ' + lib.type + ')';
+    targetSelect.appendChild(opt);
+  }
+
+  errorEl.hidden = true;
+  errorEl.textContent = '';
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = 'Move';
+
+  document.getElementById('admin-move-staff-modal').hidden = false;
+  targetSelect.focus();
+}
+
+function closeMoveStaffModal() {
+  document.getElementById('admin-move-staff-modal').hidden = true;
+  movingStaff = null;
+}
+
+async function handleMoveStaffConfirm() {
+  if (!movingStaff) return;
+  if (currentUserRole !== 'super-admin') return;
+
+  const targetSelect = document.getElementById('admin-move-staff-target');
+  const errorEl = document.getElementById('admin-move-staff-error');
+  const confirmBtn = document.getElementById('admin-move-staff-confirm-btn');
+  const newLibraryId = targetSelect.value;
+
+  if (!newLibraryId) {
+    errorEl.textContent = 'Pick a target library.';
+    errorEl.hidden = false;
+    return;
+  }
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Moving…';
+  errorEl.hidden = true;
+
+  const { uid, fromLibraryId } = movingStaff;
+
+  try {
+    // Always demote to staff on move. The rules permit this for
+    // super-admins; library admins can't see the Move button.
+    await updateDoc(doc(db, 'memberships', uid), {
+      libraryId: newLibraryId,
+      role: 'staff',
+    });
+    closeMoveStaffModal();
+    // Refresh the staff list of the library we're still editing —
+    // the moved user should now disappear from this list.
+    await loadMemberships(fromLibraryId);
+  } catch (err) {
+    console.warn('[admin] move staff failed:', err);
+    errorEl.textContent = 'Move failed: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Move';
+  }
+}
+
 document.getElementById('admin-add-membership-form').addEventListener('submit', handleAddMembership);
+document.getElementById('admin-memberships-filter').addEventListener('input', applyMembershipFilter);
+document.getElementById('admin-move-staff-cancel-btn').addEventListener('click', closeMoveStaffModal);
+document.getElementById('admin-move-staff-confirm-btn').addEventListener('click', handleMoveStaffConfirm);

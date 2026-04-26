@@ -143,6 +143,9 @@
                 <span><strong>Gated</strong> — Requires sign-in + membership. Config stored in <code>libraries</code>.</span>
               </label>
             </div>
+            <button type="button" class="admin-btn-secondary admin-btn-sm" id="admin-library-convert-btn" hidden>
+              Convert to <span id="admin-library-convert-target">gated</span>
+            </button>
           </div>
 
           <div class="admin-field">
@@ -189,7 +192,7 @@
              read them), and you can't add members to a library until its
              doc exists, so this is hidden in create mode. -->
         <div id="admin-memberships-section" class="admin-modal-body admin-memberships" hidden>
-          <h4>Staff with access</h4>
+          <h4 id="admin-memberships-heading">Staff with access</h4>
           <p class="admin-field-hint">
             Enter the new staff member's email. The admin console will create a Firebase Auth
             account for them and send a password reset email so they can set their own password.
@@ -201,6 +204,15 @@
           <div id="admin-memberships-empty" class="admin-empty admin-empty-compact" hidden>
             No staff yet. Invite someone below to grant access.
           </div>
+          <input
+            type="search"
+            id="admin-memberships-filter"
+            class="admin-memberships-filter"
+            placeholder="Filter by email or UID…"
+            autocomplete="off"
+            spellcheck="false"
+            hidden>
+          <p id="admin-memberships-filter-status" class="admin-memberships-filter-status" hidden></p>
           <ul id="admin-memberships-list" class="admin-memberships-list" hidden></ul>
 
           <form id="admin-add-membership-form" class="admin-add-membership">
@@ -217,6 +229,49 @@
       <div class="admin-modal-footer">
         <button type="button" class="admin-btn-secondary" id="admin-library-cancel-btn">Cancel</button>
         <button type="submit" class="admin-btn-primary" id="admin-library-save-btn" form="admin-library-form">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move staff to a different library modal (super-admin only) -->
+  <div id="admin-move-staff-modal" class="admin-modal-overlay" hidden>
+    <div class="admin-modal admin-modal-small">
+      <div class="admin-modal-header">
+        <h3>Move staff to another library</h3>
+      </div>
+      <div class="admin-modal-body">
+        <p>Move <strong id="admin-move-staff-name"></strong> to:</p>
+        <div class="admin-field">
+          <label for="admin-move-staff-target">Target library</label>
+          <select id="admin-move-staff-target"></select>
+        </div>
+        <p class="admin-note admin-note-warning">
+          The user will be demoted to <strong>staff</strong> in the new library, even if
+          they were a library admin here. Promote them again from the new library if needed.
+        </p>
+        <p id="admin-move-staff-error" class="admin-error" hidden></p>
+      </div>
+      <div class="admin-modal-footer">
+        <button type="button" class="admin-btn-secondary" id="admin-move-staff-cancel-btn">Cancel</button>
+        <button type="button" class="admin-btn-primary" id="admin-move-staff-confirm-btn">Move</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Convert library type confirmation modal (super-admin only) -->
+  <div id="admin-convert-modal" class="admin-modal-overlay" hidden>
+    <div class="admin-modal admin-modal-small">
+      <div class="admin-modal-header">
+        <h3 id="admin-convert-modal-title">Convert library?</h3>
+      </div>
+      <div class="admin-modal-body">
+        <p id="admin-convert-modal-summary"></p>
+        <p class="admin-note admin-note-warning" id="admin-convert-modal-warning"></p>
+        <p id="admin-convert-error" class="admin-error" hidden></p>
+      </div>
+      <div class="admin-modal-footer">
+        <button type="button" class="admin-btn-secondary" id="admin-convert-cancel-btn">Cancel</button>
+        <button type="button" class="admin-btn-primary" id="admin-convert-confirm-btn">Convert</button>
       </div>
     </div>
   </div>
