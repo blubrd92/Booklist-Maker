@@ -3691,12 +3691,23 @@ const BooklistApp = (function() {
       ctx.restore();
     };
     
-    // Calculate grid size needed to cover canvas after rotation
+    // Calculate grid size needed to cover canvas after rotation. The
+    // multiplier was 0.8 historically; bumped to 1.0 because at 0.8
+    // some configurations (especially small tilt angles + large covers)
+    // left visible gaps near the rotated corners where the grid didn't
+    // extend far enough. 1.0 means the grid half-extent equals the
+    // canvas diagonal, which guarantees coverage at any rotation. If
+    // bleed ever feels excessive on a particular collection, tighten
+    // back toward 0.8; if you see gaps, push past 1.0.
     const canvasDiag = Math.sqrt(canvasWidth * canvasWidth + canvasHeight * canvasHeight);
-    const gridExtent = canvasDiag * 0.8;
-    
+    const gridExtent = canvasDiag * 1.0;
+
+    // Both dimensions sized from gridExtent so the grid is symmetric
+    // around the canvas. numRows used to be a hardcoded 12, which was
+    // enough to fill most layouts vertically but could leave gaps at
+    // the top/bottom corners on tall canvases or large tilt angles.
     const numCols = Math.ceil(gridExtent * 2 / hStep) + 2;
-    const numRows = 12; // Enough rows to show all covers per column
+    const numRows = Math.ceil(gridExtent * 2 / vStep) + 2;
     
     // Grid origin (top-left of virtual unrotated grid, centered on canvas)
     const gridOriginX = centerX - (numCols * hStep) / 2;
@@ -3893,12 +3904,11 @@ const BooklistApp = (function() {
         : centerX + gridExtent;
 
       // Number of lines (columns for vertical mode, rows for horizontal).
-      // Vertical uses the existing numCols. Horizontal needs an analogous
-      // numRows sized from gridExtent (the existing numRows = 12 is fixed
-      // for the stretched path and not wide enough here).
-      const numLines = offsetDirection === 'vertical'
-        ? numCols
-        : Math.ceil(gridExtent * 2 / vStep) + 2;
+      // Both axes are now sized from gridExtent in the stretched path,
+      // so vertical reuses numCols and horizontal reuses numRows. Kept
+      // as a separate computation here for parity with earlier revisions
+      // when numRows was hardcoded.
+      const numLines = offsetDirection === 'vertical' ? numCols : numRows;
 
       // Cover selection reuses the existing getImageForCell() formulas so
       // the masonry packing picks books with the same per-line patterns the
