@@ -42,7 +42,11 @@
       var h = window.location.hostname;
       var isLocal = h === 'localhost' || h === '127.0.0.1';
       var hasOverride = isLocal && /[?&]library=/.test(window.location.search);
-      var isPublic = PUBLIC_HOSTS.indexOf(h) !== -1;
+      // Cloudflare Pages previews (`<branch>.<project>.pages.dev`) are
+      // treated as public so non-production deploys render the public
+      // tool, not a library-instance login modal. Mirror this in
+      // assets/js/firebase-init.js.
+      var isPublic = PUBLIC_HOSTS.indexOf(h) !== -1 || h.endsWith('.pages.dev');
       if (!isPublic || hasOverride) {
         document.documentElement.classList.add('awaiting-library-config');
       }

@@ -92,7 +92,7 @@ Two phases. The first is the legacy IIFE stack that handles the tool itself. The
 
 **Phase 1 — Inline head scripts (synchronous, run before first paint):**
 1. Admin subdomain redirect. If `window.location.hostname === 'admin.booklister.org'`, redirects to `/admin/` before anything else loads. The main tool never starts initializing on the admin subdomain.
-2. Branded-host detection. Sets `.awaiting-library-config` on `<html>` synchronously so the tool stays hidden until `applyLibraryConfig()` removes the class, preventing a flash of the unbranded UI on gated subdomains. Mirrors `firebase-init.js`'s PUBLIC_HOSTS list.
+2. Branded-host detection. Sets `.awaiting-library-config` on `<html>` synchronously so the tool stays hidden until `applyLibraryConfig()` removes the class, preventing a flash of the unbranded UI on gated subdomains. Mirrors `firebase-init.js`'s PUBLIC_HOSTS list. Cloudflare Pages preview hosts (`*.pages.dev`) are also accepted as public so non-production deploys render the public tool, not the library login modal — keep the two checks in sync if you change either.
 
 **Phase 2 — Blocking regular scripts (execute in order, synchronously):**
 1. CDN libraries: Sortable, jsPDF, html2canvas, QRCode, Font Awesome, Google Fonts
@@ -581,7 +581,7 @@ Not urgent at the current scale.
 
 These are the architectural invariants that have earned their keep. Breaking any of them should be a deliberate decision, not a side effect of another change.
 
-1. **The public tool at `booklister.org` stays unauthenticated and Firebase-free.** No Firebase SDK ever loaded, no accounts, no sign-in, no network traffic to gstatic or firebasestore on the public domain. Everything about the public tool stays in the browser.
+1. **The public tool at `booklister.org` stays unauthenticated and Firebase-free.** No Firebase SDK ever loaded, no accounts, no sign-in, no network traffic to gstatic or firebasestore on the public domain. Everything about the public tool stays in the browser. Cloudflare Pages preview hosts (`*.pages.dev`) fall under the same rule — they're treated as public deploys, render the public tool with no Firebase, and must stay that way.
 2. **The tool state is serializable through `serializeState()` / `applyState()`.** Any new storage backend (IndexedDB, file, cloud, whatever) goes through this same pair of functions. Don't couple new features to IndexedDB directly.
 3. **IIFE layer and ES module layer stay separated.** Main tool is IIFE + globals. Firebase layer and admin console are ES modules. No cross-imports. Communication via `window.*` globals and custom events.
 4. **Firestore rules are the security boundary.** The admin UI enforces the same access model client-side for UX purposes (buttons are hidden when you can't perform the action), but the rules are what actually protect data. Never weaken rules based on "the UI prevents this anyway."

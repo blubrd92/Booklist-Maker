@@ -21,6 +21,15 @@ const PUBLIC_HOSTS = new Set([
   '127.0.0.1'
 ]);
 
+// Cloudflare Pages serves preview deploys at `<branch>.<project>.pages.dev`
+// (and per-deploy at `<commit>.<project>.pages.dev`). Treat any `.pages.dev`
+// host as public so non-production previews render the public tool, never
+// the gated library login modal. Mirror this rule in the inline head script
+// in index.html so the body doesn't flash hidden before this module runs.
+function isPagesDevHost(host) {
+  return typeof host === 'string' && host.endsWith('.pages.dev');
+}
+
 const hostname = window.location.hostname;
 const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
 
@@ -30,7 +39,7 @@ const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
 const urlParams = new URLSearchParams(window.location.search);
 const libraryOverride = isLocalHost ? urlParams.get('library') : null;
 
-const isPublicHost = PUBLIC_HOSTS.has(hostname);
+const isPublicHost = PUBLIC_HOSTS.has(hostname) || isPagesDevHost(hostname);
 const isBrandedInstance = !isPublicHost || (isLocalHost && !!libraryOverride);
 
 let app = null;
