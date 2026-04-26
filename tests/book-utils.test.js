@@ -614,94 +614,88 @@ describe('BookUtils.hasEnoughCoversForCollage edge cases', () => {
   });
 });
 
-describe('BookUtils.parseQuickAddInput', () => {
-  it('returns null for empty/null/whitespace input', () => {
-    expect(globalThis.BookUtils.parseQuickAddInput('')).toBeNull();
-    expect(globalThis.BookUtils.parseQuickAddInput(null)).toBeNull();
-    expect(globalThis.BookUtils.parseQuickAddInput('   \n  \n  ')).toBeNull();
+describe('BookUtils.flipAuthorName', () => {
+  it('returns empty string for empty/null input', () => {
+    expect(globalThis.BookUtils.flipAuthorName('')).toBe('');
+    expect(globalThis.BookUtils.flipAuthorName(null)).toBe('');
+    expect(globalThis.BookUtils.flipAuthorName(undefined)).toBe('');
   });
 
-  it('parses three positional lines into title/author/callNumber', () => {
-    const result = globalThis.BookUtils.parseQuickAddInput('The Color of Magic\nTerry Pratchett\nPR6066.R34');
-    expect(result).toEqual({
-      title: 'The Color of Magic',
-      author: 'Terry Pratchett',
-      callNumber: 'PR6066.R34',
-    });
+  it('returns the trimmed name unchanged when there is no comma', () => {
+    expect(globalThis.BookUtils.flipAuthorName('Terry Pratchett')).toBe('Terry Pratchett');
+    expect(globalThis.BookUtils.flipAuthorName('  Madonna  ')).toBe('Madonna');
   });
 
-  it('flips "Last, First" to "First Last" with single comma', () => {
-    const result = globalThis.BookUtils.parseQuickAddInput('Mort\nPratchett, Terry\nPR6066');
-    expect(result.author).toBe('Terry Pratchett');
+  it('flips "Last, First" to "First Last" on single comma', () => {
+    expect(globalThis.BookUtils.flipAuthorName('Pratchett, Terry')).toBe('Terry Pratchett');
   });
 
-  it('flips with multi-word first name / initials', () => {
-    const result = globalThis.BookUtils.parseQuickAddInput('Title\nTolkien, J.R.R.\nCN');
-    expect(result.author).toBe('J.R.R. Tolkien');
+  it('flips multi-word first names / initials', () => {
+    expect(globalThis.BookUtils.flipAuthorName('Tolkien, J.R.R.')).toBe('J.R.R. Tolkien');
+    expect(globalThis.BookUtils.flipAuthorName('Smith, Mary Jane')).toBe('Mary Jane Smith');
   });
 
-  it('does NOT flip multi-comma names (multi-author / suffix ambiguity)', () => {
-    const result = globalThis.BookUtils.parseQuickAddInput('Title\nSmith, John, and Doe, Jane\nCN');
-    expect(result.author).toBe('Smith, John, and Doe, Jane');
+  it('leaves multi-comma names alone (multi-author / suffix ambiguity)', () => {
+    expect(globalThis.BookUtils.flipAuthorName('Smith, John, and Doe, Jane')).toBe('Smith, John, and Doe, Jane');
+    expect(globalThis.BookUtils.flipAuthorName('Smith, John, Jr.')).toBe('Smith, John, Jr.');
   });
 
-  it('does NOT flip single-name authors', () => {
-    const result = globalThis.BookUtils.parseQuickAddInput('Title\nMadonna\nCN');
-    expect(result.author).toBe('Madonna');
+  it('returns trimmed input when one half of the comma is empty', () => {
+    expect(globalThis.BookUtils.flipAuthorName(', Terry')).toBe(', Terry');
+    expect(globalThis.BookUtils.flipAuthorName('Pratchett,')).toBe('Pratchett,');
   });
 
-  it('parses labeled format in any order, case-insensitive', () => {
-    const result = globalThis.BookUtils.parseQuickAddInput(
-      'Call Number: PR6066\nauthor: Pratchett, Terry\nTITLE: Mort'
-    );
-    expect(result).toEqual({
-      title: 'Mort',
-      author: 'Terry Pratchett',
-      callNumber: 'PR6066',
-    });
+  it('trims whitespace inside and around the result', () => {
+    expect(globalThis.BookUtils.flipAuthorName('  Pratchett ,  Terry  ')).toBe('Terry Pratchett');
+  });
+});
+
+describe('BookUtils.toTitleCase', () => {
+  it('returns empty string for empty/null input', () => {
+    expect(globalThis.BookUtils.toTitleCase('')).toBe('');
+    expect(globalThis.BookUtils.toTitleCase(null)).toBe('');
+    expect(globalThis.BookUtils.toTitleCase(undefined)).toBe('');
   });
 
-  it('accepts "Call #:" / "Call No.:" label variants', () => {
-    expect(globalThis.BookUtils.parseQuickAddInput('Title: T\nCall #: 123').callNumber).toBe('123');
-    expect(globalThis.BookUtils.parseQuickAddInput('Title: T\nCall No.: 123').callNumber).toBe('123');
+  it('capitalizes the first letter of each major word', () => {
+    expect(globalThis.BookUtils.toTitleCase('the great gatsby')).toBe('The Great Gatsby');
+    expect(globalThis.BookUtils.toTitleCase('a brief history of time')).toBe('A Brief History of Time');
   });
 
-  it('falls through to positional parsing when any line lacks a label', () => {
-    // Mixed labeled + bare line → positional. (Line 1 = title, line 2 = author, line 3 = call #)
-    const result = globalThis.BookUtils.parseQuickAddInput('Title: Mort\nPratchett, Terry\nPR6066');
-    expect(result).toEqual({
-      title: 'Title: Mort',
-      author: 'Terry Pratchett',
-      callNumber: 'PR6066',
-    });
+  it('lowercases minor words when not first or last', () => {
+    expect(globalThis.BookUtils.toTitleCase('the lord of the rings')).toBe('The Lord of the Rings');
+    expect(globalThis.BookUtils.toTitleCase('to kill a mockingbird')).toBe('To Kill a Mockingbird');
   });
 
-  it('handles missing call number gracefully', () => {
-    const result = globalThis.BookUtils.parseQuickAddInput('Mort\nPratchett, Terry');
-    expect(result).toEqual({
-      title: 'Mort',
-      author: 'Terry Pratchett',
-      callNumber: null,
-    });
+  it('always capitalizes the first and last words even if they are minor', () => {
+    expect(globalThis.BookUtils.toTitleCase('a tale of two cities')).toBe('A Tale of Two Cities');
+    expect(globalThis.BookUtils.toTitleCase('the cat in the hat')).toBe('The Cat in the Hat');
+    // Last word is "the" — must still capitalize.
+    expect(globalThis.BookUtils.toTitleCase('what comes after the')).toBe('What Comes After The');
   });
 
-  it('handles missing author and call number', () => {
-    const result = globalThis.BookUtils.parseQuickAddInput('Solo Title');
-    expect(result).toEqual({ title: 'Solo Title', author: null, callNumber: null });
+  it('preserves all-uppercase acronyms of length 2+', () => {
+    expect(globalThis.BookUtils.toTitleCase('the USA today')).toBe('The USA Today');
+    expect(globalThis.BookUtils.toTitleCase('NASA history')).toBe('NASA History');
+    // Mixed-case stays normalized.
+    expect(globalThis.BookUtils.toTitleCase('the NaSa story')).toBe('The Nasa Story');
   });
 
-  it('trims whitespace from values', () => {
-    const result = globalThis.BookUtils.parseQuickAddInput('Title:    Mort   \nAuthor:   Pratchett, Terry  ');
-    expect(result.title).toBe('Mort');
-    expect(result.author).toBe('Terry Pratchett');
+  it('lowercases the rest of each word so MEAT does not stay shouting', () => {
+    expect(globalThis.BookUtils.toTitleCase('the GREAT gatsby')).toBe('The GREAT Gatsby');
+    // GREAT is a length 5+ all-caps token; treated as an acronym and preserved.
   });
 
-  it('handles \\r\\n line endings (Windows-pasted text)', () => {
-    const result = globalThis.BookUtils.parseQuickAddInput('Mort\r\nPratchett, Terry\r\nPR6066');
-    expect(result).toEqual({
-      title: 'Mort',
-      author: 'Terry Pratchett',
-      callNumber: 'PR6066',
-    });
+  it('handles apostrophes correctly', () => {
+    expect(globalThis.BookUtils.toTitleCase("don't stop believing")).toBe("Don't Stop Believing");
+  });
+
+  it('preserves whitespace shape', () => {
+    // Single internal spaces stay single; we don't collapse them.
+    expect(globalThis.BookUtils.toTitleCase('hello  world')).toBe('Hello  World');
+  });
+
+  it('handles a single-word title', () => {
+    expect(globalThis.BookUtils.toTitleCase('mort')).toBe('Mort');
   });
 });

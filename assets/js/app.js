@@ -4975,32 +4975,44 @@ const BooklistApp = (function() {
   }
 
   // ---------------------------------------------------------------------------
-  // Quick-add by paste
+  // Quick Add
   //
-  // A textarea-based alternative to Open Library search. The user pastes a
-  // block of text (labeled "Title: X / Author: Y / Call Number: Z" OR three
-  // bare lines in that order) and the tool fills the next blank book in the
-  // preview. Author names like "Smith, John" get flipped to "John Smith"
-  // when there is exactly one comma.
+  // A 3-input form alternative to Open Library search. The user fills in
+  // Title (required), Author (required), and Call Number (optional). On
+  // submit the tool flips author names ("Smith, John" → "John Smith"
+  // when single comma) and applies Title Case to the title (toggleable
+  // off for non-English titles) before placing the book in the next
+  // blank slot.
   //
-  // The Open Library "Add to List" flow stays untouched — Quick-add is a
-  // parallel path that sets the same fields (title, author, callNumber,
-  // authorDisplay) on the same book schema. Books added via Quick-add are
-  // indistinguishable from search-added books once they're in the list.
+  // The Open Library "Add to List" flow is untouched — Quick Add sets
+  // the same fields (title, author, callNumber, authorDisplay) on the
+  // same book schema, so books from either path are indistinguishable
+  // once in the list. The native <input type="text"> elements strip
+  // formatting on paste (they're not contenteditable), so pasted rich
+  // text comes in as plain text without any extra paste handler.
   // ---------------------------------------------------------------------------
 
   function openQuickAddModal() {
     const modal = document.getElementById('quick-add-modal');
-    const textarea = document.getElementById('quick-add-textarea');
+    const titleInput = document.getElementById('quick-add-title');
+    const authorInput = document.getElementById('quick-add-author');
+    const callInput = document.getElementById('quick-add-callnumber');
     const errorEl = document.getElementById('quick-add-error');
-    if (!modal || !textarea) return;
-    textarea.value = '';
-    errorEl.hidden = true;
-    errorEl.textContent = '';
+    if (!modal) return;
+
+    if (titleInput) titleInput.value = '';
+    if (authorInput) authorInput.value = '';
+    if (callInput) callInput.value = '';
+    if (errorEl) {
+      errorEl.hidden = true;
+      errorEl.textContent = '';
+    }
+    updateQuickAddSubmitEnabled();
+
     modal.style.display = 'flex';
     // Focus on next tick so the modal is visible first (some browsers
     // refuse focus on display:none → flex transitions in the same tick).
-    setTimeout(function() { textarea.focus(); }, 0);
+    setTimeout(function() { if (titleInput) titleInput.focus(); }, 0);
   }
 
   function closeQuickAddModal() {
@@ -5008,17 +5020,40 @@ const BooklistApp = (function() {
     if (modal) modal.style.display = 'none';
   }
 
-  function submitQuickAdd() {
-    const textarea = document.getElementById('quick-add-textarea');
-    const errorEl = document.getElementById('quick-add-error');
-    if (!textarea || !errorEl) return;
+  // Enable the submit button only when both required fields have content.
+  // Visual hint that pairs with the form-level submit-time validation.
+  function updateQuickAddSubmitEnabled() {
+    const titleInput = document.getElementById('quick-add-title');
+    const authorInput = document.getElementById('quick-add-author');
+    const submitBtn = document.getElementById('quick-add-submit-btn');
+    if (!titleInput || !authorInput || !submitBtn) return;
+    const ready = titleInput.value.trim().length > 0
+               && authorInput.value.trim().length > 0;
+    submitBtn.disabled = !ready;
+  }
 
-    const parsed = BookUtils.parseQuickAddInput(textarea.value);
-    if (!parsed || !parsed.title) {
-      errorEl.textContent = 'Please paste at least a title. Use "Title: ...", "Author: ...", "Call Number: ..." labels OR three lines in that order.';
+  function submitQuickAdd() {
+    const titleInput = document.getElementById('quick-add-title');
+    const authorInput = document.getElementById('quick-add-author');
+    const callInput = document.getElementById('quick-add-callnumber');
+    const titleCaseToggle = document.getElementById('quick-add-titlecase');
+    const errorEl = document.getElementById('quick-add-error');
+    if (!titleInput || !authorInput || !errorEl) return;
+
+    let title = (titleInput.value || '').trim();
+    let author = (authorInput.value || '').trim();
+    const callNumberRaw = (callInput && callInput.value ? callInput.value : '').trim();
+
+    if (!title || !author) {
+      errorEl.textContent = 'Title and Author are required.';
       errorEl.hidden = false;
       return;
     }
+
+    if (titleCaseToggle && titleCaseToggle.checked) {
+      title = BookUtils.toTitleCase(title);
+    }
+    author = BookUtils.flipAuthorName(author);
 
     // Find the next blank slot, mirroring handleAddToList's logic.
     const firstBlankIndex = myBooklist.findIndex(function(item, index) {
@@ -5030,21 +5065,16 @@ const BooklistApp = (function() {
       return;
     }
 
-    const author = parsed.author || CONFIG.PLACEHOLDERS.author;
-    const callNumber = parsed.callNumber || CONFIG.PLACEHOLDERS.callNumber;
-    // Build authorDisplay so the byline renders "By <author> - <callNumber>"
-    // when an author is present, matching the search-added pattern. If no
-    // author was pasted, fall back to the placeholder display so the user
-    // sees the prompt to fill it in.
-    const authorDisplay = parsed.author
-      ? 'By ' + author + ' - ' + callNumber
-      : author + ' - ' + callNumber;
+    const callNumber = callNumberRaw || CONFIG.PLACEHOLDERS.callNumber;
+    // Build authorDisplay so the byline renders "By <author> - <callNumber>",
+    // matching the search-added pattern.
+    const authorDisplay = 'By ' + author + ' - ' + callNumber;
     const currentStarredCount = BookUtils.getStarredBooks(myBooklist).length;
 
     const newBook = {
       key: 'quickadd-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
       isBlank: false,
-      title: parsed.title,
+      title: title,
       author: author,
       callNumber: callNumber,
       authorDisplay: authorDisplay,
@@ -5071,14 +5101,26 @@ const BooklistApp = (function() {
     const openBtn = document.getElementById('quickAddBtn');
     const closeBtn = document.getElementById('quick-add-close-btn');
     const cancelBtn = document.getElementById('quick-add-cancel-btn');
-    const submitBtn = document.getElementById('quick-add-submit-btn');
+    const form = document.getElementById('quick-add-form');
     const modal = document.getElementById('quick-add-modal');
-    const textarea = document.getElementById('quick-add-textarea');
+    const titleInput = document.getElementById('quick-add-title');
+    const authorInput = document.getElementById('quick-add-author');
+    const callInput = document.getElementById('quick-add-callnumber');
 
     if (openBtn) openBtn.addEventListener('click', openQuickAddModal);
     if (closeBtn) closeBtn.addEventListener('click', closeQuickAddModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeQuickAddModal);
-    if (submitBtn) submitBtn.addEventListener('click', submitQuickAdd);
+
+    // Form submit handles both the button click (type="submit") and
+    // pressing Enter in any input. The native required-field check is
+    // bypassed by `novalidate` so we can render a friendlier message in
+    // the error region instead of the browser's default tooltip.
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitQuickAdd();
+      });
+    }
 
     // Click-outside to dismiss.
     if (modal) {
@@ -5087,31 +5129,28 @@ const BooklistApp = (function() {
       });
     }
 
-    // Escape closes the modal; Cmd/Ctrl+Enter submits from the textarea.
+    // Escape closes the modal.
     document.addEventListener('keydown', function(e) {
       if (!modal || modal.style.display === 'none') return;
       if (e.key === 'Escape') {
         e.preventDefault();
         closeQuickAddModal();
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        submitQuickAdd();
       }
     });
 
-    // Textarea is a real <textarea>, so it strips formatting from pasted
-    // rich text automatically — no extra paste handler needed. (Unlike
-    // the contenteditable book fields which need handlePastePlainText.)
-    if (textarea) {
-      textarea.addEventListener('input', function() {
-        // Clear stale error as soon as the user starts editing.
-        const errorEl = document.getElementById('quick-add-error');
-        if (errorEl && !errorEl.hidden) {
-          errorEl.hidden = true;
-          errorEl.textContent = '';
-        }
-      });
+    // Live-update submit-button enablement and clear stale errors as the
+    // user edits the required fields.
+    function onInput() {
+      updateQuickAddSubmitEnabled();
+      const errorEl = document.getElementById('quick-add-error');
+      if (errorEl && !errorEl.hidden) {
+        errorEl.hidden = true;
+        errorEl.textContent = '';
+      }
     }
+    if (titleInput) titleInput.addEventListener('input', onInput);
+    if (authorInput) authorInput.addEventListener('input', onInput);
+    if (callInput) callInput.addEventListener('input', onInput);
   }
 
   // ---------------------------------------------------------------------------

@@ -161,58 +161,68 @@
     },
 
     /**
-     * Parse a Quick-add textarea blob into { title, author, callNumber }.
-     * Accepts either a labeled format ("Title: X / Author: Y / Call Number: Z"
-     * in any order, case-insensitive) or three positional lines in
-     * Title / Author / Call Number order. Author names with exactly one
-     * comma get flipped from "Last, First" to "First Last"; multi-comma
-     * strings (e.g. "Smith, John, and Doe, Jane") are left as-is to avoid
-     * mangling multi-author cases. Returns null when nothing usable was
-     * found in the input.
-     * @param {string} rawText
-     * @returns {{title: string|null, author: string|null, callNumber: string|null} | null}
+     * Flip "Last, First" → "First Last" when the name has exactly one
+     * comma. Multi-comma strings (e.g. "Smith, John, and Doe, Jane")
+     * stay as-is to avoid mangling multi-author or suffix cases. Empty
+     * input or names with no comma are returned untouched (trimmed).
+     * @param {string} name
+     * @returns {string}
      */
-    parseQuickAddInput: function(rawText) {
-      if (!rawText) return null;
-      const lines = rawText.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(Boolean);
-      if (lines.length === 0) return null;
+    flipAuthorName: function(name) {
+      if (!name) return name || '';
+      const trimmed = name.trim();
+      if (!trimmed) return trimmed;
+      const commaCount = (trimmed.match(/,/g) || []).length;
+      if (commaCount !== 1) return trimmed;
+      const parts = trimmed.split(',').map(function(p) { return p.trim(); });
+      if (!parts[0] || !parts[1]) return trimmed;
+      return parts[1] + ' ' + parts[0];
+    },
 
-      const labeledRe = /^(title|author|authors|author\(s\)|call(?:\s*number|\s*#|\s*no\.?)?)\s*:\s*(.+)$/i;
-      const labeled = {};
-      let allLabeled = true;
-      for (const line of lines) {
-        const m = line.match(labeledRe);
-        if (!m) { allLabeled = false; break; }
-        const label = m[1].toLowerCase().replace(/[\s().#]/g, '').replace(/no$/, '');
-        const value = m[2].trim();
-        if (label === 'title') labeled.title = value;
-        else if (label === 'author' || label === 'authors') labeled.author = value;
-        else if (label.startsWith('call')) labeled.callNumber = value;
-      }
-
-      let title, author, callNumber;
-      if (allLabeled && (labeled.title || labeled.author || labeled.callNumber)) {
-        title = labeled.title || null;
-        author = labeled.author || null;
-        callNumber = labeled.callNumber || null;
-      } else {
-        title = lines[0] || null;
-        author = lines[1] || null;
-        callNumber = lines[2] || null;
-      }
-
-      if (author) {
-        const commaCount = (author.match(/,/g) || []).length;
-        if (commaCount === 1) {
-          const parts = author.split(',').map(function(p) { return p.trim(); });
-          if (parts[0] && parts[1]) {
-            author = parts[1] + ' ' + parts[0];
-          }
+    /**
+     * Convert a string to English-style Title Case for book titles.
+     * Capitalizes the first and last words, plus all major words.
+     * Articles, conjunctions, and short prepositions stay lowercase
+     * unless they're the first or last word. All-uppercase tokens of
+     * length 2+ (e.g. "USA", "C.S.") are preserved as acronyms.
+     *
+     * Intended for English titles. Spanish and other languages that
+     * use sentence case should bypass this via the toggle in the
+     * Quick Add modal.
+     * @param {string} str
+     * @returns {string}
+     */
+    toTitleCase: function(str) {
+      if (!str) return str || '';
+      const minorWords = new Set([
+        'a', 'an', 'the',
+        'and', 'but', 'or', 'nor', 'for', 'yet', 'so',
+        'as', 'at', 'by', 'in', 'of', 'on', 'to', 'up', 'via',
+        'from', 'into', 'onto', 'over', 'with',
+      ]);
+      const tokens = str.split(/(\s+)/);
+      let firstWordIdx = -1;
+      let lastWordIdx = -1;
+      for (let i = 0; i < tokens.length; i++) {
+        if (/\S/.test(tokens[i])) {
+          if (firstWordIdx === -1) firstWordIdx = i;
+          lastWordIdx = i;
         }
       }
-
-      if (!title && !author && !callNumber) return null;
-      return { title: title, author: author, callNumber: callNumber };
+      return tokens.map(function(token, i) {
+        if (!/\S/.test(token)) return token;
+        const lower = token.toLowerCase();
+        // Preserve all-uppercase acronyms of length 2+ (e.g. "USA",
+        // "C.S.", "NASA"). Length-1 tokens like "I" still flow through
+        // the capitalize-first branch below, which gives the same result.
+        if (token.length >= 2 && token === token.toUpperCase() && /[A-Z]/.test(token)) {
+          return token;
+        }
+        if (i !== firstWordIdx && i !== lastWordIdx && minorWords.has(lower)) {
+          return lower;
+        }
+        return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
+      }).join('');
     },
 
     /**

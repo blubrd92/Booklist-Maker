@@ -633,14 +633,14 @@ body.has-library-config .header-credit {
   transform: translateY(-1px);
 }
 
-/* Divider between the primary Search button and the secondary Quick-add
+/* Divider between the primary Search button and the secondary Quick Add
    button in the Search tab. Mirrors the "or" divider on the admin sign-in
    screen so the two related actions feel grouped. */
 .quick-add-divider {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 10px 0 8px;
+  margin: 6px 0 4px;
   color: var(--text-light);
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -654,10 +654,10 @@ body.has-library-config .header-credit {
   background: var(--border-color);
 }
 
-/* Quick-add modal-specific tweaks. Re-uses .modal-overlay / .modal-content. */
+/* Quick Add modal-specific tweaks. Re-uses .modal-overlay / .modal-content. */
 .modal-content-narrow { max-width: 460px; }
 .quick-add-help {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   font-size: 0.85rem;
   color: var(--text-light);
   line-height: 1.5;
@@ -668,22 +668,59 @@ body.has-library-config .header-credit {
   border-radius: 3px;
   font-size: 0.85em;
 }
-#quick-add-textarea {
+.quick-add-field {
+  margin-bottom: 14px;
+}
+.quick-add-field:last-of-type {
+  margin-bottom: 0;
+}
+.quick-add-field > label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 5px;
+}
+.quick-add-required {
+  color: #e53935;
+  font-weight: 700;
+  margin-left: 2px;
+}
+.quick-add-optional {
+  color: var(--text-light);
+  font-weight: 400;
+  font-size: 0.8em;
+  margin-left: 4px;
+}
+.quick-add-field input[type="text"] {
   width: 100%;
   box-sizing: border-box;
-  padding: 10px 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.85rem;
+  padding: 9px 12px;
+  font-size: 0.9rem;
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
-  resize: vertical;
-  min-height: 140px;
+  background: white;
+  color: var(--text-color);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
-#quick-add-textarea:focus {
+.quick-add-field input[type="text"]:focus {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+.quick-add-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-light);
+  cursor: pointer;
+}
+.quick-add-checkbox-label input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
 }
 .quick-add-error {
   margin: 10px 0 0;

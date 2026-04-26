@@ -102,7 +102,7 @@
         },
         {
           target: '#results-container',
-          text: "Results show up here from OpenLibrary. It has a huge catalog, but not everything. If a book doesn't come up, you can always add it manually and upload your own cover. There's also a Quick add by paste button right under Search — paste in a title, author, and call number, and the tool fills the next blank slot for you.",
+          text: "Results show up here from OpenLibrary. It has a huge catalog, but not everything. If a book doesn't come up, you can always add it manually and upload your own cover. There's also a Quick Add button right under Search — fill in the title, author, and (optionally) call number, and the tool fills the next blank slot for you.",
           state: 'evaluating',
           prepare: function() { openSidebarTab('tab-search'); },
           padding: 4,
