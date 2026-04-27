@@ -5051,19 +5051,43 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   // Quick Add
   //
-  // A 3-input form alternative to Open Library search. The user fills in
-  // Title (required), Author (required), and Call Number (optional). On
-  // submit the tool flips author names ("Smith, John" → "John Smith"
-  // when single comma) and applies Title Case to the title (toggleable
-  // off for non-English titles) before placing the book in the next
-  // blank slot.
+  // Two-tab modal for adding books without going through Open Library:
   //
-  // The Open Library "Add to List" flow is untouched — Quick Add sets
-  // the same fields (title, author, callNumber, authorDisplay) on the
-  // same book schema, so books from either path are indistinguishable
-  // once in the list. The native <input type="text"> elements strip
-  // formatting on paste (they're not contenteditable), so pasted rich
-  // text comes in as plain text without any extra paste handler.
+  //   Single book — 3 inputs (Title required, Author required, Call Number
+  //     optional) plus a Title Case toggle. Enter submits the form. Suitable
+  //     for adding one book at a time.
+  //
+  //   Spreadsheet — a textarea where the user pastes tab-separated rows
+  //     copied from any spreadsheet app (Google Sheets, Excel, Numbers).
+  //     One row per book, columns in order Title / Author / Call Number.
+  //     Optional header row auto-detected. Cmd/Ctrl+Enter submits; plain
+  //     Enter inserts a newline (inverse of the drafter modal — TSV pastes
+  //     are inherently multi-line and arrow-key editing across rows is
+  //     part of the use case). Soft cap of CONFIG.QUICK_ADD_MAX_PASTE_ROWS
+  //     guards against accidental whole-file pastes.
+  //
+  // Both tabs apply BookUtils.flipAuthorName ("Smith, John" → "John Smith"
+  // when single comma) and the Title Case toggle (independent per tab,
+  // both default-on, both reset on each modal open). Both go through the
+  // same field set as the search-add flow (title, author, callNumber,
+  // authorDisplay = "By <author> - <callNumber>"), so books from either
+  // tab are indistinguishable from search-added books once they're in
+  // the list. Both tabs also share one pushUndo('add-book') per submit
+  // (one per book on Single, one per batch on Spreadsheet).
+  //
+  // Spreadsheet-tab specifics:
+  //  - No description auto-draft per row — would hammer the Apps Script
+  //    endpoint for a 50-row paste, and the books have no covers anyway.
+  //  - Partial success (overflow rows or skipped invalid rows) keeps the
+  //    modal open with an info notification; full success closes the
+  //    modal with a success notification.
+  //  - Auto-star uses a running counter so the first 12 added books get
+  //    starred (matching the per-call behavior of Open Library search-add
+  //    across N consecutive adds).
+  //
+  // The native <input> / <textarea> elements strip formatting on paste,
+  // so no extra paste handler is needed (unlike contenteditable book
+  // fields which need handlePastePlainText).
   // ---------------------------------------------------------------------------
 
   function openQuickAddModal() {
@@ -5071,17 +5095,34 @@ const BooklistApp = (function() {
     const titleInput = document.getElementById('quick-add-title');
     const authorInput = document.getElementById('quick-add-author');
     const callInput = document.getElementById('quick-add-callnumber');
+    const titleCaseInput = document.getElementById('quick-add-titlecase');
     const errorEl = document.getElementById('quick-add-error');
+    const multiText = document.getElementById('quick-add-multi-text');
+    const multiTitleCase = document.getElementById('quick-add-multi-titlecase');
+    const multiError = document.getElementById('quick-add-multi-error');
     if (!modal) return;
 
+    // Reset Single pane fields and toggle.
     if (titleInput) titleInput.value = '';
     if (authorInput) authorInput.value = '';
     if (callInput) callInput.value = '';
+    if (titleCaseInput) titleCaseInput.checked = true;
     if (errorEl) {
       errorEl.hidden = true;
       errorEl.textContent = '';
     }
     updateQuickAddSubmitEnabled();
+
+    // Reset Spreadsheet pane fields and toggle.
+    if (multiText) multiText.value = '';
+    if (multiTitleCase) multiTitleCase.checked = true;
+    if (multiError) {
+      multiError.hidden = true;
+      multiError.textContent = '';
+    }
+
+    // Always default to the Single tab on open.
+    setQuickAddTab('single');
 
     modal.style.display = 'flex';
     // Focus on next tick so the modal is visible first (some browsers
@@ -5092,6 +5133,45 @@ const BooklistApp = (function() {
   function closeQuickAddModal() {
     const modal = document.getElementById('quick-add-modal');
     if (modal) modal.style.display = 'none';
+  }
+
+  // Toggle which Quick Add tab is visible. Manages the tab buttons'
+  // active state + ARIA + tabindex (active tab gets 0 for keyboard
+  // navigation; inactive gets -1 so Tab skips it), the pane visibility,
+  // and which submit button shows in the footer. Focuses the right
+  // input/textarea on the next tick.
+  function setQuickAddTab(name) {
+    const tabSingle = document.getElementById('quick-add-tab-single');
+    const tabMulti = document.getElementById('quick-add-tab-multi');
+    const paneSingle = document.getElementById('quick-add-form');
+    const paneMulti = document.getElementById('quick-add-pane-multi');
+    const submitSingle = document.getElementById('quick-add-submit-btn');
+    const submitMulti = document.getElementById('quick-add-multi-submit-btn');
+    if (!tabSingle || !tabMulti || !paneSingle || !paneMulti) return;
+
+    const active = (name === 'multi') ? 'multi' : 'single';
+
+    tabSingle.classList.toggle('active', active === 'single');
+    tabMulti.classList.toggle('active', active === 'multi');
+    tabSingle.setAttribute('aria-selected', active === 'single' ? 'true' : 'false');
+    tabMulti.setAttribute('aria-selected', active === 'multi' ? 'true' : 'false');
+    tabSingle.tabIndex = active === 'single' ? 0 : -1;
+    tabMulti.tabIndex = active === 'multi' ? 0 : -1;
+
+    paneSingle.hidden = active !== 'single';
+    paneMulti.hidden = active !== 'multi';
+    if (submitSingle) submitSingle.hidden = active !== 'single';
+    if (submitMulti) submitMulti.hidden = active !== 'multi';
+
+    setTimeout(function() {
+      if (active === 'single') {
+        const t = document.getElementById('quick-add-title');
+        if (t) t.focus();
+      } else {
+        const t = document.getElementById('quick-add-multi-text');
+        if (t) t.focus();
+      }
+    }, 0);
   }
 
   // Enable the submit button only when both required fields have content.
@@ -5171,6 +5251,126 @@ const BooklistApp = (function() {
     debouncedSave();
   }
 
+  // Spreadsheet-tab submit. Parses pasted TSV, validates, applies title
+  // case + author flip, and fills as many blank slots as it can. Single
+  // pushUndo for the whole batch, single Folio celebrate, single render
+  // and save. See the Quick Add comment block for design rationale.
+  function submitQuickAddMulti() {
+    const textarea = document.getElementById('quick-add-multi-text');
+    const titleCaseToggle = document.getElementById('quick-add-multi-titlecase');
+    const errorEl = document.getElementById('quick-add-multi-error');
+    if (!textarea || !errorEl) return;
+
+    const setError = (msg) => {
+      errorEl.textContent = msg;
+      errorEl.hidden = false;
+    };
+
+    const parsed = BookUtils.parseQuickAddTsv(textarea.value, {
+      maxRows: CONFIG.QUICK_ADD_MAX_PASTE_ROWS,
+    });
+    if (!parsed) {
+      setError('Paste tab-separated rows from a spreadsheet (Google Sheets, Excel, Numbers).');
+      return;
+    }
+
+    // Detect "no tabs anywhere" — every parsed row has empty author and
+    // empty callNumber (i.e. nothing got split). Helps users who pasted
+    // CSV or plain text by mistake.
+    const everyRowSingleCell = parsed.rows.every(function(r) {
+      return !r.author && !r.callNumber;
+    });
+    if (everyRowSingleCell && parsed.rows.length > 0) {
+      setError('No tabs found. Copy from a spreadsheet so cells are tab-separated. Pasting from a CSV file or Word table won’t work — open it in a spreadsheet first.');
+      return;
+    }
+
+    const valid = [];
+    let skipped = 0;
+    for (const row of parsed.rows) {
+      if (row.title && row.author) {
+        valid.push(row);
+      } else {
+        skipped++;
+      }
+    }
+
+    if (valid.length === 0) {
+      setError('No valid rows. Each row needs a Title and an Author, separated by tabs.');
+      return;
+    }
+
+    const blanks = [];
+    for (let i = 0; i < myBooklist.length; i++) {
+      if (myBooklist[i].isBlank && i < MAX_BOOKS) blanks.push(i);
+    }
+    if (blanks.length === 0) {
+      setError('No empty book slots. Remove a book first or turn off the QR / branding toggles.');
+      return;
+    }
+
+    const useTitleCase = !!(titleCaseToggle && titleCaseToggle.checked);
+    const toAdd = Math.min(valid.length, blanks.length);
+    const overflow = valid.length - toAdd;
+
+    pushUndo('add-book');
+    let starred = BookUtils.getStarredBooks(myBooklist).length;
+    const batchStamp = Date.now();
+
+    for (let i = 0; i < toAdd; i++) {
+      const row = valid[i];
+      const title = useTitleCase ? BookUtils.toTitleCase(row.title) : row.title;
+      const author = BookUtils.flipAuthorName(row.author);
+      const callNumber = row.callNumber || CONFIG.PLACEHOLDERS.callNumber;
+      const include = starred < CONFIG.MIN_COVERS_FOR_COLLAGE;
+      if (include) starred++;
+
+      myBooklist[blanks[i]] = {
+        key: 'quickadd-' + batchStamp + '-' + i + '-' + Math.random().toString(36).slice(2, 8),
+        isBlank: false,
+        title: title,
+        author: author,
+        callNumber: callNumber,
+        authorDisplay: 'By ' + author + ' - ' + callNumber,
+        description: CONFIG.PLACEHOLDERS.description,
+        cover_ids: [],
+        currentCoverIndex: 0,
+        customCoverData: CONFIG.PLACEHOLDER_COVER_URL,
+        includeInCollage: include,
+      };
+    }
+
+    if (window.folio) {
+      window.folio.celebrate({ reaction: 'nod', state: 'excited', event: 'book-added' });
+    }
+    renderBooklist();
+    debouncedSave();
+
+    // Build the outcome message.
+    const headerNote = parsed.headerSkipped ? ' Header row skipped.' : '';
+    const truncNote = parsed.truncated
+      ? ' First ' + parsed.truncatedAt + ' rows only — paste the rest again to add more.'
+      : '';
+
+    if (overflow === 0 && skipped === 0) {
+      // Plain success: close modal, success notification.
+      closeQuickAddModal();
+      showNotification(
+        'Added ' + toAdd + ' book' + (toAdd === 1 ? '' : 's') + '.' + headerNote,
+        'success'
+      );
+    } else {
+      // Partial: stay open, clear textarea so the user doesn't accidentally
+      // re-add, info notification with the breakdown.
+      textarea.value = '';
+      let msg = 'Added ' + toAdd + ' book' + (toAdd === 1 ? '' : 's') + '.';
+      if (overflow > 0) msg += ' ' + overflow + ' didn’t fit (no more empty slots).';
+      if (skipped > 0) msg += ' ' + skipped + ' skipped (missing Title or Author).';
+      msg += headerNote + truncNote;
+      showNotification(msg, 'info');
+    }
+  }
+
   function bindQuickAddEvents() {
     const openBtn = document.getElementById('quickAddBtn');
     const closeBtn = document.getElementById('quick-add-close-btn');
@@ -5223,6 +5423,53 @@ const BooklistApp = (function() {
     if (titleInput) titleInput.addEventListener('input', onInput);
     if (authorInput) authorInput.addEventListener('input', onInput);
     if (callInput) callInput.addEventListener('input', onInput);
+
+    // ---- Spreadsheet tab wiring ----
+    const tabSingle = document.getElementById('quick-add-tab-single');
+    const tabMulti = document.getElementById('quick-add-tab-multi');
+    const submitMulti = document.getElementById('quick-add-multi-submit-btn');
+    const multiText = document.getElementById('quick-add-multi-text');
+    const multiError = document.getElementById('quick-add-multi-error');
+
+    if (tabSingle) tabSingle.addEventListener('click', function() { setQuickAddTab('single'); });
+    if (tabMulti) tabMulti.addEventListener('click', function() { setQuickAddTab('multi'); });
+
+    // Arrow-key navigation across the tab strip (Left/Right/Home/End).
+    function onTabKey(e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home' && e.key !== 'End') {
+        return;
+      }
+      e.preventDefault();
+      // Only two tabs, so Left/Home → single, Right/End → multi.
+      if (e.key === 'ArrowLeft' || e.key === 'Home') {
+        setQuickAddTab('single');
+      } else {
+        setQuickAddTab('multi');
+      }
+    }
+    if (tabSingle) tabSingle.addEventListener('keydown', onTabKey);
+    if (tabMulti) tabMulti.addEventListener('keydown', onTabKey);
+
+    if (submitMulti) submitMulti.addEventListener('click', submitQuickAddMulti);
+
+    if (multiText) {
+      // Cmd/Ctrl+Enter submits. Plain Enter is left to the browser
+      // (inserts a newline) — TSV pastes are inherently multi-line and
+      // users need arrow-key editing across rows.
+      multiText.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+          e.preventDefault();
+          submitQuickAddMulti();
+        }
+      });
+      // Clear stale error as the user edits.
+      multiText.addEventListener('input', function() {
+        if (multiError && !multiError.hidden) {
+          multiError.hidden = true;
+          multiError.textContent = '';
+        }
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------

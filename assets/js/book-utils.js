@@ -226,6 +226,91 @@
     },
 
     /**
+     * Parse a tab-separated paste from a spreadsheet (Google Sheets,
+     * Excel, Numbers, etc.) into rows of { title, author, callNumber }.
+     * Used by the Quick Add modal's "Spreadsheet" tab.
+     *
+     * Behavior:
+     *  - Splits on \r?\n, drops blank lines, trims each line.
+     *  - Replaces non-breaking spaces (U+00A0) with regular spaces
+     *    before splitting; Numbers (Apple) sometimes inserts NBSP
+     *    inside cells.
+     *  - Auto-detects an optional header row (case-insensitive token
+     *    match): cell[0] in {title, book title, name} OR cell[1] in
+     *    {author, authors, by} OR cell[2] in {call number, callnumber,
+     *    call no, call#}. The matched row is excluded from the result.
+     *  - Splits each remaining line on \t and takes cells [0], [1],
+     *    [2] as title, author, callNumber. Cells beyond [2] are
+     *    ignored.
+     *  - Empty cells become empty strings; the caller decides which
+     *    rows to keep (e.g. require title + author).
+     *  - Quoted cells are NOT unwrapped — Excel only quotes when a
+     *    cell contains a literal tab/newline, which is vanishingly
+     *    rare for book titles. Documented limitation.
+     *
+     * Author flipping and title casing happen at the call site, not
+     * here — keeps the parser pure and lets the caller toggle title
+     * casing per batch.
+     *
+     * @param {string} rawText
+     * @param {{ maxRows?: number }} [options]
+     * @returns {{ rows: Array<{title: string, author: string, callNumber: string}>,
+     *            headerSkipped: boolean,
+     *            truncated: boolean,
+     *            truncatedAt: number } | null}
+     *   Returns null when the input is non-string, empty, or
+     *   whitespace-only.
+     */
+    parseQuickAddTsv: function(rawText, options) {
+      if (typeof rawText !== 'string') return null;
+      // The character between the slashes on the next line is U+00A0
+      // (non-breaking space). Numbers (Apple) and some web sources
+      // insert NBSP inside cells; replacing with a regular space lets
+      // the per-cell .trim() clean it up like normal whitespace.
+      const text = rawText.replace(/\u00A0/g, ' ');
+      // Drop empty / whitespace-only lines, but DO NOT trim the
+      // surviving lines themselves — trimming the line would strip a
+      // leading tab, collapsing a row whose first cell was legitimately
+      // empty into one whose first cell is whatever was second. Per-cell
+      // .trim() (below) handles internal whitespace cleanup.
+      const lines = text.split(/\r?\n/).filter(function(l) { return l.trim().length > 0; });
+      if (lines.length === 0) return null;
+
+      const HEADER_TITLE  = /^(title|book title|name)$/i;
+      const HEADER_AUTHOR = /^(author|authors|by)$/i;
+      const HEADER_CALL   = /^(call number|callnumber|call no|call#)$/i;
+
+      const first = lines[0].split('\t').map(function(c) { return c.trim(); });
+      const isHeader =
+        HEADER_TITLE.test(first[0] || '') ||
+        HEADER_AUTHOR.test(first[1] || '') ||
+        HEADER_CALL.test(first[2] || '');
+      const dataLines = isHeader ? lines.slice(1) : lines;
+
+      const requestedMax = options && options.maxRows;
+      const max = (typeof requestedMax === 'number' && requestedMax > 0)
+        ? requestedMax
+        : dataLines.length;
+      const sliced = dataLines.slice(0, max);
+
+      const rows = sliced.map(function(line) {
+        const cells = line.split('\t').map(function(c) { return c.trim(); });
+        return {
+          title: cells[0] || '',
+          author: cells[1] || '',
+          callNumber: cells[2] || '',
+        };
+      });
+
+      return {
+        rows: rows,
+        headerSkipped: isHeader,
+        truncated: dataLines.length > sliced.length,
+        truncatedAt: max,
+      };
+    },
+
+    /**
      * Create a blank book object with placeholder fields.
      * Used for empty slots in a new booklist or after deletion.
      * @returns {Object} A blank book object

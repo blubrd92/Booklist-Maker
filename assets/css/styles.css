@@ -738,6 +738,83 @@ body.has-library-config .header-credit {
   border-radius: 4px;
 }
 .quick-add-error[hidden] { display: none; }
+
+/* Tab strip for the Quick Add modal (Single book / Spreadsheet).
+   Modal-scoped class names so the main-tool's .tab-btn / .tab-content
+   styling (designed for the sidebar layout) doesn't cascade in. */
+.quick-add-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 16px;
+  background: linear-gradient(to bottom, #fafbfc, #f5f6f8);
+}
+.quick-add-tab-btn {
+  background: none;
+  border: none;
+  padding: 10px 14px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-light);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* overlap the .quick-add-tabs border-bottom so the active underline visually replaces it */
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.quick-add-tab-btn:hover {
+  color: var(--text-color);
+}
+.quick-add-tab-btn.active {
+  color: var(--primary-color);
+  font-weight: 600;
+  border-bottom-color: var(--primary-color);
+}
+.quick-add-tab-btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+/* Defensive: pair the [hidden] attribute with display:none in case any
+   ancestor rule sets display on the panel via id (mirrors the lesson
+   from CLAUDE.md's "[hidden] specificity" pitfall). */
+.quick-add-tab-content[hidden] { display: none; }
+
+/* Spreadsheet pane (textarea-based bulk add). */
+.quick-add-multi-pane {
+  display: flex;
+  flex-direction: column;
+}
+.quick-add-multi-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 180px;
+  padding: 9px 12px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: white;
+  color: var(--text-color);
+  resize: vertical;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.quick-add-multi-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+.quick-add-multi-textarea::placeholder {
+  color: var(--text-muted, #a0aec0);
+}
+.quick-add-help kbd {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
 .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn:active { transform: translateY(0); }
 

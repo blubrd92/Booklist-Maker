@@ -50,6 +50,12 @@
     AUTOSAVE_DEBOUNCE_MS: 400,
     PDF_RENDER_DELAY_MS: 300,
 
+    // Quick Add — soft cap on rows the Spreadsheet tab will accept in a
+    // single paste. Anything beyond this is sliced off and the user is
+    // told via the success notification. Guards against accidental
+    // whole-file pastes; a typical booklist holds 12–15 books anyway.
+    QUICK_ADD_MAX_PASTE_ROWS: 500,
+
     // Search
     SEARCH_RESULTS_PER_PAGE: 20,
 

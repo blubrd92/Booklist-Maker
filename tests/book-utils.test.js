@@ -699,3 +699,156 @@ describe('BookUtils.toTitleCase', () => {
     expect(globalThis.BookUtils.toTitleCase('mort')).toBe('Mort');
   });
 });
+
+describe('BookUtils.parseQuickAddTsv', () => {
+  const parse = (text, opts) => globalThis.BookUtils.parseQuickAddTsv(text, opts);
+
+  it('returns null for null / undefined / non-string input', () => {
+    expect(parse(null)).toBeNull();
+    expect(parse(undefined)).toBeNull();
+    expect(parse(42)).toBeNull();
+    expect(parse(['a', 'b'])).toBeNull();
+  });
+
+  it('returns null for empty / whitespace-only input', () => {
+    expect(parse('')).toBeNull();
+    expect(parse('   \n\n  ')).toBeNull();
+    // A line containing only tabs trims to empty and counts as no content,
+    // even though the tabs technically delimit four cells.
+    expect(parse('\t\t\t')).toBeNull();
+  });
+
+  it('parses a single row with all three columns', () => {
+    const result = parse('Mort\tPratchett, Terry\tPR6066');
+    expect(result.rows).toEqual([
+      { title: 'Mort', author: 'Pratchett, Terry', callNumber: 'PR6066' },
+    ]);
+    expect(result.headerSkipped).toBe(false);
+    expect(result.truncated).toBe(false);
+  });
+
+  it('parses multiple rows', () => {
+    const result = parse('Mort\tPratchett\tPR1\nGuards\tPratchett\tPR2');
+    expect(result.rows.length).toBe(2);
+    expect(result.rows[1].title).toBe('Guards');
+  });
+
+  it('detects header via first cell "Title"', () => {
+    const result = parse('Title\tAuthor\tCall #\nMort\tPratchett\tPR1');
+    expect(result.headerSkipped).toBe(true);
+    expect(result.rows.length).toBe(1);
+    expect(result.rows[0].title).toBe('Mort');
+  });
+
+  it('detects header via second cell "Author" (e.g. "Book Title", "Author")', () => {
+    const result = parse('Book Title\tAuthor\tCall Number\nMort\tPratchett\tPR1');
+    expect(result.headerSkipped).toBe(true);
+    expect(result.rows[0].title).toBe('Mort');
+  });
+
+  it('detects header via third cell "Call Number"', () => {
+    const result = parse('Foo\tBar\tCall Number\nMort\tPratchett\tPR1');
+    expect(result.headerSkipped).toBe(true);
+    expect(result.rows[0].title).toBe('Mort');
+  });
+
+  it('header detection is case-insensitive', () => {
+    expect(parse('TITLE\tAuthor\tCN\nM\tP\tC').headerSkipped).toBe(true);
+    expect(parse('title\tauthor\tcall#\nM\tP\tC').headerSkipped).toBe(true);
+    expect(parse('Title\tAUTHOR\tCN\nM\tP\tC').headerSkipped).toBe(true);
+  });
+
+  it('header detection trims surrounding whitespace inside cells', () => {
+    const result = parse('  Title  \t  Author  \t  Call #  \nMort\tPratchett\tPR1');
+    expect(result.headerSkipped).toBe(true);
+    expect(result.rows[0].title).toBe('Mort');
+  });
+
+  it('documented false positive: a real row whose author is literally "Author" is treated as header', () => {
+    // This pins current behavior so a future change to the rule is loud.
+    const result = parse('Some Book\tAuthor\tFIC\nReal Row\tSmith\tFIC SMI');
+    expect(result.headerSkipped).toBe(true);
+    expect(result.rows.length).toBe(1);
+    expect(result.rows[0].title).toBe('Real Row');
+  });
+
+  it('handles missing call number column (2 cells per row)', () => {
+    const result = parse('Mort\tPratchett');
+    expect(result.rows[0].callNumber).toBe('');
+  });
+
+  it('handles single-cell rows', () => {
+    const result = parse('Just a title');
+    expect(result.rows[0]).toEqual({ title: 'Just a title', author: '', callNumber: '' });
+  });
+
+  it('trims leading/trailing whitespace from each cell', () => {
+    const result = parse('  Mort  \t  Pratchett  \t  PR1  ');
+    expect(result.rows[0]).toEqual({ title: 'Mort', author: 'Pratchett', callNumber: 'PR1' });
+  });
+
+  it('handles \\r\\n line endings (Windows / Excel paste)', () => {
+    const result = parse('Mort\tPratchett\tPR1\r\nGuards\tPratchett\tPR2');
+    expect(result.rows.length).toBe(2);
+    expect(result.rows[1].title).toBe('Guards');
+  });
+
+  it('handles mixed \\n and \\r\\n line endings', () => {
+    const result = parse('A\tB\tC\nD\tE\tF\r\nG\tH\tI');
+    expect(result.rows.length).toBe(3);
+  });
+
+  it('ignores trailing blank lines', () => {
+    const result = parse('Mort\tP\tPR1\n\n\n');
+    expect(result.rows.length).toBe(1);
+  });
+
+  it('ignores leading blank lines (and does not treat them as header source)', () => {
+    const result = parse('\n\nMort\tPratchett\tPR1');
+    expect(result.headerSkipped).toBe(false);
+    expect(result.rows[0].title).toBe('Mort');
+  });
+
+  it('ignores cells beyond the first 3', () => {
+    const result = parse('Mort\tPratchett\tPR1\textra\tmore');
+    expect(result.rows[0]).toEqual({ title: 'Mort', author: 'Pratchett', callNumber: 'PR1' });
+  });
+
+  it('normalizes non-breaking space (U+00A0) to regular space', () => {
+    // NBSP inside a cell — Numbers (Apple) and some web sources insert these
+    const result = parse('Mort the Boy\tPratchett\tPR1');
+    expect(result.rows[0].title).toBe('Mort the Boy');
+  });
+
+  it('respects maxRows option, marks truncated', () => {
+    const result = parse('A\tA\tA\nB\tB\tB\nC\tC\tC\nD\tD\tD', { maxRows: 2 });
+    expect(result.rows.length).toBe(2);
+    expect(result.truncated).toBe(true);
+    expect(result.truncatedAt).toBe(2);
+  });
+
+  it('does not mark truncated when maxRows is not exceeded', () => {
+    const result = parse('A\tA\tA\nB\tB\tB', { maxRows: 10 });
+    expect(result.truncated).toBe(false);
+  });
+
+  it('treats maxRows: 0 (or any falsy) as no cap', () => {
+    const result = parse('A\tA\tA\nB\tB\tB', { maxRows: 0 });
+    expect(result.rows.length).toBe(2);
+    expect(result.truncated).toBe(false);
+  });
+
+  it('row with empty title cell is preserved as-is (caller decides to drop)', () => {
+    const result = parse('\tJoe Smith\tFIC SMI');
+    expect(result.rows[0]).toEqual({ title: '', author: 'Joe Smith', callNumber: 'FIC SMI' });
+  });
+
+  it('quoted-cell quirk: "Hello\\tWorld"\\tAuthor splits naively (documented limitation)', () => {
+    // Spreadsheet TSV doesn't unwrap quotes the way CSV does. This pins
+    // current behavior so a future quote-handling change is loud.
+    const result = parse('"Hello\tWorld"\tAuthor');
+    expect(result.rows[0].title).toBe('"Hello');
+    expect(result.rows[0].author).toBe('World"');
+    expect(result.rows[0].callNumber).toBe('Author');
+  });
+});
