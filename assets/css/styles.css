@@ -2054,7 +2054,15 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 #notification-area {
   position: fixed; top: 0; left: 0; width: 100%; padding: 0 16px;
   text-align: center; color: white; background: var(--danger-color);
-  transform: translateY(-100%); transition: transform 0.3s, visibility 0.3s; z-index: 1000;
+  /* z-index 2100 sits above the regular modal overlay (2000) so a
+     notification that fires while a modal is open (e.g. Quick Add's
+     partial-success "Added X. Y skipped." breakdown, the drafter
+     modal's validation errors, the extra-cover-search modal's
+     "Maximum reached" / "Added cover" messages) isn't hidden behind
+     the modal's blur backdrop. Still under the gated-library auth
+     modal (2500) and the guided tour (10000+) — those flows don't
+     fire notifications while their UI is up. */
+  transform: translateY(-100%); transition: transform 0.3s, visibility 0.3s; z-index: 2100;
   visibility: hidden;
   height: 52px;
   box-sizing: border-box;
