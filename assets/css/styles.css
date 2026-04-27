@@ -640,7 +640,11 @@ body.has-library-config .header-credit {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 2px 0;
+  /* Negative margins cancel out most of .search-form's `gap: 12px` so
+     the Search button, divider, and Quick Add button feel like a tight
+     trio. Without these, the form's flex gap forces 12px on each side
+     of the divider regardless of the margin set here. */
+  margin: -10px 0;
   color: var(--text-light);
   font-size: 0.75rem;
   text-transform: uppercase;
