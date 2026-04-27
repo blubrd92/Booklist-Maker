@@ -972,6 +972,14 @@ input[type="color"]:hover {
   border-bottom: 1px solid var(--border-light);
 }
 .form-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+/* Inside the main search form the parent <form> uses `gap: 12px`, which
+   stacks with .form-group's margin-bottom and produces 24px between
+   the form-group's bottom border ("divider line") and the next child.
+   Drop the margin-bottom in this context so the gap is the only
+   spacing — leaves exactly 12px from the line to the next element. */
+.search-form .form-group {
+  margin-bottom: 0;
+}
 .form-group > label {
   display: block;
   font-size: 0.8rem;
