@@ -3706,8 +3706,25 @@ const BooklistApp = (function() {
     // around the canvas. numRows used to be a hardcoded 12, which was
     // enough to fill most layouts vertically but could leave gaps at
     // the top/bottom corners on tall canvases or large tilt angles.
+    //
+    // numRows is then rounded UP to a multiple of 12 so that
+    // numRows / 2 is always a multiple of 6. That's the LCM of the
+    // row-cycle lengths used in getImageForCell (3 for 12-count, 4
+    // for 16-count vertical and sequential, 6 for 16-count center
+    // and 20-count horizontal). With numRows / 2 a multiple of 6,
+    // the row sitting at canvas center has rowMod 0 for every cycle
+    // — preserving the "doubled-row groups frame the title bar"
+    // alignment the center-horizontal patterns were tuned for. The
+    // round-up costs at most 11 extra rows per render, all of which
+    // are cheaply rejected by coverIntersectsBand if they fall off
+    // the canvas after rotation.
+    //
+    // numCols stays a plain ceil; col cycle lengths are 4/5/20 (LCM
+    // 20) but the original numCols was always dynamic, so no pattern
+    // depends on a fixed col-at-center alignment.
     const numCols = Math.ceil(gridExtent * 2 / hStep) + 2;
-    const numRows = Math.ceil(gridExtent * 2 / vStep) + 2;
+    const baseRows = Math.ceil(gridExtent * 2 / vStep) + 2;
+    const numRows = Math.ceil(baseRows / 12) * 12;
     
     // Grid origin (top-left of virtual unrotated grid, centered on canvas)
     const gridOriginX = centerX - (numCols * hStep) / 2;
