@@ -102,7 +102,7 @@
         },
         {
           target: '#results-container',
-          text: "Results show up here from OpenLibrary. It has a huge catalog, but not everything. If a book doesn't come up, you can always add it manually and upload your own cover. Or use the Quick Add button below to type in title, author, and call number.",
+          text: "Results show up here from OpenLibrary. It has a huge catalog, but not everything. If a book doesn't come up, you can always add it manually and upload your own cover. Or use the Quick Add button to type in title, author, and call number.",
           state: 'evaluating',
           prepare: function() { openSidebarTab('tab-search'); },
           padding: 4,
@@ -396,7 +396,7 @@
             const qrText = document.getElementById('qr-code-text');
             const mainContent = document.querySelector('.main-content');
             if (qrText) {
-              qrText.innerText = "Welcome to the Discworld, a world on the back of a giant turtle, where Pratchett will make you laugh, make you think, and quietly break your heart. Scan the code to learn more about the author, then find the books on the shelf.";
+              qrText.innerText = "Welcome to the Discworld, a world on the back of a giant turtle, where Pratchett will make you laugh, make you think, and break your heart. Scan the code to learn more about the author, then find the books on the shelf.";
               qrText.style.color = '';
               if (mainContent) scrollWithin(mainContent, qrText, { center: true });
             }
