@@ -3660,10 +3660,16 @@ const BooklistApp = (function() {
       };
     };
     
-    // Helper: check if a rotated rectangle intersects the canvas
-    const coverIntersectsBand = (cx, cy, bandTop, bandBottom) => {
-      const hw = slotWidth / 2;
-      const hh = slotHeight / 2;
+    // Helper: check if a rotated rectangle intersects the canvas. The
+    // optional w / h parameters override the default fixed slot
+    // dimensions — used by the masonry-pack path, where each cover has
+    // its own aspect-ratio-preserving size. Without per-cover dims,
+    // wide covers (drawW > slotWidth) near the left/right edges get
+    // mis-culled because the check sees a narrower fake bbox than the
+    // cover actually occupies on the canvas.
+    const coverIntersectsBand = (cx, cy, bandTop, bandBottom, w, h) => {
+      const hw = (w !== undefined ? w : slotWidth) / 2;
+      const hh = (h !== undefined ? h : slotHeight) / 2;
       const corners = [
         { x: -hw, y: -hh },
         { x: hw, y: -hh },
@@ -3673,12 +3679,12 @@ const BooklistApp = (function() {
         x: cx + c.x * cosA - c.y * sinA,
         y: cy + c.x * sinA + c.y * cosA
       }));
-      
+
       const minY = Math.min(...corners.map(c => c.y));
       const maxY = Math.max(...corners.map(c => c.y));
       const minX = Math.min(...corners.map(c => c.x));
       const maxX = Math.max(...corners.map(c => c.x));
-      
+
       return maxX > 0 && minX < canvasWidth && maxY > bandTop && minY < bandBottom;
     };
     
@@ -4017,12 +4023,15 @@ const BooklistApp = (function() {
 
           const rotated = rotatePoint(gridX, gridY);
 
-          // Reuse the existing cull. It computes corners from fixed
-          // slotWidth/slotHeight rather than the per-cover dimensions, so
-          // the check is slightly conservative (may keep a few covers
-          // whose variable dimensions actually place them off-canvas).
-          // Harmless — at worst a few extra drawImage calls on the margin.
-          if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight)) {
+          // Pass per-cover drawW/drawH so the cull uses the cover's
+          // actual aspect-ratio-preserving dimensions. Without this,
+          // wide covers (drawW > slotWidth) near the left/right edges
+          // get falsely culled — their real bbox extends into the
+          // canvas while the fixed-slot check thinks they're fully
+          // off-canvas. The vertical band buffer stays at slotHeight
+          // since drawH can vary in either direction depending on
+          // aspect ratio.
+          if (coverIntersectsBand(rotated.x, rotated.y, -slotHeight, canvasHeight + slotHeight, drawW, drawH)) {
             ctx.save();
             ctx.translate(rotated.x, rotated.y);
             ctx.rotate(rotationRad);
