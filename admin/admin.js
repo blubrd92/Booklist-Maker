@@ -975,6 +975,11 @@ document.getElementById('admin-convert-confirm-btn').addEventListener('click', h
 // Library admins can't dismiss the library modal because it IS their
 // entire admin UI; dismissing it would leave them staring at a blank
 // page. To exit, they sign out via the header button.
+// Click-outside-to-dismiss for each modal. Tracks mousedown's target
+// so dragging a text selection out of an input doesn't accidentally
+// close the modal — without this, mousedown-inside + mouseup-outside
+// counts as a `click` ON the overlay and the naive `e.target ===
+// overlay` check would dismiss in the middle of selecting text.
 for (const modalId of [
   'admin-library-modal',
   'admin-delete-modal',
@@ -983,20 +988,27 @@ for (const modalId of [
   'admin-remove-staff-modal',
 ]) {
   const overlay = document.getElementById(modalId);
+  // Closure-per-iteration: each modal gets its own mouseDownOnOverlay
+  // flag so they don't interfere with each other.
+  let mouseDownOnOverlay = false;
+  overlay.addEventListener('mousedown', (e) => {
+    mouseDownOnOverlay = e.target === overlay;
+  });
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      if (modalId === 'admin-library-modal') {
-        if (currentUserRole === 'library-admin') return;
-        closeLibraryModal();
-      } else if (modalId === 'admin-delete-modal') {
-        closeDeleteModal();
-      } else if (modalId === 'admin-convert-modal') {
-        closeConvertModal();
-      } else if (modalId === 'admin-move-staff-modal') {
-        closeMoveStaffModal();
-      } else {
-        closeRemoveStaffModal();
-      }
+    const wasIntentional = e.target === overlay && mouseDownOnOverlay;
+    mouseDownOnOverlay = false;
+    if (!wasIntentional) return;
+    if (modalId === 'admin-library-modal') {
+      if (currentUserRole === 'library-admin') return;
+      closeLibraryModal();
+    } else if (modalId === 'admin-delete-modal') {
+      closeDeleteModal();
+    } else if (modalId === 'admin-convert-modal') {
+      closeConvertModal();
+    } else if (modalId === 'admin-move-staff-modal') {
+      closeMoveStaffModal();
+    } else {
+      closeRemoveStaffModal();
     }
   });
 }

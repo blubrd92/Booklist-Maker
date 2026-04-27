@@ -448,7 +448,31 @@ const BooklistApp = (function() {
       e.target.dispatchEvent(new Event('input', { bubbles: true }));
     }
   }
-  
+
+  /**
+   * Wire a modal-overlay element's click-outside-to-close behavior so
+   * it doesn't fire when the user is dragging a text selection that
+   * happens to release outside the modal content. The browser counts a
+   * mousedown-inside + mouseup-outside as a click ON the outside
+   * target, so a naive `if (e.target === overlay) close()` dismisses
+   * the modal when the user is actually trying to select text inside
+   * an input or textarea.
+   *
+   * Tracks mousedown's target separately and only closes when both
+   * mousedown AND click landed on the overlay itself.
+   */
+  function attachOverlayClickClose(overlayEl, onClose) {
+    if (!overlayEl) return;
+    let mouseDownOnOverlay = false;
+    overlayEl.addEventListener('mousedown', (e) => {
+      mouseDownOnOverlay = e.target === overlayEl;
+    });
+    overlayEl.addEventListener('click', (e) => {
+      if (e.target === overlayEl && mouseDownOnOverlay) onClose();
+      mouseDownOnOverlay = false;
+    });
+  }
+
   /**
    * Strips any HTML/inline styles from a contenteditable element,
    * preserving line breaks. Call this on 'input' events as a safety net.
@@ -1804,10 +1828,9 @@ const BooklistApp = (function() {
     content.appendChild(body);
     overlay.appendChild(content);
 
-    // Close on click outside content
-    overlay.addEventListener('click', (ev) => {
-      if (ev.target === overlay) overlay.remove();
-    });
+    // Close on click outside content (mousedown-tracked so a text
+    // selection that drags out of the textarea doesn't dismiss).
+    attachOverlayClickClose(overlay, () => overlay.remove());
     // Close on Escape
     overlay.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') overlay.remove();
@@ -1932,7 +1955,7 @@ const BooklistApp = (function() {
     content.appendChild(body);
     overlay.appendChild(content);
 
-    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+    attachOverlayClickClose(overlay, () => overlay.remove());
     overlay.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') overlay.remove(); });
 
     document.body.appendChild(overlay);
@@ -5164,12 +5187,10 @@ const BooklistApp = (function() {
       });
     }
 
-    // Click-outside to dismiss.
-    if (modal) {
-      modal.addEventListener('click', function(e) {
-        if (e.target === modal) closeQuickAddModal();
-      });
-    }
+    // Click-outside to dismiss. attachOverlayClickClose tracks
+    // mousedown so dragging a text-selection out of an input doesn't
+    // accidentally close the modal.
+    attachOverlayClickClose(modal, closeQuickAddModal);
 
     // Escape closes the modal.
     document.addEventListener('keydown', function(e) {

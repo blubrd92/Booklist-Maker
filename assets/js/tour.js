@@ -783,9 +783,20 @@
     // --- Modal ---
     modalOverlay = document.createElement('div');
     modalOverlay.className = 'tour-modal-overlay';
-    modalOverlay.addEventListener('click', function(e) {
-      if (e.target === modalOverlay) closeModal();
-    });
+    // Mousedown-tracked click-outside dismiss so a text selection
+    // dragged out of any input doesn't accidentally close the modal.
+    // Mirrors BooklistApp's attachOverlayClickClose helper but inlined
+    // here to keep tour.js self-contained.
+    {
+      let mouseDownOnOverlay = false;
+      modalOverlay.addEventListener('mousedown', function(e) {
+        mouseDownOnOverlay = e.target === modalOverlay;
+      });
+      modalOverlay.addEventListener('click', function(e) {
+        if (e.target === modalOverlay && mouseDownOnOverlay) closeModal();
+        mouseDownOnOverlay = false;
+      });
+    }
 
     const modal = document.createElement('div');
     modal.className = 'tour-modal';
