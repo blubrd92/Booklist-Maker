@@ -640,15 +640,24 @@ body.has-library-config .header-credit {
   display: flex;
   align-items: center;
   gap: 10px;
-  /* Negative margins cancel out most of .search-form's `gap: 12px` so
-     the Search button, divider, and Quick Add button feel like a tight
-     trio. Without these, the form's flex gap forces 12px on each side
-     of the divider regardless of the margin set here. */
-  margin: -10px 0;
+  /* Negative margins counter most of .search-form's `gap: 12px` so the
+     Search button, divider, and Quick Add button feel like a tight
+     trio. -8px leaves an effective ~4px on each side of the divider.
+     Without these the form's flex gap would force 12px on each side
+     regardless of the margin set here. */
+  margin: -8px 0;
   color: var(--text-light);
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* Pull the Search button (and the rest of the Search/Quick Add trio
+   that follows it) closer to the advanced-fields toggle above. The
+   form's gap: 12px applies uniformly to all flex children; the
+   negative margin-top here trims that one specific gap to ~4px. */
+#fetchButton {
+  margin-top: -8px;
 }
 .quick-add-divider::before,
 .quick-add-divider::after {
