@@ -908,6 +908,12 @@
 
     // Keyboard
     document.addEventListener('keydown', function(e) {
+      // Escape closes the section-picker menu when it's open and the
+      // tour itself isn't running yet.
+      if (e.key === 'Escape' && !currentSectionId && modalOverlay && modalOverlay.classList.contains('visible')) {
+        closeModal();
+        return;
+      }
       if (!currentSectionId) return;
       if (e.key === 'Escape') exitTour();
       if (e.key === 'ArrowRight' || e.key === 'Enter') nextStep();

@@ -5015,6 +5015,13 @@ const BooklistApp = (function() {
         }
         mouseDownOnOverlay = false;
       });
+      // Escape closes the modal when it's visible (display !== 'none').
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (elements.extraCoverSearchModal.style.display === 'none') return;
+        e.preventDefault();
+        closeExtraCoverSearchModal();
+      });
     }
 
     // Modal search submit
