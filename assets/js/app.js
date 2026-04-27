@@ -3702,29 +3702,27 @@ const BooklistApp = (function() {
     const canvasDiag = Math.sqrt(canvasWidth * canvasWidth + canvasHeight * canvasHeight);
     const gridExtent = canvasDiag * 1.0;
 
-    // Both dimensions sized from gridExtent so the grid is symmetric
-    // around the canvas. numRows used to be a hardcoded 12, which was
-    // enough to fill most layouts vertically but could leave gaps at
-    // the top/bottom corners on tall canvases or large tilt angles.
+    // numCols sized from gridExtent so the grid is wide enough to cover
+    // the canvas after rotation. numRows kept at a fixed 12 (the
+    // historical value): preserves the row-at-canvas-center invariant
+    // (row 6 is at center, rowMod 0 for every row cycle the patterns
+    // use), which keeps the 16/20-count center-horizontal "doubled
+    // rows frame the title bar" alignment intact.
     //
-    // numRows is then rounded UP to a multiple of 12 so that
-    // numRows / 2 is always a multiple of 6. That's the LCM of the
-    // row-cycle lengths used in getImageForCell (3 for 12-count, 4
-    // for 16-count vertical and sequential, 6 for 16-count center
-    // and 20-count horizontal). With numRows / 2 a multiple of 6,
-    // the row sitting at canvas center has rowMod 0 for every cycle
-    // — preserving the "doubled-row groups frame the title bar"
-    // alignment the center-horizontal patterns were tuned for. The
-    // round-up costs at most 11 extra rows per render, all of which
-    // are cheaply rejected by coverIntersectsBand if they fall off
-    // the canvas after rotation.
-    //
-    // numCols stays a plain ceil; col cycle lengths are 4/5/20 (LCM
-    // 20) but the original numCols was always dynamic, so no pattern
-    // depends on a fixed col-at-center alignment.
+    // Trade-off: at extreme combinations (45° tilt + Cover Size slider
+    // below ~79%), 12 rows of vStep don't reach far enough vertically
+    // to fill the rotated canvas corners, so a small triangular gap
+    // can appear. Accepted because (a) most users stay near defaults,
+    // (b) tighter Cover Size is an explicit choice users make to fit
+    // more unique books on screen, and (c) restoring full coverage at
+    // extreme settings would need a dynamic numRows, which we tried
+    // and rolled back because it shifted the cycle alignment in ways
+    // that depended on slot height. If a library reports the corner
+    // gap, revisit by rounding a dynamic numRows up to a multiple of
+    // 12 — that preserves both alignment and coverage at the cost of
+    // slightly more code.
     const numCols = Math.ceil(gridExtent * 2 / hStep) + 2;
-    const baseRows = Math.ceil(gridExtent * 2 / vStep) + 2;
-    const numRows = Math.ceil(baseRows / 12) * 12;
+    const numRows = 12;
     
     // Grid origin (top-left of virtual unrotated grid, centered on canvas)
     const gridOriginX = centerX - (numCols * hStep) / 2;
@@ -3921,11 +3919,14 @@ const BooklistApp = (function() {
         : centerX + gridExtent;
 
       // Number of lines (columns for vertical mode, rows for horizontal).
-      // Both axes are now sized from gridExtent in the stretched path,
-      // so vertical reuses numCols and horizontal reuses numRows. Kept
-      // as a separate computation here for parity with earlier revisions
-      // when numRows was hardcoded.
-      const numLines = offsetDirection === 'vertical' ? numCols : numRows;
+      // Vertical reuses numCols (already sized from gridExtent).
+      // Horizontal computes its own analogue from gridExtent because
+      // the stretched-mode numRows is fixed at 12 (kept that way to
+      // preserve cycle alignment) and isn't wide enough for masonry
+      // packing across a rotated canvas.
+      const numLines = offsetDirection === 'vertical'
+        ? numCols
+        : Math.ceil(gridExtent * 2 / vStep) + 2;
 
       // Cover selection reuses the existing getImageForCell() formulas so
       // the masonry packing picks books with the same per-line patterns the
