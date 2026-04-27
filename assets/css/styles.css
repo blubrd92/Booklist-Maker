@@ -652,14 +652,6 @@ body.has-library-config .header-credit {
   letter-spacing: 0.5px;
 }
 
-/* Pull the "Advanced Fields" toggle closer to the keyword input above
-   it. The form's gap: 12px applies uniformly to all flex children;
-   the negative margin-top here trims that one gap to ~4px so the
-   keyword input's bottom edge doesn't feel like it's floating away
-   from the summary text below it. */
-.search-form .advanced-search-toggle {
-  margin-top: -8px;
-}
 .quick-add-divider::before,
 .quick-add-divider::after {
   content: '';
