@@ -6099,9 +6099,11 @@ const BooklistApp = (function() {
       } catch (err) {
         console.error("Failed to re-generate QR code on load:", err);
         elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.TRANSPARENT_GIF}"/>`;
+        elements.qrCodeCanvas.removeAttribute('title');
       }
     } else {
       elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.TRANSPARENT_GIF}"/>`;
+      elements.qrCodeCanvas.removeAttribute('title');
     }
     if (elements.qrCodeUploader) {
       elements.qrCodeUploader.classList.toggle('has-image', qrGenerated);
@@ -6384,6 +6386,10 @@ const BooklistApp = (function() {
         ev.stopPropagation();
         pushUndo('clear-generated-qr');
         elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.TRANSPARENT_GIF}"/>`;
+        // QRCode.js (davidshimjs/qrcodejs) writes title=url onto the
+        // container element on generate; clearing innerHTML doesn't
+        // touch attributes on the parent, so wipe it explicitly.
+        elements.qrCodeCanvas.removeAttribute('title');
         if (elements.qrUrlInput) elements.qrUrlInput.value = '';
         elements.qrCodeUploader.classList.remove('has-image', 'has-generated-qr');
         debouncedSave();
@@ -7978,6 +7984,7 @@ const BooklistApp = (function() {
       // a transparent 1x1 GIF so the placeholder text shows through
       // the otherwise-empty 144x144 area.
       elements.qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="' + CONFIG.TRANSPARENT_GIF + '"/>';
+      elements.qrCodeCanvas.removeAttribute('title');
     }
     _clearCustomQr();
     if (elements.qrCodeUploader) elements.qrCodeUploader.classList.remove('has-image', 'has-generated-qr');

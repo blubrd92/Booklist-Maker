@@ -2062,6 +2062,7 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
   color: #333333;
   font-family: Arial, Helvetica, sans-serif;
   font-size: 1rem;
+  font-weight: bold;
   pointer-events: none;
 }
 /* Hide the transparent-GIF inside #qr-code-canvas in the empty state
@@ -2108,6 +2109,10 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 .print-mode .qr-delete-btn,
 .print-mode .qr-generated-delete-btn { display: none !important; }
 .print-mode .qr-code-uploader { border-color: transparent !important; }
+/* Empty-state "QR Code" label is a CSS pseudo-element; html2canvas
+   captures pseudo-elements, so without this it would print into the
+   PDF as literal text in the QR area. */
+.print-mode .qr-code-uploader::after { display: none !important; }
 
 /* When a custom QR is uploaded, the URL input and the Update button
    become irrelevant — visually grey them out (and the JS sets
