@@ -2052,29 +2052,31 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
   width: 100%; height: 100%;
   object-fit: contain;
 }
-/* The placeholder hint sits on top of the auto-generated QR. Hidden by
-   default (since the QR is already populated and the upload is optional)
-   and revealed on hover. Suppressed once a custom image has been
-   uploaded — the canvas is already hidden so there's nothing to invite
-   replacing. */
+/* The placeholder hint sits on top of the auto-generated QR. Models
+   the cover/branding placeholders' plain-text style — no background
+   box, just centered text. Visible only on hover (since the QR is
+   already populated below it; the cover/branding placeholders are
+   always-shown because their containers start blank). The text-shadow
+   keeps it legible against the QR's busy black/white pattern.
+   Suppressed once a custom image has been uploaded. */
 .qr-code-placeholder-text {
   position: absolute;
-  inset: 0;
-  display: flex; align-items: center; justify-content: center;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
   text-align: center;
-  font-size: 0.7rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  line-height: 1.3;
   color: var(--text-color);
-  background: rgba(255, 255, 255, 0.85);
-  opacity: 0;
+  text-shadow: 0 0 3px white, 0 0 3px white, 0 0 2px white;
   pointer-events: none;
-  transition: opacity 0.15s;
+  display: none;
 }
 .qr-code-uploader:hover .qr-code-placeholder-text {
-  opacity: 1;
+  display: block;
 }
 .qr-code-uploader.has-image:hover .qr-code-placeholder-text {
-  opacity: 0;
+  display: none;
 }
 /* Delete button — same shape as .branding-delete-btn. Hidden until a
    custom image has been uploaded (.has-image), and hidden in print
