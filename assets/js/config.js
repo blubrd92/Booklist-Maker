@@ -83,6 +83,11 @@
     // Transparent 1x1 GIF (used to clear image elements while keeping placeholder text visible)
     TRANSPARENT_GIF: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
 
+    // QR uploader empty-state placeholder. Static PNG matching the
+    // pre-custom-QR-feature placehold.co rendering pixel-for-pixel,
+    // shipped locally so we don't depend on placehold.co at runtime.
+    QR_PLACEHOLDER_IMG: 'assets/img/qr-placeholder.png',
+
     // Colors
     PLACEHOLDER_COLOR: '#757575',
 

@@ -6098,11 +6098,11 @@ const BooklistApp = (function() {
         qrGenerated = true;
       } catch (err) {
         console.error("Failed to re-generate QR code on load:", err);
-        elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.TRANSPARENT_GIF}"/>`;
+        elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.QR_PLACEHOLDER_IMG}"/>`;
         elements.qrCodeCanvas.removeAttribute('title');
       }
     } else {
-      elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.TRANSPARENT_GIF}"/>`;
+      elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.QR_PLACEHOLDER_IMG}"/>`;
       elements.qrCodeCanvas.removeAttribute('title');
     }
     if (elements.qrCodeUploader) {
@@ -6385,7 +6385,7 @@ const BooklistApp = (function() {
         ev.preventDefault();
         ev.stopPropagation();
         pushUndo('clear-generated-qr');
-        elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.TRANSPARENT_GIF}"/>`;
+        elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.QR_PLACEHOLDER_IMG}"/>`;
         // QRCode.js (davidshimjs/qrcodejs) writes title=url onto the
         // container element on generate; clearing innerHTML doesn't
         // touch attributes on the parent, so wipe it explicitly.
@@ -7980,10 +7980,8 @@ const BooklistApp = (function() {
     // any custom QR override.
     if (elements.qrUrlInput) elements.qrUrlInput.value = '';
     if (elements.qrCodeCanvas) {
-      // Empty-state default matches the front-cover/branding pattern:
-      // a transparent 1x1 GIF so the placeholder text shows through
-      // the otherwise-empty 144x144 area.
-      elements.qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="' + CONFIG.TRANSPARENT_GIF + '"/>';
+      // Empty-state default: the local grey "QR Code" placeholder PNG.
+      elements.qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="' + CONFIG.QR_PLACEHOLDER_IMG + '"/>';
       elements.qrCodeCanvas.removeAttribute('title');
     }
     _clearCustomQr();

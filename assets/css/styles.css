@@ -2048,30 +2048,13 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 .qr-code-uploader.has-image {
   border: none;
 }
-/* Empty state: grey fill + "QR Code" label so the area looks like the
-   original placehold.co placeholder. Pseudo-element is absolutely
-   positioned so it sits on top of the empty #qr-code-canvas div. */
-.qr-code-uploader:not(.has-image) {
-  background-color: #EAEAEA;
-}
-.qr-code-uploader:not(.has-image)::after {
-  content: 'QR Code';
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  color: #333333;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 1.2rem;
-  pointer-events: none;
-}
-/* Hide the transparent-GIF inside #qr-code-canvas in the empty state
-   so it doesn't stretch to fill the 144x144 area. Once a real QR is
-   generated or a custom upload fires, .has-image lights up and the
-   canvas becomes visible again. */
-.qr-code-uploader:not(.has-image) #qr-code-canvas img,
-.qr-code-uploader:not(.has-image) #qr-code-canvas canvas {
-  display: none;
-}
+/* Empty state: the #qr-code-canvas <img> is the local
+   assets/img/qr-placeholder.png (a 900x900 grey "QR Code" PNG). The
+   image carries its own grey background and "QR Code" label, so the
+   uploader needs no background-color or ::after pseudo-element. Once
+   a URL-generated QR or custom upload fires, .has-image lights up and
+   the placeholder is replaced/overlaid by the real artwork. */
+
 /* max-width/max-height (not width/height) so the natural aspect ratio
    is preserved by the browser without relying on object-fit. html2canvas
    1.4.1 ignores object-fit: contain on elements with explicit
@@ -2114,10 +2097,13 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 .print-mode .qr-delete-btn,
 .print-mode .qr-generated-delete-btn { display: none !important; }
 .print-mode .qr-code-uploader { border-color: transparent !important; }
-/* Empty-state "QR Code" label is a CSS pseudo-element; html2canvas
-   captures pseudo-elements, so without this it would print into the
-   PDF as literal text in the QR area. */
-.print-mode .qr-code-uploader::after { display: none !important; }
+/* Hide the empty-state placeholder PNG in PDF exports — the QR area
+   should print blank when the user hasn't set a QR, matching previous
+   behavior (the old transparent-GIF + ::after combo also rendered
+   nothing in print mode). */
+.print-mode .qr-code-uploader:not(.has-image) #qr-code-canvas img {
+  display: none !important;
+}
 
 /* When a custom QR is uploaded, the URL input and the Update button
    become irrelevant — visually grey them out (and the JS sets
