@@ -2048,6 +2048,21 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 .qr-code-uploader.has-image {
   border: none;
 }
+/* Empty state: grey fill + "QR Code" label so the area looks like the
+   original placehold.co placeholder. Pseudo-element is absolutely
+   positioned so it sits on top of the empty #qr-code-canvas div. */
+.qr-code-uploader:not(.has-image) {
+  background-color: #EAEAEA;
+}
+.qr-code-uploader:not(.has-image)::after {
+  content: 'QR Code';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #333333;
+  font-size: 0.75rem;
+  pointer-events: none;
+}
 /* Hide the transparent-GIF inside #qr-code-canvas in the empty state
    so it doesn't stretch to fill the 144x144 area. Once a real QR is
    generated or a custom upload fires, .has-image lights up and the
