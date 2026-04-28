@@ -367,7 +367,7 @@
         },
         {
           target: '#qr-code-area',
-          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. You can enter the QR Code url in the Back Cover section in the Settings tab. Let me add one linking to Terry Pratchett's Wikipedia page.",
+          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. You can enter the QR Code url in the Back Cover section in the Settings tab. Let me add one linking to Terry Pratchett's Wikipedia page. If preferred, you can also upload your own QR Code image in its place.",
           state: 'idle',
           prepare: function() {
             openSidebarTab('tab-settings');
