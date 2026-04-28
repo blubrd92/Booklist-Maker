@@ -2034,50 +2034,51 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 
 /* QR uploader — wraps #qr-code-canvas as a custom-uploader label so the
    user can optionally drop in their own image. Sized to match the QR
-   canvas exactly. Placeholder text and delete button are positioned
-   overlays. */
+   canvas exactly. Models the front-cover/branding pattern: empty state
+   shows a dashed border + always-visible placeholder text; once a real
+   QR is generated (via the URL field) or a custom image is uploaded,
+   .has-image is added and the border + text disappear. */
 .qr-code-uploader {
   width: 144px; height: 144px;
   flex-shrink: 0;
-  border: 1px dashed transparent;
   padding: 0;
-}
-.qr-code-uploader:hover {
-  border-color: #ccc;
+  /* The base .custom-uploader rule already gives a 1px dashed #ccc
+     border in the empty state. Override it away once the canvas has
+     content. */
 }
 .qr-code-uploader.has-image {
-  border-color: transparent;
+  border: none;
+}
+/* Hide the default transparent-GIF inside #qr-code-canvas while in the
+   empty state so the placeholder text isn't visually fighting an
+   invisible 144x144 stretched img. Once a real QR is generated (the
+   QRCode library replaces the GIF with a real <img>/<canvas>) or the
+   custom override fires, .has-image lights up and the canvas becomes
+   visible again. */
+.qr-code-uploader:not(.has-image) #qr-code-canvas img,
+.qr-code-uploader:not(.has-image) #qr-code-canvas canvas {
+  display: none;
 }
 .qr-code-custom-img {
   width: 100%; height: 100%;
   object-fit: contain;
 }
-/* The placeholder hint sits on top of the auto-generated QR. Models
-   the cover/branding placeholders' plain-text style — no background
-   box, just centered text. Visible only on hover (since the QR is
-   already populated below it; the cover/branding placeholders are
-   always-shown because their containers start blank). The text-shadow
-   keeps it legible against the QR's busy black/white pattern.
-   Suppressed once a custom image has been uploaded. */
+/* Always-visible placeholder text, modeled after the front-cover and
+   branding placeholders — plain centered text, no background, no
+   transition. Hidden once .has-image is set. Sized down because the
+   QR area is much smaller (144px) than the front cover. */
 .qr-code-placeholder-text {
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   width: 90%;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.62rem;
   line-height: 1.3;
-  color: var(--text-color);
-  text-shadow: 0 0 3px white, 0 0 3px white, 0 0 2px white;
+  color: var(--text-light);
   pointer-events: none;
-  display: none;
 }
-.qr-code-uploader:hover .qr-code-placeholder-text {
-  display: block;
-}
-.qr-code-uploader.has-image:hover .qr-code-placeholder-text {
-  display: none;
-}
+.qr-code-uploader.has-image .qr-code-placeholder-text { display: none; }
 /* Delete button — same shape as .branding-delete-btn. Hidden until a
    custom image has been uploaded (.has-image), and hidden in print
    mode so it doesn't leak into the PDF. */

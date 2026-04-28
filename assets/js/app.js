@@ -5498,7 +5498,7 @@ const BooklistApp = (function() {
     }
     
     elements.qrCodeCanvas.innerHTML = '';
-    
+
     try {
       new QRCode(elements.qrCodeCanvas, {
         text: url,
@@ -5508,6 +5508,13 @@ const BooklistApp = (function() {
         colorLight: "#ffffff",
         correctLevel: QRCode.CorrectLevel[CONFIG.QR_ERROR_CORRECTION]
       });
+      // Successful generation: mark the uploader as having an image so
+      // the empty-state placeholder text + dashed border disappear,
+      // matching the front-cover / branding pattern. .has-image is also
+      // set independently by the custom-upload path; the two write the
+      // same flag because they have the same visual effect (a real QR
+      // is showing, the empty-state UI shouldn't).
+      if (elements.qrCodeUploader) elements.qrCodeUploader.classList.add('has-image');
       // Folio: nod at successful QR generation
       if (window.folio) window.folio.react('nod');
     } catch (err) {
@@ -6071,9 +6078,13 @@ const BooklistApp = (function() {
       }
     }
     
-    // Regenerate QR code
+    // Regenerate QR code. If a URL was saved we generate a real QR and
+    // mark the uploader .has-image (so the empty-state placeholder text
+    // disappears). Otherwise we restore the empty transparent-GIF
+    // default and leave .has-image off so the placeholder text shows.
     elements.qrCodeCanvas.innerHTML = '';
     const loadedUrl = loaded.ui?.qrCodeUrl || '';
+    let qrGenerated = false;
     if (loadedUrl) {
       try {
         new QRCode(elements.qrCodeCanvas, {
@@ -6084,12 +6095,16 @@ const BooklistApp = (function() {
           colorLight: "#ffffff",
           correctLevel: QRCode.CorrectLevel[CONFIG.QR_ERROR_CORRECTION]
         });
+        qrGenerated = true;
       } catch (err) {
         console.error("Failed to re-generate QR code on load:", err);
-        elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.PLACEHOLDER_QR_URL}"/>`;
+        elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.TRANSPARENT_GIF}"/>`;
       }
     } else {
-      elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.PLACEHOLDER_QR_URL}"/>`;
+      elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.TRANSPARENT_GIF}"/>`;
+    }
+    if (elements.qrCodeUploader) {
+      elements.qrCodeUploader.classList.toggle('has-image', qrGenerated);
     }
     
     // Styles
@@ -7941,9 +7956,13 @@ const BooklistApp = (function() {
     // any custom QR override.
     if (elements.qrUrlInput) elements.qrUrlInput.value = '';
     if (elements.qrCodeCanvas) {
-      elements.qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="' + CONFIG.PLACEHOLDER_QR_URL + '"/>';
+      // Empty-state default matches the front-cover/branding pattern:
+      // a transparent 1x1 GIF so the placeholder text shows through
+      // the otherwise-empty 144x144 area.
+      elements.qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="' + CONFIG.TRANSPARENT_GIF + '"/>';
     }
     _clearCustomQr();
+    if (elements.qrCodeUploader) elements.qrCodeUploader.classList.remove('has-image');
     if (elements.qrCodeTextArea) {
       elements.qrCodeTextArea.innerText = CONFIG.PLACEHOLDERS.qrText;
       elements.qrCodeTextArea.style.color = CONFIG.PLACEHOLDER_COLOR;

@@ -759,10 +759,12 @@
               <div id="qr-code-text" class="editable-field" contenteditable="true" role="textbox" aria-label="QR code description text">Enter your blurb here. To link to an online list (like Bibliocommons), go to Settings > Back Cover and paste the URL in the 'QR Code URL' field and click update. Remember to test the code with your phone!</div>
               <label class="custom-uploader qr-code-uploader" id="qr-code-uploader" role="button" aria-label="Upload custom QR code image">
                 <div id="qr-code-canvas" aria-label="QR code image">
-                  <img alt="QR Code Placeholder" src="https://placehold.co/900x900/EAEAEA/333333?text=QR+Code"/>
+                  <img alt="QR Code Placeholder" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
                 </div>
                 <img id="qr-code-custom-img" class="qr-code-custom-img" alt="Custom QR code image" hidden/>
-                <div class="placeholder-text qr-code-placeholder-text">Click to upload your own,<br/>or use the QR Code URL field<br/>in the Settings tab</div>
+                <div class="placeholder-text qr-code-placeholder-text">
+                  Click to upload a custom QR<br/>(min 900 x 900 px recommended)<br/><br/>OR<br/><br/>Use the QR Code URL field<br/>in Settings &gt; Back Cover
+                </div>
                 <input type="file" accept="image/*" aria-hidden="true"/>
                 <button type="button" class="qr-delete-btn" title="Use generated QR code instead"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
               </label>
