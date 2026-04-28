@@ -5510,11 +5510,11 @@ const BooklistApp = (function() {
       });
       // Successful generation: mark the uploader as having an image so
       // the empty-state placeholder text + dashed border disappear,
-      // matching the front-cover / branding pattern. .has-image is also
-      // set independently by the custom-upload path; the two write the
-      // same flag because they have the same visual effect (a real QR
-      // is showing, the empty-state UI shouldn't).
-      if (elements.qrCodeUploader) elements.qrCodeUploader.classList.add('has-image');
+      // matching the front-cover / branding pattern. .has-generated-qr
+      // tracks URL-generated QR state separately from .has-custom-upload
+      // (custom upload) so clearCustomQr() can preserve .has-image when
+      // a URL QR is still active.
+      if (elements.qrCodeUploader) elements.qrCodeUploader.classList.add('has-image', 'has-generated-qr');
       // Folio: nod at successful QR generation
       if (window.folio) window.folio.react('nod');
     } catch (err) {
@@ -6105,6 +6105,7 @@ const BooklistApp = (function() {
     }
     if (elements.qrCodeUploader) {
       elements.qrCodeUploader.classList.toggle('has-image', qrGenerated);
+      elements.qrCodeUploader.classList.toggle('has-generated-qr', qrGenerated);
     }
     
     // Styles
@@ -6386,7 +6387,7 @@ const BooklistApp = (function() {
       customImg.src = dataUrl;
       customImg.hidden = false;
       if (canvas) canvas.style.display = 'none';
-      elements.qrCodeUploader.classList.add('has-image');
+      elements.qrCodeUploader.classList.add('has-image', 'has-custom-upload');
       document.body.classList.add('has-custom-qr');
       if (elements.qrUrlInput) elements.qrUrlInput.disabled = true;
       if (elements.generateQrButton) elements.generateQrButton.disabled = true;
@@ -6395,7 +6396,11 @@ const BooklistApp = (function() {
       customImg.removeAttribute('src');
       customImg.hidden = true;
       if (canvas) canvas.style.display = '';
-      elements.qrCodeUploader.classList.remove('has-image');
+      elements.qrCodeUploader.classList.remove('has-custom-upload');
+      // Only remove has-image if no URL-generated QR is still active.
+      if (!elements.qrCodeUploader.classList.contains('has-generated-qr')) {
+        elements.qrCodeUploader.classList.remove('has-image');
+      }
       document.body.classList.remove('has-custom-qr');
       if (elements.qrUrlInput) elements.qrUrlInput.disabled = false;
       if (elements.generateQrButton) elements.generateQrButton.disabled = false;
@@ -7962,7 +7967,7 @@ const BooklistApp = (function() {
       elements.qrCodeCanvas.innerHTML = '<img alt="QR Code Placeholder" src="' + CONFIG.TRANSPARENT_GIF + '"/>';
     }
     _clearCustomQr();
-    if (elements.qrCodeUploader) elements.qrCodeUploader.classList.remove('has-image');
+    if (elements.qrCodeUploader) elements.qrCodeUploader.classList.remove('has-image', 'has-generated-qr');
     if (elements.qrCodeTextArea) {
       elements.qrCodeTextArea.innerText = CONFIG.PLACEHOLDERS.qrText;
       elements.qrCodeTextArea.style.color = CONFIG.PLACEHOLDER_COLOR;
