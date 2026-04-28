@@ -2075,11 +2075,12 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
   width: 100%; height: 100%;
   object-fit: contain;
 }
-/* Delete button — same shape as .branding-delete-btn. Only visible on
-   hover when a custom upload is active (.has-custom-upload), hidden in
-   print mode so it doesn't leak into the PDF. Hover-only so it doesn't
-   obscure the QR code when the user wants to scan it on-screen. */
-.qr-delete-btn {
+/* Delete buttons — both hover-only so they don't block QR scanning.
+   .qr-delete-btn: custom upload active (.has-custom-upload).
+   .qr-generated-delete-btn: URL-generated QR active (.has-generated-qr)
+   when no custom upload is overlaying it. */
+.qr-delete-btn,
+.qr-generated-delete-btn {
   position: absolute;
   top: 4px;
   right: 4px;
@@ -2100,8 +2101,11 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
   transition: opacity 0.2s;
 }
 .qr-code-uploader.has-custom-upload:hover .qr-delete-btn { display: flex; }
-.qr-delete-btn:hover { opacity: 1; }
-.print-mode .qr-delete-btn { display: none !important; }
+.qr-code-uploader.has-generated-qr:not(.has-custom-upload):hover .qr-generated-delete-btn { display: flex; }
+.qr-delete-btn:hover,
+.qr-generated-delete-btn:hover { opacity: 1; }
+.print-mode .qr-delete-btn,
+.print-mode .qr-generated-delete-btn { display: none !important; }
 .print-mode .qr-code-uploader { border-color: transparent !important; }
 
 /* When a custom QR is uploaded, the URL input and the Update button

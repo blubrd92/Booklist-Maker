@@ -6377,6 +6377,19 @@ const BooklistApp = (function() {
       });
     }
 
+    const generatedDeleteBtn = elements.qrCodeUploader.querySelector('.qr-generated-delete-btn');
+    if (generatedDeleteBtn) {
+      generatedDeleteBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        pushUndo('clear-generated-qr');
+        elements.qrCodeCanvas.innerHTML = `<img alt="QR Code Placeholder" src="${CONFIG.TRANSPARENT_GIF}"/>`;
+        if (elements.qrUrlInput) elements.qrUrlInput.value = '';
+        elements.qrCodeUploader.classList.remove('has-image', 'has-generated-qr');
+        debouncedSave();
+      });
+    }
+
     setupDragDropUpload(elements.qrCodeUploader, processImageFile);
 
     // Local helpers — kept inside the setup function so the toggling
