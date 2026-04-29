@@ -5319,7 +5319,7 @@ const BooklistApp = (function() {
       return !r.author && !r.callNumber;
     });
     if (everyRowSingleCell && parsed.rows.length > 0) {
-      setError('No tabs found. Copy from a spreadsheet so cells are tab-separated. Pasting from a CSV file or Word table won’t work — open it in a spreadsheet first.');
+      setError('No tabs found. Copy from a spreadsheet so cells are tab-separated. Pasting from a CSV file or Word table won’t work. Open it in a spreadsheet first.');
       return;
     }
 
