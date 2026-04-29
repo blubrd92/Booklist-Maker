@@ -5153,15 +5153,18 @@ const BooklistApp = (function() {
   // Toggle which Quick Add tab is visible. Manages the tab buttons'
   // active state + ARIA + tabindex (active tab gets 0 for keyboard
   // navigation; inactive gets -1 so Tab skips it), the pane visibility,
-  // and which submit button shows in the footer. Focuses the right
-  // input/textarea on the next tick.
+  // and reconfigures the single shared submit button so it acts like a
+  // form submit on Single (preserving native Enter-in-input submission
+  // via type="submit" + form="quick-add-form") and a plain button on
+  // Multi (click → submitQuickAddMulti via the data-mode-aware listener
+  // wired in bindQuickAddEvents). Focuses the right input/textarea on
+  // the next tick.
   function setQuickAddTab(name) {
     const tabSingle = document.getElementById('quick-add-tab-single');
     const tabMulti = document.getElementById('quick-add-tab-multi');
     const paneSingle = document.getElementById('quick-add-form');
     const paneMulti = document.getElementById('quick-add-pane-multi');
-    const submitSingle = document.getElementById('quick-add-submit-btn');
-    const submitMulti = document.getElementById('quick-add-multi-submit-btn');
+    const submitBtn = document.getElementById('quick-add-submit-btn');
     if (!tabSingle || !tabMulti || !paneSingle || !paneMulti) return;
 
     const active = (name === 'multi') ? 'multi' : 'single';
@@ -5175,8 +5178,18 @@ const BooklistApp = (function() {
 
     paneSingle.hidden = active !== 'single';
     paneMulti.hidden = active !== 'multi';
-    if (submitSingle) submitSingle.hidden = active !== 'single';
-    if (submitMulti) submitMulti.hidden = active !== 'multi';
+
+    if (submitBtn) {
+      submitBtn.dataset.mode = active;
+      if (active === 'single') {
+        submitBtn.type = 'submit';
+        submitBtn.setAttribute('form', 'quick-add-form');
+      } else {
+        submitBtn.type = 'button';
+        submitBtn.removeAttribute('form');
+      }
+    }
+    updateQuickAddSubmitEnabled();
 
     setTimeout(function() {
       if (active === 'single') {
@@ -5189,15 +5202,25 @@ const BooklistApp = (function() {
     }, 0);
   }
 
-  // Enable the submit button only when both required fields have content.
-  // Visual hint that pairs with the form-level submit-time validation.
+  // Enable the unified submit button only when the active tab has the
+  // required input. On Single: both Title and Author must have content.
+  // On Multi: the textarea must have any non-whitespace content. Mode
+  // is read from the button's data-mode attribute (set by setQuickAddTab).
   function updateQuickAddSubmitEnabled() {
-    const titleInput = document.getElementById('quick-add-title');
-    const authorInput = document.getElementById('quick-add-author');
     const submitBtn = document.getElementById('quick-add-submit-btn');
-    if (!titleInput || !authorInput || !submitBtn) return;
-    const ready = titleInput.value.trim().length > 0
-               && authorInput.value.trim().length > 0;
+    if (!submitBtn) return;
+    const mode = submitBtn.dataset.mode === 'multi' ? 'multi' : 'single';
+    let ready;
+    if (mode === 'single') {
+      const titleInput = document.getElementById('quick-add-title');
+      const authorInput = document.getElementById('quick-add-author');
+      ready = !!(titleInput && authorInput
+        && titleInput.value.trim().length > 0
+        && authorInput.value.trim().length > 0);
+    } else {
+      const multiText = document.getElementById('quick-add-multi-text');
+      ready = !!(multiText && multiText.value.trim().length > 0);
+    }
     submitBtn.disabled = !ready;
   }
 
@@ -5442,7 +5465,7 @@ const BooklistApp = (function() {
     // ---- Spreadsheet tab wiring ----
     const tabSingle = document.getElementById('quick-add-tab-single');
     const tabMulti = document.getElementById('quick-add-tab-multi');
-    const submitMulti = document.getElementById('quick-add-multi-submit-btn');
+    const submitBtn = document.getElementById('quick-add-submit-btn');
     const multiText = document.getElementById('quick-add-multi-text');
     const multiError = document.getElementById('quick-add-multi-error');
 
@@ -5465,7 +5488,18 @@ const BooklistApp = (function() {
     if (tabSingle) tabSingle.addEventListener('keydown', onTabKey);
     if (tabMulti) tabMulti.addEventListener('keydown', onTabKey);
 
-    if (submitMulti) submitMulti.addEventListener('click', submitQuickAddMulti);
+    // Unified submit button click router. On Single (type=submit), the
+    // browser also fires the form's submit event, which is handled
+    // above — so we no-op here to avoid double-firing. On Multi
+    // (type=button, no form attribute), no submit fires, so we invoke
+    // the multi handler explicitly.
+    if (submitBtn) {
+      submitBtn.addEventListener('click', function() {
+        if (submitBtn.dataset.mode === 'multi') {
+          submitQuickAddMulti();
+        }
+      });
+    }
 
     if (multiText) {
       // Cmd/Ctrl+Enter submits. Plain Enter is left to the browser
@@ -5477,8 +5511,10 @@ const BooklistApp = (function() {
           submitQuickAddMulti();
         }
       });
-      // Clear stale error as the user edits.
+      // Live-update submit-button enablement for Multi tab and clear
+      // stale error as the user edits.
       multiText.addEventListener('input', function() {
+        updateQuickAddSubmitEnabled();
         if (multiError && !multiError.hidden) {
           multiError.hidden = true;
           multiError.textContent = '';
