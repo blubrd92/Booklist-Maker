@@ -1058,6 +1058,12 @@
 
     // Small delay for DOM to settle after prepare
     setTimeout(function() {
+      // Bail out if the tour was exited (e.g. user held ArrowRight past
+      // the last step) while this timeout was queued. Without this guard,
+      // an orphaned callback would re-show the panel that exitTour just
+      // hid, and the deferred counter update below would render "1 / 0"
+      // because currentSectionId is now null (totalSteps returns 0).
+      if (!currentSectionId) return;
       const target = step.target ? document.querySelector(step.target) : null;
 
       // Folio state
@@ -1091,6 +1097,9 @@
 
       // Wait for fade-out + scroll to settle, then update text and show
       setTimeout(function() {
+        // Same exit-race guard as the outer timeout: skip if the tour
+        // ended while this nested setTimeout was queued.
+        if (!currentSectionId) return;
         // Update panel content now that it's fully hidden
         const sectionLabel = panel.querySelector('.tour-panel-section');
         const message = panel.querySelector('.tour-panel-message');
