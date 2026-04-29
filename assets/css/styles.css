@@ -1897,6 +1897,9 @@ input[type="color"]:hover {
 .custom-uploader input[type="file"] { display: none; }
 .custom-uploader img { max-height: 100%; max-width: 100%; }
 
+/* Hidden by default; revealed only when the uploader has an image and
+   the user hovers it. Mirrors the .qr-delete-btn pattern so the red X
+   doesn't sit visibly over the branding artwork. */
 .branding-delete-btn {
   position: absolute;
   top: 4px;
@@ -1910,13 +1913,14 @@ input[type="color"]:hover {
   cursor: pointer;
   font-size: 0.75rem;
   line-height: 1;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 0;
   opacity: 0.8;
   transition: opacity 0.2s;
 }
+#branding-uploader.has-image:hover .branding-delete-btn { display: flex; }
 .branding-delete-btn:hover {
   opacity: 1;
 }
@@ -1924,7 +1928,9 @@ input[type="color"]:hover {
   display: none !important;
 }
 
-/* Front cover delete button */
+/* Front cover delete button — hidden by default; revealed only when
+   the uploader has an image and the user hovers it. Same hover-only
+   pattern as .qr-delete-btn and .branding-delete-btn. */
 .cover-delete-btn {
   position: absolute;
   top: 4px;
@@ -1938,7 +1944,7 @@ input[type="color"]:hover {
   cursor: pointer;
   font-size: 0.75rem;
   line-height: 1;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 0;
@@ -1946,13 +1952,13 @@ input[type="color"]:hover {
   transition: opacity 0.2s;
   z-index: 2;
 }
+#front-cover-uploader.has-image:hover .cover-delete-btn { display: flex; }
 .cover-delete-btn:hover {
   opacity: 1;
 }
 .print-mode .cover-delete-btn {
   display: none !important;
 }
-#front-cover-uploader:not(.has-image) .cover-delete-btn { display: none; }
 
 /* Use Default branding button */
 .branding-default-btn {
@@ -2007,7 +2013,6 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 }
 #branding-uploader.has-image .placeholder-text { display: none; }
 #branding-uploader:not(.has-image) img { display: none; }
-#branding-uploader:not(.has-image) .branding-delete-btn { display: none; }
 
 .qr-code-container {
   width: 480px; height: 144px; display: flex; gap: 14px; align-items: center;
