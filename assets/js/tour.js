@@ -92,8 +92,19 @@
             if (input && !input.value) {
               input.value = 'Discworld';
               input.classList.add('tour-demo-filled');
-              // Auto-click search after a beat
+              // Auto-click search after a beat. Capture the current
+              // section + step at schedule time; if the user has
+              // advanced or exited before the 600ms fires, skip the
+              // click so a stale search request doesn't render results
+              // into the sidebar after the tour state has moved on
+              // (or after exitTour has cleared #results-container).
+              const sectionAtSchedule = currentSectionId;
+              const stepAtSchedule = currentStepIndex;
               setTimeout(function() {
+                if (currentSectionId !== sectionAtSchedule
+                    || currentStepIndex !== stepAtSchedule) {
+                  return;
+                }
                 const searchBtn = document.getElementById('fetchButton');
                 if (searchBtn) searchBtn.click();
               }, 600);
@@ -646,8 +657,17 @@
       const summary = details.querySelector('summary');
       if (summary && summary.textContent.includes(sectionName)) {
         if (!details.open) details.open = true;
-        // Scroll within .tab-content directly (no scrollIntoView)
+        // Scroll within .tab-content directly (no scrollIntoView).
+        // Capture step + section at schedule time so a rapid step
+        // change before the 100ms fires doesn't queue up a scroll to
+        // a section the user has already moved past.
+        const sectionAtSchedule = currentSectionId;
+        const stepAtSchedule = currentStepIndex;
         setTimeout(function() {
+          if (currentSectionId !== sectionAtSchedule
+              || currentStepIndex !== stepAtSchedule) {
+            return;
+          }
           const tabSettings = document.getElementById('tab-settings');
           if (!tabSettings) return;
           if (subTargetSelector) {
@@ -940,32 +960,39 @@
      ---------------------------------------------------------------- */
   function startSection(sectionId) {
     ensureDOM();
-    isFullTour = false;
-    currentSectionId = sectionId;
-    currentStepIndex = 0;
-    beginTour();
+    beginTour({ fullTour: false, sectionId: sectionId });
   }
 
   function startFullTour() {
     ensureDOM();
-    isFullTour = true;
-    fullTourSectionIndex = 0;
-    currentSectionId = SECTION_ORDER[0];
-    currentStepIndex = 0;
-    beginTour();
+    beginTour({ fullTour: true, sectionId: SECTION_ORDER[0] });
   }
 
-  async function beginTour() {
+  async function beginTour({ fullTour, sectionId }) {
     // Mark body as tour-active (elevates Folio, suppresses speech bubble)
     document.body.classList.add('tour-active');
 
-    // Save the user's full state and reset to blank (undo/autosave suppressed)
+    // Save the user's full state and reset to blank (undo/autosave suppressed).
+    // currentSectionId is intentionally NOT set yet: the keydown handler
+    // bails on `!currentSectionId`, so leaving it null during this await
+    // window prevents ArrowRight/Enter/Escape from firing nextStep/exitTour
+    // against half-initialized state. In particular it avoids:
+    //   - a concurrent IDB read in exitTourMode racing this IDB write
+    //   - prepare hooks (which can call applyState) running before
+    //     _tourActive is set in app.js, which would route their
+    //     pushUndo/debouncedSave calls into the user's real state
+    //     instead of being suppressed.
     const success = await BooklistApp.enterTourMode();
     if (!success) {
       document.body.classList.remove('tour-active');
-      currentSectionId = null;
       return;
     }
+
+    // Now safe to expose tour state to the keyboard handlers.
+    isFullTour = fullTour;
+    fullTourSectionIndex = 0;
+    currentSectionId = sectionId;
+    currentStepIndex = 0;
 
     // Use 100% zoom when the screen is wide enough to show the full
     // page without horizontal overflow. On smaller screens, fit to
