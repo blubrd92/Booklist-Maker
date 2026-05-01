@@ -499,6 +499,24 @@ This happens most easily with id-level selectors, because ids beat class+attribu
 
 **If you're debugging an element that won't hide**: check `getComputedStyle(el).display` and work backwards. If it's not `none` despite `el.hidden === true`, there's a rule elsewhere winning on specificity.
 
+### CSS classes that trigger JS behavior, not just styling
+
+A second class of recurring trap: some CSS class names in this codebase look like pure styling hooks but are also queried by JS that mutates the matching elements. Reusing the class for visual consistency on a new control silently opts that control into the JS behavior too.
+
+**The repeat offender**: `.font-select`. The `populateFontSelects()` function in `app.js` queries every element with this class and **overwrites its options** with the FONTS list. If you add a `<select class="font-select">` for the styling and let the page populate it, your hardcoded `<option>` elements get replaced with font names at startup. The bug presents as a dropdown that should show (e.g.) "Top to bottom / Left to right" but shows "Arial / Calibri / Cambria" instead.
+
+**Examples that were bugs in this codebase:**
+- `#title-bar-position` (cover collage title bar) — used `.font-select` for styling, had to be added to the `:not()` allowlist.
+- `#tilt-offset-direction` (tilted layout offset) — same trap, same fix.
+- `#cover-title-gradient-direction` (gradient direction added in 2026) — same trap, same fix.
+
+**How to avoid it:**
+- Before reusing `.font-select` on a new control, check `populateFontSelects()` in `app.js` (search for the function name). If your select isn't a font picker, **add its `id` to the `:not(...)` allowlist in the selector** alongside the existing exclusions. The allowlist is the project's documented escape hatch.
+- The function carries an inline GOTCHA comment that lists the existing exclusions. Add yours and update the comment.
+- Same principle applies to any future class that JS auto-processes by selector. If you find yourself writing a function like `document.querySelectorAll('.foo').forEach(...)` that mutates content, leave a comment at the function explaining what the class triggers, so the next person doesn't reach for it as "just styling."
+
+**If you're debugging a select whose options aren't what the HTML says**: check whether something in `app.js` is querying the class at startup and rewriting `.innerHTML`. The font-select case is the one that's bitten the codebase repeatedly, but the pattern can recur with any class-driven population.
+
 ### Firebase + Admin console rules
 
 1. **Do NOT initialize Firebase on the public tool.** `firebase-init.js` has a hostname check at the top. Adding Firebase code elsewhere (in app.js, book-utils.js, etc.) would load Firebase SDK on booklister.org, violating the session-1 public-tool invariant. If you need Firebase state in the main tool, go through `window.LIBRARY_CONFIG` or the custom events, not direct SDK access.
