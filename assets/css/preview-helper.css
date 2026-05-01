@@ -20,7 +20,7 @@
   padding: 5px 14px;
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 14px;
-  font: 700 11px/1 'Inter', system-ui, sans-serif;
+  font: 700 11px/1 system-ui, sans-serif;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
@@ -55,7 +55,7 @@
   min-width: 280px;
   max-width: 360px;
   padding: 12px;
-  font: 13px/1.4 'Inter', system-ui, sans-serif;
+  font: 13px/1.4 system-ui, sans-serif;
   color: #111827;
 }
 
