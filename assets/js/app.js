@@ -54,6 +54,12 @@ const BooklistApp = (function() {
   // event of that focus session. See capturePreEditSnapshot / commitPreEditSnapshot.
   let _pendingPreEditSnapshot = null;
 
+  // Tracks whether the gradient toggle has ever been enabled in this
+  // page session. The first enable resets the direction dropdown to
+  // 'to-bottom'; subsequent off→on flips preserve the user's choice.
+  // Also set true when applyState restores a state with gradient on.
+  let _gradientEnabledThisSession = false;
+
   // DOM-independent source of truth for the QR blurb text. The
   // qrCodeTextArea is a contenteditable div inside #qr-code-area, which
   // is toggled display:none when the user turns "Show QR Code" off. The
@@ -2488,12 +2494,14 @@ const BooklistApp = (function() {
     const bgColor = document.getElementById('cover-title-bg-color')?.value || '#000000';
     const bgGradient = document.getElementById('cover-title-gradient-toggle')?.checked || false;
     const bgColor2 = document.getElementById('cover-title-bg-color2')?.value || '#333333';
+    const bgGradientDirection = document.getElementById('cover-title-gradient-direction')?.value || 'to-bottom';
 
     // Shared layout settings
     const layoutSettings = {
       bgColor,
       bgGradient,
       bgColor2,
+      bgGradientDirection,
       outerMarginPx: parseFloat(document.getElementById('cover-title-outer-margin')?.value || '10') * pxPerPt,
       padXPx: parseFloat(document.getElementById('cover-title-pad-x')?.value || '0') * pxPerPt,
       padYPx: parseFloat(document.getElementById('cover-title-pad-y')?.value || '10') * pxPerPt,
@@ -2968,7 +2976,16 @@ const BooklistApp = (function() {
     const bgW = canvasWidth - 2 * styles.bgSideMarginPx;
     
     if (styles.bgGradient) {
-      const grad = ctx.createLinearGradient(bgX, bgY, bgX, bgY + bgH);
+      const direction = styles.bgGradientDirection || 'to-bottom';
+      let x0 = bgX, y0 = bgY, x1 = bgX, y1 = bgY + bgH;
+      if (direction === 'to-top') {
+        x0 = bgX; y0 = bgY + bgH; x1 = bgX; y1 = bgY;
+      } else if (direction === 'to-right') {
+        x0 = bgX; y0 = bgY; x1 = bgX + bgW; y1 = bgY;
+      } else if (direction === 'to-left') {
+        x0 = bgX + bgW; y0 = bgY; x1 = bgX; y1 = bgY;
+      }
+      const grad = ctx.createLinearGradient(x0, y0, x1, y1);
       grad.addColorStop(0, styles.bgColor);
       grad.addColorStop(1, styles.bgColor2);
       ctx.fillStyle = grad;
@@ -5730,6 +5747,7 @@ const BooklistApp = (function() {
       bgColor: document.getElementById('cover-title-bg-color')?.value ?? '#000000',
       bgGradient: document.getElementById('cover-title-gradient-toggle')?.checked ?? false,
       bgColor2: document.getElementById('cover-title-bg-color2')?.value ?? '#333333',
+      bgGradientDirection: document.getElementById('cover-title-gradient-direction')?.value ?? 'to-bottom',
       // Simple mode styling
       simple: {
         font: elements.coverFontSelect?.value ?? "'Oswald', sans-serif",
@@ -5909,6 +5927,12 @@ const BooklistApp = (function() {
     // the wrapper so the palette trigger hides along with the input.
     const bgColor2Target = bgColor2El?.closest('.color-palette-wrap') || bgColor2El;
     if (bgColor2Target) bgColor2Target.style.display = ct.bgGradient ? '' : 'none';
+    setStr('cover-title-gradient-direction', ct.bgGradientDirection || 'to-bottom');
+    const gradDirRow = document.getElementById('cover-title-gradient-direction-row');
+    if (gradDirRow) gradDirRow.style.display = ct.bgGradient ? '' : 'none';
+    // If the loaded state already has gradient on, treat the direction
+    // as already chosen so a later off→on toggle preserves it.
+    if (ct.bgGradient) _gradientEnabledThisSession = true;
 
     // Simple mode styling
     const simple = ct.simple || {};
@@ -6799,6 +6823,20 @@ const BooklistApp = (function() {
         // button hides/shows alongside the color input.
         const target = bgColor2El?.closest('.color-palette-wrap') || bgColor2El;
         if (target) target.style.display = gradToggle.checked ? '' : 'none';
+        const gradDirRow = document.getElementById('cover-title-gradient-direction-row');
+        const gradDirSelect = document.getElementById('cover-title-gradient-direction');
+        if (gradToggle.checked) {
+          // Reset to top-to-bottom only the first time gradient is
+          // enabled this session; preserve the user's choice across
+          // subsequent off→on flips.
+          if (!_gradientEnabledThisSession && gradDirSelect) {
+            gradDirSelect.value = 'to-bottom';
+          }
+          _gradientEnabledThisSession = true;
+          if (gradDirRow) gradDirRow.style.display = '';
+        } else {
+          if (gradDirRow) gradDirRow.style.display = 'none';
+        }
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
@@ -6816,6 +6854,20 @@ const BooklistApp = (function() {
         debouncedSave();
       });
       bgColor2Picker.addEventListener('change', autoRegenerateCoverIfAble);
+    }
+
+    // Gradient direction select. Browser sets .value before `change`
+    // fires, so bindPreChangeCapture (mousedown/keydown) is the
+    // correct pre-mutation hook — same pattern as the collage
+    // cover-count radios. Its own undo group keeps each direction
+    // change as a discrete entry on the stack.
+    const gradDirSelect = document.getElementById('cover-title-gradient-direction');
+    if (gradDirSelect) {
+      bindPreChangeCapture(gradDirSelect, 'change-gradient-direction');
+      gradDirSelect.addEventListener('change', () => {
+        debouncedSave();
+        autoRegenerateCoverIfAble();
+      });
     }
 
     // Cover mode toggle
