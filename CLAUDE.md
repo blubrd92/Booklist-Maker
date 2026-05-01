@@ -517,6 +517,20 @@ A second class of recurring trap: some CSS class names in this codebase look lik
 
 **If you're debugging a select whose options aren't what the HTML says**: check whether something in `app.js` is querying the class at startup and rewriting `.innerHTML`. The font-select case is the one that's bitten the codebase repeatedly, but the pattern can recur with any class-driven population.
 
+### Adding a font: grep CSS for the name first
+
+There's a third pitfall in the same family: CSS `font-family` cascades that name a font hopefully (as the first entry, before the real fallbacks) sit dormant for as long as that font isn't loaded — and then activate the moment something else in the codebase loads the font. This bit the project once with Inter:
+
+- Multiple stylesheets had `font-family: 'Inter', -apple-system, "Segoe UI", ...` for body/UI text. Inter wasn't loaded from Google Fonts and isn't preinstalled on Mac/Windows/Linux, so every browser fell through to the OS UI font. That OS font was the actual rendered look of every UI label in the tool.
+- When Inter was added to `CONFIG.FONTS` and to the Google Fonts URL in `index.html`, the browser started actually loading it. The moment it loaded, every `'Inter', ...` cascade resolved to the real webfont and UI labels (checkboxes, buttons, dropdowns) silently changed font.
+
+**How to avoid it when adding a new font**:
+1. Before adding a new font name to `CONFIG.FONTS` and the Google Fonts URL, grep ALL stylesheets for the font name: `grep -rn "'<FontName>'\|\"<FontName>\"" assets/css/ admin/`. The IDE quote variants matter — single and double quotes are both legal in CSS font-family.
+2. If matches come back, inspect each one. If the font name appears as the first entry in a `font-family` cascade where every later entry is a generic / system font, that's a "hopeful" reference that will activate when you load the font. Decide consciously: do you want the new font there, or do you want to remove the name from the cascade so the surface keeps falling through to the OS font like before?
+3. The five surfaces with this exposure today: `assets/css/styles.css` (body), `assets/css/auth.css` (login modal), `assets/css/preview-helper.css` (preview chip, two rules), `admin/admin.css` (admin body). All have been cleaned of the leftover `'Inter'` entry, but the same trap applies to any future font name that lands in a `font-family` chain.
+
+This is the same shape of trap as the `[hidden]` specificity bug and the `.font-select` auto-population bug: dormant code in one file activates because of a change in another file.
+
 ### Firebase + Admin console rules
 
 1. **Do NOT initialize Firebase on the public tool.** `firebase-init.js` has a hostname check at the top. Adding Firebase code elsewhere (in app.js, book-utils.js, etc.) would load Firebase SDK on booklister.org, violating the session-1 public-tool invariant. If you need Firebase state in the main tool, go through `window.LIBRARY_CONFIG` or the custom events, not direct SDK access.
