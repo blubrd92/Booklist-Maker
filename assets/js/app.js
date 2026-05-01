@@ -425,6 +425,14 @@ const BooklistApp = (function() {
   // Populate Font Dropdowns from CONFIG.FONTS (single source of truth)
   // ---------------------------------------------------------------------------
   function populateFontSelects() {
+    // GOTCHA: this overwrites every matched select's options with the
+    // FONTS list. The .font-select class is also reused on selects
+    // that just want the same visual styling but already have their
+    // own hardcoded options in the HTML (title bar position, tilt
+    // offset direction, gradient direction). Those MUST be added to
+    // the :not() allowlist below or their options get replaced with
+    // font names. If you add another non-font select with this class,
+    // add it here.
     const selects = document.querySelectorAll(
       '.font-select:not(#title-bar-position):not(#tilt-offset-direction):not(#cover-title-gradient-direction)'
     );
