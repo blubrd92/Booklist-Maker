@@ -426,7 +426,7 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   function populateFontSelects() {
     const selects = document.querySelectorAll(
-      '.font-select:not(#title-bar-position):not(#tilt-offset-direction)'
+      '.font-select:not(#title-bar-position):not(#tilt-offset-direction):not(#cover-title-gradient-direction)'
     );
     selects.forEach(select => {
       const defaultValue = select.dataset.default || '';
