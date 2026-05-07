@@ -7285,12 +7285,30 @@ const BooklistApp = (function() {
   /**
    * Toggle the .is-empty class on #qr-code-text based on current content.
    * Matches Chrome/Safari leaving a stray <br> after delete-all (innerText
-   * collapses <br> to '\n', which trims to '').
+   * collapses <br> to '\n', which trims to ''). Also scrubs the stray <br>
+   * (or any other no-text DOM crumbs the browser leaves behind) so the
+   * contenteditable is truly empty — otherwise pressing Enter on the
+   * "empty" field would keep adding <br>s and bloat the editable area
+   * inside the fixed-height container. Caret is restored to position 0
+   * if the field still has focus, so active typing isn't disrupted.
    */
   function updateQrEmptyState() {
     if (!elements.qrCodeTextArea) return;
-    const isEmpty = (elements.qrCodeTextArea.innerText || '').trim() === '';
-    elements.qrCodeTextArea.classList.toggle('is-empty', isEmpty);
+    const el = elements.qrCodeTextArea;
+    const isEmpty = (el.innerText || '').trim() === '';
+    el.classList.toggle('is-empty', isEmpty);
+    if (isEmpty && el.innerHTML !== '') {
+      const wasFocused = document.activeElement === el;
+      el.innerHTML = '';
+      if (wasFocused) {
+        const range = document.createRange();
+        range.setStart(el, 0);
+        range.collapse(true);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
   }
   
   // ---------------------------------------------------------------------------

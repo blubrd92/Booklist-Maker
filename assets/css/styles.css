@@ -2022,6 +2022,7 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
   flex-grow: 1; height: 100%; display: flex; flex-direction: column;
   justify-content: center; text-align: var(--qr-text-align, center);
   border: 1px solid #eee; padding: 4px; box-sizing: border-box;
+  position: relative;
   font-family: var(--qr-font, 'Calibri');
   font-size: var(--qr-font-size, 13pt);
   color: var(--qr-color, #000);
@@ -2035,12 +2036,23 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
    contenteditable's DOM, so the browser's native undo can't restore
    it mid-edit and there's no string-equality sentinel to drift out
    of sync. The placeholder text comes from CONFIG.PLACEHOLDERS.qrText
-   via a CSS custom property set in app.js init. */
+   via a CSS custom property set in app.js init.
+
+   Absolutely positioned so it overlays the editable area instead of
+   stacking as a flex item next to it. Without this, a stray <br> left
+   behind by Chrome/Safari after delete-all would become a second flex
+   item below the placeholder, parking the cursor there. */
 #qr-code-text.is-empty::before {
   content: var(--qr-placeholder-text, "");
   color: #757575;
   pointer-events: none;
   white-space: normal;
+  position: absolute;
+  inset: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: inherit;
 }
 .print-mode #qr-code-text.is-empty::before { content: none; }
 #qr-code-canvas {
