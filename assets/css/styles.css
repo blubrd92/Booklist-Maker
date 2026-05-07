@@ -2030,6 +2030,19 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
   line-height: var(--qr-line-height, 1.3);
 }
 #qr-code-text:hover { border-color: #ccc; }
+/* Soft placeholder via pseudo-element. Shown only when JS marks the
+   field .is-empty (innerText.trim() === ''). Decoupled from the
+   contenteditable's DOM, so the browser's native undo can't restore
+   it mid-edit and there's no string-equality sentinel to drift out
+   of sync. The placeholder text comes from CONFIG.PLACEHOLDERS.qrText
+   via a CSS custom property set in app.js init. */
+#qr-code-text.is-empty::before {
+  content: var(--qr-placeholder-text, "");
+  color: #757575;
+  pointer-events: none;
+  white-space: normal;
+}
+.print-mode #qr-code-text.is-empty::before { content: none; }
 #qr-code-canvas {
   width: 144px; height: 144px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
 }

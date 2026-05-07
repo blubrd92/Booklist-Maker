@@ -68,9 +68,10 @@ const BooklistApp = (function() {
   // serialization while the area is hidden would silently overwrite a
   // real blurb with empty. Mirror the text into this module variable
   // on every input event (and during applyState when loading), then
-  // have serializeState read from here instead of the DOM. This value
-  // never holds the placeholder sentinel — it's either the user's real
-  // content or empty.
+  // have serializeState read from here instead of the DOM. The visual
+  // placeholder is a CSS ::before pseudo-element on #qr-code-text.is-empty
+  // and is NOT part of the contenteditable's content, so this mirror
+  // only ever holds the user's real text or empty string.
   let _currentQrText = '';
 
   // ---------------------------------------------------------------------------
@@ -5848,7 +5849,7 @@ const BooklistApp = (function() {
         tiltCoverSizePct,
         collageCoverCount: getCollageCoverCount(),
         qrCodeUrl: elements.qrUrlInput?.value || '',
-        qrCodeText: (qrTextContent !== CONFIG.PLACEHOLDERS.qrText) ? qrTextContent : '',
+        qrCodeText: qrTextContent,
       },
       styles: captureStyleGroups(),
       images: {
@@ -6129,21 +6130,19 @@ const BooklistApp = (function() {
     // QR Code URL
     if (elements.qrUrlInput) elements.qrUrlInput.value = loaded.ui?.qrCodeUrl || '';
     
-    // QR Code Text
+    // QR Code Text. Empty content → CSS ::before placeholder shows via
+    // the .is-empty class. Old .booklist files may have saved the literal
+    // placeholder string back when it lived in the DOM; filter it out so
+    // those files round-trip cleanly into the new model.
     if (elements.qrCodeTextArea) {
       const loadedText = (loaded.ui?.qrCodeText || '').trim();
-      if (loadedText && loadedText !== CONFIG.PLACEHOLDERS.qrText) {
-        elements.qrCodeTextArea.innerText = loadedText;
-        elements.qrCodeTextArea.style.color = '';
-        // Mirror into the DOM-independent source of truth so a later
-        // serializeState call reads it correctly even if the QR area
-        // is hidden (Show QR Code toggled off).
-        _currentQrText = loadedText;
-      } else {
-        elements.qrCodeTextArea.innerText = CONFIG.PLACEHOLDERS.qrText;
-        elements.qrCodeTextArea.style.color = CONFIG.PLACEHOLDER_COLOR;
-        _currentQrText = '';
-      }
+      const realText = (loadedText && loadedText !== CONFIG.PLACEHOLDERS.qrText) ? loadedText : '';
+      elements.qrCodeTextArea.innerText = realText;
+      // Mirror into the DOM-independent source of truth so a later
+      // serializeState call reads it correctly even if the QR area
+      // is hidden (Show QR Code toggled off).
+      _currentQrText = realText;
+      updateQrEmptyState();
     }
     
     // Regenerate QR code. If a URL was saved we generate a real QR and
@@ -7231,10 +7230,17 @@ const BooklistApp = (function() {
   // QR Text Placeholder Setup
   // ---------------------------------------------------------------------------
   function setupQrPlaceholder() {
-    setupPlaceholderField(elements.qrCodeTextArea, CONFIG.PLACEHOLDERS.qrText, {
-      originalColor: getComputedStyle(elements.qrCodeTextArea).color
-    });
-    
+    // Soft placeholder via CSS ::before pseudo-element on .is-empty (see
+    // styles.css). Wire the placeholder text from CONFIG into the CSS
+    // custom property so config.js stays the single source of truth.
+    // JSON.stringify produces a CSS-compatible double-quoted string and
+    // escapes any embedded quotes / newlines safely.
+    elements.qrCodeTextArea.style.setProperty(
+      '--qr-placeholder-text',
+      JSON.stringify(CONFIG.PLACEHOLDERS.qrText)
+    );
+    updateQrEmptyState();
+
     // Strip formatting on paste (same as other editable fields)
     elements.qrCodeTextArea.addEventListener('paste', handlePastePlainText);
 
@@ -7251,10 +7257,9 @@ const BooklistApp = (function() {
       sanitizeContentEditable(elements.qrCodeTextArea);
       // Mirror current DOM text into the module-level source of truth
       // so serializeState can read it even if the QR area gets hidden
-      // later (via Show QR Code toggle). Never store the placeholder
-      // sentinel — that's managed separately by setupPlaceholderField.
-      const txt = (elements.qrCodeTextArea.innerText || '').trim();
-      _currentQrText = (txt && txt !== CONFIG.PLACEHOLDERS.qrText) ? txt : '';
+      // later (via Show QR Code toggle).
+      _currentQrText = (elements.qrCodeTextArea.innerText || '').trim();
+      updateQrEmptyState();
       commitPreEditSnapshot('edit-qr-text');
       debouncedSave();
     });
@@ -7275,6 +7280,17 @@ const BooklistApp = (function() {
         debouncedSave();
       });
     }
+  }
+
+  /**
+   * Toggle the .is-empty class on #qr-code-text based on current content.
+   * Matches Chrome/Safari leaving a stray <br> after delete-all (innerText
+   * collapses <br> to '\n', which trims to '').
+   */
+  function updateQrEmptyState() {
+    if (!elements.qrCodeTextArea) return;
+    const isEmpty = (elements.qrCodeTextArea.innerText || '').trim() === '';
+    elements.qrCodeTextArea.classList.toggle('is-empty', isEmpty);
   }
   
   // ---------------------------------------------------------------------------
@@ -8083,8 +8099,8 @@ const BooklistApp = (function() {
     _clearCustomQr();
     if (elements.qrCodeUploader) elements.qrCodeUploader.classList.remove('has-image', 'has-generated-qr');
     if (elements.qrCodeTextArea) {
-      elements.qrCodeTextArea.innerText = CONFIG.PLACEHOLDERS.qrText;
-      elements.qrCodeTextArea.style.color = CONFIG.PLACEHOLDER_COLOR;
+      elements.qrCodeTextArea.innerText = '';
+      updateQrEmptyState();
     }
     _currentQrText = '';
 
