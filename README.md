@@ -12,11 +12,11 @@ Live at **[booklister.org](https://booklister.org)**.
 - **Quick Add** — paste a tab-separated list of titles, authors, and call numbers from Google Sheets / Excel / Numbers, or enter books one at a time with title-case correction and "Last, First" → "First Last" name flipping
 - **Per-book editing** — title, author, description, cover (carousel of alternate editions or upload your own), call number
 - **AI-drafted descriptions** via the magic-wand button on each book
-- **Cover collage** — auto-generated front cover from 12, 16, or 20 starred books, in four layouts (Classic, Bookshelf, Staggered, Tilted) with a customizable title bar
+- **Cover collage** — auto-generated front cover from 12, 16, or 20 starred books, in four layouts (Classic, Masonry, Staggered, Tilted) with a customizable title bar
 - **Typography** — 25 font choices with per-element font, size, weight, italic, color, line-spacing, and alignment controls
 - **QR code** — generated from any URL, or replaced with a custom uploaded image
 - **Custom branding** — upload a library logo to appear on the back cover
-- **High-quality PDF export** — 11"×8.5" landscape at 600 DPI, ready for trifold printing
+- **High-quality PDF export** — two-page 11"×8.5" landscape output at 600 DPI, designed to be printed double-sided and folded into a bifold brochure (back cover + front cover on one side, two inside panels on the other)
 - **Local-first** — autosaves to IndexedDB; full state can also be exported to a `.booklist` file and re-loaded later
 - **Guided tour** — a built-in walkthrough narrated by an animated cat mascot named Folio
 - **Branded library instances** — opt-in subdomains with sign-in, persistent per-library defaults, and an admin console for staff management
