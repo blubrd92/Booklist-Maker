@@ -183,8 +183,10 @@
      * Convert a string to English-style Title Case for book titles.
      * Capitalizes the first and last words, plus all major words.
      * Articles, conjunctions, and short prepositions stay lowercase
-     * unless they're the first or last word. All-uppercase tokens of
-     * length 2+ (e.g. "USA", "C.S.") are preserved as acronyms.
+     * unless they're the first or last word, OR the first word of a
+     * subtitle (the word immediately after a token ending in : ? !).
+     * All-uppercase tokens of length 2+ (e.g. "USA", "C.S.") are
+     * preserved as acronyms.
      *
      * Intended for English titles. Spanish and other languages that
      * use sentence case should bypass this via the toggle in the
@@ -203,10 +205,17 @@
       const tokens = str.split(/(\s+)/);
       let firstWordIdx = -1;
       let lastWordIdx = -1;
+      // Word indices that start a subtitle (immediately follow a word
+      // ending in : ? !). Per Chicago/AP style, these are always
+      // capitalized regardless of being a minor word.
+      const subtitleStarts = new Set();
+      let prevWordEndedSubtitle = false;
       for (let i = 0; i < tokens.length; i++) {
         if (/\S/.test(tokens[i])) {
           if (firstWordIdx === -1) firstWordIdx = i;
           lastWordIdx = i;
+          if (prevWordEndedSubtitle) subtitleStarts.add(i);
+          prevWordEndedSubtitle = /[:?!]$/.test(tokens[i]);
         }
       }
       return tokens.map(function(token, i) {
@@ -218,7 +227,7 @@
         if (token.length >= 2 && token === token.toUpperCase() && /[A-Z]/.test(token)) {
           return token;
         }
-        if (i !== firstWordIdx && i !== lastWordIdx && minorWords.has(lower)) {
+        if (i !== firstWordIdx && i !== lastWordIdx && !subtitleStarts.has(i) && minorWords.has(lower)) {
           return lower;
         }
         return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();

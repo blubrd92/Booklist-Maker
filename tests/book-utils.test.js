@@ -698,6 +698,26 @@ describe('BookUtils.toTitleCase', () => {
   it('handles a single-word title', () => {
     expect(globalThis.BookUtils.toTitleCase('mort')).toBe('Mort');
   });
+
+  it('capitalizes the first word of a subtitle after a colon', () => {
+    expect(globalThis.BookUtils.toTitleCase('the great gatsby: a novel'))
+      .toBe('The Great Gatsby: A Novel');
+    // Minor word "of" right after the colon must still capitalize.
+    expect(globalThis.BookUtils.toTitleCase('foo: of mice and men'))
+      .toBe('Foo: Of Mice and Men');
+  });
+
+  it('also treats ? and ! as subtitle breaks', () => {
+    expect(globalThis.BookUtils.toTitleCase('what now? a manifesto'))
+      .toBe('What Now? A Manifesto');
+    expect(globalThis.BookUtils.toTitleCase('stop! a guide'))
+      .toBe('Stop! A Guide');
+  });
+
+  it('handles multiple colons, capitalizing each subtitle start', () => {
+    expect(globalThis.BookUtils.toTitleCase('book: a tale: of two cities'))
+      .toBe('Book: A Tale: Of Two Cities');
+  });
 });
 
 describe('BookUtils.parseQuickAddTsv', () => {
