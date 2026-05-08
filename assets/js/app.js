@@ -6290,7 +6290,7 @@ const BooklistApp = (function() {
           localStorage.removeItem('booklist-draft');
           _deleteImageIDB('draft-front-cover');
           try { localStorage.setItem('has-draft', 'true'); } catch {}
-          applyState(parsed);
+          applyState(parsed, { silent: true });
           if (!BookUtils.isDraftStateEffectivelyEmpty(parsed)) {
             showNotification('Draft restored from this browser.', 'success');
           }
@@ -6302,7 +6302,7 @@ const BooklistApp = (function() {
       const raw = await _getImageIDB('draft');
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      applyState(parsed);
+      applyState(parsed, { silent: true });
       if (!BookUtils.isDraftStateEffectivelyEmpty(parsed)) {
         showNotification('Draft restored from this browser.', 'success');
       }
