@@ -2032,7 +2032,10 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
 }
 #qr-code-text:hover { border-color: #ccc; }
 /* Soft placeholder via pseudo-element. Shown only when JS marks the
-   field .is-empty (innerText.trim() === ''). Decoupled from the
+   field .is-empty (innerText.trim() === '') AND the field isn't
+   focused. The :not(:focus) gate matches the clear-on-focus behavior
+   of the other placeholder fields in the app (book title / author /
+   description, via setupPlaceholderField). Decoupled from the
    contenteditable's DOM, so the browser's native undo can't restore
    it mid-edit and there's no string-equality sentinel to drift out
    of sync. The placeholder text comes from CONFIG.PLACEHOLDERS.qrText
@@ -2042,7 +2045,7 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
    stacking as a flex item next to it. Without this, a stray <br> left
    behind by Chrome/Safari after delete-all would become a second flex
    item below the placeholder, parking the cursor there. */
-#qr-code-text.is-empty::before {
+#qr-code-text.is-empty:not(:focus)::before {
   content: var(--qr-placeholder-text, "");
   color: #757575;
   pointer-events: none;
@@ -2054,7 +2057,7 @@ body.has-library-branding #branding-uploader:not(.has-image) .branding-default-b
   justify-content: center;
   text-align: inherit;
 }
-.print-mode #qr-code-text.is-empty::before { content: none; }
+.print-mode #qr-code-text.is-empty:not(:focus)::before { content: none; }
 #qr-code-canvas {
   width: 144px; height: 144px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
 }
