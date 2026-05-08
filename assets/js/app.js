@@ -6291,7 +6291,9 @@ const BooklistApp = (function() {
           _deleteImageIDB('draft-front-cover');
           try { localStorage.setItem('has-draft', 'true'); } catch {}
           applyState(parsed);
-          showNotification('Draft restored from this browser.', 'success');
+          if (!isDraftStateEffectivelyEmpty(parsed)) {
+            showNotification('Draft restored from this browser.', 'success');
+          }
           return;
         }
       } catch { /* legacy migration failed — try new IDB path */ }
@@ -6301,8 +6303,40 @@ const BooklistApp = (function() {
       if (!raw) return;
       const parsed = JSON.parse(raw);
       applyState(parsed);
-      showNotification('Draft restored from this browser.', 'success');
+      if (!isDraftStateEffectivelyEmpty(parsed)) {
+        showNotification('Draft restored from this browser.', 'success');
+      }
     } catch { /* ignore corrupt data */ }
+  }
+
+  /**
+   * Whether a parsed draft state is "effectively empty" — i.e. equivalent
+   * to a fresh page load with no user input. Used to suppress the
+   * "Draft restored from this browser." toast when there's nothing
+   * meaningful to advertise as restored. Checks every surface a user
+   * could have touched: books (all blank placeholders?), extra collage
+   * covers, uploaded images (front cover, branding, custom QR), the
+   * cover title text (simple + advanced modes), the QR URL + blurb,
+   * and the list name (treating the default-fallback 'booklist'
+   * sentinel as empty since serializeState writes that when the input
+   * is blank).
+   */
+  function isDraftStateEffectivelyEmpty(state) {
+    if (!state) return true;
+    const books = Array.isArray(state.books) ? state.books : [];
+    const allBlank = books.length === 0 || books.every(b => b && b.isBlank);
+    const noExtras = !Array.isArray(state.extraCollageCovers) || state.extraCollageCovers.length === 0;
+    const images = state.images || {};
+    const noImages = !images.frontCover && !images.branding && !images.customQr;
+    const ui = state.ui || {};
+    const coverLineTexts = Array.isArray(ui.coverLineTexts) ? ui.coverLineTexts : [];
+    const noText = !(ui.qrCodeText || '').trim()
+      && !(ui.qrCodeUrl || '').trim()
+      && !(ui.coverTitle || '').trim()
+      && !coverLineTexts.some(t => (t || '').trim());
+    const listName = ((state.meta && state.meta.listName) || '').trim().toLowerCase();
+    const noListName = !listName || listName === 'booklist';
+    return allBlank && noExtras && noImages && noText && noListName;
   }
 
   function resetToBlank() {
