@@ -347,6 +347,54 @@
         includeInCollage: false // Blank books don't count toward collage
       };
     },
+
+    /**
+     * Whether a parsed draft state (the shape produced by app.js's
+     * serializeState) is "effectively empty" — equivalent to a fresh
+     * page load with no user content. Used by restoreDraftLocalIfPresent
+     * to suppress the "Draft restored from this browser." toast when
+     * there's nothing meaningful to advertise as restored.
+     *
+     * Checks every surface a user could have filled in:
+     * - books: all blank placeholders, or no books
+     * - extraCollageCovers: empty
+     * - images: no front cover, branding, or custom QR upload
+     * - ui text: no QR url, no QR blurb, no cover title (simple or
+     *   advanced mode lines)
+     * - meta.listName: empty, or the default-fallback string 'booklist'
+     *   that serializeState writes when the input is blank
+     *
+     * Intentionally NOT checked (treated as "settings, not content"):
+     * style customizations from captureStyleGroups, layout choice,
+     * tilt/title-bar settings, collage cover count, visibility toggles
+     * (showQr / showBranding). Those have no visible effect without
+     * content, so a draft that has only these is still "empty" for
+     * the purposes of the restored-toast.
+     *
+     * IMPORTANT: this function is coupled to app.js's serializeState
+     * schema. When you add a new "content" field to the saved state,
+     * extend this function so the restored-toast keeps firing for
+     * drafts that contain only the new field.
+     */
+    isDraftStateEffectivelyEmpty: function(state) {
+      if (!state) return true;
+      const books = Array.isArray(state.books) ? state.books : [];
+      const allBlank = books.length === 0 || books.every(function(b) {
+        return b && b.isBlank;
+      });
+      const noExtras = !Array.isArray(state.extraCollageCovers) || state.extraCollageCovers.length === 0;
+      const images = state.images || {};
+      const noImages = !images.frontCover && !images.branding && !images.customQr;
+      const ui = state.ui || {};
+      const coverLineTexts = Array.isArray(ui.coverLineTexts) ? ui.coverLineTexts : [];
+      const noText = !(ui.qrCodeText || '').trim()
+        && !(ui.qrCodeUrl || '').trim()
+        && !(ui.coverTitle || '').trim()
+        && !coverLineTexts.some(function(t) { return (t || '').trim(); });
+      const listName = ((state.meta && state.meta.listName) || '').trim().toLowerCase();
+      const noListName = !listName || listName === 'booklist';
+      return allBlank && noExtras && noImages && noText && noListName;
+    },
   };
 
   // Expose globally

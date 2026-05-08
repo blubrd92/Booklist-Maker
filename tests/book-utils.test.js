@@ -872,3 +872,137 @@ describe('BookUtils.parseQuickAddTsv', () => {
     expect(result.rows[0].callNumber).toBe('Author');
   });
 });
+
+describe('BookUtils.isDraftStateEffectivelyEmpty', () => {
+  // A minimal "empty" state matching what serializeState would write
+  // for a fresh page load: 15 blank-placeholder books, no extras, no
+  // images, no text, default-fallback list name.
+  function emptyState(overrides = {}) {
+    return {
+      schema: 'booklist-v1',
+      meta: { listName: 'booklist' },
+      books: Array.from({ length: 15 }, () => ({ isBlank: true })),
+      extraCollageCovers: [],
+      ui: {
+        coverTitle: '',
+        coverLineTexts: ['', '', ''],
+        qrCodeText: '',
+        qrCodeUrl: '',
+      },
+      images: { frontCover: null, branding: null, customQr: null },
+      styles: {},
+      ...overrides,
+    };
+  }
+
+  it('returns true for null / undefined', () => {
+    expect(BookUtils.isDraftStateEffectivelyEmpty(null)).toBe(true);
+    expect(BookUtils.isDraftStateEffectivelyEmpty(undefined)).toBe(true);
+  });
+
+  it('returns true for the canonical empty state', () => {
+    expect(BookUtils.isDraftStateEffectivelyEmpty(emptyState())).toBe(true);
+  });
+
+  it('returns true when books array is missing entirely', () => {
+    const s = emptyState();
+    delete s.books;
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(true);
+  });
+
+  it('returns true when meta is missing entirely', () => {
+    const s = emptyState();
+    delete s.meta;
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(true);
+  });
+
+  it('returns true when listName is the default-fallback "booklist" (any case)', () => {
+    expect(BookUtils.isDraftStateEffectivelyEmpty(emptyState({ meta: { listName: 'booklist' } }))).toBe(true);
+    expect(BookUtils.isDraftStateEffectivelyEmpty(emptyState({ meta: { listName: 'Booklist' } }))).toBe(true);
+    expect(BookUtils.isDraftStateEffectivelyEmpty(emptyState({ meta: { listName: '  BOOKLIST  ' } }))).toBe(true);
+  });
+
+  it('returns false when at least one book is non-blank', () => {
+    const s = emptyState();
+    s.books[3].isBlank = false;
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
+  it('returns false when extraCollageCovers has any entry', () => {
+    const s = emptyState({ extraCollageCovers: [{ id: 'x', coverData: 'data:image/jpeg;base64,/9j/' }] });
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
+  it('returns false when a front cover image is set', () => {
+    const s = emptyState({ images: { frontCover: 'data:image/jpeg;base64,/9j/', branding: null, customQr: null } });
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
+  it('returns false when a branding image is set', () => {
+    const s = emptyState({ images: { frontCover: null, branding: 'data:image/png;base64,iVBOR', customQr: null } });
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
+  it('returns false when a custom QR image is set', () => {
+    const s = emptyState({ images: { frontCover: null, branding: null, customQr: 'data:image/png;base64,iVBOR' } });
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
+  it('returns false when qrCodeText has user content', () => {
+    const s = emptyState();
+    s.ui.qrCodeText = 'Scan for the full list!';
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
+  it('returns false when qrCodeUrl has user content', () => {
+    const s = emptyState();
+    s.ui.qrCodeUrl = 'https://example.org/list';
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
+  it('returns false when coverTitle (simple mode) has user content', () => {
+    const s = emptyState();
+    s.ui.coverTitle = 'Summer Reads';
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
+  it('returns false when any coverLineTexts entry (advanced mode) has content', () => {
+    const s = emptyState();
+    s.ui.coverLineTexts = ['', 'Summer 2026', ''];
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
+  it('returns false when listName is a real custom name', () => {
+    expect(BookUtils.isDraftStateEffectivelyEmpty(emptyState({ meta: { listName: 'Summer Reads' } }))).toBe(false);
+  });
+
+  it('treats whitespace-only text fields as empty', () => {
+    const s = emptyState();
+    s.ui.qrCodeText = '   ';
+    s.ui.qrCodeUrl = '\t';
+    s.ui.coverTitle = '\n';
+    s.ui.coverLineTexts = ['  ', '', '\t'];
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(true);
+  });
+
+  it('ignores style customizations (settings, not content)', () => {
+    const s = emptyState({ styles: { coverTitle: { font: 'Lora', size: 48, color: '#FF0000' } } });
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(true);
+  });
+
+  it('ignores layout / collage settings (settings, not content)', () => {
+    const s = emptyState();
+    s.ui.collageLayout = 'tilted';
+    s.ui.collageCoverCount = 20;
+    s.ui.tiltDegree = 8;
+    s.ui.showShelves = true;
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(true);
+  });
+
+  it('ignores visibility toggles (showQr, showBranding)', () => {
+    const s = emptyState();
+    s.ui.showQr = false;
+    s.ui.showBranding = false;
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(true);
+  });
+});
