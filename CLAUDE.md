@@ -93,14 +93,29 @@ extension/                      Browser extension (Manifest V3) — captures boo
                                 shares nothing with the main tool except brand.
   manifest.json                 MV3 manifest, host_permissions scoped to
                                 *.bibliocommons.com + gateway.bibliocommons.com
-  content.js                    Runs on /v2/record/ pages. Reads the SSR JSON
-                                state blob, fetches the holdings API, picks a
-                                call number for the user's preferred branch,
-                                writes a TSV row to the clipboard
+                                + *.syndetics.com. Two content_scripts.matches:
+                                /v2/record/* (single book) + /v2/list/* (lists).
+  content.js                    Runs on record + list pages. Dispatches between
+                                handleSingleCapture and handleListCapture by URL.
+                                Reads the SSR JSON state blob (different shape
+                                per page type), fetches the holdings API + cover
+                                bytes per book in parallel, builds TSV row(s),
+                                writes to clipboard. Single-record mode honors
+                                the accumulate-mode toggle (appends to a
+                                running list in chrome.storage.local).
   background.js                 Service worker. Toolbar click → sendMessage to
-                                content script. Flashes a success/error badge.
-  options/options.html|.js      Single-field options page: preferred-branch
-                                substring (optional). Stored in chrome.storage.sync
+                                content script. Hosts the fetch-image-as-data-url
+                                proxy (cover fetches need host_permissions to
+                                bypass CORS). Maintains the persistent toolbar
+                                badge with the accumulated list count, refreshed
+                                on chrome.storage.onChanged. Right-click context
+                                menu item "Clear accumulated list".
+  options/options.html|.js      Options page: preferred-branch substring,
+                                accumulate-mode toggle, clear-list button.
+                                Saved keys: preferredBranch + accumulateMode in
+                                chrome.storage.sync; accumulatedRows in
+                                chrome.storage.local (covers can exceed sync's
+                                per-item 8 KB quota).
 tests/
   setup.js                      Loads config.js + book-utils.js into jsdom via eval
   book-utils.test.js            Unit tests for all BookUtils functions
@@ -426,12 +441,14 @@ Manifest V3 browser extension that captures a book record from a BiblioCommons l
 
 **Hard scope**: BiblioCommons-powered catalogs only (`*.bibliocommons.com`). The extension makes no attempt to be a generic catalog-scraper. Other catalog systems (Aspen Discovery, Vega, Polaris LEAP, Encore, Sierra, etc.) are out of scope — adding them would be a separate extension or a separate adapter file.
 
+**Three capture modes** (single, list-page, accumulate). Single is the default: click the toolbar icon on a `/v2/record/` page → one TSV row to clipboard. List-page mode triggers automatically on `/v2/list/` URLs: clicking captures every book on the curated list in display order, with per-book holdings + cover fetches running in parallel via `Promise.all`. Accumulate mode is an opt-in setting (off by default) that changes single-record behavior: each capture appends a row to `chrome.storage.local.accumulatedRows` and copies the entire accumulated TSV to the clipboard, so users can browse 13 books one at a time and paste them all at once. The toolbar badge shows the running count when accumulate is on. List-page mode operates independently of accumulate — it always copies the list to the clipboard fresh, never touches `accumulatedRows`. A right-click context menu item ("Clear accumulated list", `contexts: ['action']`) and a button on the options page reset the running list.
+
 **File layout**:
 
-- `manifest.json` — MV3, `host_permissions` scoped to `*.bibliocommons.com` + `gateway.bibliocommons.com`. `content_scripts.matches` is `*://*.bibliocommons.com/v2/record/*` (only book record pages).
-- `content.js` — runs on bib pages. Wires a `chrome.runtime.onMessage` listener for `'capture-bib'`. On capture: reads the SSR JSON state blob (`<script type="application/json" data-iso-key="_0">`), pulls title / subtitle / first author / fallback call number from `entities.catalogBibs.<bibId>.brief` and `.fields`, then fetches the holdings API for branch-specific resolution.
-- `background.js` — service worker. Listens for `chrome.action.onClicked` (toolbar icon). Sends `'capture-bib'` to the active tab's content script and flashes a green ✓ / red X badge on the icon based on the response.
-- `options/options.html` + `options.js` — single-field page for "Preferred branch" substring. Stored in `chrome.storage.sync` under key `preferredBranch` (empty string by default). Settings sync across Chrome installs when the user is signed into Chrome.
+- `manifest.json` — MV3, `host_permissions` scoped to `*.bibliocommons.com` + `gateway.bibliocommons.com` + `*.syndetics.com`. Two `content_scripts.matches` entries: `*://*.bibliocommons.com/v2/record/*` (single book records) and `*://*.bibliocommons.com/v2/list/*` (curated list pages). Adds the `contextMenus` permission for the right-click "Clear accumulated list" item.
+- `content.js` — runs on both page types. Wires a `chrome.runtime.onMessage` listener for `'capture'` and dispatches between `handleSingleCapture` and `handleListCapture` based on `location.pathname`. Both modes route through a shared `captureOneBibToTsvRow(libraryDomain, brief, preferredBranch)` helper that fires holdings + cover fetches in parallel for one book. Brief extraction is split into two normalizers (`extractRecordBrief` for `state.entities.catalogBibs[<bibId>]`, `extractListBibs` for `state.list.bibsByMetadataId` + `state.list.items`) since the two SSR shapes are different — list-page bibs have direct `imageUrl` / `callNumber` / `authors[]` fields rather than the record page's nested `brief.coverImage` / `fields[].items[]` / `creators[].fullName` structure.
+- `background.js` — service worker. Listens for `chrome.action.onClicked` (toolbar icon) and forwards a `'capture'` message to the active tab. Hosts the `'fetch-image-as-data-url'` proxy used for cover fetches (CORS bypass via host_permissions). Maintains the persistent toolbar badge: subscribes to `chrome.storage.onChanged` and recomputes badge text from `accumulateMode` (sync) + `accumulatedRows.length` (local). Registers a `chrome.contextMenus` item with `contexts: ['action']` for "Clear accumulated list".
+- `options/options.html` + `options.js` — preferred-branch text input, accumulate-mode checkbox, clear-list button. Saved keys: `preferredBranch` and `accumulateMode` in `chrome.storage.sync`; `accumulatedRows` (string[] of TSV row strings) in `chrome.storage.local` because each row can carry an embedded cover (~30-80 KB) and sync's per-item quota is 8 KB.
 
 **Why the fetch lives in the content script, not the service worker**: BiblioCommons' gateway API (`https://gateway.bibliocommons.com/v2/libraries/<lib>/bibs/<bibId>/availability`) responds with `access-control-allow-origin: https://<lib>.bibliocommons.com`. A `fetch` from the service worker carries the `chrome-extension://<id>` origin and gets CORS-rejected. The content script inherits the page's origin, so its fetch is accepted. This is the architectural reason `content.js` does the heavy lifting and `background.js` is a thin click → message forwarder.
 

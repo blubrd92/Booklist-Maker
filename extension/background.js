@@ -1,66 +1,153 @@
 /**
  * Booklister Helper — background service worker
  *
- * Listens for toolbar icon clicks and forwards a 'capture-bib' message
- * to the active tab's content script. The content script does all the
- * actual work (DOM scraping, API fetch, clipboard write) because the
- * BiblioCommons gateway API only accepts requests from a *.bibliocommons.com
- * origin — a service-worker fetch carrying the chrome-extension:// origin
- * would be CORS-rejected.
+ * Two responsibilities:
  *
- * On non-record pages or non-BiblioCommons domains, surface a small
- * badge ("?") on the toolbar icon for ~2s so the user gets feedback
- * instead of a silent no-op.
+ * 1. Handle toolbar icon clicks → forward a 'capture' message to the
+ *    active tab's content script. The content script does all the
+ *    actual work (DOM scraping, API fetch, clipboard write) because
+ *    the BiblioCommons gateway API is CORS-locked to *.bibliocommons.com,
+ *    so a service-worker fetch carrying chrome-extension:// would be
+ *    rejected. Works on both single-record pages (/v2/record/) and
+ *    list pages (/v2/list/).
+ *
+ * 2. Provide a 'fetch-image-as-data-url' RPC for the content script,
+ *    used to fetch cover images from Syndetics and embed them as
+ *    base64 in the TSV. The service worker's fetch IS allowed to
+ *    bypass CORS for hosts in the manifest's host_permissions.
+ *
+ * Plus: persistent badge maintenance for accumulate mode (shows the
+ * running count of staged books on the toolbar icon), and a right-
+ * click context menu to clear that accumulated list.
  */
 
 'use strict';
 
 const RECORD_PATH_RE = /\/v2\/record\//;
+const LIST_PATH_RE = /\/v2\/list\//;
 
-function isBibliocommonsRecordUrl(url) {
+/**
+ * Whether the URL is a BiblioCommons page the extension can capture
+ * from — either a single book record or a curated list page.
+ */
+function isBibliocommonsCapturablePage(url) {
   if (!url) return false;
   try {
     const u = new URL(url);
-    return u.hostname.endsWith('.bibliocommons.com') && RECORD_PATH_RE.test(u.pathname);
+    if (!u.hostname.endsWith('.bibliocommons.com')) return false;
+    return RECORD_PATH_RE.test(u.pathname) || LIST_PATH_RE.test(u.pathname);
   } catch {
     return false;
   }
 }
 
 /**
- * Flash the toolbar badge for ~2 seconds with the given text + color.
- * Used for both error feedback (red "?", "X") and quiet success
- * confirmation alongside the in-page toast that the content script shows.
+ * Flash a transient badge for ~2 seconds. Used for one-shot success
+ * (✓), error (X, !, ?). When accumulate mode is on, the persistent
+ * count badge gets restored after the flash.
  */
 async function flashBadge(tabId, text, color) {
   try {
-    await chrome.action.setBadgeBackgroundColor({ color, tabId });
-    await chrome.action.setBadgeText({ text, tabId });
-    setTimeout(() => {
-      chrome.action.setBadgeText({ text: '', tabId }).catch(() => {});
-    }, 2000);
+    await chrome.action.setBadgeBackgroundColor({ color });
+    await chrome.action.setBadgeText({ text });
+    setTimeout(() => { restorePersistentBadge().catch(() => {}); }, 2000);
   } catch {
     // Badge API failures aren't worth blocking on.
   }
+  // tabId param kept for future per-tab use; currently we set globally
+  // because the accumulate-count badge spans tabs.
+  void tabId;
 }
+
+// ---------------------------------------------------------------------------
+// Persistent badge (accumulate mode count)
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the current accumulate state and reflect it on the toolbar
+ * badge. If accumulate mode is off, or the list is empty, the badge
+ * is cleared. Otherwise the count is shown in green.
+ *
+ * Called on service-worker startup, on storage changes, and after
+ * every transient flash badge expires.
+ */
+async function restorePersistentBadge() {
+  try {
+    const sync = await chrome.storage.sync.get({ accumulateMode: false });
+    const local = await chrome.storage.local.get({ accumulatedRows: [] });
+    const count = Array.isArray(local.accumulatedRows) ? local.accumulatedRows.length : 0;
+    if (sync.accumulateMode && count > 0) {
+      await chrome.action.setBadgeBackgroundColor({ color: '#1565c0' });
+      await chrome.action.setBadgeText({ text: String(count) });
+    } else {
+      await chrome.action.setBadgeText({ text: '' });
+    }
+  } catch (err) {
+    console.warn('[Booklister Helper] restorePersistentBadge failed:', err);
+  }
+}
+
+// Service worker can be restarted at any time; restore badge state
+// on every startup so the count survives across SW lifetimes.
+chrome.runtime.onStartup.addListener(restorePersistentBadge);
+chrome.runtime.onInstalled.addListener(() => {
+  restorePersistentBadge();
+  ensureContextMenu();
+});
+
+// React to storage changes from content.js (which mutates accumulatedRows
+// when adding to the list) or from the options page (which can toggle
+// accumulateMode or clear the list).
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && 'accumulatedRows' in changes) restorePersistentBadge();
+  if (area === 'sync' && 'accumulateMode' in changes) restorePersistentBadge();
+});
+
+// ---------------------------------------------------------------------------
+// Right-click context menu: "Clear accumulated list"
+// ---------------------------------------------------------------------------
+
+const MENU_ID_CLEAR_LIST = 'booklister-helper-clear-list';
+
+function ensureContextMenu() {
+  try {
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create({
+        id: MENU_ID_CLEAR_LIST,
+        title: 'Clear accumulated list',
+        contexts: ['action'],
+      });
+    });
+  } catch (err) {
+    console.warn('[Booklister Helper] context menu setup failed:', err);
+  }
+}
+
+chrome.contextMenus.onClicked.addListener((info) => {
+  if (info.menuItemId === MENU_ID_CLEAR_LIST) {
+    chrome.storage.local.set({ accumulatedRows: [] }).catch(() => {});
+    // Badge will refresh via storage.onChanged.
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Toolbar click → 'capture' message to content script
+// ---------------------------------------------------------------------------
 
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab || !tab.id) return;
 
-  if (!isBibliocommonsRecordUrl(tab.url)) {
-    // User clicked while looking at something other than a bib page.
-    // Silent failure isn't great UX; flash a "?" badge so they notice.
+  if (!isBibliocommonsCapturablePage(tab.url)) {
+    // User clicked while looking at something other than a record or
+    // list page. Flash a "?" so they notice.
     await flashBadge(tab.id, '?', '#b00020');
     return;
   }
 
   let response;
   try {
-    response = await chrome.tabs.sendMessage(tab.id, { type: 'capture-bib' });
+    response = await chrome.tabs.sendMessage(tab.id, { type: 'capture' });
   } catch (err) {
-    // sendMessage rejects when there's no listener — usually means
-    // the content script hasn't loaded yet (e.g. user clicked very
-    // fast on a still-loading page). Tell them and let them retry.
     console.warn('[Booklister Helper] no content script listening:', err);
     await flashBadge(tab.id, '!', '#b00020');
     return;

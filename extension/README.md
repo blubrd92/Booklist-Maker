@@ -4,17 +4,36 @@ A small browser extension that captures a book record from a BiblioCommons libra
 
 **Supported sites**: BiblioCommons-powered library catalogs only (`*.bibliocommons.com`). This covers most North American public-library consortiums (MARINet, Sonoma County Library, San Mateo County, Pima County, etc.) but does not work with Aspen Discovery, Vega, Polaris LEAP, Encore, Sierra OPAC, or other non-BiblioCommons platforms.
 
-**What it does**:
+**What it does** — three workflows:
 
-1. You're on a BiblioCommons book page (URL contains `/v2/record/`).
-2. You click the Booklister Helper toolbar icon.
-3. The extension reads the title, subtitle, author, and call number from the page (and from BiblioCommons' availability API for the per-branch breakdown). It also fetches the cover image bytes from the catalog's image provider (typically Syndetics).
-4. The extension copies a single TSV row to your clipboard: `Title<TAB>Author<TAB>Call Number<TAB>CoverImage`. The cover is embedded as a base64 `data:image/...` URL so saved booklists stay self-contained — they keep working even if the cover provider's URL changes or expires.
-5. You paste it into Booklister's Quick Add → Spreadsheet tab.
+### Single book
+
+1. Open a BiblioCommons book record (URL contains `/v2/record/`).
+2. Click the Booklister Helper toolbar icon.
+3. The extension reads title, subtitle, author, and per-branch call number, plus fetches the cover image bytes.
+4. A single TSV row is copied to your clipboard. Paste into Booklister's Quick Add → Spreadsheet tab.
+
+### Whole curated list (one click)
+
+1. Open any BiblioCommons list page (URL contains `/v2/list/`) — staff picks, themed reading lists, etc.
+2. Click the toolbar icon.
+3. The extension captures every book on the list in display order, fetching their per-branch call numbers and covers in parallel. Takes 5-10 seconds for a 16-book list.
+4. A multi-row TSV is copied to your clipboard. Paste into Booklister's Quick Add → Spreadsheet — Booklister fills as many slots as it has and tells you how many overflowed.
+
+### Accumulate mode (running list of single-book picks)
+
+1. Turn on **Accumulate single-book captures into a running list** in the extension's options page.
+2. Browse to book #1, click the toolbar icon → toast says "Added — 1 book in list", toolbar badge reads "1".
+3. Browse to book #2, click → "Added — 2 books in list", badge reads "2".
+4. Continue until you have enough. The clipboard always holds the latest accumulated TSV.
+5. Paste into Booklister's Quick Add → Spreadsheet whenever ready.
+6. Right-click the toolbar icon → **Clear accumulated list** to start over (or use the button on the options page).
+
+In all three modes, the cover is embedded as a base64 `data:image/...` URL so saved booklists stay self-contained — they keep working even if the cover provider's URL changes or expires.
 
 The icon flashes a green ✓ on success or a red badge if something went wrong.
 
-> **Note on the clipboard contents**: because the cover is embedded as base64 image bytes, the TSV row will be a long-looking string of dense text (~30-80 KB per book). That's normal — just paste and submit. Booklister parses it transparently and renders the cover from those bytes.
+> **Note on the clipboard contents**: because each cover is embedded as base64 image bytes, the TSV will be a long-looking string of dense text (~30-80 KB per book). That's normal — just paste and submit. Booklister parses it transparently and renders the covers from those bytes.
 
 ## Install (development)
 
@@ -30,9 +49,11 @@ For Firefox: go to `about:debugging` → **This Firefox** → **Load Temporary A
 
 Right-click the toolbar icon → **Options** (or visit `chrome://extensions` → Booklister Helper → **Extension options**).
 
-There's one setting:
+Two settings:
 
-- **Preferred branch** (optional): a substring of your branch name as it appears in BiblioCommons' Availability table (or the branch code, like `SR`). When set, the extension picks that branch's call number when a book has multiple branches with different call numbers. Leave blank to use BiblioCommons' own "local branch" detection — which works automatically when you're signed in to your library account or browsing from your library's IP range.
+- **Preferred branch** (optional): a substring of your branch name as it appears in BiblioCommons' Availability table (or the branch code, like `SR`). When set, the extension picks that branch's call number when a book has multiple branches with different call numbers. Leave blank to use BiblioCommons' own "local branch" detection — which works automatically when you're signed in to your library account or browsing from your library's IP range. Applied to single-record captures, list-page captures, and every book in an accumulated list.
+
+- **Accumulate single-book captures into a running list** (default off): when on, single-book captures append to a list rather than overwriting the clipboard. The toolbar badge shows the running count. List-page captures (clicking on a `/v2/list/` URL) are independent of this — they always copy the entire list to the clipboard fresh.
 
 ## How the call number gets picked
 
@@ -60,15 +81,16 @@ There is no analytics. No tracking. The TSV row goes from the page directly to y
 ## Privacy posture
 
 - `host_permissions` are limited to `*.bibliocommons.com`, `gateway.bibliocommons.com`, and `*.syndetics.com`. The extension cannot read any other site.
-- The content script only runs on URLs matching `*://*.bibliocommons.com/v2/record/*` (BiblioCommons book record pages).
-- The only `chrome.storage` key written is `preferredBranch` (your typed substring), in `sync` storage so it follows you across Chrome installs if you're signed into Chrome.
+- The content script only runs on URLs matching `*://*.bibliocommons.com/v2/record/*` and `*://*.bibliocommons.com/v2/list/*` (BiblioCommons book record + curated list pages).
+- `chrome.storage.sync` keys: `preferredBranch` (your typed substring) and `accumulateMode` (boolean). These follow you across Chrome installs if you're signed into Chrome.
+- `chrome.storage.local` key: `accumulatedRows` (the array of staged TSV rows when accumulate mode is on). Local-only because each row can carry an embedded cover (~30-80 KB) and the per-item sync quota is 8 KB.
 - The cover-image fetch goes through the extension's service worker (which has `host_permissions` for Syndetics) so it can read the image bytes regardless of CORS — it does not use your cookies (`credentials: 'omit'`), so no authenticated identity leaks to the cover provider.
 - No remote-loaded code. The extension ships as a fixed bundle of static JS files.
 
 ## Known limitations
 
 - **BiblioCommons-only**, on purpose. Adding adapters for other catalog systems would be a separate extension or a separate adapter file.
-- **Single-record capture only** for v1. Multi-select on a search results or list page is a planned v2.
+- **Search results pages** (`/search?...`) are not supported. Search results don't carry per-book call numbers in the page state, so capture quality would be much worse than the record / list flows. Use single-record or list-page capture instead.
 - **Manual install**, no Chrome Web Store / Firefox Add-ons listing yet. Once the v1 stabilizes I'll publish it.
 - **Brittle to BiblioCommons redesigns.** They run a single SaaS codebase, so this is rare in practice (~1-2 times a year), but selectors / API shapes may need a refresh occasionally.
 

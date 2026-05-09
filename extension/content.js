@@ -1,33 +1,48 @@
 /**
  * Booklister Helper — content script
  *
- * Runs on BiblioCommons record pages (*.bibliocommons.com/v2/record/*).
- * On a message from the background service worker (sent when the user
+ * Runs on BiblioCommons record pages (*.bibliocommons.com/v2/record/*)
+ * and list pages (*.bibliocommons.com/v2/list/*). On a 'capture'
+ * message from the background service worker (sent when the user
  * clicks the toolbar icon), extracts the bib metadata, fetches the
- * holdings API for branch-specific call number resolution, formats a
- * single TSV row, and copies it to the clipboard for pasting into
- * Booklister's Quick Add Spreadsheet tab.
+ * holdings API for branch-specific call number resolution, fetches
+ * the cover image, formats one TSV row per book, and copies the
+ * result to the clipboard for pasting into Booklister's Quick Add
+ * Spreadsheet tab.
  *
- * The fetch must run in the content script (not the background worker)
- * because the BiblioCommons gateway API is CORS-locked to the parent
- * library domain (e.g. access-control-allow-origin:
- * https://marinet.bibliocommons.com). A service-worker fetch would
- * carry the chrome-extension:// origin and be rejected.
+ * Two capture modes:
+ *
+ * Single-record mode (URL = /v2/record/<bibId>): captures the one
+ * book on the page. If the user has Accumulate mode enabled in
+ * options, the row is appended to a running list in storage and the
+ * full accumulated TSV is placed on the clipboard.
+ *
+ * List-page mode (URL = /v2/list/<...>): captures every book on the
+ * curated list in display order, in parallel. Operates independently
+ * of Accumulate mode — the list-page TSV always overwrites the
+ * clipboard rather than appending. Booklister's Quick Add Spreadsheet
+ * handler already truncates over-limit pastes with a partial-success
+ * notification, so a 50-book list pastes the first 13-15 (per current
+ * MAX_BOOKS) and tells the user how many overflowed.
+ *
+ * The gateway and Syndetics fetches must run in the content script's
+ * page context (not the service worker) for the gateway, but the
+ * cover fetch is delegated to the service worker because Syndetics
+ * doesn't return CORS headers — the service worker has host_permissions
+ * for *.syndetics.com which lets it read the response body regardless.
  */
 
 'use strict';
 
 (function () {
   // ---------------------------------------------------------------------------
-  // Bib metadata extraction (from the SSR JSON state blob)
+  // SSR state + URL utilities
   // ---------------------------------------------------------------------------
 
   /**
    * BiblioCommons server-renders a Redux state dump into a single JSON
    * <script> element. Same shape across consortiums (verified against
-   * MARINet and Sonoma County, both running nerf07 9.35.x). Returns
-   * null if the blob can't be found or parsed; callers fall back to
-   * JSON-LD or DOM scraping.
+   * MARINet and Sonoma County, both running nerf07 9.35.x).
    */
   function readStateBlob() {
     const node = document.querySelector('script[type="application/json"][data-iso-key="_0"]');
@@ -39,36 +54,31 @@
     }
   }
 
-  /**
-   * Bib ID is the trailing path segment after /v2/record/, e.g.
-   * /v2/record/S113C1648997 → "S113C1648997". The leading "S" + library
-   * id + "C" + bib id pattern is consistent across deployments but we
-   * don't need to parse that — just take the segment.
-   */
   function getBibIdFromUrl() {
     const m = location.pathname.match(/\/v2\/record\/([^/?#]+)/);
     return m ? m[1] : null;
   }
 
-  /**
-   * Library subdomain ("marinet", "sonoma", etc.) for use in the
-   * gateway API URL. We could also pull this from the SSR state's
-   * app.libraryDomain, but the hostname is simpler and equally reliable.
-   */
   function getLibraryDomain() {
     const host = location.hostname;
     const m = host.match(/^([^.]+)\.bibliocommons\.com$/);
     return m ? m[1] : null;
   }
 
+  function isListPage() {
+    return /\/v2\/list\//.test(location.pathname);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Field cleaners
+  // ---------------------------------------------------------------------------
+
   /**
    * Strip BiblioCommons' "lifetime dates" suffix from author names so
-   * Booklister's flipAuthorName helper handles the comma-flip correctly.
+   * Booklister's flipAuthorName handles the comma-flip correctly.
    * "Styron, William, 1925-2006" → "Styron, William"
    * "Lawson, Jenny, 1973-"      → "Lawson, Jenny"
    * "Smith, John"               → "Smith, John" (unchanged)
-   * Single-comma names go through Booklister's flipAuthorName on add;
-   * multi-comma names stay as-is to avoid mangling co-author lists.
    */
   function cleanAuthor(raw) {
     if (!raw) return '';
@@ -78,8 +88,7 @@
   /**
    * Combine title + subtitle as "Title: Subtitle" since Booklister's
    * title field is single-line. The post-colon word gets capitalized
-   * by Booklister's title-case rule (recently fixed) so a subtitle
-   * starting with "a", "of", or "with" still looks right.
+   * by Booklister's title-case rule.
    */
   function buildTitle(title, subTitle) {
     const t = (title || '').trim();
@@ -89,71 +98,19 @@
     return `${t}: ${s}`;
   }
 
-  /**
-   * Cover URL from the bib's brief.coverImage. BiblioCommons stores
-   * three sizes (small/medium/large), all served from Syndetics with
-   * the parent library's Syndetics client param. We take the largest
-   * available because Booklister exports at 600 DPI; the smaller sizes
-   * pixelate visibly when scaled up for print.
-   *
-   * The URL is sanity-checked to be http: or https:. The actual fetch
-   * + base64 conversion happens in the service worker via
-   * fetchCoverAsDataUrl below — this function just picks the URL.
-   * Returns empty string if no cover.
-   */
-  function extractCoverUrl(brief) {
-    const ci = brief?.coverImage;
-    if (!ci || typeof ci !== 'object') return '';
-    const candidate = ci.large || ci.medium || ci.small || '';
-    if (!candidate || typeof candidate !== 'string') return '';
-    if (!/^https?:\/\//i.test(candidate.trim())) return '';
-    return candidate.trim();
-  }
+  // ---------------------------------------------------------------------------
+  // Bib extraction — produces a normalized brief shape regardless of
+  // whether we're on a record page or a list page. Normalized shape:
+  //   { bibId, title, subTitle, author, coverUrl, fallbackCallNumber }
+  // ---------------------------------------------------------------------------
 
   /**
-   * Ask the service worker to fetch the cover image and return it as
-   * a base64 data URL. Embedding the image bytes (rather than passing
-   * a hotlink URL through to Booklister) means:
-   *
-   *   - PDF export at 600 DPI works regardless of whether the cover
-   *     provider returns CORS headers (html2canvas can render
-   *     same-origin / data: URLs cleanly; a hotlinked Syndetics URL
-   *     might or might not, depending on Syndetics' headers that day).
-   *   - Saved .booklist files are self-contained — open one in 5 years
-   *     and the cover still works even if Syndetics has changed
-   *     domains, dropped the client= param, or gone away entirely.
-   *   - No runtime dependency on BiblioCommons / Syndetics being up.
-   *
-   * Cost is ~30-80 KB of base64 per cover, which is comparable to
-   * what Booklister would store anyway via its own image compression
-   * (compressImage runs at JPEG 0.92 / max 1600px on uploads).
-   *
-   * Returns '' on any failure — the caller falls back to no cover.
+   * Extract a normalized brief from a single-record SSR state blob.
+   * Reads from state.entities.catalogBibs[bibId] which is keyed
+   * differently than the list-page bibs and uses nested fields[] for
+   * call numbers.
    */
-  async function fetchCoverAsDataUrl(coverUrl) {
-    if (!coverUrl) return '';
-    try {
-      const resp = await chrome.runtime.sendMessage({
-        type: 'fetch-image-as-data-url',
-        url: coverUrl,
-      });
-      if (resp && resp.ok && typeof resp.dataUrl === 'string') {
-        return resp.dataUrl;
-      }
-    } catch {
-      // Service worker may have been wakened too late, or the fetch
-      // failed. Either way, swallow and let the caller use no cover.
-    }
-    return '';
-  }
-
-  /**
-   * Pull the bib's brief metadata from the SSR state. Returns
-   * { title, subTitle, author, fallbackCallNumber, coverUrl } or null
-   * if the state doesn't have this bib (which would be a structural
-   * surprise).
-   */
-  function extractBibBrief(state, bibId) {
+  function extractRecordBrief(state, bibId) {
     const bib = state?.entities?.catalogBibs?.[bibId];
     if (!bib) return null;
 
@@ -161,8 +118,6 @@
     const creators = Array.isArray(brief.creators) ? brief.creators : [];
     const authorRaw = creators.length > 0 ? (creators[0].fullName || '') : '';
 
-    // Fallback call number: first CALLNO_LOCAL value in the bib's
-    // categorized fields. Used when the holdings API returns nothing.
     let fallbackCallNumber = '';
     const fields = Array.isArray(bib.fields) ? bib.fields : [];
     for (const cat of fields) {
@@ -179,26 +134,71 @@
       if (fallbackCallNumber) break;
     }
 
+    const ci = brief.coverImage || {};
+    const candidate = ci.large || ci.medium || ci.small || '';
+    const coverUrl = (typeof candidate === 'string' && /^https?:\/\//i.test(candidate.trim()))
+      ? candidate.trim()
+      : '';
+
     return {
+      bibId,
       title: brief.title || '',
       subTitle: brief.subTitle || '',
       author: cleanAuthor(authorRaw),
+      coverUrl,
       fallbackCallNumber,
-      coverUrl: extractCoverUrl(brief),
     };
+  }
+
+  /**
+   * Extract normalized briefs from a list-page SSR state, in display
+   * order. Reads from state.list.bibsByMetadataId (full bib data per
+   * book, keyed by metadataId) and state.list.items (an array that
+   * preserves the curator's intended order).
+   *
+   * Returns an array of briefs. Books missing from bibsByMetadataId
+   * (rare — happens when a bib was deleted from the catalog after the
+   * list was created) are silently skipped.
+   */
+  function extractListBibs(state) {
+    const items = state?.list?.items;
+    const bibsByMd = state?.list?.bibsByMetadataId;
+    if (!Array.isArray(items) || !bibsByMd || typeof bibsByMd !== 'object') {
+      return [];
+    }
+
+    const result = [];
+    for (const item of items) {
+      const id = item?.metadataId;
+      if (!id) continue;
+      const bib = bibsByMd[id];
+      if (!bib) continue;
+
+      const authors = Array.isArray(bib.authors) ? bib.authors : [];
+      const authorRaw = authors.length > 0
+        ? (typeof authors[0] === 'string' ? authors[0] : (authors[0]?.name || ''))
+        : '';
+
+      const imageUrl = (typeof bib.imageUrl === 'string' && /^https?:\/\//i.test(bib.imageUrl.trim()))
+        ? bib.imageUrl.trim()
+        : '';
+
+      result.push({
+        bibId: id,
+        title: bib.title || '',
+        subTitle: bib.subtitle || '',
+        author: cleanAuthor(authorRaw),
+        coverUrl: imageUrl,
+        fallbackCallNumber: bib.callNumber || '',
+      });
+    }
+    return result;
   }
 
   // ---------------------------------------------------------------------------
   // Holdings API + branch / call-number selection
   // ---------------------------------------------------------------------------
 
-  /**
-   * Fetch /v2/libraries/{lib}/bibs/{bib}/availability from the gateway.
-   * Same-site CORS with credentials (cookies set on .bibliocommons.com),
-   * so this runs cleanly from the content script's page context.
-   * Returns the parsed JSON or null on any failure — caller falls back
-   * to the SSR state's CALLNO_LOCAL.
-   */
   async function fetchHoldings(libraryDomain, bibId) {
     const url = `https://gateway.bibliocommons.com/v2/libraries/${encodeURIComponent(libraryDomain)}/bibs/${encodeURIComponent(bibId)}/availability?locale=en-US`;
     try {
@@ -213,95 +213,139 @@
     }
   }
 
-  /**
-   * Normalize the holdings response into a flat list of items, each
-   * with { branchName, branchCode, collection, callNumber, statusType,
-   * libraryStatus, dueDate, local }. Order preserves the API order
-   * (which is the order shown in the Availability by location table).
-   */
   function flattenItems(holdingsResponse) {
     const items = holdingsResponse?.entities?.bibItems;
     if (!items || typeof items !== 'object') return [];
     return Object.values(items).map((it) => ({
       branchName: it.branch?.name || it.branchName || '',
       branchCode: it.branch?.code || '',
-      collection: it.collection || '',
       callNumber: it.callNumber || '',
       statusType: it.availability?.statusType || '',
-      libraryStatus: it.availability?.libraryStatus || '',
-      dueDate: it.dueDate || null,
       local: !!it.local,
     }));
   }
 
   /**
-   * Pick the best item for the user's preferred branch, with fallbacks.
-   *
-   * Selection order:
-   *   1. If user set a preferred-branch substring, filter to items whose
-   *      branchName or branchCode contains it (case-insensitive).
-   *   2. If no user preference (or filter empty), filter to items where
-   *      the API marks `local: true` (BiblioCommons' own signal for
-   *      "this is the user's branch", based on logged-in account / IP).
-   *   3. If still empty, take any item.
-   *   4. Within the candidate list, prefer AVAILABLE items over
-   *      UNAVAILABLE ones (so a user looking at a checked-out local
-   *      copy still gets a usable call number from a sister branch).
-   *   5. Return the first remaining item, or null if none.
-   *
-   * Returning null is fine — the caller falls back to the SSR state's
-   * CALLNO_LOCAL[0] which is what shows up in the bib's main metadata.
+   * Pick the best item for the user's preferred branch:
+   *   1. If preferredBranch is set, filter items whose branchName or
+   *      branchCode contains it (case-insensitive).
+   *   2. Otherwise filter to items where the API marks `local: true`.
+   *   3. If either filter yields nothing, fall through to all items.
+   *   4. Within the candidate list, prefer AVAILABLE over UNAVAILABLE.
+   *   5. Take the first remaining item.
    */
   function pickItem(allItems, preferredBranchSubstring) {
     if (allItems.length === 0) return null;
-
     const pref = (preferredBranchSubstring || '').trim().toLowerCase();
     let candidates;
-
     if (pref) {
       candidates = allItems.filter((it) =>
         it.branchName.toLowerCase().includes(pref) ||
         it.branchCode.toLowerCase() === pref
       );
       if (candidates.length === 0) {
-        // User's preferred branch isn't represented for this bib —
-        // fall through to the local-flag heuristic.
         candidates = allItems.filter((it) => it.local);
       }
     } else {
       candidates = allItems.filter((it) => it.local);
     }
-
     if (candidates.length === 0) candidates = allItems;
-
     const available = candidates.filter((it) => it.statusType === 'AVAILABLE');
     return available.length > 0 ? available[0] : candidates[0];
   }
 
   // ---------------------------------------------------------------------------
-  // TSV formatting + clipboard
+  // Cover fetch (delegated to the service worker for CORS bypass)
+  // ---------------------------------------------------------------------------
+
+  async function fetchCoverAsDataUrl(coverUrl) {
+    if (!coverUrl) return '';
+    try {
+      const resp = await chrome.runtime.sendMessage({
+        type: 'fetch-image-as-data-url',
+        url: coverUrl,
+      });
+      if (resp && resp.ok && typeof resp.dataUrl === 'string') {
+        return resp.dataUrl;
+      }
+    } catch {
+      // SW may have been wakened too late; treat as no-cover.
+    }
+    return '';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Per-book pipeline: brief → TSV row
   // ---------------------------------------------------------------------------
 
   /**
-   * Build a single TSV row matching parseQuickAddTsv's expected columns
-   * in Booklister: title <TAB> author <TAB> callNumber <TAB> coverUrl.
-   * The 4th column is the BiblioCommons cover image URL, which
-   * Booklister stores into customCoverData on add. Empty coverUrl is
-   * fine — Booklister falls back to the placeholder cover in that case.
-   * Strip embedded tabs/newlines from each field so the row stays
-   * single-line.
+   * Run the holdings + cover fetches in parallel for one book, pick
+   * the best call number per the user's preferred branch, and format
+   * a single TSV row. Used by both single-record and list-page modes.
    */
+  async function captureOneBibToTsvRow(libraryDomain, brief, preferredBranch) {
+    let callNumber = brief.fallbackCallNumber || '';
+    const [holdings, coverDataUrl] = await Promise.all([
+      fetchHoldings(libraryDomain, brief.bibId),
+      fetchCoverAsDataUrl(brief.coverUrl),
+    ]);
+    if (holdings) {
+      const items = flattenItems(holdings);
+      const picked = pickItem(items, preferredBranch);
+      if (picked && picked.callNumber) callNumber = picked.callNumber;
+    }
+    const fullTitle = buildTitle(brief.title, brief.subTitle);
+    return buildTsvRow(fullTitle, brief.author, callNumber, coverDataUrl);
+  }
+
   function buildTsvRow(title, author, callNumber, coverUrl) {
     const clean = (s) => String(s || '').replace(/[\t\r\n]+/g, ' ').trim();
     return `${clean(title)}\t${clean(author)}\t${clean(callNumber)}\t${clean(coverUrl)}`;
   }
 
-  /**
-   * Write text to the clipboard. Uses the modern Clipboard API first;
-   * falls back to a hidden-textarea + execCommand('copy') trick for
-   * browsers / contexts that reject the async API. Returns true on
-   * success, false otherwise.
-   */
+  // ---------------------------------------------------------------------------
+  // Storage helpers (preferences + accumulated list)
+  // ---------------------------------------------------------------------------
+
+  async function readPreferredBranch() {
+    try {
+      const stored = await chrome.storage.sync.get({ preferredBranch: '' });
+      return stored.preferredBranch || '';
+    } catch {
+      return '';
+    }
+  }
+
+  async function readAccumulateMode() {
+    try {
+      const stored = await chrome.storage.sync.get({ accumulateMode: false });
+      return !!stored.accumulateMode;
+    } catch {
+      return false;
+    }
+  }
+
+  async function readAccumulatedRows() {
+    try {
+      const stored = await chrome.storage.local.get({ accumulatedRows: [] });
+      return Array.isArray(stored.accumulatedRows) ? stored.accumulatedRows : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function writeAccumulatedRows(rows) {
+    try {
+      await chrome.storage.local.set({ accumulatedRows: rows });
+    } catch {
+      // Storage failures shouldn't break clipboard write; swallow.
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Clipboard + toast
+  // ---------------------------------------------------------------------------
+
   async function writeToClipboard(text) {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -309,7 +353,7 @@
         return true;
       }
     } catch {
-      // fall through to legacy path
+      // fall through
     }
     try {
       const ta = document.createElement('textarea');
@@ -326,10 +370,6 @@
       return false;
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // In-page toast (so the user gets visible feedback without a popup UI)
-  // ---------------------------------------------------------------------------
 
   function showToast(message, kind) {
     const existing = document.getElementById('booklister-helper-toast');
@@ -349,24 +389,25 @@
       'font-size:14px',
       'font-weight:500',
       'color:#fff',
-      `background:${kind === 'error' ? '#b00020' : '#2e7d32'}`,
+      `background:${kind === 'error' ? '#b00020' : kind === 'info' ? '#1565c0' : '#2e7d32'}`,
       'box-shadow:0 4px 12px rgba(0,0,0,0.2)',
       'opacity:0',
       'transition:opacity 200ms ease',
+      'max-width:360px',
     ].join(';');
     document.body.appendChild(el);
     requestAnimationFrame(() => { el.style.opacity = '1'; });
     setTimeout(() => {
       el.style.opacity = '0';
       setTimeout(() => el.remove(), 250);
-    }, 2200);
+    }, kind === 'info' ? 1500 : 2500);
   }
 
   // ---------------------------------------------------------------------------
-  // Main handler — invoked when background sends 'capture-bib'
+  // Mode handlers
   // ---------------------------------------------------------------------------
 
-  async function handleCapture() {
+  async function handleSingleCapture() {
     const bibId = getBibIdFromUrl();
     const libraryDomain = getLibraryDomain();
     if (!bibId || !libraryDomain) {
@@ -375,57 +416,79 @@
     }
 
     const state = readStateBlob();
-    const brief = state ? extractBibBrief(state, bibId) : null;
+    const brief = state ? extractRecordBrief(state, bibId) : null;
     if (!brief || !brief.title) {
       showToast("Couldn't read the book's title from the page.", 'error');
       return { ok: false, reason: 'no-bib-metadata' };
     }
 
-    // User preference (if set). Empty string = use API's `local: true`.
-    let pref = '';
-    try {
-      const stored = await chrome.storage.sync.get({ preferredBranch: '' });
-      pref = stored.preferredBranch || '';
-    } catch {
-      // Storage failure is non-fatal — fall through with empty pref.
+    const pref = await readPreferredBranch();
+    const row = await captureOneBibToTsvRow(libraryDomain, brief, pref);
+
+    const accumulate = await readAccumulateMode();
+    let tsv;
+    let toastMessage;
+
+    if (accumulate) {
+      const existing = await readAccumulatedRows();
+      existing.push(row);
+      await writeAccumulatedRows(existing);
+      tsv = existing.join('\n');
+      toastMessage = `Added — ${existing.length} ${existing.length === 1 ? 'book' : 'books'} in list. Paste into Booklister Quick Add → Spreadsheet.`;
+    } else {
+      tsv = row;
+      toastMessage = 'Copied! Paste into Booklister Quick Add → Spreadsheet tab.';
     }
 
-    // Run the holdings + cover fetches in parallel — they're independent
-    // and each takes a few hundred ms. Doing them sequentially would
-    // double the user-visible latency for no reason.
-    let callNumber = brief.fallbackCallNumber;
-    const [holdings, coverDataUrl] = await Promise.all([
-      fetchHoldings(libraryDomain, bibId),
-      fetchCoverAsDataUrl(brief.coverUrl),
-    ]);
-    if (holdings) {
-      const items = flattenItems(holdings);
-      const picked = pickItem(items, pref);
-      if (picked && picked.callNumber) callNumber = picked.callNumber;
-    }
-
-    const fullTitle = buildTitle(brief.title, brief.subTitle);
-    const tsv = buildTsvRow(fullTitle, brief.author, callNumber, coverDataUrl);
     const wrote = await writeToClipboard(tsv);
+    if (!wrote) {
+      showToast('Could not copy to clipboard.', 'error');
+      return { ok: false, reason: 'clipboard-failed' };
+    }
+    showToast(toastMessage, 'success');
+    return { ok: true };
+  }
 
+  async function handleListCapture() {
+    const libraryDomain = getLibraryDomain();
+    if (!libraryDomain) {
+      showToast("Couldn't identify the library from this URL.", 'error');
+      return { ok: false, reason: 'no-library' };
+    }
+
+    const state = readStateBlob();
+    const bibs = state ? extractListBibs(state) : [];
+    if (bibs.length === 0) {
+      showToast('No books found on this list page.', 'error');
+      return { ok: false, reason: 'empty-list' };
+    }
+
+    showToast(`Capturing ${bibs.length} books — this may take a few seconds...`, 'info');
+
+    const pref = await readPreferredBranch();
+    const rowPromises = bibs.map((b) => captureOneBibToTsvRow(libraryDomain, b, pref));
+    const rows = await Promise.all(rowPromises);
+
+    const tsv = rows.join('\n');
+    const wrote = await writeToClipboard(tsv);
     if (!wrote) {
       showToast('Could not copy to clipboard.', 'error');
       return { ok: false, reason: 'clipboard-failed' };
     }
 
-    showToast('Copied! Paste into Booklister Quick Add → Spreadsheet tab.', 'success');
+    const noun = rows.length === 1 ? 'book' : 'books';
+    showToast(`Copied ${rows.length} ${noun} — paste into Booklister Quick Add → Spreadsheet tab. Booklister will fit as many as your slots allow.`, 'success');
     return { ok: true };
   }
 
-  // ---------------------------------------------------------------------------
-  // Wire the message listener for background.js
-  // ---------------------------------------------------------------------------
+  async function handleCapture() {
+    if (isListPage()) return handleListCapture();
+    return handleSingleCapture();
+  }
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (msg?.type !== 'capture-bib') return false;
+    if (msg?.type !== 'capture') return false;
     handleCapture().then(sendResponse).catch((err) => {
-      // Defensive: any uncaught error should still return a structured
-      // response so background.js's promise resolves.
       console.error('[Booklister Helper] capture failed:', err);
       sendResponse({ ok: false, reason: 'exception' });
     });

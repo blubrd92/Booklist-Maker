@@ -9,7 +9,7 @@
       font-size: 14px;
       color: #222;
       padding: 16px 20px;
-      min-width: 360px;
+      min-width: 380px;
       max-width: 480px;
       line-height: 1.5;
     }
@@ -17,7 +17,13 @@
       font-size: 16px;
       margin: 0 0 12px;
     }
-    label {
+    h2 {
+      font-size: 14px;
+      margin: 18px 0 8px;
+      padding-top: 14px;
+      border-top: 1px solid #eee;
+    }
+    label.field {
       display: block;
       font-weight: 600;
       margin-bottom: 4px;
@@ -29,6 +35,16 @@
       border: 1px solid #ccc;
       border-radius: 4px;
       box-sizing: border-box;
+    }
+    label.toggle {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    label.toggle input[type="checkbox"] {
+      margin-top: 2px;
     }
     .help {
       font-size: 12px;
@@ -51,6 +67,18 @@
       cursor: pointer;
     }
     button:hover { background: #266a2a; }
+    button.secondary {
+      border-color: #777;
+      background: #fff;
+      color: #333;
+    }
+    button.secondary:hover { background: #f5f5f5; }
+    button.danger {
+      border-color: #b00020;
+      background: #fff;
+      color: #b00020;
+    }
+    button.danger:hover { background: #fdf0f2; }
     .status {
       font-size: 12px;
       color: #2e7d32;
@@ -63,12 +91,19 @@
       font-size: 12px;
       color: #555;
     }
+    .count {
+      font-size: 12px;
+      color: #555;
+      margin-left: 6px;
+    }
   </style>
 </head>
 <body>
   <h1>Booklister Helper</h1>
 
-  <label for="preferred-branch">Preferred branch (optional)</label>
+  <h2>Preferred branch</h2>
+
+  <label class="field" for="preferred-branch">Branch name or code (optional)</label>
   <input
     id="preferred-branch"
     type="text"
@@ -79,22 +114,54 @@
     Case-insensitive substring of your branch name as it appears in the
     Availability table (or the branch code, like <code>SR</code>). When
     set, the extension picks that branch's call number when capturing a
-    book. Leave blank to use BiblioCommons' own "local branch" detection
-    (works automatically when you're signed in or browsing from your
-    library's IP range).
+    book. Leave blank to use BiblioCommons' own "local branch"
+    detection — works automatically when you're signed in or browsing
+    from your library's IP range.
+  </div>
+
+  <h2>Accumulate mode</h2>
+
+  <label class="toggle">
+    <input id="accumulate-mode" type="checkbox" />
+    <span>
+      Accumulate single-book captures into a running list
+      <span class="count" id="accumulate-count" aria-live="polite"></span>
+    </span>
+  </label>
+  <div class="help">
+    When on, each click on a single book record <em>appends</em> the
+    book to a list and copies the entire list to the clipboard. The
+    toolbar badge shows the running count. Useful when you're browsing
+    individual books and want to gather 13-15 of them before pasting
+    into Booklister all at once. Right-click the toolbar icon and
+    choose <em>Clear accumulated list</em> to start over, or use the
+    button below.
+    <br /><br />
+    List-page captures (clicking the icon on a curated list URL) are
+    independent of this setting — they always copy the entire list to
+    the clipboard fresh.
   </div>
 
   <div class="row">
-    <button id="save">Save</button>
+    <button id="clear-list" class="danger" type="button">Clear accumulated list</button>
+    <span id="clear-status" class="status" role="status"></span>
+  </div>
+
+  <h2>Save</h2>
+
+  <div class="row">
+    <button id="save" type="button">Save options</button>
     <span id="status" class="status" role="status"></span>
   </div>
 
   <div class="section">
     Booklister Helper captures the book record from the page you're
     looking at. It does not collect or transmit any data outside your
-    browser; the only network call it makes is the same Availability-by-
-    location request your library's catalog already makes when you click
-    that button.
+    browser; the only network calls it makes are the same Availability-
+    by-location request your library's catalog page already makes when
+    you click that button, plus a fetch of the cover image bytes from
+    your library's cover provider (typically Syndetics) so the cover
+    travels with the booklist.
   </div>
 
   <script src="options.js"></script>

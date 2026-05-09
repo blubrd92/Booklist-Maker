@@ -9,7 +9,7 @@
     "default_title": "Capture this book for Booklister"
   },
 
-  "permissions": ["storage", "scripting"],
+  "permissions": ["storage", "scripting", "contextMenus"],
 
   "host_permissions": [
     "*://*.bibliocommons.com/*",
@@ -23,7 +23,10 @@
 
   "content_scripts": [
     {
-      "matches": ["*://*.bibliocommons.com/v2/record/*"],
+      "matches": [
+        "*://*.bibliocommons.com/v2/record/*",
+        "*://*.bibliocommons.com/v2/list/*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
