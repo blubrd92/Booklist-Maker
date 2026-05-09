@@ -131,6 +131,8 @@ export default [
         setTimeout: "readonly",
         clearTimeout: "readonly",
         requestAnimationFrame: "readonly",
+        // Service worker globals (background.js)
+        btoa: "readonly",
         // Chrome extension API
         chrome: "readonly",
       },

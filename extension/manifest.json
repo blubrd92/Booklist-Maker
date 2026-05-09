@@ -13,7 +13,8 @@
 
   "host_permissions": [
     "*://*.bibliocommons.com/*",
-    "*://gateway.bibliocommons.com/*"
+    "*://gateway.bibliocommons.com/*",
+    "*://*.syndetics.com/*"
   ],
 
   "background": {

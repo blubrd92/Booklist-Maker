@@ -887,8 +887,18 @@ describe('BookUtils.parseQuickAddTsv', () => {
     expect(result.rows[0].coverUrl).toBe(url);
   });
 
-  it('drops a 4th-column value that is not http(s)', () => {
-    expect(parse('A\tB\tC\tdata:image/png;base64,iVBOR').rows[0].coverUrl).toBe('');
+  it('captures a data:image/* URL in the 4th column as coverUrl', () => {
+    // The Booklister Helper extension emits these by default — base64
+    // image bytes embedded in the TSV so saved booklists stay self-
+    // contained without depending on the cover provider's URLs.
+    expect(parse('A\tB\tC\tdata:image/png;base64,iVBOR').rows[0].coverUrl).toBe('data:image/png;base64,iVBOR');
+    expect(parse('A\tB\tC\tdata:image/jpeg;base64,/9j/').rows[0].coverUrl).toBe('data:image/jpeg;base64,/9j/');
+    expect(parse('A\tB\tC\tdata:image/svg+xml;utf8,<svg/>').rows[0].coverUrl).toBe('data:image/svg+xml;utf8,<svg/>');
+  });
+
+  it('drops a 4th-column value that is not http(s) or data:image/*', () => {
+    expect(parse('A\tB\tC\tdata:text/html;base64,PHNjcmlwdD4=').rows[0].coverUrl).toBe('');
+    expect(parse('A\tB\tC\tdata:application/pdf;base64,JVBE').rows[0].coverUrl).toBe('');
     expect(parse('A\tB\tC\tjavascript:alert(1)').rows[0].coverUrl).toBe('');
     expect(parse('A\tB\tC\tfile:///etc/passwd').rows[0].coverUrl).toBe('');
     expect(parse('A\tB\tC\tnotaurl').rows[0].coverUrl).toBe('');

@@ -96,9 +96,10 @@
    * available because Booklister exports at 600 DPI; the smaller sizes
    * pixelate visibly when scaled up for print.
    *
-   * The URL is sanity-checked to be http: or https: — defense in depth
-   * against the parser, which also rejects non-http schemes server-
-   * side at parseQuickAddTsv. Returns empty string if no cover.
+   * The URL is sanity-checked to be http: or https:. The actual fetch
+   * + base64 conversion happens in the service worker via
+   * fetchCoverAsDataUrl below — this function just picks the URL.
+   * Returns empty string if no cover.
    */
   function extractCoverUrl(brief) {
     const ci = brief?.coverImage;
@@ -107,6 +108,43 @@
     if (!candidate || typeof candidate !== 'string') return '';
     if (!/^https?:\/\//i.test(candidate.trim())) return '';
     return candidate.trim();
+  }
+
+  /**
+   * Ask the service worker to fetch the cover image and return it as
+   * a base64 data URL. Embedding the image bytes (rather than passing
+   * a hotlink URL through to Booklister) means:
+   *
+   *   - PDF export at 600 DPI works regardless of whether the cover
+   *     provider returns CORS headers (html2canvas can render
+   *     same-origin / data: URLs cleanly; a hotlinked Syndetics URL
+   *     might or might not, depending on Syndetics' headers that day).
+   *   - Saved .booklist files are self-contained — open one in 5 years
+   *     and the cover still works even if Syndetics has changed
+   *     domains, dropped the client= param, or gone away entirely.
+   *   - No runtime dependency on BiblioCommons / Syndetics being up.
+   *
+   * Cost is ~30-80 KB of base64 per cover, which is comparable to
+   * what Booklister would store anyway via its own image compression
+   * (compressImage runs at JPEG 0.92 / max 1600px on uploads).
+   *
+   * Returns '' on any failure — the caller falls back to no cover.
+   */
+  async function fetchCoverAsDataUrl(coverUrl) {
+    if (!coverUrl) return '';
+    try {
+      const resp = await chrome.runtime.sendMessage({
+        type: 'fetch-image-as-data-url',
+        url: coverUrl,
+      });
+      if (resp && resp.ok && typeof resp.dataUrl === 'string') {
+        return resp.dataUrl;
+      }
+    } catch {
+      // Service worker may have been wakened too late, or the fetch
+      // failed. Either way, swallow and let the caller use no cover.
+    }
+    return '';
   }
 
   /**
@@ -352,8 +390,14 @@
       // Storage failure is non-fatal — fall through with empty pref.
     }
 
+    // Run the holdings + cover fetches in parallel — they're independent
+    // and each takes a few hundred ms. Doing them sequentially would
+    // double the user-visible latency for no reason.
     let callNumber = brief.fallbackCallNumber;
-    const holdings = await fetchHoldings(libraryDomain, bibId);
+    const [holdings, coverDataUrl] = await Promise.all([
+      fetchHoldings(libraryDomain, bibId),
+      fetchCoverAsDataUrl(brief.coverUrl),
+    ]);
     if (holdings) {
       const items = flattenItems(holdings);
       const picked = pickItem(items, pref);
@@ -361,7 +405,7 @@
     }
 
     const fullTitle = buildTitle(brief.title, brief.subTitle);
-    const tsv = buildTsvRow(fullTitle, brief.author, callNumber, brief.coverUrl);
+    const tsv = buildTsvRow(fullTitle, brief.author, callNumber, coverDataUrl);
     const wrote = await writeToClipboard(tsv);
 
     if (!wrote) {

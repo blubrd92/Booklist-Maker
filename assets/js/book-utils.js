@@ -253,11 +253,16 @@
      *    [2], [3] as title, author, callNumber, coverUrl. Cells
      *    beyond [3] are ignored.
      *  - The coverUrl column is OPTIONAL and ignored unless the cell
-     *    parses as an http: or https: URL. Anything else (data:,
-     *    javascript:, malformed, or empty) becomes empty string. This
-     *    is the channel the Booklister Helper browser extension uses
-     *    to pass through the BiblioCommons cover image; users pasting
-     *    plain spreadsheet content with 3 columns are unaffected.
+     *    parses as an http(s) URL or a `data:image/*` URL. The
+     *    Booklister Helper browser extension fetches the cover from
+     *    BiblioCommons' provider and emits a base64-encoded
+     *    `data:image/jpeg;base64,...` URL by default, so saved booklists
+     *    remain self-contained even if the cover provider's URLs change
+     *    or expire. Plain http(s) URLs are also accepted for users who
+     *    want hotlinked covers in their pastes. Anything else
+     *    (data:text/html, javascript:, file:, malformed) becomes empty
+     *    string. Users pasting plain spreadsheet content with 3 columns
+     *    are unaffected.
      *  - Empty cells become empty strings; the caller decides which
      *    rows to keep (e.g. require title + author).
      *  - Quoted cells are NOT unwrapped — Excel only quotes when a
@@ -311,15 +316,19 @@
         : dataLines.length;
       const sliced = dataLines.slice(0, max);
 
-      // Only accept http: / https: URLs in the optional coverUrl
-      // column. data:, javascript:, file:, and malformed strings get
-      // dropped. This is the safety boundary for letting an external
-      // paste become an <img> src in the tool.
+      // Accept http: / https: URLs (raw hotlinks) and data:image/*
+      // URLs (base64-embedded image bytes — what the Booklister Helper
+      // browser extension produces by default, so .booklist files stay
+      // self-contained without runtime dependency on the cover provider).
+      // Reject everything else: data:text/html, data:application/...,
+      // javascript:, file:, malformed strings — these would either be
+      // unsafe or render as broken images.
       function safeCoverUrl(raw) {
         const v = (raw || '').trim();
         if (!v) return '';
-        if (!/^https?:\/\//i.test(v)) return '';
-        return v;
+        if (/^https?:\/\//i.test(v)) return v;
+        if (/^data:image\//i.test(v)) return v;
+        return '';
       }
 
       const rows = sliced.map(function(line) {
