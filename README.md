@@ -20,6 +20,7 @@ Live at **[booklister.org](https://booklister.org)**.
 - **Local-first** — autosaves to IndexedDB; full state can also be exported to a `.booklist` file and re-loaded later
 - **Guided tour** — a built-in walkthrough narrated by an animated cat mascot named Folio
 - **Branded library instances** — opt-in subdomains with sign-in, persistent per-library defaults, and an admin console for staff management
+- **Browser extension companion** ([`extension/`](./extension/)) — captures book records from BiblioCommons-powered library catalogs and copies them as TSV for one-paste import into Booklister's Quick Add → Spreadsheet tab
 
 ## Quick start
 
@@ -62,6 +63,7 @@ assets/
     auth.js                 ES module — login modal for gated instances
     preview-helper.js       Cloudflare Pages preview-only mode-picker chip
 admin/                      Separate admin console app at admin.booklister.org
+extension/                  Browser extension (MV3) — BiblioCommons → Booklister
 tests/                      Vitest suites for BookUtils + CONFIG
 firestore.rules             Firestore security rules (deployed manually)
 CLAUDE.md                   Detailed architecture + contribution guide

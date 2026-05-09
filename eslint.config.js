@@ -110,6 +110,42 @@ export default [
     },
   },
   {
+    // Browser extension (extension/). MV3 service worker + content
+    // script + options page. Plain JS, sourceType "script" because we
+    // don't use ES module imports inside the extension files (each
+    // file runs in its own MV3 context — service worker, isolated
+    // content world, options page).
+    files: ["extension/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "script",
+      globals: {
+        // Browser globals available in content scripts + options page
+        window: "readonly",
+        document: "readonly",
+        navigator: "readonly",
+        console: "readonly",
+        location: "readonly",
+        fetch: "readonly",
+        URL: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        requestAnimationFrame: "readonly",
+        // Chrome extension API
+        chrome: "readonly",
+      },
+    },
+    rules: {
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "no-undef": "error",
+      "no-redeclare": "error",
+      "no-empty": "warn",
+      "eqeqeq": ["warn", "smart"],
+      "no-var": "warn",
+      "prefer-const": ["warn", { destructuring: "all" }],
+    },
+  },
+  {
     ignores: ["node_modules/", "eslint.config.js", "vitest.config.js", "tests/"],
   },
 ];

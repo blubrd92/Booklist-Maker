@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Booklister Helper — Options</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 14px;
+      color: #222;
+      padding: 16px 20px;
+      min-width: 360px;
+      max-width: 480px;
+      line-height: 1.5;
+    }
+    h1 {
+      font-size: 16px;
+      margin: 0 0 12px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .help {
+      font-size: 12px;
+      color: #666;
+      margin: 6px 0 14px;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 12px;
+    }
+    button {
+      padding: 8px 14px;
+      font-size: 14px;
+      border: 1px solid #2e7d32;
+      background: #2e7d32;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover { background: #266a2a; }
+    .status {
+      font-size: 12px;
+      color: #2e7d32;
+      min-height: 16px;
+    }
+    .section {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid #eee;
+      font-size: 12px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Booklister Helper</h1>
+
+  <label for="preferred-branch">Preferred branch (optional)</label>
+  <input
+    id="preferred-branch"
+    type="text"
+    placeholder="e.g. San Rafael Downtown"
+    autocomplete="off"
+  />
+  <div class="help">
+    Case-insensitive substring of your branch name as it appears in the
+    Availability table (or the branch code, like <code>SR</code>). When
+    set, the extension picks that branch's call number when capturing a
+    book. Leave blank to use BiblioCommons' own "local branch" detection
+    (works automatically when you're signed in or browsing from your
+    library's IP range).
+  </div>
+
+  <div class="row">
+    <button id="save">Save</button>
+    <span id="status" class="status" role="status"></span>
+  </div>
+
+  <div class="section">
+    Booklister Helper captures the book record from the page you're
+    looking at. It does not collect or transmit any data outside your
+    browser; the only network call it makes is the same Availability-by-
+    location request your library's catalog already makes when you click
+    that button.
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Web-based application for creating, customizing, and exporting printable booklists",
   "scripts": {
-    "lint": "eslint assets/js/",
+    "lint": "eslint assets/js/ extension/",
     "test": "vitest run",
     "test:watch": "vitest"
   },

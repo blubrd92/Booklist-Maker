@@ -86,14 +86,30 @@ admin/                          Separate admin console app served at
   admin.js                      Admin console ES module: Google + email sign-in,
                                 libraries CRUD, memberships management, invite-by-
                                 email flow, promote/demote buttons
+extension/                      Browser extension (Manifest V3) — captures book
+                                records from BiblioCommons library catalogs and
+                                copies them as TSV for paste into Booklister's
+                                Quick Add Spreadsheet tab. Standalone codebase;
+                                shares nothing with the main tool except brand.
+  manifest.json                 MV3 manifest, host_permissions scoped to
+                                *.bibliocommons.com + gateway.bibliocommons.com
+  content.js                    Runs on /v2/record/ pages. Reads the SSR JSON
+                                state blob, fetches the holdings API, picks a
+                                call number for the user's preferred branch,
+                                writes a TSV row to the clipboard
+  background.js                 Service worker. Toolbar click → sendMessage to
+                                content script. Flashes a success/error badge.
+  options/options.html|.js      Single-field options page: preferred-branch
+                                substring (optional). Stored in chrome.storage.sync
 tests/
   setup.js                      Loads config.js + book-utils.js into jsdom via eval
   book-utils.test.js            Unit tests for all BookUtils functions
   config.test.js                Unit tests for CONFIG constants
   create-blank-book.test.js     Unit tests for the createBlankBook factory
-eslint.config.js                Two blocks: ES2022 sourceType "script" for the
+eslint.config.js                Three blocks: ES2022 sourceType "script" for the
                                 IIFE files, ES2022 sourceType "module" for the
-                                Firebase/admin module files
+                                Firebase/admin module files, sourceType "script"
+                                with chrome global for the extension/ files
 vitest.config.js                jsdom environment
 ```
 
@@ -403,6 +419,42 @@ Read rules: own doc, super-admin, or library admin of the same libraryId. Write 
 **Field whitelist** is enforced by `validMembershipFields()` in `firestore.rules`: only `libraryId`, `role`, and `email` are allowed. Random extra fields are rejected.
 
 **Single-library-per-user constraint**: each user has exactly one memberships doc (keyed by UID). To grant access to two libraries, you currently need two separate Firebase Auth accounts. This is a deliberate starting constraint (see "Forward-Looking Notes" below).
+
+## Browser Extension (`extension/`)
+
+Manifest V3 browser extension that captures a book record from a BiblioCommons library catalog page and copies it as a TSV row to the clipboard, ready for paste into Booklister's Quick Add → Spreadsheet tab. Lives at `extension/`; ships separately from the main tool (load-unpacked for development; eventually publish to Chrome Web Store + Firefox Add-ons + Edge Add-ons).
+
+**Hard scope**: BiblioCommons-powered catalogs only (`*.bibliocommons.com`). The extension makes no attempt to be a generic catalog-scraper. Other catalog systems (Aspen Discovery, Vega, Polaris LEAP, Encore, Sierra, etc.) are out of scope — adding them would be a separate extension or a separate adapter file.
+
+**File layout**:
+
+- `manifest.json` — MV3, `host_permissions` scoped to `*.bibliocommons.com` + `gateway.bibliocommons.com`. `content_scripts.matches` is `*://*.bibliocommons.com/v2/record/*` (only book record pages).
+- `content.js` — runs on bib pages. Wires a `chrome.runtime.onMessage` listener for `'capture-bib'`. On capture: reads the SSR JSON state blob (`<script type="application/json" data-iso-key="_0">`), pulls title / subtitle / first author / fallback call number from `entities.catalogBibs.<bibId>.brief` and `.fields`, then fetches the holdings API for branch-specific resolution.
+- `background.js` — service worker. Listens for `chrome.action.onClicked` (toolbar icon). Sends `'capture-bib'` to the active tab's content script and flashes a green ✓ / red X badge on the icon based on the response.
+- `options/options.html` + `options.js` — single-field page for "Preferred branch" substring. Stored in `chrome.storage.sync` under key `preferredBranch` (empty string by default). Settings sync across Chrome installs when the user is signed into Chrome.
+
+**Why the fetch lives in the content script, not the service worker**: BiblioCommons' gateway API (`https://gateway.bibliocommons.com/v2/libraries/<lib>/bibs/<bibId>/availability`) responds with `access-control-allow-origin: https://<lib>.bibliocommons.com`. A `fetch` from the service worker carries the `chrome-extension://<id>` origin and gets CORS-rejected. The content script inherits the page's origin, so its fetch is accepted. This is the architectural reason `content.js` does the heavy lifting and `background.js` is a thin click → message forwarder.
+
+**Call-number selection logic** (in `content.js`'s `pickItem`):
+
+1. If user set a `preferredBranch` substring, filter items whose `branchName` (or `branchCode`) contains it (case-insensitive).
+2. Otherwise filter to items where the API marks `local: true` (BiblioCommons' own "this is your branch" signal, derived from logged-in account / IP).
+3. If either filter yields nothing, fall through to all items.
+4. Within the candidate list, prefer `availability.statusType === 'AVAILABLE'` over unavailable, then take the first.
+5. If the holdings API call fails entirely, fall back to the SSR state's `CALLCLASS / CALLNO_LOCAL[0]`.
+
+**TSV output format**: `title<TAB>author<TAB>callNumber\n`. Title combines `brief.title` + `: ` + `brief.subTitle` when subtitle is present (so the post-colon word triggers Booklister's subtitle-capitalization rule). Author goes through `cleanAuthor()` which strips trailing lifetime-date suffixes (`"Styron, William, 1925-2006"` → `"Styron, William"`) so Booklister's `flipAuthorName` does the right thing on add. Embedded tabs / newlines in any field are collapsed to spaces.
+
+**Privacy posture**: zero analytics, no remote-loaded code, no data sent anywhere outside the user's browser. The only network call is the same Availability-by-location request the BiblioCommons page itself makes when the user clicks that button. Documented in `extension/README.md`.
+
+**Dependency on BiblioCommons internals**: the extension reads a private Redux state shape and a private gateway API. Both are stable across the consortiums I tested (MARINet + Sonoma County, both running `nerf07 9.35.x`) but BiblioCommons can change them on a release. Maintenance pattern: when something breaks, fetch a new bib page + a new availability response, diff against the test fixtures, update selectors / paths.
+
+**What it does NOT do (and the reasons)**:
+
+- No multi-select on search results / list pages. Planned for v2; the data is sparser on those pages (no call numbers) which makes the v1 single-record flow more useful per click.
+- No automatic open of "Availability by location" overlay. We bypass that entirely by calling the API directly.
+- No write back to Booklister. The TSV-to-clipboard handoff means the main tool stays Firebase-free and unmodified by the extension. Eventually a postMessage path could be added, but it's not worth the cross-cutting complexity for v1.
+- No support for browsers other than Chromium-based + Firefox. Safari needs Xcode-based packaging; deferred until there's demonstrated demand.
 
 ## Static Content Pages
 
