@@ -5386,6 +5386,12 @@ const BooklistApp = (function() {
       const title = useTitleCase ? BookUtils.toTitleCase(row.title) : row.title;
       const author = BookUtils.flipAuthorName(row.author);
       const callNumber = row.callNumber || CONFIG.PLACEHOLDERS.callNumber;
+      // row.coverUrl is set by the Booklister Helper browser extension
+      // (which emits a 4-column TSV with the BiblioCommons cover URL).
+      // Plain spreadsheet pastes leave it empty, in which case we fall
+      // back to the cover-pending placeholder. The URL is already
+      // sanitized to http/https by parseQuickAddTsv.
+      const coverUrl = row.coverUrl || CONFIG.PLACEHOLDER_COVER_URL;
       const include = starred < CONFIG.MIN_COVERS_FOR_COLLAGE;
       if (include) starred++;
 
@@ -5399,7 +5405,7 @@ const BooklistApp = (function() {
         description: CONFIG.PLACEHOLDERS.description,
         cover_ids: [],
         currentCoverIndex: 0,
-        customCoverData: CONFIG.PLACEHOLDER_COVER_URL,
+        customCoverData: coverUrl,
         includeInCollage: include,
       };
     }

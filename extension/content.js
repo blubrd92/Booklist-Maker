@@ -90,9 +90,30 @@
   }
 
   /**
+   * Cover URL from the bib's brief.coverImage. BiblioCommons stores
+   * three sizes (small/medium/large), all served from Syndetics with
+   * the parent library's Syndetics client param. We take the largest
+   * available because Booklister exports at 600 DPI; the smaller sizes
+   * pixelate visibly when scaled up for print.
+   *
+   * The URL is sanity-checked to be http: or https: — defense in depth
+   * against the parser, which also rejects non-http schemes server-
+   * side at parseQuickAddTsv. Returns empty string if no cover.
+   */
+  function extractCoverUrl(brief) {
+    const ci = brief?.coverImage;
+    if (!ci || typeof ci !== 'object') return '';
+    const candidate = ci.large || ci.medium || ci.small || '';
+    if (!candidate || typeof candidate !== 'string') return '';
+    if (!/^https?:\/\//i.test(candidate.trim())) return '';
+    return candidate.trim();
+  }
+
+  /**
    * Pull the bib's brief metadata from the SSR state. Returns
-   * { title, subTitle, author, fallbackCallNumber } or null if the
-   * state doesn't have this bib (which would be a structural surprise).
+   * { title, subTitle, author, fallbackCallNumber, coverUrl } or null
+   * if the state doesn't have this bib (which would be a structural
+   * surprise).
    */
   function extractBibBrief(state, bibId) {
     const bib = state?.entities?.catalogBibs?.[bibId];
@@ -125,6 +146,7 @@
       subTitle: brief.subTitle || '',
       author: cleanAuthor(authorRaw),
       fallbackCallNumber,
+      coverUrl: extractCoverUrl(brief),
     };
   }
 
@@ -224,12 +246,16 @@
 
   /**
    * Build a single TSV row matching parseQuickAddTsv's expected columns
-   * in Booklister: title <tab> author <tab> callNumber. Strip embedded
-   * tabs/newlines from each field so the row stays single-line.
+   * in Booklister: title <TAB> author <TAB> callNumber <TAB> coverUrl.
+   * The 4th column is the BiblioCommons cover image URL, which
+   * Booklister stores into customCoverData on add. Empty coverUrl is
+   * fine — Booklister falls back to the placeholder cover in that case.
+   * Strip embedded tabs/newlines from each field so the row stays
+   * single-line.
    */
-  function buildTsvRow(title, author, callNumber) {
+  function buildTsvRow(title, author, callNumber, coverUrl) {
     const clean = (s) => String(s || '').replace(/[\t\r\n]+/g, ' ').trim();
-    return `${clean(title)}\t${clean(author)}\t${clean(callNumber)}`;
+    return `${clean(title)}\t${clean(author)}\t${clean(callNumber)}\t${clean(coverUrl)}`;
   }
 
   /**
@@ -335,7 +361,7 @@
     }
 
     const fullTitle = buildTitle(brief.title, brief.subTitle);
-    const tsv = buildTsvRow(fullTitle, brief.author, callNumber);
+    const tsv = buildTsvRow(fullTitle, brief.author, callNumber, brief.coverUrl);
     const wrote = await writeToClipboard(tsv);
 
     if (!wrote) {

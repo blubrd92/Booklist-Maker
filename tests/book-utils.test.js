@@ -741,7 +741,7 @@ describe('BookUtils.parseQuickAddTsv', () => {
   it('parses a single row with all three columns', () => {
     const result = parse('Mort\tPratchett, Terry\tPR6066');
     expect(result.rows).toEqual([
-      { title: 'Mort', author: 'Pratchett, Terry', callNumber: 'PR6066' },
+      { title: 'Mort', author: 'Pratchett, Terry', callNumber: 'PR6066', coverUrl: '' },
     ]);
     expect(result.headerSkipped).toBe(false);
     expect(result.truncated).toBe(false);
@@ -799,12 +799,12 @@ describe('BookUtils.parseQuickAddTsv', () => {
 
   it('handles single-cell rows', () => {
     const result = parse('Just a title');
-    expect(result.rows[0]).toEqual({ title: 'Just a title', author: '', callNumber: '' });
+    expect(result.rows[0]).toEqual({ title: 'Just a title', author: '', callNumber: '', coverUrl: '' });
   });
 
   it('trims leading/trailing whitespace from each cell', () => {
     const result = parse('  Mort  \t  Pratchett  \t  PR1  ');
-    expect(result.rows[0]).toEqual({ title: 'Mort', author: 'Pratchett', callNumber: 'PR1' });
+    expect(result.rows[0]).toEqual({ title: 'Mort', author: 'Pratchett', callNumber: 'PR1', coverUrl: '' });
   });
 
   it('handles \\r\\n line endings (Windows / Excel paste)', () => {
@@ -829,9 +829,11 @@ describe('BookUtils.parseQuickAddTsv', () => {
     expect(result.rows[0].title).toBe('Mort');
   });
 
-  it('ignores cells beyond the first 3', () => {
+  it('ignores cells beyond the first 4 (cell[3] is the optional coverUrl)', () => {
+    // "extra" in cell[3] is not an http(s) URL, so coverUrl drops to ''.
+    // Cell[4] ("more") is dropped entirely.
     const result = parse('Mort\tPratchett\tPR1\textra\tmore');
-    expect(result.rows[0]).toEqual({ title: 'Mort', author: 'Pratchett', callNumber: 'PR1' });
+    expect(result.rows[0]).toEqual({ title: 'Mort', author: 'Pratchett', callNumber: 'PR1', coverUrl: '' });
   });
 
   it('normalizes non-breaking space (U+00A0) to regular space', () => {
@@ -860,7 +862,7 @@ describe('BookUtils.parseQuickAddTsv', () => {
 
   it('row with empty title cell is preserved as-is (caller decides to drop)', () => {
     const result = parse('\tJoe Smith\tFIC SMI');
-    expect(result.rows[0]).toEqual({ title: '', author: 'Joe Smith', callNumber: 'FIC SMI' });
+    expect(result.rows[0]).toEqual({ title: '', author: 'Joe Smith', callNumber: 'FIC SMI', coverUrl: '' });
   });
 
   it('quoted-cell quirk: "Hello\\tWorld"\\tAuthor splits naively (documented limitation)', () => {
@@ -870,6 +872,56 @@ describe('BookUtils.parseQuickAddTsv', () => {
     expect(result.rows[0].title).toBe('"Hello');
     expect(result.rows[0].author).toBe('World"');
     expect(result.rows[0].callNumber).toBe('Author');
+  });
+
+  // ---- Optional 4th column: coverUrl (Booklister Helper extension) ----
+
+  it('captures an http URL in the 4th column as coverUrl', () => {
+    const result = parse('Mort\tPratchett\tPR1\thttp://example.org/c.jpg');
+    expect(result.rows[0].coverUrl).toBe('http://example.org/c.jpg');
+  });
+
+  it('captures an https URL in the 4th column as coverUrl', () => {
+    const url = 'https://www.syndetics.com/index.aspx?isbn=9780679643524&issn=/LC.JPG&client=mnetp&type=xw12';
+    const result = parse(`Darkness\tStyron\tBio Styron\t${url}`);
+    expect(result.rows[0].coverUrl).toBe(url);
+  });
+
+  it('drops a 4th-column value that is not http(s)', () => {
+    expect(parse('A\tB\tC\tdata:image/png;base64,iVBOR').rows[0].coverUrl).toBe('');
+    expect(parse('A\tB\tC\tjavascript:alert(1)').rows[0].coverUrl).toBe('');
+    expect(parse('A\tB\tC\tfile:///etc/passwd').rows[0].coverUrl).toBe('');
+    expect(parse('A\tB\tC\tnotaurl').rows[0].coverUrl).toBe('');
+    expect(parse('A\tB\tC\t').rows[0].coverUrl).toBe('');
+  });
+
+  it('coverUrl URL scheme check is case-insensitive', () => {
+    expect(parse('A\tB\tC\tHTTP://Example.org/x.jpg').rows[0].coverUrl).toBe('HTTP://Example.org/x.jpg');
+    expect(parse('A\tB\tC\tHTTPS://Example.org/x.jpg').rows[0].coverUrl).toBe('HTTPS://Example.org/x.jpg');
+  });
+
+  it('trims surrounding whitespace from the coverUrl cell', () => {
+    const result = parse('A\tB\tC\t   https://example.org/x.jpg   ');
+    expect(result.rows[0].coverUrl).toBe('https://example.org/x.jpg');
+  });
+
+  it('detects header via 4th cell "Cover URL"', () => {
+    const result = parse('Foo\tBar\tBaz\tCover URL\nMort\tPratchett\tPR1\thttps://e.org/c.jpg');
+    expect(result.headerSkipped).toBe(true);
+    expect(result.rows.length).toBe(1);
+    expect(result.rows[0].title).toBe('Mort');
+    expect(result.rows[0].coverUrl).toBe('https://e.org/c.jpg');
+  });
+
+  it('detects header via 4th cell "image" and case variants', () => {
+    expect(parse('A\tB\tC\tImage\nM\tP\tC\thttps://e.org/x').headerSkipped).toBe(true);
+    expect(parse('A\tB\tC\tIMAGE URL\nM\tP\tC\thttps://e.org/x').headerSkipped).toBe(true);
+    expect(parse('A\tB\tC\tcover\nM\tP\tC\thttps://e.org/x').headerSkipped).toBe(true);
+  });
+
+  it('rows from a plain 3-column paste still have coverUrl: "" (backward-compat)', () => {
+    const result = parse('Mort\tPratchett\tPR1\nGuards\tPratchett\tPR2');
+    expect(result.rows.every((r) => r.coverUrl === '')).toBe(true);
   });
 });
 
