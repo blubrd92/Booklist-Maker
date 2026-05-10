@@ -41,7 +41,7 @@ function renderRow(book) {
   const thumb = document.createElement('img');
   thumb.className = 'thumb';
   thumb.alt = '';
-  // Cover URL is the raw http(s) Syndetics URL — popup can load it
+  // Cover URL is the raw http(s) Syndetics URL; popup can load it
   // directly via <img src> without needing the service worker proxy
   // (img tags don't require CORS for display).
   if (book.coverUrl) thumb.src = book.coverUrl;

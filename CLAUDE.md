@@ -110,8 +110,12 @@ extension/                      Browser extension (Manifest V3) — captures boo
                                 proxy (cover fetches need host_permissions to
                                 bypass CORS). Maintains the persistent toolbar
                                 badge with the accumulated list count, refreshed
-                                on chrome.storage.onChanged. Right-click context
-                                menu item "Clear accumulated list".
+                                on chrome.storage.onChanged. Two right-click
+                                context menu items: "Clear accumulated list"
+                                (on the toolbar action) and "Capture for
+                                Booklister" (on the page, scoped via
+                                documentUrlPatterns to bibliocommons record
+                                + list URLs only).
   popup/popup.html|.js          Selection UI for list pages. Loads when the
                                 toolbar icon is clicked on /v2/list/ URLs.
                                 Asks the content script for the list's bibs,

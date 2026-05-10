@@ -1,5 +1,5 @@
 /**
- * Booklister Helper — background service worker
+ * Booklister Helper background service worker
  *
  * Two responsibilities:
  *
@@ -28,7 +28,7 @@ const LIST_PATH_RE = /\/v2\/list\//;
 
 /**
  * Whether the URL is a BiblioCommons page the extension can capture
- * from — either a single book record or a curated list page.
+ * from: either a single book record or a curated list page.
  */
 function isBibliocommonsCapturablePage(url) {
   if (!url) return false;
@@ -108,10 +108,17 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 // ---------------------------------------------------------------------------
-// Right-click context menu: "Clear accumulated list"
+// Right-click context menus
 // ---------------------------------------------------------------------------
 
+// Action context: appears when right-clicking the toolbar icon.
 const MENU_ID_CLEAR_LIST = 'booklister-helper-clear-list';
+
+// Page context: appears when right-clicking inside a BiblioCommons
+// record or list page. documentUrlPatterns scopes the visibility so
+// the item shows only on those URLs (mirroring how the toolbar icon
+// is only useful on those pages).
+const MENU_ID_CAPTURE_PAGE = 'booklister-helper-capture-page';
 
 function ensureContextMenu() {
   try {
@@ -121,16 +128,58 @@ function ensureContextMenu() {
         title: 'Clear accumulated list',
         contexts: ['action'],
       });
+      chrome.contextMenus.create({
+        id: MENU_ID_CAPTURE_PAGE,
+        title: 'Capture for Booklister',
+        contexts: ['page'],
+        documentUrlPatterns: [
+          '*://*.bibliocommons.com/v2/record/*',
+          '*://*.bibliocommons.com/v2/list/*',
+        ],
+      });
     });
   } catch (err) {
     console.warn('[Booklister Helper] context menu setup failed:', err);
   }
 }
 
-chrome.contextMenus.onClicked.addListener((info) => {
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === MENU_ID_CLEAR_LIST) {
     chrome.storage.local.set({ accumulatedRows: [] }).catch(() => {});
-    // Badge will refresh via storage.onChanged.
+    return;
+  }
+
+  if (info.menuItemId === MENU_ID_CAPTURE_PAGE) {
+    if (!tab || !tab.id) return;
+    // On list pages, prefer to open the popup so the user gets the
+    // selection UI (same as a left-click). On record pages (and as
+    // a fallback if openPopup isn't supported in this Chrome
+    // version), dispatch the capture message directly.
+    const looksLikeListPage = tab.url
+      ? (() => { try { return LIST_PATH_RE.test(new URL(tab.url).pathname); } catch { return false; } })()
+      : false;
+    if (looksLikeListPage && chrome.action.openPopup) {
+      try {
+        await chrome.action.openPopup();
+        return;
+      } catch {
+        // openPopup not available or refused; fall through to direct
+        // capture (which on a list page will grab everything).
+      }
+    }
+    let response;
+    try {
+      response = await chrome.tabs.sendMessage(tab.id, { type: 'capture' });
+    } catch (err) {
+      console.warn('[Booklister Helper] no content script listening:', err);
+      await flashBadge(tab.id, '!', '#b00020');
+      return;
+    }
+    if (response && response.ok) {
+      await flashBadge(tab.id, '✓', '#2e7d32');
+    } else {
+      await flashBadge(tab.id, 'X', '#b00020');
+    }
   }
 });
 
@@ -142,8 +191,8 @@ chrome.contextMenus.onClicked.addListener((info) => {
  * On /v2/list/ pages, the toolbar icon opens a popup that lets the
  * user select which books to capture (most curated lists are 30+
  * books; users typically want a specific subset of ~13 for a
- * Booklister booklist). On every other URL — including /v2/record/
- * pages — we leave the popup unset so chrome.action.onClicked fires
+ * Booklister booklist). On every other URL (including /v2/record/
+ * pages) we leave the popup unset so chrome.action.onClicked fires
  * and the existing single-record / accumulate flow runs unchanged.
  *
  * setPopup is per-tab, so we wire it up via tabs.onUpdated and run
@@ -157,7 +206,7 @@ function configurePopupForTab(tabId, url) {
       popup = 'popup/popup.html';
     }
   } catch {
-    // Invalid URL — leave popup empty so onClicked still fires.
+    // Invalid URL. leave popup empty so onClicked still fires.
   }
   chrome.action.setPopup({ tabId, popup }).catch(() => {});
 }
@@ -216,7 +265,7 @@ chrome.action.onClicked.addListener(async (tab) => {
 /**
  * The content script can't reliably fetch cover images directly: cover
  * providers like Syndetics are cross-origin to the BiblioCommons page,
- * and they don't always return CORS headers — a content-script fetch
+ * and they don't always return CORS headers, so a content-script fetch
  * would be blocked. Fetching here in the service worker bypasses CORS
  * because manifest host_permissions grant the extension privileged
  * access to the listed origins (`*.syndetics.com`, etc.).

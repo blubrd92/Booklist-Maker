@@ -1,5 +1,5 @@
 /**
- * Booklister Helper — content script
+ * Booklister Helper content script
  *
  * Runs on BiblioCommons record pages (*.bibliocommons.com/v2/record/*)
  * and list pages (*.bibliocommons.com/v2/list/*). On a 'capture'
@@ -19,7 +19,7 @@
  *
  * List-page mode (URL = /v2/list/<...>): captures every book on the
  * curated list in display order, in parallel. Operates independently
- * of Accumulate mode — the list-page TSV always overwrites the
+ * of Accumulate mode; the list-page TSV always overwrites the
  * clipboard rather than appending. Booklister's Quick Add Spreadsheet
  * handler already truncates over-limit pastes with a partial-success
  * notification, so a 50-book list pastes the first 13-15 (per current
@@ -28,7 +28,7 @@
  * The gateway and Syndetics fetches must run in the content script's
  * page context (not the service worker) for the gateway, but the
  * cover fetch is delegated to the service worker because Syndetics
- * doesn't return CORS headers — the service worker has host_permissions
+ * doesn't return CORS headers; the service worker has host_permissions
  * for *.syndetics.com which lets it read the response body regardless.
  */
 
@@ -81,9 +81,9 @@
    *   "Lawson, Jenny, 1973-"           → "Lawson, Jenny"
    *   "Hickey, Jon, 1981-,"            → "Hickey, Jon"
    *   "Smith, John, 1981 (musician)"   → "Smith, John, 1981 (musician)"
-   *                                       — left alone; date isn't at end
+   *                                       (left alone; date isn't at end)
    *   "Whiteside, Stephen P. H.,"      → "Whiteside, Stephen P. H."
-   *                                       — strips just the trailing comma
+   *                                       (strips just the trailing comma)
    *   "Smith, John"                    → "Smith, John"
    *   "Plain Name"                     → "Plain Name"
    *
@@ -128,7 +128,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Bib extraction — produces a normalized brief shape regardless of
+  // Bib extraction: produces a normalized brief shape regardless of
   // whether we're on a record page or a list page. Normalized shape:
   //   { bibId, title, subTitle, author, coverUrl, fallbackCallNumber }
   // ---------------------------------------------------------------------------
@@ -186,7 +186,7 @@
    * preserves the curator's intended order).
    *
    * Returns an array of briefs. Books missing from bibsByMetadataId
-   * (rare — happens when a bib was deleted from the catalog after the
+   * (rare; happens when a bib was deleted from the catalog after the
    * list was created) are silently skipped.
    */
   function extractListBibs(state) {
@@ -463,7 +463,7 @@
       existing.push(row);
       await writeAccumulatedRows(existing);
       tsv = existing.join('\n');
-      toastMessage = `Added — ${existing.length} ${existing.length === 1 ? 'book' : 'books'} in list. Paste into Booklister Quick Add → Spreadsheet.`;
+      toastMessage = `Added (${existing.length} ${existing.length === 1 ? 'book' : 'books'} in list). Paste into Booklister Quick Add → Spreadsheet.`;
     } else {
       tsv = row;
       toastMessage = 'Copied! Paste into Booklister Quick Add → Spreadsheet tab.';
@@ -494,9 +494,8 @@
 
     // Optional filter from the popup's selection UI. If provided, keep
     // only the bibs the user checked, in the order they appear on the
-    // list page (we use the page-order array, not the selection order
-    // — the user's intent is "these N from the list" not "in the order
-    // I clicked them").
+    // list page (we use the page-order array because the user's intent
+    // is "these N from the list" not "in the order I clicked them").
     if (Array.isArray(bibIdFilter) && bibIdFilter.length > 0) {
       const want = new Set(bibIdFilter);
       bibs = bibs.filter((b) => want.has(b.bibId));
@@ -506,7 +505,7 @@
       }
     }
 
-    showToast(`Capturing ${bibs.length} books — this may take a few seconds...`, 'info');
+    showToast(`Capturing ${bibs.length} books, this may take a few seconds…`, 'info');
 
     const pref = await readPreferredBranch();
     const rowPromises = bibs.map((b) => captureOneBibToTsvRow(libraryDomain, b, pref));
@@ -520,7 +519,7 @@
     }
 
     const noun = rows.length === 1 ? 'book' : 'books';
-    showToast(`Copied ${rows.length} ${noun} — paste into Booklister Quick Add → Spreadsheet tab. Booklister will fit as many as your slots allow.`, 'success');
+    showToast(`Copied ${rows.length} ${noun}. Paste into Booklister Quick Add → Spreadsheet tab. Booklister will fit as many as your slots allow.`, 'success');
     return { ok: true };
   }
 
@@ -533,7 +532,7 @@
    * Return shallow briefs for the popup's selection UI. Skips the
    * per-book holdings + cover fetches (those run later, only for the
    * books the user actually selects). Cover URL is the raw Syndetics
-   * URL — popup's <img> tag loads it directly without the SW proxy
+   * URL; popup's <img> tag loads it directly without the SW proxy
    * (img tags don't need CORS for display).
    */
   function handleListPageBibs() {
@@ -571,7 +570,7 @@
       return false;
     }
     if (msg?.type === 'list-page-bibs') {
-      // Synchronous reply — no async work, just read the state blob.
+      // Synchronous reply: no async work, just read the state blob.
       sendResponse(handleListPageBibs());
       return false;
     }
