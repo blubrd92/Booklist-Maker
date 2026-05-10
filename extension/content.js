@@ -76,13 +76,42 @@
   /**
    * Strip BiblioCommons' "lifetime dates" suffix from author names so
    * Booklister's flipAuthorName handles the comma-flip correctly.
-   * "Styron, William, 1925-2006" → "Styron, William"
-   * "Lawson, Jenny, 1973-"      → "Lawson, Jenny"
-   * "Smith, John"               → "Smith, John" (unchanged)
+   *
+   *   "Styron, William, 1925-2006"     → "Styron, William"
+   *   "Lawson, Jenny, 1973-"           → "Lawson, Jenny"
+   *   "Hickey, Jon, 1981-,"            → "Hickey, Jon"
+   *   "Smith, John, 1981 (musician)"   → "Smith, John, 1981 (musician)"
+   *                                       — left alone; date isn't at end
+   *   "Whiteside, Stephen P. H.,"      → "Whiteside, Stephen P. H."
+   *                                       — strips just the trailing comma
+   *   "Smith, John"                    → "Smith, John"
+   *   "Plain Name"                     → "Plain Name"
+   *
+   * BiblioCommons emits dates in two contexts with subtly different
+   * shapes: catalogBibs.brief.creators[].fullName on /v2/record/ pages
+   * tends to be "Last, First, YYYY-YYYY" with no trailing comma, but
+   * list.bibsByMetadataId[].authors[] on /v2/list/ pages often adds a
+   * trailing comma (e.g. "Hickey, Jon, 1981-,"). The regex anchors
+   * with [,\s]* before $ to tolerate the trailing comma.
+   *
+   * Single-comma names go through Booklister's flipAuthorName on add;
+   * multi-comma names (after our cleanup) stay as-is to avoid mangling
+   * co-author lists.
    */
   function cleanAuthor(raw) {
     if (!raw) return '';
-    return raw.replace(/,\s*\d{3,4}-?\d{0,4}\s*$/, '').trim();
+    let s = String(raw).trim();
+    // 1. Trailing parenthesized date: " (1925-2006)" or " (1981-)".
+    //    LC catalog format; rare in BiblioCommons but cheap to handle.
+    s = s.replace(/\s*\(\d{3,4}-?\d{0,4}\)\s*$/, '');
+    // 2. Trailing comma + date range / open-ended date / solo year,
+    //    with optional trailing comma + whitespace afterward (the
+    //    list-page trailing-comma artifact).
+    s = s.replace(/,\s*\d{3,4}-?\d{0,4}[,\s]*$/, '');
+    // 3. Stray trailing comma / whitespace left over from BiblioCommons'
+    //    own formatting (e.g. "Whiteside, Stephen P. H.,").
+    s = s.replace(/[,\s]+$/, '');
+    return s;
   }
 
   /**
