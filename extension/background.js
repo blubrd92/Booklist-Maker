@@ -89,10 +89,14 @@ async function restorePersistentBadge() {
 
 // Service worker can be restarted at any time; restore badge state
 // on every startup so the count survives across SW lifetimes.
-chrome.runtime.onStartup.addListener(restorePersistentBadge);
+chrome.runtime.onStartup.addListener(() => {
+  restorePersistentBadge();
+  configurePopupForAllTabs();
+});
 chrome.runtime.onInstalled.addListener(() => {
   restorePersistentBadge();
   ensureContextMenu();
+  configurePopupForAllTabs();
 });
 
 // React to storage changes from content.js (which mutates accumulatedRows
@@ -127,6 +131,51 @@ chrome.contextMenus.onClicked.addListener((info) => {
   if (info.menuItemId === MENU_ID_CLEAR_LIST) {
     chrome.storage.local.set({ accumulatedRows: [] }).catch(() => {});
     // Badge will refresh via storage.onChanged.
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Per-tab popup configuration
+// ---------------------------------------------------------------------------
+
+/**
+ * On /v2/list/ pages, the toolbar icon opens a popup that lets the
+ * user select which books to capture (most curated lists are 30+
+ * books; users typically want a specific subset of ~13 for a
+ * Booklister booklist). On every other URL — including /v2/record/
+ * pages — we leave the popup unset so chrome.action.onClicked fires
+ * and the existing single-record / accumulate flow runs unchanged.
+ *
+ * setPopup is per-tab, so we wire it up via tabs.onUpdated and run
+ * a one-time sweep of existing tabs on install / startup.
+ */
+function configurePopupForTab(tabId, url) {
+  if (!url || !tabId) return;
+  let popup = '';
+  try {
+    if (LIST_PATH_RE.test(new URL(url).pathname)) {
+      popup = 'popup/popup.html';
+    }
+  } catch {
+    // Invalid URL — leave popup empty so onClicked still fires.
+  }
+  chrome.action.setPopup({ tabId, popup }).catch(() => {});
+}
+
+function configurePopupForAllTabs() {
+  chrome.tabs.query({}, (tabs) => {
+    for (const tab of tabs) {
+      if (tab.id && tab.url) configurePopupForTab(tab.id, tab.url);
+    }
+  });
+}
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  // changeInfo.url fires on SPA navigations (BiblioCommons IS an SPA);
+  // changeInfo.status === 'complete' covers initial loads. Either is
+  // a valid trigger for re-evaluating the popup setting.
+  if (changeInfo.url || changeInfo.status === 'complete') {
+    configurePopupForTab(tabId, tab.url);
   }
 });
 

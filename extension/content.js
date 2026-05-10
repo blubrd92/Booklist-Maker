@@ -449,7 +449,7 @@
     return { ok: true };
   }
 
-  async function handleListCapture() {
+  async function handleListCapture(bibIdFilter) {
     const libraryDomain = getLibraryDomain();
     if (!libraryDomain) {
       showToast("Couldn't identify the library from this URL.", 'error');
@@ -457,10 +457,24 @@
     }
 
     const state = readStateBlob();
-    const bibs = state ? extractListBibs(state) : [];
+    let bibs = state ? extractListBibs(state) : [];
     if (bibs.length === 0) {
       showToast('No books found on this list page.', 'error');
       return { ok: false, reason: 'empty-list' };
+    }
+
+    // Optional filter from the popup's selection UI. If provided, keep
+    // only the bibs the user checked, in the order they appear on the
+    // list page (we use the page-order array, not the selection order
+    // — the user's intent is "these N from the list" not "in the order
+    // I clicked them").
+    if (Array.isArray(bibIdFilter) && bibIdFilter.length > 0) {
+      const want = new Set(bibIdFilter);
+      bibs = bibs.filter((b) => want.has(b.bibId));
+      if (bibs.length === 0) {
+        showToast('No matching books found.', 'error');
+        return { ok: false, reason: 'no-matches' };
+      }
     }
 
     showToast(`Capturing ${bibs.length} books — this may take a few seconds...`, 'info');
@@ -486,12 +500,52 @@
     return handleSingleCapture();
   }
 
+  /**
+   * Return shallow briefs for the popup's selection UI. Skips the
+   * per-book holdings + cover fetches (those run later, only for the
+   * books the user actually selects). Cover URL is the raw Syndetics
+   * URL — popup's <img> tag loads it directly without the SW proxy
+   * (img tags don't need CORS for display).
+   */
+  function handleListPageBibs() {
+    const state = readStateBlob();
+    if (!state) return { ok: false, reason: 'no-state' };
+    const bibs = extractListBibs(state);
+    if (bibs.length === 0) return { ok: false, reason: 'empty-list' };
+    return {
+      ok: true,
+      bibs: bibs.map((b) => ({
+        bibId: b.bibId,
+        title: b.title,
+        subTitle: b.subTitle,
+        author: b.author,
+        callNumber: b.fallbackCallNumber,
+        coverUrl: b.coverUrl,
+      })),
+    };
+  }
+
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (msg?.type !== 'capture') return false;
-    handleCapture().then(sendResponse).catch((err) => {
-      console.error('[Booklister Helper] capture failed:', err);
-      sendResponse({ ok: false, reason: 'exception' });
-    });
-    return true; // keep the message channel open for the async response
+    if (msg?.type === 'capture') {
+      handleCapture().then(sendResponse).catch((err) => {
+        console.error('[Booklister Helper] capture failed:', err);
+        sendResponse({ ok: false, reason: 'exception' });
+      });
+      return true; // keep channel open for async response
+    }
+    if (msg?.type === 'capture-selected-bibs') {
+      // Popup → fire-and-forget. The popup window has already closed by
+      // the time we get here, so there's no sender to respond to.
+      handleListCapture(Array.isArray(msg.bibIds) ? msg.bibIds : []).catch((err) => {
+        console.error('[Booklister Helper] selected-capture failed:', err);
+      });
+      return false;
+    }
+    if (msg?.type === 'list-page-bibs') {
+      // Synchronous reply — no async work, just read the state blob.
+      sendResponse(handleListPageBibs());
+      return false;
+    }
+    return false;
   });
 })();

@@ -13,12 +13,15 @@ A small browser extension that captures a book record from a BiblioCommons libra
 3. The extension reads title, subtitle, author, and per-branch call number, plus fetches the cover image bytes.
 4. A single TSV row is copied to your clipboard. Paste into Booklister's Quick Add → Spreadsheet tab.
 
-### Whole curated list (one click)
+### Curated list with per-book selection
 
 1. Open any BiblioCommons list page (URL contains `/v2/list/`) — staff picks, themed reading lists, etc.
-2. Click the toolbar icon.
-3. The extension captures every book on the list in display order, fetching their per-branch call numbers and covers in parallel. Takes 5-10 seconds for a 16-book list.
-4. A multi-row TSV is copied to your clipboard. Paste into Booklister's Quick Add → Spreadsheet — Booklister fills as many slots as it has and tells you how many overflowed.
+2. Click the toolbar icon. A popup opens showing every book on the list with a checkbox, cover thumbnail, title, author, and call number.
+3. Pick the books you want. All books are checked by default. Use the **All / First 13 / None** buttons at the top of the popup for quick presets, or check/uncheck individual rows.
+4. Click **Capture N books**. The popup closes and the extension captures the selected books — fetching their per-branch call numbers and covers in parallel. Takes ~5-10 seconds for 13 books.
+5. A multi-row TSV is copied to your clipboard. Paste into Booklister's Quick Add → Spreadsheet tab.
+
+> **Why a popup with selection?** Most curated BiblioCommons lists run 20-50+ books, but a Booklister booklist has 13-15 slots. Pre-selecting the right subset on the BiblioCommons side saves you from picking and trimming inside Booklister later.
 
 ### Accumulate mode (running list of single-book picks)
 
