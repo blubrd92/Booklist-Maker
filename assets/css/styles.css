@@ -674,6 +674,15 @@ body.has-library-config .header-credit {
   border-radius: 3px;
   font-size: 0.85em;
 }
+.quick-add-extension-tip {
+  margin-top: -6px;
+  font-size: 0.8rem;
+  font-style: italic;
+  opacity: 0.85;
+}
+.quick-add-extension-tip a {
+  font-style: normal;
+}
 .quick-add-field {
   margin-bottom: 14px;
 }
