@@ -37,13 +37,13 @@
     <article class="content-article">
       <h1>Booklister Helper</h1>
 
-      <p>Booklister Helper is a small, free browser extension that captures books straight from your library's online catalog into Booklister. Open a book's page in your catalog, click the extension icon, and the title, author, call number, and cover image all land on your clipboard, ready to paste into Booklister's Quick Add. No retyping, no copy-paste juggling, no hunting for cover images.</p>
+      <p>Booklister Helper is a small, free browser extension for library catalogs powered by <strong>BiblioCommons</strong>. If your library is on a BiblioCommons catalog, the extension lets you capture books straight into Booklister: open a book's record page in your catalog, click the extension icon, and the title, author, call number, and cover image all land on your clipboard, ready to paste into Booklister's Quick Add. No retyping, no copy-paste juggling, no hunting for cover images.</p>
 
-      <h2>Does it work with my library's catalog?</h2>
+      <h2>How to tell if your library uses BiblioCommons</h2>
 
-      <p>Booklister Helper works with library catalogs powered by <strong>BiblioCommons</strong>, a software platform many North American public libraries use as the front-end of their catalog. The easiest way to tell whether yours uses it: open any book's record page on your library's catalog and look at the URL. If it contains <code>bibliocommons.com</code>, you're good to go.</p>
+      <p>BiblioCommons is a software platform many North American public libraries use as the front-end of their catalog. The easiest way to tell whether yours uses it: open any book's record page on your library's catalog and look at the URL. If it contains <code>bibliocommons.com</code>, you're good to go.</p>
 
-      <p>If your library is on a different catalog system, the extension won't work today. If there's enough interest in a specific platform, I may build a separate extension or adapter for it in the future. Drop a note from the <a href="contact.html">contact</a> page and let me know what your library uses.</p>
+      <p>If your library is on a different catalog system, drop a note from the <a href="contact.html">contact</a> page and let me know what your library uses. If there's enough interest in a specific platform, I may build a separate extension or adapter for it in the future.</p>
 
       <h2>Install</h2>
 
@@ -84,11 +84,13 @@
       <h3>Running list while you browse</h3>
       <p>If you'd rather collect books one at a time as you browse, turn on <strong>Accumulate single-book captures into a running list</strong> in the extension's options page. Then each toolbar click appends to a running list instead of overwriting the clipboard, and the toolbar badge shows how many books you've staged. Paste into Booklister whenever you have enough. Right-click the toolbar icon and pick <strong>Clear accumulated list</strong> to start over.</p>
 
-      <h2>Branch selection</h2>
+      <h2>Branch selection (consortium catalogs)</h2>
 
-      <p>Most library catalogs span a system with multiple branches, and the same book often has different call numbers at different branches. By default, the extension uses BiblioCommons's own "your local branch" detection, which works automatically when you're signed in to your library account or browsing from your library's IP range (so, on a work computer at the library, you don't have to do anything).</p>
+      <p>If your library shares a catalog with other libraries in a consortium, the same book often has different call numbers across the participating libraries, and the extension has to pick one. By default it uses BiblioCommons's own "your local branch" detection, which works automatically when you're signed in to your library account or browsing from your library's IP range — so on a work computer at the library, you usually don't have to do anything.</p>
 
       <p>If you'd rather pin a specific branch (useful for outreach booklists, school visits, or pop-up displays at a specific location), set the <strong>Preferred branch</strong> field in the extension's options to a substring of your branch name as it appears in the catalog's Availability table.</p>
+
+      <p>If your library runs its own standalone catalog with consistent call numbers, this section doesn't apply — the extension just uses the call number on the book's record page.</p>
 
       <h2>What the extension does not do</h2>
 
