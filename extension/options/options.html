@@ -69,6 +69,30 @@
     .saved-indicator.show {
       opacity: 1;
     }
+    .close-btn {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: color 0.12s, background 0.12s, border-color 0.12s;
+    }
+    .close-btn:hover {
+      color: var(--text);
+      background: var(--surface);
+    }
+    .close-btn:focus-visible {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px var(--blue-soft);
+    }
 
     /* Setting card */
     .setting {
@@ -249,6 +273,11 @@
       <div class="subtitle">Settings</div>
     </div>
     <span class="saved-indicator" id="saved" role="status" aria-live="polite">Saved</span>
+    <button class="close-btn" id="close-btn" type="button" aria-label="Close settings" title="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+        <path d="M18 6 6 18M6 6l12 12"/>
+      </svg>
+    </button>
   </div>
 
   <div class="setting">

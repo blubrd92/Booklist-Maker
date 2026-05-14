@@ -5,6 +5,7 @@ const accumulateToggle = document.getElementById('accumulate-mode');
 const accumulateCount = document.getElementById('accumulate-count');
 const clearBtn = document.getElementById('clear-list');
 const savedIndicator = document.getElementById('saved');
+const closeBtn = document.getElementById('close-btn');
 
 let savedFadeTimer;
 function flashSaved() {
@@ -76,6 +77,19 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && 'accumulatedRows' in changes) {
     refreshAccumulatedCount();
   }
+});
+
+// Close button and Escape both flush any pending branch save before
+// closing the window, so a value typed inside the last 400ms (still
+// within the input debounce window) isn't lost.
+async function closeWindow() {
+  clearTimeout(branchDebounceTimer);
+  await chrome.storage.sync.set({ preferredBranch: branchInput.value.trim() });
+  window.close();
+}
+closeBtn.addEventListener('click', closeWindow);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeWindow();
 });
 
 loadPrefs();

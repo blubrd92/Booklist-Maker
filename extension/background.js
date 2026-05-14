@@ -130,6 +130,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
  */
 async function openOptionsWindow() {
   const optionsUrl = chrome.runtime.getURL('options/options.html');
+  const WIDTH = 460;
+  const HEIGHT = 540;
   try {
     const wins = await chrome.windows.getAll({ populate: true });
     for (const win of wins) {
@@ -141,13 +143,28 @@ async function openOptionsWindow() {
         return;
       }
     }
-    await chrome.windows.create({
+
+    const create = {
       url: optionsUrl,
       type: 'popup',
-      width: 500,
-      height: 640,
+      width: WIDTH,
+      height: HEIGHT,
       focused: true,
-    });
+    };
+    // Place the window near the top-right of the active browser
+    // window, roughly where the toolbar popup anchors. chrome.windows
+    // can't truly anchor an arbitrary page to the toolbar icon the
+    // way action popups do, so this is the closest approximation.
+    try {
+      const cur = await chrome.windows.getCurrent();
+      if (cur && typeof cur.left === 'number' && typeof cur.width === 'number') {
+        create.left = Math.max(0, cur.left + cur.width - WIDTH - 16);
+        create.top = Math.max(0, (cur.top || 0) + 72);
+      }
+    } catch {
+      // No usable window bounds. let the OS position the window.
+    }
+    await chrome.windows.create(create);
   } catch (err) {
     console.warn('[Booklister Helper] openOptionsWindow failed:', err);
   }
