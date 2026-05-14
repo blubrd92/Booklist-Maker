@@ -3,10 +3,9 @@
   Booklister Helper icon (master source).
 
   Design: a clipboard with a single book cover inside it, where the book
-  carries the indigo + red horizontal bar signature of the Booklister
-  website. The clipboard metaphor signals "capture / copy" (the
-  extension's job); the inner book + red bar visually pairs the
-  extension with the main tool.
+  carries the two-tone indigo signature of the Booklister website. The
+  clipboard metaphor signals "capture / copy" (the extension's job); the
+  inner book + bar visually pairs the extension with the main tool.
 
   ViewBox 128x128 so the masters render cleanly at 128, 48, and 16
   without manual hinting. Render to PNG at:
@@ -17,10 +16,11 @@
 
   Colors mirror the Booklister website palette (assets/css/styles.css):
     #5c6bc0 = Booklister indigo (the primary-color token)
-    #3949ab = darker indigo (book spine accent)
-    #fb8c00 = warm orange accent (the warning-color token, used here
-              purely as the brand accent: it sits near indigo's
-              complement, so it pops without clashing)
+    #3949ab = darker indigo (book spine + the signature bar)
+
+  The mark is intentionally two-tone monochrome. A contrasting accent
+  color (it was red, then orange) clashed with the muted indigo, so the
+  bar now uses the same darker indigo as the spine for a cohesive look.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Booklister Helper icon">
   <!-- Clipboard body: white fill, thick indigo stroke so it survives at 48x48. -->
@@ -33,13 +33,13 @@
   <rect x="54" y="16" width="20" height="6" rx="1.5" fill="#ffffff" opacity="0.85"/>
 
   <!-- Inside the clipboard: a single book cover (indigo) with a darker
-       spine accent on the left and the signature accent bar across the
-       middle, so the extension reads as a Booklister product at a glance. -->
+       indigo spine on the left and the signature bar across the middle,
+       so the extension reads as a Booklister product at a glance. -->
   <rect x="36" y="48" width="56" height="62" rx="3" fill="#5c6bc0"/>
   <rect x="36" y="48" width="6" height="62" rx="3" fill="#3949ab"/>
 
-  <!-- Orange accent bar: the Booklister signature. Keep this prominent
-       since it remains recognizable even at 16x16 when finer details
-       (the clipboard stroke, the clip's spring) wash out. -->
-  <rect x="36" y="74" width="56" height="10" fill="#fb8c00"/>
+  <!-- The signature bar, in the same darker indigo as the spine. Keep
+       it prominent: it stays recognizable even at 16x16 when finer
+       details (the clipboard stroke, the clip's spring) wash out. -->
+  <rect x="36" y="74" width="56" height="10" fill="#3949ab"/>
 </svg>
