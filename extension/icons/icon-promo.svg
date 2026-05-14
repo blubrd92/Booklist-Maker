@@ -36,9 +36,13 @@
   <!-- Wordmark. EB Garamond for "Booklister" matches the main app's
        header credit; Inter for "Helper" matches the body UI. The
        blue color matches Booklister's primary brand color. -->
-  <text x="240" y="140" font-family="'EB Garamond', Georgia, serif" font-size="44" font-weight="700" fill="#1976d2">Booklister</text>
-  <text x="240" y="180" font-family="'Inter', 'Segoe UI', Arial, sans-serif" font-size="28" font-weight="500" fill="#3a4150">Helper</text>
+  <text x="225" y="135" font-family="'EB Garamond', Georgia, serif" font-size="44" font-weight="700" fill="#1976d2">Booklister</text>
+  <text x="225" y="173" font-family="'Inter', 'Segoe UI', Arial, sans-serif" font-size="28" font-weight="500" fill="#3a4150">Helper</text>
 
-  <!-- Tagline. Keep it short so it fits at this aspect ratio. -->
-  <text x="240" y="216" font-family="'Inter', 'Segoe UI', Arial, sans-serif" font-size="14" font-weight="400" fill="#6b7280">Capture books from BiblioCommons.</text>
+  <!-- Tagline + forward-looking note. The tagline stays generic
+       (no specific catalog vendor named) and the second line
+       acknowledges that more catalog systems will be supported
+       over time, as time and demand allow. -->
+  <text x="225" y="208" font-family="'Inter', 'Segoe UI', Arial, sans-serif" font-size="13" font-weight="500" fill="#3a4150">Capture books from your library catalog.</text>
+  <text x="225" y="230" font-family="'Inter', 'Segoe UI', Arial, sans-serif" font-size="11" font-weight="400" fill="#6b7280">More catalog systems supported over time.</text>
 </svg>
