@@ -8,6 +8,7 @@ const statusEl = document.getElementById('status');
 const selectAllBtn = document.getElementById('select-all');
 const selectFirst13Btn = document.getElementById('select-first-13');
 const selectNoneBtn = document.getElementById('select-none');
+const settingsBtn = document.getElementById('settings-btn');
 
 const FIRST_N_DEFAULT = 13; // matches Booklister's typical full-feature slot count
 
@@ -114,6 +115,14 @@ selectNoneBtn.addEventListener('click', () => {
   selected = new Set();
   renderList();
   updateCount();
+});
+
+// The service worker opens options/options.html as a standalone popup
+// window. Close this popup afterward so it doesn't linger behind the
+// settings window.
+settingsBtn.addEventListener('click', () => {
+  chrome.runtime.sendMessage({ type: 'open-options' });
+  window.close();
 });
 
 captureBtn.addEventListener('click', async () => {

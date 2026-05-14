@@ -18,7 +18,13 @@
  *
  * Plus: persistent badge maintenance for accumulate mode (shows the
  * running count of staged books on the toolbar icon), and a right-
- * click context menu to clear that accumulated list.
+ * click context menu with "Clear accumulated list" and "Settings".
+ * The Settings item opens options/options.html as a small popup
+ * window (chrome.windows.create, type: 'popup') instead of relying
+ * on the manifest's options_ui, which Chrome would otherwise surface
+ * only via an embedded chrome://extensions modal. The selection
+ * popup's gear button sends an 'open-options' message that lands
+ * here and opens the same window.
  */
 
 'use strict';
@@ -108,11 +114,52 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 // ---------------------------------------------------------------------------
+// Settings window
+// ---------------------------------------------------------------------------
+
+/**
+ * Open options/options.html as a small standalone popup window. The
+ * manifest no longer declares options_ui, so this is the only path
+ * to settings: it's reachable from the toolbar's right-click menu
+ * and from the gear button in the selection popup. Auto-save in the
+ * options page means the user can just close the window when done.
+ *
+ * If a settings window is already open, focus it instead of stacking
+ * a duplicate. The check walks existing windows rather than caching
+ * a window id, so it survives service-worker restarts.
+ */
+async function openOptionsWindow() {
+  const optionsUrl = chrome.runtime.getURL('options/options.html');
+  try {
+    const wins = await chrome.windows.getAll({ populate: true });
+    for (const win of wins) {
+      const alreadyOpen = (win.tabs || []).some(
+        (t) => t.url && t.url.startsWith(optionsUrl),
+      );
+      if (alreadyOpen) {
+        await chrome.windows.update(win.id, { focused: true });
+        return;
+      }
+    }
+    await chrome.windows.create({
+      url: optionsUrl,
+      type: 'popup',
+      width: 500,
+      height: 640,
+      focused: true,
+    });
+  } catch (err) {
+    console.warn('[Booklister Helper] openOptionsWindow failed:', err);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Right-click context menus
 // ---------------------------------------------------------------------------
 
 // Action context: appears when right-clicking the toolbar icon.
 const MENU_ID_CLEAR_LIST = 'booklister-helper-clear-list';
+const MENU_ID_SETTINGS = 'booklister-helper-settings';
 
 // Page context: appears when right-clicking inside a BiblioCommons
 // record or list page. documentUrlPatterns scopes the visibility so
@@ -126,6 +173,11 @@ function ensureContextMenu() {
       chrome.contextMenus.create({
         id: MENU_ID_CLEAR_LIST,
         title: 'Clear accumulated list',
+        contexts: ['action'],
+      });
+      chrome.contextMenus.create({
+        id: MENU_ID_SETTINGS,
+        title: 'Settings',
         contexts: ['action'],
       });
       chrome.contextMenus.create({
@@ -146,6 +198,11 @@ function ensureContextMenu() {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === MENU_ID_CLEAR_LIST) {
     chrome.storage.local.set({ accumulatedRows: [] }).catch(() => {});
+    return;
+  }
+
+  if (info.menuItemId === MENU_ID_SETTINGS) {
+    await openOptionsWindow();
     return;
   }
 
@@ -306,7 +363,15 @@ async function fetchImageAsDataUrl(url) {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg?.type !== 'fetch-image-as-data-url') return false;
-  fetchImageAsDataUrl(msg.url).then(sendResponse).catch(() => sendResponse({ ok: false, reason: 'exception' }));
-  return true; // keep the channel open for the async response
+  if (msg?.type === 'fetch-image-as-data-url') {
+    fetchImageAsDataUrl(msg.url).then(sendResponse).catch(() => sendResponse({ ok: false, reason: 'exception' }));
+    return true; // keep the channel open for the async response
+  }
+  if (msg?.type === 'open-options') {
+    // Fire-and-forget: the selection popup sends this then closes
+    // itself, so there's no response channel to keep open.
+    openOptionsWindow();
+    return false;
+  }
+  return false;
 });

@@ -52,7 +52,7 @@ For Firefox: go to `about:debugging` → **This Firefox** → **Load Temporary A
 
 ## Configuration
 
-Right-click the toolbar icon → **Options** (or visit `chrome://extensions` → Booklister Helper → **Extension options**).
+Open settings from either the toolbar icon's right-click menu (**Settings**) or the gear button in the list-page selection popup. Both open a small standalone settings window; changes auto-save, so just close the window when you're done.
 
 Two settings:
 
