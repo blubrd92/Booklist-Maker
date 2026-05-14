@@ -74,14 +74,9 @@
 
       <p><strong>What pages it can read.</strong> The extension only runs on BiblioCommons-powered library catalog pages, specifically URLs matching <code>*.bibliocommons.com/v2/record/*</code> (single book record pages) and <code>*.bibliocommons.com/v2/list/*</code> (curated list pages). It has no permission to read any other website you visit, and it cannot observe your browsing outside of those BiblioCommons catalog pages.</p>
 
-      <p><strong>What it transmits and to whom.</strong> When you click the extension on a catalog page, it makes two network requests, both to public services your library's catalog page itself already uses:</p>
+      <p><strong>What it transmits, and to whom.</strong> When you click the extension on a catalog page, it makes the same kinds of network requests your library's catalog page itself already makes: a lookup of branch-level call numbers through the BiblioCommons availability API, and a fetch of the book's cover thumbnail image. Both requests go directly from your browser to BiblioCommons's own infrastructure, just as your normal browsing already does.</p>
 
-      <ol>
-        <li>An availability lookup to <code>gateway.bibliocommons.com</code>, the same request your library's catalog makes when you click "Availability by location" on a book's record page. The response lists which branches hold the book and their call numbers.</li>
-        <li>A cover image request to your library's cover provider (typically <code>syndetics.com</code>), the same URL the catalog page embeds when it displays the book's cover.</li>
-      </ol>
-
-      <p>Both requests go directly from your browser to those services. Nothing about the capture is sent to me, to Booklister, or to any server I operate. The captured row goes from the catalog page straight to your clipboard, locally, inside your browser. I have no way to know what you capture, or that you used the extension at all.</p>
+      <p>I do not capture, log, or otherwise observe what you do with the extension. Nothing about the capture is sent to me, to Booklister, or to any server I operate. The captured row goes from the catalog page straight to your clipboard, locally, inside your browser. I have no way to know what you capture, or that you used the extension at all.</p>
 
       <p><strong>What it stores in your browser.</strong> The extension stores a small amount of state in your browser to remember your settings:</p>
 
@@ -99,9 +94,7 @@
         <li><code>storage</code>: needed to remember the three settings above between browser sessions.</li>
         <li><code>scripting</code>: needed to inject the content script that reads book metadata from BiblioCommons record and list pages.</li>
         <li><code>contextMenus</code>: needed to add "Capture for Booklister" to the right-click menu on BiblioCommons pages and "Clear accumulated list" to the extension icon's right-click menu.</li>
-        <li><code>host_permissions</code> on <code>*.bibliocommons.com</code>: needed to read book metadata from your library's catalog pages.</li>
-        <li><code>host_permissions</code> on <code>gateway.bibliocommons.com</code>: needed to query the BiblioCommons availability API for branch-specific call numbers.</li>
-        <li><code>host_permissions</code> on <code>*.syndetics.com</code>: needed for the extension's service worker to fetch cover images and embed them as base64 in the captured row, so a saved booklist remains self-contained even if the cover provider's URL later changes.</li>
+        <li>Host permissions on BiblioCommons's catalog domains and the cover image source those catalogs use: needed to read book metadata from catalog pages, query the availability API for branch-specific call numbers, and fetch the same cover thumbnail your catalog page already displays so it can be embedded in the captured row. None of these requests are observed, logged, or routed through anything I operate.</li>
       </ul>
 
       <p><strong>What the extension does not do.</strong> No analytics. No telemetry. No usage logging. No remote-loaded code. No third-party SDKs. No cookies. No sign-in. No identification of you to any party. The extension ships as a fixed bundle of static files and runs entirely from your computer once installed. It cannot be updated remotely without a new store-approved release that you choose to accept through your browser's normal extension update mechanism.</p>

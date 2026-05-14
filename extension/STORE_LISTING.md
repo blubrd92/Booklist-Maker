@@ -183,13 +183,33 @@ Use the same set across all three stores so the listing is visually consistent.
 
 ---
 
-## Icon assets (you'll need to provide these)
+## Icon assets
 
-The manifest currently points at `icons/icon-16.png`, `icons/icon-48.png`, and `icons/icon-128.png`. Create those three files and drop them into `extension/icons/`. They must be valid PNGs; SVGs are not accepted.
+The SVG master sources are at:
 
-Chrome additionally needs a **440×280 promotional tile** for the store listing (separate from the in-extension icons). Firefox and Edge ask for similar tile sizes.
+- `extension/icons/icon.svg` — primary icon (clipboard + book + red bar, on a white background). Render to PNG at 16×16, 48×48, and 128×128.
+- `extension/icons/icon-promo.svg` — Chrome's 440×280 promotional tile, with the wordmark to the right of the icon.
 
-Design suggestion: lean on the Booklister favicon (blue book with three stacked covers and a red bar) so the extension visually pairs with the main tool. The promotional tile can have more space for the "Booklister Helper" wordmark.
+The manifest already points at `icons/icon-16.png`, `icons/icon-48.png`, and `icons/icon-128.png`. Drop the rendered PNGs next to the SVGs and the extension is store-ready.
+
+Render commands (any one of these works):
+
+```bash
+# rsvg-convert (lightest)
+rsvg-convert -w 16 -h 16 extension/icons/icon.svg -o extension/icons/icon-16.png
+rsvg-convert -w 48 -h 48 extension/icons/icon.svg -o extension/icons/icon-48.png
+rsvg-convert -w 128 -h 128 extension/icons/icon.svg -o extension/icons/icon-128.png
+rsvg-convert -w 440 -h 280 extension/icons/icon-promo.svg -o extension/icons/icon-promo.png
+
+# Inkscape
+inkscape extension/icons/icon.svg --export-type=png --export-width=16 \
+  --export-filename=extension/icons/icon-16.png
+# (repeat for 48, 128, and the promo tile)
+```
+
+Stores require PNG, not SVG, for the in-extension icons. The SVG master is the source you edit when iterating on the design.
+
+If your rasterizer doesn't have EB Garamond or Inter installed, the promo tile's text will fall back to a generic serif / sans-serif. For a clean store-listing render, install both fonts locally before rasterizing, or open the SVG in a design tool (Figma, Illustrator, Affinity) and re-export with the text converted to outlines.
 
 ---
 

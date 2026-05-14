@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Booklister Helper promotional tile (440x280).
+
+  Used by the Chrome Web Store for the "small promo tile" slot on
+  category pages and search results. Firefox and Edge accept similar
+  promotional artwork.
+
+  Design: the icon on the left (same composition as icon.svg, scaled
+  up), with the "Booklister Helper" wordmark on the right in the same
+  EB Garamond / Inter pairing used elsewhere on the site.
+
+  Render to PNG at 440x280 with the same rasterizer used for icon.svg.
+
+  Note: if your rasterizer doesn't have EB Garamond or Inter installed,
+  the text will fall back to a generic serif / sans-serif. For a clean
+  store-listing render, install both fonts locally before rasterizing
+  or replace the <text> elements with vector paths in a design tool.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 280" role="img" aria-label="Booklister Helper promotional tile">
+  <!-- Soft neutral background. Same gray Booklister uses for body bg. -->
+  <rect width="440" height="280" fill="#f5f6f8"/>
+
+  <!-- Icon group: same composition as icon.svg, centered on the
+       left third of the tile. Scaled up to ~180px and translated so
+       the visual weight balances the wordmark on the right. -->
+  <g transform="translate(40, 50) scale(1.4)">
+    <rect x="18" y="30" width="92" height="90" rx="10" fill="#ffffff" stroke="#1976d2" stroke-width="6"/>
+    <rect x="48" y="10" width="32" height="26" rx="4" fill="#1976d2"/>
+    <rect x="54" y="16" width="20" height="6" rx="1.5" fill="#ffffff" opacity="0.85"/>
+    <rect x="36" y="48" width="56" height="62" rx="3" fill="#1976d2"/>
+    <rect x="36" y="48" width="6" height="62" rx="3" fill="#0d47a1"/>
+    <rect x="36" y="74" width="56" height="10" fill="#e53935"/>
+  </g>
+
+  <!-- Wordmark. EB Garamond for "Booklister" matches the main app's
+       header credit; Inter for "Helper" matches the body UI. The
+       blue color matches Booklister's primary brand color. -->
+  <text x="240" y="140" font-family="'EB Garamond', Georgia, serif" font-size="44" font-weight="700" fill="#1976d2">Booklister</text>
+  <text x="240" y="180" font-family="'Inter', 'Segoe UI', Arial, sans-serif" font-size="28" font-weight="500" fill="#3a4150">Helper</text>
+
+  <!-- Tagline. Keep it short so it fits at this aspect ratio. -->
+  <text x="240" y="216" font-family="'Inter', 'Segoe UI', Arial, sans-serif" font-size="14" font-weight="400" fill="#6b7280">Capture books from BiblioCommons.</text>
+</svg>
