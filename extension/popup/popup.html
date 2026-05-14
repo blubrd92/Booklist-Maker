@@ -455,14 +455,14 @@
     <div id="capture-loading">Loading…</div>
 
     <div id="capture-message" class="hidden">
-      Open a BiblioCommons book or list page to capture from.
+      Open a BiblioCommons title or list page to capture from.
     </div>
 
-    <!-- List mode: pick books from a BiblioCommons list page -->
+    <!-- List mode: pick titles from a BiblioCommons list page -->
     <div id="capture-list" class="hidden">
       <div class="toolbar">
         <button id="select-all" type="button">All</button>
-        <select id="select-first-n" aria-label="Select the first 13, 14, or 15 books">
+        <select id="select-first-n" aria-label="Select the first 13, 14, or 15 titles">
           <option value="13">First 13</option>
           <option value="14">First 14</option>
           <option value="15">First 15</option>
@@ -476,12 +476,12 @@
       </div>
     </div>
 
-    <!-- Record mode: capture the single book on a record page -->
+    <!-- Record mode: capture the single title on a record page -->
     <div id="capture-record" class="hidden">
-      <div class="record-hint">This book will be copied to your clipboard:</div>
+      <div class="record-hint">This title will be copied to your clipboard:</div>
       <div id="record-preview"></div>
       <div class="capture-footer">
-        <button id="capture-record-btn" class="primary" type="button">Capture this book</button>
+        <button id="capture-record-btn" class="primary" type="button">Capture this title</button>
       </div>
     </div>
   </div>
@@ -504,7 +504,7 @@
       <div class="toggle-row">
         <div class="toggle-info">
           <div class="setting-label">Accumulate captures</div>
-          <div class="setting-help last">Each single-book capture adds to a running list instead of replacing the clipboard.</div>
+          <div class="setting-help last">Each single-title capture adds to a running list instead of replacing the clipboard.</div>
         </div>
         <label class="toggle">
           <input id="accumulate-mode" type="checkbox" />

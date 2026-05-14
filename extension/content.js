@@ -20,9 +20,9 @@
  * List-page mode (URL = /v2/list/<...>): captures every book on the
  * curated list in display order, in parallel. Operates independently
  * of Accumulate mode; the list-page TSV always overwrites the
- * clipboard rather than appending. Booklister's Quick Add Spreadsheet
- * handler already truncates over-limit pastes with a partial-success
- * notification, so a 50-book list pastes the first 13-15 (per current
+ * clipboard rather than appending. Booklister's Quick Add handler
+ * already truncates over-limit pastes with a partial-success
+ * notification, so a 50-title list pastes the first 13-15 (per current
  * MAX_BOOKS) and tells the user how many overflowed.
  *
  * The gateway and Syndetics fetches must run in the content script's
@@ -75,8 +75,8 @@
 
   // Fallback text when a BiblioCommons record genuinely has no author/creator
   // (rare but real: some reference works, anonymous publications, government
-  // documents). Booklister's Quick Add Spreadsheet handler skips any row whose
-  // author cell is empty, so an empty author here would silently drop the book
+  // documents). Booklister's Quick Add handler skips any row whose author
+  // cell is empty, so an empty author here would silently drop the title
   // from the user's paste with no indication. Emitting a visible placeholder
   // both gets the row through Booklister's validation and tells the user "fix
   // me before printing" when they review the booklist.
@@ -449,14 +449,14 @@
     const bibId = getBibIdFromUrl();
     const libraryDomain = getLibraryDomain();
     if (!bibId || !libraryDomain) {
-      showToast('Open a BiblioCommons book record first.', 'error');
+      showToast('Open a BiblioCommons title record first.', 'error');
       return { ok: false, reason: 'not-on-record-page' };
     }
 
     const state = readStateBlob();
     const brief = state ? extractRecordBrief(state, bibId) : null;
     if (!brief || !brief.title) {
-      showToast("Couldn't read the book's title from the page.", 'error');
+      showToast("Couldn't read the title from the page.", 'error');
       return { ok: false, reason: 'no-bib-metadata' };
     }
 
@@ -472,10 +472,10 @@
       existing.push(row);
       await writeAccumulatedRows(existing);
       tsv = existing.join('\n');
-      toastMessage = `Added (${existing.length} ${existing.length === 1 ? 'book' : 'books'} in list). Paste into Booklister Quick Add → Spreadsheet.`;
+      toastMessage = `Added (${existing.length} ${existing.length === 1 ? 'title' : 'titles'} in list). Paste into Booklister Quick Add → Multiple titles.`;
     } else {
       tsv = row;
-      toastMessage = 'Copied! Paste into Booklister Quick Add → Spreadsheet tab.';
+      toastMessage = 'Copied! Paste into Booklister Quick Add → Multiple titles tab.';
     }
 
     const wrote = await writeToClipboard(tsv);
@@ -497,7 +497,7 @@
     const state = readStateBlob();
     let bibs = state ? extractListBibs(state) : [];
     if (bibs.length === 0) {
-      showToast('No books found on this list page.', 'error');
+      showToast('No titles found on this list page.', 'error');
       return { ok: false, reason: 'empty-list' };
     }
 
@@ -509,12 +509,12 @@
       const want = new Set(bibIdFilter);
       bibs = bibs.filter((b) => want.has(b.bibId));
       if (bibs.length === 0) {
-        showToast('No matching books found.', 'error');
+        showToast('No matching titles found.', 'error');
         return { ok: false, reason: 'no-matches' };
       }
     }
 
-    showToast(`Capturing ${bibs.length} books, this may take a few seconds…`, 'info');
+    showToast(`Capturing ${bibs.length} titles, this may take a few seconds…`, 'info');
 
     const pref = await readPreferredBranch();
     const rowPromises = bibs.map((b) => captureOneBibToTsvRow(libraryDomain, b, pref));
@@ -527,17 +527,17 @@
       return { ok: false, reason: 'clipboard-failed' };
     }
 
-    const noun = rows.length === 1 ? 'book' : 'books';
-    let successMessage = `Copied ${rows.length} ${noun}. Paste into Booklister Quick Add → Spreadsheet tab. Booklister will fit as many as your slots allow.`;
+    const noun = rows.length === 1 ? 'title' : 'titles';
+    let successMessage = `Copied ${rows.length} ${noun}. Paste into Booklister Quick Add → Multiple titles tab. Booklister will fit as many as your slots allow.`;
 
-    // A list capture overwrites the clipboard with just these list books;
+    // A list capture overwrites the clipboard with just these list titles;
     // it deliberately doesn't touch the accumulated list. If the user has
     // one going, say so, so the clipboard swap isn't a surprise. They can
     // re-copy the accumulated list from the popup's Settings tab.
     if (await readAccumulateMode()) {
       const accumulated = await readAccumulatedRows();
       if (accumulated.length > 0) {
-        const accNoun = accumulated.length === 1 ? 'book' : 'books';
+        const accNoun = accumulated.length === 1 ? 'title' : 'titles';
         successMessage += ` Your accumulated list of ${accumulated.length} ${accNoun} is still saved.`;
       }
     }

@@ -144,7 +144,7 @@ function updateCount() {
   captureListBtn.disabled = n === 0;
   captureListBtn.textContent = n === 0
     ? 'Capture selected'
-    : `Capture ${n} ${n === 1 ? 'book' : 'books'}`;
+    : `Capture ${n} ${n === 1 ? 'title' : 'titles'}`;
 }
 
 selectAllBtn.addEventListener('click', () => {
@@ -191,7 +191,7 @@ async function initListMode() {
     return;
   }
   if (!resp || !resp.ok || !Array.isArray(resp.bibs) || resp.bibs.length === 0) {
-    captureMessage.textContent = 'No books found on this list page.';
+    captureMessage.textContent = 'No titles found on this list page.';
     showCaptureSubview('message');
     return;
   }
@@ -223,7 +223,7 @@ async function initRecordMode() {
     return;
   }
   if (!resp || !resp.ok || !resp.brief) {
-    captureMessage.textContent = "Could not read this book's details from the page.";
+    captureMessage.textContent = "Could not read this title's details from the page.";
     showCaptureSubview('message');
     return;
   }
@@ -267,7 +267,7 @@ async function refreshAccumulatedCount() {
   try {
     const local = await browser.storage.local.get({ accumulatedRows: [] });
     const n = Array.isArray(local.accumulatedRows) ? local.accumulatedRows.length : 0;
-    accumulateCount.textContent = n > 0 ? `${n} ${n === 1 ? 'book' : 'books'}` : 'Empty';
+    accumulateCount.textContent = n > 0 ? `${n} ${n === 1 ? 'title' : 'titles'}` : 'Empty';
     copyBtn.disabled = n === 0;
     clearBtn.disabled = n === 0;
   } catch {

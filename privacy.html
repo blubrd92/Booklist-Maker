@@ -46,7 +46,7 @@
       <p>If you've also installed the <a href="extension.html">Booklister Helper</a> browser extension, the extension doesn't send anything to me or to any server I control. It only runs on BiblioCommons library catalog pages, makes the same network calls the catalog page itself already makes, and writes the captured row straight to your clipboard.</p>
 
       <h2>What stays on your device</h2>
-      <p>Booklister autosaves your work in progress (the books you've added, your styling choices, the current state of the tool) to your browser's IndexedDB storage. This never leaves your computer. It's there so you don't lose work if you reload the page.</p>
+      <p>Booklister autosaves your work in progress (the titles you've added, your styling choices, the current state of the tool) to your browser's IndexedDB storage. This never leaves your computer. It's there so you don't lose work if you reload the page.</p>
       <p>You can clear it by clicking the Reset button in the tool, by using the delete buttons on individual uploads, or by clearing site data for <code>booklister.org</code> in your browser settings.</p>
       <p>The tool can also save your work as a <code>.booklist</code> file via the Save button. That file is downloaded to your computer; I never see it.</p>
 
@@ -54,7 +54,7 @@
       <p>A few actions in the tool reach out to external services on your behalf. These only happen when you do something specific:</p>
 
       <ul>
-        <li><strong>Searching for books.</strong> Typing in the search box sends your query to the <a href="https://openlibrary.org">Open Library API</a>, which returns book metadata and cover images. Open Library is an Internet Archive project, and their privacy policy governs how they handle search queries.</li>
+        <li><strong>Searching for titles.</strong> Typing in the search box sends your query to the <a href="https://openlibrary.org">Open Library API</a>, which returns title metadata and cover images. Open Library is an Internet Archive project, and their privacy policy governs how they handle search queries.</li>
         <li><strong>Loading the tool itself.</strong> Booklister loads fonts, icons, and a few JavaScript libraries from public content delivery networks (Google Fonts, cdnjs, gstatic). These services will see your IP address and browser as part of delivering those files. Booklister doesn't use them for analytics or tracking.</li>
       </ul>
 
@@ -70,7 +70,7 @@
       <p>I don't store anything else about you in Firebase. No booklist content, no search history, no usage analytics, no telemetry. The booklist work you do on a branded instance still stays in your browser, same as the public tool.</p>
 
       <h2>Booklister Helper browser extension</h2>
-      <p>The <a href="extension.html">Booklister Helper</a> is a separate, optional browser extension you can install from the Chrome Web Store, Firefox Add-ons, or Microsoft Edge Add-ons. It runs only on BiblioCommons library catalog pages. When you click it on a book's page, it copies the book's title, author, call number, and cover image to your clipboard so you can paste them into Booklister. That is the entire extent of what it does.</p>
+      <p>The <a href="extension.html">Booklister Helper</a> is a separate, optional browser extension you can install from the Chrome Web Store, Firefox Add-ons, or Microsoft Edge Add-ons. It runs only on BiblioCommons library catalog pages. When you click it on a catalog page, it copies the title, author, call number, and cover image to your clipboard so you can paste them into Booklister. That is the entire extent of what it does.</p>
 
       <p>I do not log, capture, or otherwise observe what you capture, when you capture it, or that you used the extension at all. Nothing about your use of the extension is sent to me, to Booklister, or to any server I operate. The extension stores a few small settings locally in your browser so it can remember them across sessions, but none of that information ever leaves your computer.</p>
 

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Booklister Helper",
   "version": "1.0.0",
-  "description": "Capture book records from BiblioCommons library catalogs and copy them as TSV for pasting into Booklister's Quick Add Spreadsheet tab.",
+  "description": "Capture titles from BiblioCommons library catalogs and copy them as TSV for pasting into Booklister's Quick Add.",
   "homepage_url": "https://booklister.org",
 
   "icons": {
