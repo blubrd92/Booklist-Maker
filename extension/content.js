@@ -562,6 +562,34 @@
     };
   }
 
+  /**
+   * Return a single shallow brief for the popup's record-page Capture
+   * tab preview. Like handleListPageBibs, this skips the holdings +
+   * cover fetches; the call number shown is the SSR-state fallback,
+   * which the real capture later refines via the holdings API. The
+   * preview is just a "this is the book you're about to capture"
+   * confirmation, not the final captured data.
+   */
+  function handleRecordPageBrief() {
+    const bibId = getBibIdFromUrl();
+    if (!bibId) return { ok: false, reason: 'not-on-record-page' };
+    const state = readStateBlob();
+    if (!state) return { ok: false, reason: 'no-state' };
+    const brief = extractRecordBrief(state, bibId);
+    if (!brief || !brief.title) return { ok: false, reason: 'no-bib-metadata' };
+    return {
+      ok: true,
+      brief: {
+        bibId: brief.bibId,
+        title: brief.title,
+        subTitle: brief.subTitle,
+        author: brief.author,
+        callNumber: brief.fallbackCallNumber,
+        coverUrl: brief.coverUrl,
+      },
+    };
+  }
+
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg?.type === 'capture') {
       handleCapture().then(sendResponse).catch((err) => {
@@ -581,6 +609,12 @@
     if (msg?.type === 'list-page-bibs') {
       // Synchronous reply: no async work, just read the state blob.
       sendResponse(handleListPageBibs());
+      return false;
+    }
+    if (msg?.type === 'record-page-brief') {
+      // Synchronous reply: just read the state blob for the popup's
+      // record-page capture preview.
+      sendResponse(handleRecordPageBrief());
       return false;
     }
     return false;

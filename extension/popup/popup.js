@@ -1,83 +1,61 @@
 'use strict';
 
+// The popup is now always-on (action.default_popup), so it has to handle
+// every context: a BiblioCommons record page, a BiblioCommons list page,
+// or anything else. It has two tabs: Capture (context-aware) and Settings.
+
+// ── Element refs ──
+const tabBtns = document.querySelectorAll('.tab');
+const paneCapture = document.getElementById('pane-capture');
+const paneSettings = document.getElementById('pane-settings');
+
+const captureLoading = document.getElementById('capture-loading');
+const captureMessage = document.getElementById('capture-message');
+const captureList = document.getElementById('capture-list');
+const captureRecord = document.getElementById('capture-record');
+
+// List-mode els
 const listEl = document.getElementById('list');
-const metaEl = document.getElementById('meta');
 const selectedCountEl = document.getElementById('selected-count');
-const captureBtn = document.getElementById('capture');
-const statusEl = document.getElementById('status');
+const captureListBtn = document.getElementById('capture-list-btn');
 const selectAllBtn = document.getElementById('select-all');
 const selectFirst13Btn = document.getElementById('select-first-13');
 const selectNoneBtn = document.getElementById('select-none');
-const settingsBtn = document.getElementById('settings-btn');
+
+// Record-mode els
+const recordPreviewEl = document.getElementById('record-preview');
+const captureRecordBtn = document.getElementById('capture-record-btn');
+
+// Settings els
+const branchInput = document.getElementById('preferred-branch');
+const accumulateToggle = document.getElementById('accumulate-mode');
+const accumulateCount = document.getElementById('accumulate-count');
+const clearBtn = document.getElementById('clear-list');
+const savedIndicator = document.getElementById('saved');
 
 const FIRST_N_DEFAULT = 13; // matches Booklister's typical full-feature slot count
+const RECORD_PATH_RE = /\/v2\/record\//;
+const LIST_PATH_RE = /\/v2\/list\//;
 
+let activeTabId = null;
 let books = []; // [{bibId, title, subTitle, author, callNumber, coverUrl}, ...]
 let selected = new Set(); // bibIds
 
-function updateCount() {
-  const n = selected.size;
-  selectedCountEl.textContent = n === 0
-    ? 'none selected'
-    : `${n} selected`;
-  captureBtn.disabled = n === 0;
-  captureBtn.textContent = n === 0
-    ? 'Capture selected'
-    : `Capture ${n} ${n === 1 ? 'book' : 'books'}`;
-}
-
-function renderRow(book) {
-  const row = document.createElement('label');
-  row.className = 'row';
-
-  const cb = document.createElement('input');
-  cb.type = 'checkbox';
-  cb.checked = selected.has(book.bibId);
-  cb.addEventListener('change', () => {
-    if (cb.checked) selected.add(book.bibId);
-    else selected.delete(book.bibId);
-    updateCount();
-  });
-
-  const thumb = document.createElement('img');
-  thumb.className = 'thumb';
-  thumb.alt = '';
-  // Cover URL is the raw http(s) Syndetics URL; popup can load it
-  // directly via <img src> without needing the service worker proxy
-  // (img tags don't require CORS for display).
-  if (book.coverUrl) thumb.src = book.coverUrl;
-
-  const info = document.createElement('div');
-  info.className = 'info';
-
-  const title = document.createElement('div');
-  title.className = 'title';
-  const fullTitle = book.subTitle
-    ? `${book.title}: ${book.subTitle}`
-    : book.title;
-  title.textContent = fullTitle || '(untitled)';
-  title.title = fullTitle;
-
-  const author = document.createElement('div');
-  author.className = 'author';
-  author.textContent = book.author || ' ';
-
-  const call = document.createElement('div');
-  call.className = 'call';
-  if (book.callNumber) {
-    call.innerHTML = `Call: <code>${escapeHtml(book.callNumber)}</code>`;
+// ── Tab switching ──
+function showTab(name) {
+  for (const btn of tabBtns) {
+    const on = btn.dataset.tab === name;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
   }
-
-  info.appendChild(title);
-  info.appendChild(author);
-  if (book.callNumber) info.appendChild(call);
-
-  row.appendChild(cb);
-  row.appendChild(thumb);
-  row.appendChild(info);
-  return row;
+  paneCapture.classList.toggle('hidden', name !== 'capture');
+  paneSettings.classList.toggle('hidden', name !== 'settings');
+}
+for (const btn of tabBtns) {
+  btn.addEventListener('click', () => showTab(btn.dataset.tab));
 }
 
+// ── Shared helpers ──
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -85,18 +63,82 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;');
 }
 
+// Renders one book row. With { selectable: true } it's a <label> with a
+// checkbox (the list selection UI); without, it's a plain <div> preview
+// (the record-page Capture tab).
+function renderBookRow(book, { selectable }) {
+  const row = document.createElement(selectable ? 'label' : 'div');
+  row.className = 'row';
+
+  if (selectable) {
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = selected.has(book.bibId);
+    cb.addEventListener('change', () => {
+      if (cb.checked) selected.add(book.bibId);
+      else selected.delete(book.bibId);
+      updateCount();
+    });
+    row.appendChild(cb);
+  }
+
+  const thumb = document.createElement('img');
+  thumb.className = 'thumb';
+  thumb.alt = '';
+  // Raw http(s) cover URL; an <img> tag loads it directly, no CORS needed.
+  if (book.coverUrl) thumb.src = book.coverUrl;
+
+  const info = document.createElement('div');
+  info.className = 'info';
+
+  const title = document.createElement('div');
+  title.className = 'title';
+  const fullTitle = book.subTitle ? `${book.title}: ${book.subTitle}` : book.title;
+  title.textContent = fullTitle || '(untitled)';
+  title.title = fullTitle;
+
+  const author = document.createElement('div');
+  author.className = 'author';
+  author.textContent = book.author || ' ';
+
+  info.appendChild(title);
+  info.appendChild(author);
+
+  if (book.callNumber) {
+    const call = document.createElement('div');
+    call.className = 'call';
+    call.innerHTML = `Call: <code>${escapeHtml(book.callNumber)}</code>`;
+    info.appendChild(call);
+  }
+
+  row.appendChild(thumb);
+  row.appendChild(info);
+  return row;
+}
+
+// Show exactly one of the capture pane's sub-views.
+function showCaptureSubview(which) {
+  captureLoading.classList.toggle('hidden', which !== 'loading');
+  captureMessage.classList.toggle('hidden', which !== 'message');
+  captureList.classList.toggle('hidden', which !== 'list');
+  captureRecord.classList.toggle('hidden', which !== 'record');
+}
+
+// ── Capture pane: list mode ──
 function renderList() {
   listEl.innerHTML = '';
-  if (books.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'empty';
-    empty.textContent = 'No books found on this list page.';
-    listEl.appendChild(empty);
-    return;
-  }
   for (const book of books) {
-    listEl.appendChild(renderRow(book));
+    listEl.appendChild(renderBookRow(book, { selectable: true }));
   }
+}
+
+function updateCount() {
+  const n = selected.size;
+  selectedCountEl.textContent = `${n} of ${books.length} selected`;
+  captureListBtn.disabled = n === 0;
+  captureListBtn.textContent = n === 0
+    ? 'Capture selected'
+    : `Capture ${n} ${n === 1 ? 'book' : 'books'}`;
 }
 
 selectAllBtn.addEventListener('click', () => {
@@ -104,88 +146,186 @@ selectAllBtn.addEventListener('click', () => {
   renderList();
   updateCount();
 });
-
 selectFirst13Btn.addEventListener('click', () => {
   selected = new Set(books.slice(0, FIRST_N_DEFAULT).map((b) => b.bibId));
   renderList();
   updateCount();
 });
-
 selectNoneBtn.addEventListener('click', () => {
   selected = new Set();
   renderList();
   updateCount();
 });
 
-// The service worker opens options/options.html as a standalone popup
-// window. Close this popup afterward so it doesn't linger behind the
-// settings window.
-settingsBtn.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ type: 'open-options' });
+captureListBtn.addEventListener('click', () => {
+  if (selected.size === 0 || activeTabId === null) return;
+  // Fire-and-forget: the capture pipeline (per-book holdings + cover
+  // fetches) runs in the content script and takes several seconds. The
+  // popup closes immediately; the content script's in-page toast is the
+  // user's progress + completion feedback.
+  chrome.tabs.sendMessage(activeTabId, {
+    type: 'capture-selected-bibs',
+    bibIds: Array.from(selected),
+  });
   window.close();
 });
 
-captureBtn.addEventListener('click', async () => {
-  if (selected.size === 0) return;
-
-  captureBtn.disabled = true;
-  statusEl.style.color = '#555';
-  statusEl.textContent = 'Capturing…';
-
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab || !tab.id) {
-    statusEl.style.color = '#b00020';
-    statusEl.textContent = 'No active tab.';
-    captureBtn.disabled = false;
+async function initListMode() {
+  showCaptureSubview('loading');
+  let resp;
+  try {
+    resp = await chrome.tabs.sendMessage(activeTabId, { type: 'list-page-bibs' });
+  } catch {
+    captureMessage.textContent = 'Could not reach the page. Refresh the tab and reopen this popup.';
+    showCaptureSubview('message');
     return;
   }
+  if (!resp || !resp.ok || !Array.isArray(resp.bibs) || resp.bibs.length === 0) {
+    captureMessage.textContent = 'No books found on this list page.';
+    showCaptureSubview('message');
+    return;
+  }
+  books = resp.bibs;
+  // Default selection: everything. The All / First 13 / None buttons and
+  // the per-row checkboxes let the user narrow it down.
+  selected = new Set(books.map((b) => b.bibId));
+  renderList();
+  updateCount();
+  showCaptureSubview('list');
+}
 
+// ── Capture pane: record mode ──
+captureRecordBtn.addEventListener('click', () => {
+  if (activeTabId === null) return;
+  // Fire-and-forget, same rationale as the list capture above.
+  chrome.tabs.sendMessage(activeTabId, { type: 'capture' });
+  window.close();
+});
+
+async function initRecordMode() {
+  showCaptureSubview('loading');
+  let resp;
   try {
-    // Fire-and-forget: the actual capture pipeline (per-book holdings
-    // + cover fetches) takes 5-10s for a 13-book selection. The popup
-    // closes immediately after dispatching; the content script's
-    // in-page toast tells the user when it's done.
-    chrome.tabs.sendMessage(tab.id, {
-      type: 'capture-selected-bibs',
-      bibIds: Array.from(selected),
-    });
-    window.close();
-  } catch (err) {
-    statusEl.style.color = '#b00020';
-    statusEl.textContent = 'Capture failed: ' + (err && err.message ? err.message : 'unknown');
-    captureBtn.disabled = false;
+    resp = await chrome.tabs.sendMessage(activeTabId, { type: 'record-page-brief' });
+  } catch {
+    captureMessage.textContent = 'Could not reach the page. Refresh the tab and reopen this popup.';
+    showCaptureSubview('message');
+    return;
+  }
+  if (!resp || !resp.ok || !resp.brief) {
+    captureMessage.textContent = "Could not read this book's details from the page.";
+    showCaptureSubview('message');
+    return;
+  }
+  recordPreviewEl.innerHTML = '';
+  recordPreviewEl.appendChild(renderBookRow(resp.brief, { selectable: false }));
+  showCaptureSubview('record');
+}
+
+// ── Capture pane: entry point ──
+async function initCapture() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  activeTabId = tab && tab.id != null ? tab.id : null;
+  // tab.url is available for BiblioCommons tabs via host_permissions; it's
+  // undefined for other sites, which is itself enough to route to the
+  // "open a BiblioCommons page" message.
+  const url = (tab && tab.url) || '';
+
+  if (activeTabId === null) {
+    captureMessage.textContent = 'No active tab.';
+    showCaptureSubview('message');
+    return;
+  }
+  if (RECORD_PATH_RE.test(url)) {
+    await initRecordMode();
+  } else if (LIST_PATH_RE.test(url)) {
+    await initListMode();
+  } else {
+    showCaptureSubview('message');
+  }
+}
+
+// ── Settings pane ──
+let savedFadeTimer;
+function flashSaved() {
+  savedIndicator.classList.add('show');
+  clearTimeout(savedFadeTimer);
+  savedFadeTimer = setTimeout(() => savedIndicator.classList.remove('show'), 1400);
+}
+
+async function refreshAccumulatedCount() {
+  try {
+    const local = await chrome.storage.local.get({ accumulatedRows: [] });
+    const n = Array.isArray(local.accumulatedRows) ? local.accumulatedRows.length : 0;
+    accumulateCount.textContent = n > 0 ? `${n} ${n === 1 ? 'book' : 'books'}` : 'Empty';
+    clearBtn.disabled = n === 0;
+  } catch {
+    accumulateCount.textContent = 'Empty';
+    clearBtn.disabled = true;
+  }
+}
+
+async function loadSettings() {
+  try {
+    const sync = await chrome.storage.sync.get({ preferredBranch: '', accumulateMode: false });
+    branchInput.value = sync.preferredBranch || '';
+    accumulateToggle.checked = !!sync.accumulateMode;
+  } catch {
+    // Leave the form at its default empty/unchecked state.
+  }
+  await refreshAccumulatedCount();
+}
+
+// Debounced save for the branch input: persist 400ms after typing stops,
+// plus an immediate save on blur and on the popup losing focus, so a
+// value typed in the last 400ms isn't lost when the popup closes.
+let branchDebounceTimer;
+async function saveBranch() {
+  try {
+    await chrome.storage.sync.set({ preferredBranch: branchInput.value.trim() });
+    flashSaved();
+  } catch {
+    // Storage quota / availability failures are rare; nothing actionable.
+  }
+}
+branchInput.addEventListener('input', () => {
+  clearTimeout(branchDebounceTimer);
+  branchDebounceTimer = setTimeout(saveBranch, 400);
+});
+branchInput.addEventListener('blur', () => {
+  clearTimeout(branchDebounceTimer);
+  saveBranch();
+});
+window.addEventListener('blur', () => {
+  // The popup loses window focus right before it closes. Flush any
+  // pending branch save so a just-typed value survives.
+  clearTimeout(branchDebounceTimer);
+  saveBranch();
+});
+
+accumulateToggle.addEventListener('change', async () => {
+  try {
+    await chrome.storage.sync.set({ accumulateMode: !!accumulateToggle.checked });
+  } catch {
+    // Revert the visible toggle if the write failed, so it doesn't lie.
+    accumulateToggle.checked = !accumulateToggle.checked;
   }
 });
 
-async function loadBooks() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab || !tab.id) {
-    metaEl.textContent = 'No active tab.';
-    return;
+clearBtn.addEventListener('click', async () => {
+  await chrome.storage.local.set({ accumulatedRows: [] });
+  await refreshAccumulatedCount();
+});
+
+// Keep the accumulated count fresh if a capture happens in another tab
+// while this popup is open.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && 'accumulatedRows' in changes) {
+    refreshAccumulatedCount();
   }
+});
 
-  let resp;
-  try {
-    resp = await chrome.tabs.sendMessage(tab.id, { type: 'list-page-bibs' });
-  } catch {
-    metaEl.textContent = 'Open this on a BiblioCommons list page.';
-    listEl.innerHTML = '<div class="empty">Couldn’t reach the page (was it just opened?). Try refreshing the tab and clicking the icon again.</div>';
-    return;
-  }
-
-  if (!resp || !resp.ok || !Array.isArray(resp.bibs)) {
-    metaEl.textContent = resp && resp.reason ? `Couldn’t read the list: ${resp.reason}` : 'No books found.';
-    listEl.innerHTML = '<div class="empty">No books found on this list page.</div>';
-    return;
-  }
-
-  books = resp.bibs;
-  // Default selection: all selected. User clicks "First 13" or "None"
-  // to change quickly, or unchecks individual books.
-  selected = new Set(books.map((b) => b.bibId));
-  metaEl.textContent = `${books.length} ${books.length === 1 ? 'book' : 'books'} on this list`;
-  renderList();
-  updateCount();
-}
-
-loadBooks();
+// ── Init ──
+showTab('capture');
+initCapture();
+loadSettings();

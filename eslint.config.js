@@ -111,16 +111,16 @@ export default [
   },
   {
     // Browser extension (extension/). MV3 service worker + content
-    // script + options page. Plain JS, sourceType "script" because we
-    // don't use ES module imports inside the extension files (each
-    // file runs in its own MV3 context — service worker, isolated
-    // content world, options page).
+    // script + popup. Plain JS, sourceType "script" because we don't
+    // use ES module imports inside the extension files (each file runs
+    // in its own MV3 context — service worker, isolated content world,
+    // popup).
     files: ["extension/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "script",
       globals: {
-        // Browser globals available in content scripts + options page
+        // Browser globals available in content scripts + popup
         window: "readonly",
         document: "readonly",
         navigator: "readonly",

@@ -12,7 +12,8 @@
   },
 
   "action": {
-    "default_title": "Capture this book for Booklister",
+    "default_title": "Booklister Helper",
+    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
       "48": "icons/icon-48.png",

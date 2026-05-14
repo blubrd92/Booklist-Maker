@@ -1,81 +1,39 @@
 /**
  * Booklister Helper background service worker
  *
- * Two responsibilities:
+ * The popup (popup/popup.html) is always-on via action.default_popup and
+ * does the user-facing work: it has a context-aware Capture tab and a
+ * Settings tab. The content script does the actual scraping, API fetches,
+ * and clipboard writes. That leaves this service worker with three small
+ * jobs:
  *
- * 1. Handle toolbar icon clicks → forward a 'capture' message to the
- *    active tab's content script. The content script does all the
- *    actual work (DOM scraping, API fetch, clipboard write) because
- *    the BiblioCommons gateway API is CORS-locked to *.bibliocommons.com,
- *    so a service-worker fetch carrying chrome-extension:// would be
- *    rejected. Works on both single-record pages (/v2/record/) and
- *    list pages (/v2/list/).
+ * 1. A 'fetch-image-as-data-url' RPC for the content script. Cover
+ *    providers like Syndetics don't return CORS headers, but the service
+ *    worker's fetch can read their bytes because the manifest's
+ *    host_permissions grant privileged access to those origins.
  *
- * 2. Provide a 'fetch-image-as-data-url' RPC for the content script,
- *    used to fetch cover images from Syndetics and embed them as
- *    base64 in the TSV. The service worker's fetch IS allowed to
- *    bypass CORS for hosts in the manifest's host_permissions.
+ * 2. The persistent toolbar badge: when accumulate mode is on, it shows
+ *    the running count of staged books. Restored on startup and on every
+ *    storage change so it survives service-worker restarts.
  *
- * Plus: persistent badge maintenance for accumulate mode (shows the
- * running count of staged books on the toolbar icon), and a right-
- * click context menu with "Clear accumulated list" and "Settings".
- * The Settings item opens options/options.html as a small popup
- * window (chrome.windows.create, type: 'popup') instead of relying
- * on the manifest's options_ui, which Chrome would otherwise surface
- * only via an embedded chrome://extensions modal. The selection
- * popup's gear button sends an 'open-options' message that lands
- * here and opens the same window.
+ * 3. Two right-click context menu items: "Clear accumulated list" on the
+ *    toolbar icon, and "Capture for Booklister" on BiblioCommons pages
+ *    (which just opens the popup, the same as clicking the toolbar icon).
  */
 
 'use strict';
-
-const RECORD_PATH_RE = /\/v2\/record\//;
-const LIST_PATH_RE = /\/v2\/list\//;
-
-/**
- * Whether the URL is a BiblioCommons page the extension can capture
- * from: either a single book record or a curated list page.
- */
-function isBibliocommonsCapturablePage(url) {
-  if (!url) return false;
-  try {
-    const u = new URL(url);
-    if (!u.hostname.endsWith('.bibliocommons.com')) return false;
-    return RECORD_PATH_RE.test(u.pathname) || LIST_PATH_RE.test(u.pathname);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Flash a transient badge for ~2 seconds. Used for one-shot success
- * (✓), error (X, !, ?). When accumulate mode is on, the persistent
- * count badge gets restored after the flash.
- */
-async function flashBadge(tabId, text, color) {
-  try {
-    await chrome.action.setBadgeBackgroundColor({ color });
-    await chrome.action.setBadgeText({ text });
-    setTimeout(() => { restorePersistentBadge().catch(() => {}); }, 2000);
-  } catch {
-    // Badge API failures aren't worth blocking on.
-  }
-  // tabId param kept for future per-tab use; currently we set globally
-  // because the accumulate-count badge spans tabs.
-  void tabId;
-}
 
 // ---------------------------------------------------------------------------
 // Persistent badge (accumulate mode count)
 // ---------------------------------------------------------------------------
 
 /**
- * Read the current accumulate state and reflect it on the toolbar
- * badge. If accumulate mode is off, or the list is empty, the badge
- * is cleared. Otherwise the count is shown in green.
+ * Read the current accumulate state and reflect it on the toolbar badge.
+ * If accumulate mode is off, or the list is empty, the badge is cleared.
+ * Otherwise the running count is shown.
  *
- * Called on service-worker startup, on storage changes, and after
- * every transient flash badge expires.
+ * Called on service-worker startup and on every storage change so the
+ * count survives across service-worker lifetimes.
  */
 async function restorePersistentBadge() {
   try {
@@ -93,82 +51,21 @@ async function restorePersistentBadge() {
   }
 }
 
-// Service worker can be restarted at any time; restore badge state
-// on every startup so the count survives across SW lifetimes.
 chrome.runtime.onStartup.addListener(() => {
   restorePersistentBadge();
-  configurePopupForAllTabs();
 });
 chrome.runtime.onInstalled.addListener(() => {
   restorePersistentBadge();
   ensureContextMenu();
-  configurePopupForAllTabs();
 });
 
 // React to storage changes from content.js (which mutates accumulatedRows
-// when adding to the list) or from the options page (which can toggle
-// accumulateMode or clear the list).
+// when adding to the list) or from the popup's Settings tab (which can
+// toggle accumulateMode or clear the list).
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && 'accumulatedRows' in changes) restorePersistentBadge();
   if (area === 'sync' && 'accumulateMode' in changes) restorePersistentBadge();
 });
-
-// ---------------------------------------------------------------------------
-// Settings window
-// ---------------------------------------------------------------------------
-
-/**
- * Open options/options.html as a small standalone popup window. The
- * manifest no longer declares options_ui, so this is the only path
- * to settings: it's reachable from the toolbar's right-click menu
- * and from the gear button in the selection popup. Auto-save in the
- * options page means the user can just close the window when done.
- *
- * If a settings window is already open, focus it instead of stacking
- * a duplicate. The check walks existing windows rather than caching
- * a window id, so it survives service-worker restarts.
- */
-async function openOptionsWindow() {
-  const optionsUrl = chrome.runtime.getURL('options/options.html');
-  const WIDTH = 460;
-  const HEIGHT = 540;
-  try {
-    const wins = await chrome.windows.getAll({ populate: true });
-    for (const win of wins) {
-      const alreadyOpen = (win.tabs || []).some(
-        (t) => t.url && t.url.startsWith(optionsUrl),
-      );
-      if (alreadyOpen) {
-        await chrome.windows.update(win.id, { focused: true });
-        return;
-      }
-    }
-
-    const create = {
-      url: optionsUrl,
-      type: 'popup',
-      width: WIDTH,
-      height: HEIGHT,
-      focused: true,
-    };
-    // Place the window near the top-right of the active browser
-    // window, roughly where the toolbar popup anchors. chrome.windows
-    // can't truly anchor an arbitrary page to the toolbar icon the
-    // way action popups do, so this is the closest approximation.
-    try {
-      const cur = await chrome.windows.getCurrent();
-      if (cur && typeof cur.left === 'number' && typeof cur.width === 'number') {
-        create.left = Math.max(0, cur.left + cur.width - WIDTH - 16);
-        create.top = Math.max(0, (cur.top || 0) + 72);
-      }
-    } catch {
-      // No usable window bounds. let the OS position the window.
-    }
-    await chrome.windows.create(create);
-  } catch (err) {
-    console.warn('[Booklister Helper] openOptionsWindow failed:', err);
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Right-click context menus
@@ -176,12 +73,10 @@ async function openOptionsWindow() {
 
 // Action context: appears when right-clicking the toolbar icon.
 const MENU_ID_CLEAR_LIST = 'booklister-helper-clear-list';
-const MENU_ID_SETTINGS = 'booklister-helper-settings';
 
-// Page context: appears when right-clicking inside a BiblioCommons
-// record or list page. documentUrlPatterns scopes the visibility so
-// the item shows only on those URLs (mirroring how the toolbar icon
-// is only useful on those pages).
+// Page context: appears when right-clicking inside a BiblioCommons record
+// or list page. documentUrlPatterns scopes the visibility so the item
+// shows only on those URLs.
 const MENU_ID_CAPTURE_PAGE = 'booklister-helper-capture-page';
 
 function ensureContextMenu() {
@@ -190,11 +85,6 @@ function ensureContextMenu() {
       chrome.contextMenus.create({
         id: MENU_ID_CLEAR_LIST,
         title: 'Clear accumulated list',
-        contexts: ['action'],
-      });
-      chrome.contextMenus.create({
-        id: MENU_ID_SETTINGS,
-        title: 'Settings',
         contexts: ['action'],
       });
       chrome.contextMenus.create({
@@ -212,123 +102,20 @@ function ensureContextMenu() {
   }
 }
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+chrome.contextMenus.onClicked.addListener((info) => {
   if (info.menuItemId === MENU_ID_CLEAR_LIST) {
     chrome.storage.local.set({ accumulatedRows: [] }).catch(() => {});
     return;
   }
 
-  if (info.menuItemId === MENU_ID_SETTINGS) {
-    await openOptionsWindow();
-    return;
-  }
-
   if (info.menuItemId === MENU_ID_CAPTURE_PAGE) {
-    if (!tab || !tab.id) return;
-    // On list pages, prefer to open the popup so the user gets the
-    // selection UI (same as a left-click). On record pages (and as
-    // a fallback if openPopup isn't supported in this Chrome
-    // version), dispatch the capture message directly.
-    const looksLikeListPage = tab.url
-      ? (() => { try { return LIST_PATH_RE.test(new URL(tab.url).pathname); } catch { return false; } })()
-      : false;
-    if (looksLikeListPage && chrome.action.openPopup) {
-      try {
-        await chrome.action.openPopup();
-        return;
-      } catch {
-        // openPopup not available or refused; fall through to direct
-        // capture (which on a list page will grab everything).
-      }
+    // The popup is always-on now, so "Capture for Booklister" just opens
+    // it, the same as clicking the toolbar icon. openPopup needs a recent
+    // browser; on older ones the item is a no-op and the user can click
+    // the toolbar icon instead.
+    if (chrome.action.openPopup) {
+      chrome.action.openPopup().catch(() => {});
     }
-    let response;
-    try {
-      response = await chrome.tabs.sendMessage(tab.id, { type: 'capture' });
-    } catch (err) {
-      console.warn('[Booklister Helper] no content script listening:', err);
-      await flashBadge(tab.id, '!', '#b00020');
-      return;
-    }
-    if (response && response.ok) {
-      await flashBadge(tab.id, '✓', '#2e7d32');
-    } else {
-      await flashBadge(tab.id, 'X', '#b00020');
-    }
-  }
-});
-
-// ---------------------------------------------------------------------------
-// Per-tab popup configuration
-// ---------------------------------------------------------------------------
-
-/**
- * On /v2/list/ pages, the toolbar icon opens a popup that lets the
- * user select which books to capture (most curated lists are 30+
- * books; users typically want a specific subset of ~13 for a
- * Booklister booklist). On every other URL (including /v2/record/
- * pages) we leave the popup unset so chrome.action.onClicked fires
- * and the existing single-record / accumulate flow runs unchanged.
- *
- * setPopup is per-tab, so we wire it up via tabs.onUpdated and run
- * a one-time sweep of existing tabs on install / startup.
- */
-function configurePopupForTab(tabId, url) {
-  if (!url || !tabId) return;
-  let popup = '';
-  try {
-    if (LIST_PATH_RE.test(new URL(url).pathname)) {
-      popup = 'popup/popup.html';
-    }
-  } catch {
-    // Invalid URL. leave popup empty so onClicked still fires.
-  }
-  chrome.action.setPopup({ tabId, popup }).catch(() => {});
-}
-
-function configurePopupForAllTabs() {
-  chrome.tabs.query({}, (tabs) => {
-    for (const tab of tabs) {
-      if (tab.id && tab.url) configurePopupForTab(tab.id, tab.url);
-    }
-  });
-}
-
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  // changeInfo.url fires on SPA navigations (BiblioCommons IS an SPA);
-  // changeInfo.status === 'complete' covers initial loads. Either is
-  // a valid trigger for re-evaluating the popup setting.
-  if (changeInfo.url || changeInfo.status === 'complete') {
-    configurePopupForTab(tabId, tab.url);
-  }
-});
-
-// ---------------------------------------------------------------------------
-// Toolbar click → 'capture' message to content script
-// ---------------------------------------------------------------------------
-
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab || !tab.id) return;
-
-  if (!isBibliocommonsCapturablePage(tab.url)) {
-    // User clicked while looking at something other than a record or
-    // list page. Flash a "?" so they notice.
-    await flashBadge(tab.id, '?', '#b00020');
-    return;
-  }
-
-  let response;
-  try {
-    response = await chrome.tabs.sendMessage(tab.id, { type: 'capture' });
-  } catch (err) {
-    console.warn('[Booklister Helper] no content script listening:', err);
-    await flashBadge(tab.id, '!', '#b00020');
-    return;
-  }
-
-  if (response && response.ok) {
-    await flashBadge(tab.id, '✓', '#2e7d32');
-  } else {
-    await flashBadge(tab.id, 'X', '#b00020');
   }
 });
 
@@ -344,12 +131,12 @@ chrome.action.onClicked.addListener(async (tab) => {
  * because manifest host_permissions grant the extension privileged
  * access to the listed origins (`*.syndetics.com`, etc.).
  *
- * Returns a base64 data URL so the content script can embed it
- * directly in the TSV's coverUrl column. Booklister's customCoverData
- * field accepts both http(s) URLs and data: URLs interchangeably.
+ * Returns a base64 data URL so the content script can embed it directly
+ * in the TSV's coverUrl column. Booklister's customCoverData field
+ * accepts both http(s) URLs and data: URLs interchangeably.
  *
  * Service workers in MV3 don't have FileReader, so we convert
- * arrayBuffer → bytes → base64 manually with btoa. The per-byte loop
+ * arrayBuffer -> bytes -> base64 manually with btoa. The per-byte loop
  * is fine for typical cover sizes (~30-80 KB).
  */
 async function fetchImageAsDataUrl(url) {
@@ -383,12 +170,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'fetch-image-as-data-url') {
     fetchImageAsDataUrl(msg.url).then(sendResponse).catch(() => sendResponse({ ok: false, reason: 'exception' }));
     return true; // keep the channel open for the async response
-  }
-  if (msg?.type === 'open-options') {
-    // Fire-and-forget: the selection popup sends this then closes
-    // itself, so there's no response channel to keep open.
-    openOptionsWindow();
-    return false;
   }
   return false;
 });

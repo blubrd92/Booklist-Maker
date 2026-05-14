@@ -4,39 +4,37 @@ A small browser extension that captures a book record from a BiblioCommons libra
 
 **Supported sites**: BiblioCommons-powered library catalogs only (`*.bibliocommons.com`). This covers most North American public-library consortiums (MARINet, Sonoma County Library, San Mateo County, Pima County, etc.) but does not work with Aspen Discovery, Vega, Polaris LEAP, Encore, Sierra OPAC, or other non-BiblioCommons platforms.
 
-**What it does**, in three workflows:
+**The popup.** Clicking the toolbar icon always opens the extension's popup. It has two tabs: **Capture** (context-aware, based on the page you're on) and **Settings**. Capture works in three ways:
 
 ### Single book
 
 1. Open a BiblioCommons book record (URL contains `/v2/record/`).
-2. Click the Booklister Helper toolbar icon.
-3. The extension reads title, subtitle, author, and per-branch call number, plus fetches the cover image bytes.
-4. A single TSV row is copied to your clipboard. Paste into Booklister's Quick Add → Spreadsheet tab.
+2. Click the Booklister Helper toolbar icon. The popup opens on the **Capture** tab with a preview of the book.
+3. Click **Capture this book**. The extension reads title, subtitle, author, and per-branch call number, fetches the cover image bytes, and copies a single TSV row to your clipboard.
+4. Paste into Booklister's Quick Add → Spreadsheet tab.
 
 ### Curated list with per-book selection
 
 1. Open any BiblioCommons list page (URL contains `/v2/list/`), e.g. staff picks or themed reading lists.
-2. Click the toolbar icon. A popup opens showing every book on the list with a checkbox, cover thumbnail, title, author, and call number.
-3. Pick the books you want. All books are checked by default. Use the **All / First 13 / None** buttons at the top of the popup for quick presets, or check/uncheck individual rows.
+2. Click the toolbar icon. The popup opens on the **Capture** tab showing every book on the list with a checkbox, cover thumbnail, title, author, and call number.
+3. Pick the books you want. All books are checked by default. Use the **All / First 13 / None** buttons for quick presets, or check/uncheck individual rows.
 4. Click **Capture N books**. The popup closes and the extension captures the selected books, fetching their per-branch call numbers and covers in parallel. Takes ~5-10 seconds for 13 books.
 5. A multi-row TSV is copied to your clipboard. Paste into Booklister's Quick Add → Spreadsheet tab.
 
-> **Why a popup with selection?** Most curated BiblioCommons lists run 20-50+ books, but a Booklister booklist has 13-15 slots. Pre-selecting the right subset on the BiblioCommons side saves you from picking and trimming inside Booklister later.
+> **Why per-book selection?** Most curated BiblioCommons lists run 20-50+ books, but a Booklister booklist has 13-15 slots. Pre-selecting the right subset on the BiblioCommons side saves you from picking and trimming inside Booklister later.
 
 ### Accumulate mode (running list of single-book picks)
 
-1. Turn on **Accumulate single-book captures into a running list** in the extension's options page.
-2. Browse to book #1, click the toolbar icon → toast says "Added (1 book in list)", toolbar badge reads "1".
-3. Browse to book #2, click → "Added (2 books in list)", badge reads "2".
+1. Turn on **Accumulate captures** in the popup's **Settings** tab.
+2. Browse to book #1, capture it from the Capture tab → toast says "Added (1 book in list)", toolbar badge reads "1".
+3. Browse to book #2, capture it → "Added (2 books in list)", badge reads "2".
 4. Continue until you have enough. The clipboard always holds the latest accumulated TSV.
 5. Paste into Booklister's Quick Add → Spreadsheet whenever ready.
-6. Right-click the toolbar icon → **Clear accumulated list** to start over (or use the button on the options page).
+6. Clear the running list with the **Clear** button in the Settings tab, or by right-clicking the toolbar icon → **Clear accumulated list**.
 
-In all three modes, the cover is embedded as a base64 `data:image/...` URL so saved booklists stay self-contained, and they keep working even if the cover provider's URL changes or expires.
+In all three modes, the cover is embedded as a base64 `data:image/...` URL so saved booklists stay self-contained, and they keep working even if the cover provider's URL changes or expires. When a capture finishes, the content script shows a brief in-page toast on the BiblioCommons tab.
 
-The icon flashes a green ✓ on success or a red badge if something went wrong.
-
-> **Right-click on the page**: a **Capture for Booklister** item appears in the page's right-click menu when you're on a BiblioCommons book record or list page. It runs the same capture as clicking the toolbar icon (and tries to open the selection popup on list pages). The menu item is hidden on every other site, so it doesn't clutter your right-click menu when you're outside BiblioCommons.
+> **Right-click on the page**: a **Capture for Booklister** item appears in the page's right-click menu when you're on a BiblioCommons book record or list page. It opens the popup, the same as clicking the toolbar icon. The menu item is hidden on every other site, so it doesn't clutter your right-click menu when you're outside BiblioCommons.
 
 > **Note on the clipboard contents**: because each cover is embedded as base64 image bytes, the TSV will be a long-looking string of dense text (~30-80 KB per book). That's normal; just paste and submit. Booklister parses it transparently and renders the covers from those bytes.
 
@@ -52,7 +50,7 @@ For Firefox: go to `about:debugging` → **This Firefox** → **Load Temporary A
 
 ## Configuration
 
-Open settings from either the toolbar icon's right-click menu (**Settings**) or the gear button in the list-page selection popup. Both open a small standalone settings window; changes auto-save, so just close the window when you're done.
+Settings live in the **Settings** tab of the popup: click the toolbar icon, then the Settings tab. Changes auto-save, so there's no Save button.
 
 Two settings:
 
