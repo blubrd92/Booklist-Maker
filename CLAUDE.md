@@ -8,6 +8,8 @@ Booklister (repo name: Booklist-Maker) is a web-based application for creating, 
 
 **Naming note (intentional mismatch)**: The user-facing brand is "Booklister" (in the browser tab title, header logo, content pages, canonical URLs, and meta tags). Internal code identifiers (`BooklistApp` namespace, `book-utils.js`, repo name `Booklist-Maker`, npm package `booklist-maker`, CSS class names, comments) still use "Booklist Maker" or "booklist". These were intentionally left unchanged during the rebrand to avoid breaking references, and should stay as-is unless a full code-wide rename is the task. When writing user-facing strings (page copy, titles, notifications, meta tags) use "Booklister". When referencing code identifiers, keep "BooklistApp" etc.
 
+**Terminology note (titles, not books)**: Booklister can be used for any catalogued title, not just books — DVDs, audiobooks, magazines, music, and so on. User-facing copy should prefer "title(s)" over "book(s)" wherever it reads naturally (e.g. the Quick Add tabs are "Single title" / "Multiple titles"; the extension says "Capture N titles"). This is a forward-looking convention for new and updated copy. It is **not** a mandate to rename the internal `book` data structure, the `myBooklist` array, `createBlankBook`, the `.booklist` file format, the `book-*` CSS classes, or any other code identifier — those are stable and stay. "Booklist" (the thing you make) and "Booklister" (the brand) also stay. The line: generic references to a catalogued item become "title" in user-facing strings; the product name, the file format, the brand, and all code identifiers do not.
+
 **Tech Stack**: Vanilla HTML5/CSS3/JavaScript (ES6+), no build process. Dev tooling: ESLint + Vitest (via npm).
 
 ## Running the Application
