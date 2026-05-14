@@ -19,7 +19,7 @@ const listEl = document.getElementById('list');
 const selectedCountEl = document.getElementById('selected-count');
 const captureListBtn = document.getElementById('capture-list-btn');
 const selectAllBtn = document.getElementById('select-all');
-const selectFirst13Btn = document.getElementById('select-first-13');
+const selectFirstNEl = document.getElementById('select-first-n');
 const selectNoneBtn = document.getElementById('select-none');
 
 // Record-mode els
@@ -33,7 +33,12 @@ const accumulateCount = document.getElementById('accumulate-count');
 const clearBtn = document.getElementById('clear-list');
 const savedIndicator = document.getElementById('saved');
 
-const FIRST_N_DEFAULT = 13; // matches Booklister's typical full-feature slot count
+// A Booklister booklist holds 13-15 books depending on whether the QR
+// and branding blocks are on. 13 is the default since both are usually
+// active; the "First N" toolbar selector lets a library that runs
+// 14- or 15-slot booklists pick its own number, persisted across opens.
+const FIRST_N_DEFAULT = 13;
+const FIRST_N_CHOICES = [13, 14, 15];
 const RECORD_PATH_RE = /\/v2\/record\//;
 const LIST_PATH_RE = /\/v2\/list\//;
 
@@ -146,10 +151,14 @@ selectAllBtn.addEventListener('click', () => {
   renderList();
   updateCount();
 });
-selectFirst13Btn.addEventListener('click', () => {
-  selected = new Set(books.slice(0, FIRST_N_DEFAULT).map((b) => b.bibId));
+// Changing the "First N" selector both applies the selection and
+// persists N, so the choice sticks the next time the popup opens.
+selectFirstNEl.addEventListener('change', () => {
+  const n = parseInt(selectFirstNEl.value, 10) || FIRST_N_DEFAULT;
+  selected = new Set(books.slice(0, n).map((b) => b.bibId));
   renderList();
   updateCount();
+  browser.storage.sync.set({ firstNCount: n }).catch(() => {});
 });
 selectNoneBtn.addEventListener('click', () => {
   selected = new Set();
@@ -186,7 +195,7 @@ async function initListMode() {
     return;
   }
   books = resp.bibs;
-  // Default selection: everything. The All / First 13 / None buttons and
+  // Default selection: everything. The All / First N / None controls and
   // the per-row checkboxes let the user narrow it down.
   selected = new Set(books.map((b) => b.bibId));
   renderList();
@@ -267,9 +276,17 @@ async function refreshAccumulatedCount() {
 
 async function loadSettings() {
   try {
-    const sync = await browser.storage.sync.get({ preferredBranch: '', accumulateMode: false });
+    const sync = await browser.storage.sync.get({
+      preferredBranch: '',
+      accumulateMode: false,
+      firstNCount: FIRST_N_DEFAULT,
+    });
     branchInput.value = sync.preferredBranch || '';
     accumulateToggle.checked = !!sync.accumulateMode;
+    const storedN = parseInt(sync.firstNCount, 10);
+    selectFirstNEl.value = String(
+      FIRST_N_CHOICES.includes(storedN) ? storedN : FIRST_N_DEFAULT,
+    );
   } catch {
     // Leave the form at its default empty/unchecked state.
   }

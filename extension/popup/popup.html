@@ -148,6 +148,27 @@
       border-color: var(--primary);
       box-shadow: 0 0 0 3px var(--primary-soft);
     }
+    .toolbar select {
+      padding: 5px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .toolbar select:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .toolbar select:focus-visible {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
     .selected-count {
       margin-left: auto;
       font-size: 12px;
@@ -430,7 +451,11 @@
     <div id="capture-list" class="hidden">
       <div class="toolbar">
         <button id="select-all" type="button">All</button>
-        <button id="select-first-13" type="button">First 13</button>
+        <select id="select-first-n" aria-label="Select the first 13, 14, or 15 books">
+          <option value="13">First 13</option>
+          <option value="14">First 14</option>
+          <option value="15">First 15</option>
+        </select>
         <button id="select-none" type="button">None</button>
         <span class="selected-count" id="selected-count" aria-live="polite"></span>
       </div>
@@ -458,7 +483,7 @@
       <input
         id="preferred-branch"
         type="text"
-        placeholder="e.g. San Rafael Downtown"
+        placeholder="Your branch name or code"
         autocomplete="off"
         spellcheck="false"
       />
