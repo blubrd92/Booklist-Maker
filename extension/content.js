@@ -528,7 +528,20 @@
     }
 
     const noun = rows.length === 1 ? 'book' : 'books';
-    showToast(`Copied ${rows.length} ${noun}. Paste into Booklister Quick Add → Spreadsheet tab. Booklister will fit as many as your slots allow.`, 'success');
+    let successMessage = `Copied ${rows.length} ${noun}. Paste into Booklister Quick Add → Spreadsheet tab. Booklister will fit as many as your slots allow.`;
+
+    // A list capture overwrites the clipboard with just these list books;
+    // it deliberately doesn't touch the accumulated list. If the user has
+    // one going, say so, so the clipboard swap isn't a surprise. They can
+    // re-copy the accumulated list from the popup's Settings tab.
+    if (await readAccumulateMode()) {
+      const accumulated = await readAccumulatedRows();
+      if (accumulated.length > 0) {
+        const accNoun = accumulated.length === 1 ? 'book' : 'books';
+        successMessage += ` Your accumulated list of ${accumulated.length} ${accNoun} is still saved.`;
+      }
+    }
+    showToast(successMessage, 'success');
     return { ok: true };
   }
 

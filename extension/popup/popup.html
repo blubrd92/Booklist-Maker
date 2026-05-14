@@ -389,6 +389,12 @@
       color: var(--text-muted);
       margin-top: 1px;
     }
+    .list-manage-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    button.copy,
     button.clear {
       padding: 6px 12px;
       font-size: 12px;
@@ -402,10 +408,15 @@
       flex-shrink: 0;
       transition: border-color 0.15s, color 0.15s;
     }
+    button.copy:hover:not(:disabled) {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
     button.clear:hover:not(:disabled) {
       border-color: var(--red);
       color: var(--red);
     }
+    button.copy:disabled,
     button.clear:disabled {
       opacity: 0.45;
       cursor: not-allowed;
@@ -506,7 +517,10 @@
           <div class="label">Accumulated list</div>
           <div class="meta" id="accumulate-count">Empty</div>
         </div>
-        <button id="clear-list" class="clear" type="button" disabled>Clear</button>
+        <div class="list-manage-actions">
+          <button id="copy-list" class="copy" type="button" disabled>Copy</button>
+          <button id="clear-list" class="clear" type="button" disabled>Clear</button>
+        </div>
       </div>
     </div>
 

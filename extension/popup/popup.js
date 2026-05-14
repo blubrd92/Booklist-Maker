@@ -30,6 +30,7 @@ const captureRecordBtn = document.getElementById('capture-record-btn');
 const branchInput = document.getElementById('preferred-branch');
 const accumulateToggle = document.getElementById('accumulate-mode');
 const accumulateCount = document.getElementById('accumulate-count');
+const copyBtn = document.getElementById('copy-list');
 const clearBtn = document.getElementById('clear-list');
 const savedIndicator = document.getElementById('saved');
 
@@ -267,9 +268,11 @@ async function refreshAccumulatedCount() {
     const local = await browser.storage.local.get({ accumulatedRows: [] });
     const n = Array.isArray(local.accumulatedRows) ? local.accumulatedRows.length : 0;
     accumulateCount.textContent = n > 0 ? `${n} ${n === 1 ? 'book' : 'books'}` : 'Empty';
+    copyBtn.disabled = n === 0;
     clearBtn.disabled = n === 0;
   } catch {
     accumulateCount.textContent = 'Empty';
+    copyBtn.disabled = true;
     clearBtn.disabled = true;
   }
 }
@@ -327,6 +330,25 @@ accumulateToggle.addEventListener('change', async () => {
     // Revert the visible toggle if the write failed, so it doesn't lie.
     accumulateToggle.checked = !accumulateToggle.checked;
   }
+});
+
+// Re-copy the accumulated list to the clipboard. A BiblioCommons list
+// capture overwrites the clipboard with just the list books and leaves
+// the accumulated list saved-but-stranded; this is the way to get it
+// back onto the clipboard without doing another single-book capture.
+let copyResetTimer;
+copyBtn.addEventListener('click', async () => {
+  try {
+    const local = await browser.storage.local.get({ accumulatedRows: [] });
+    const rows = Array.isArray(local.accumulatedRows) ? local.accumulatedRows : [];
+    if (rows.length === 0) return;
+    await navigator.clipboard.writeText(rows.join('\n'));
+    copyBtn.textContent = 'Copied!';
+  } catch {
+    copyBtn.textContent = 'Failed';
+  }
+  clearTimeout(copyResetTimer);
+  copyResetTimer = setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
 });
 
 clearBtn.addEventListener('click', async () => {
