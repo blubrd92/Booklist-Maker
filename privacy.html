@@ -70,34 +70,9 @@
       <p>I don't store anything else about you in Firebase. No booklist content, no search history, no usage analytics, no telemetry. The booklist work you do on a branded instance still stays in your browser, same as the public tool.</p>
 
       <h2>Booklister Helper browser extension</h2>
-      <p>The <a href="extension.html">Booklister Helper</a> is a separate, optional browser extension you can install from the Chrome Web Store, Firefox Add-ons, or Microsoft Edge Add-ons. It captures books from BiblioCommons library catalog pages and copies them as a tab-separated row to your clipboard so you can paste them into Booklister's Quick Add Spreadsheet tab. It is not required to use Booklister, and it has its own privacy story.</p>
+      <p>The <a href="extension.html">Booklister Helper</a> is a separate, optional browser extension you can install from the Chrome Web Store, Firefox Add-ons, or Microsoft Edge Add-ons. It runs only on BiblioCommons library catalog pages. When you click it on a book's page, it copies the book's title, author, call number, and cover image to your clipboard so you can paste them into Booklister. That is the entire extent of what it does.</p>
 
-      <p><strong>What pages it can read.</strong> The extension only runs on BiblioCommons-powered library catalog pages, specifically URLs matching <code>*.bibliocommons.com/v2/record/*</code> (single book record pages) and <code>*.bibliocommons.com/v2/list/*</code> (curated list pages). It has no permission to read any other website you visit, and it cannot observe your browsing outside of those BiblioCommons catalog pages.</p>
-
-      <p><strong>What it transmits, and to whom.</strong> When you click the extension on a catalog page, it makes the same kinds of network requests your library's catalog page itself already makes: a lookup of branch-level call numbers through the BiblioCommons availability API, and a fetch of the book's cover thumbnail image. Both requests go directly from your browser to BiblioCommons's own infrastructure, just as your normal browsing already does.</p>
-
-      <p>I do not capture, log, or otherwise observe what you do with the extension. Nothing about the capture is sent to me, to Booklister, or to any server I operate. The captured row goes from the catalog page straight to your clipboard, locally, inside your browser. I have no way to know what you capture, or that you used the extension at all.</p>
-
-      <p><strong>What it stores in your browser.</strong> The extension stores a small amount of state in your browser to remember your settings:</p>
-
-      <ul>
-        <li><code>preferredBranch</code> in <code>chrome.storage.sync</code>: the optional substring you set in the extension's options to pin a specific branch's call numbers. Empty by default. Syncs across your Chrome installs if you're signed into Chrome (a Chrome behavior, not something the extension chooses).</li>
-        <li><code>accumulateMode</code> in <code>chrome.storage.sync</code>: a boolean indicating whether single-book captures append to a running list or overwrite the clipboard each time. Off by default.</li>
-        <li><code>accumulatedRows</code> in <code>chrome.storage.local</code>: the running list of captured TSV rows when accumulate mode is on, with embedded cover image bytes. Stored locally rather than synced because each row can exceed Chrome's per-item sync quota.</li>
-      </ul>
-
-      <p>All three are local to your browser. None of them are sent anywhere by the extension. You can clear them at any time by clicking the clear button in the extension's options, by uninstalling the extension, or by clearing extension storage in your browser settings.</p>
-
-      <p><strong>Permissions the extension requests, and why.</strong></p>
-
-      <ul>
-        <li><code>storage</code>: needed to remember the three settings above between browser sessions.</li>
-        <li><code>scripting</code>: needed to inject the content script that reads book metadata from BiblioCommons record and list pages.</li>
-        <li><code>contextMenus</code>: needed to add "Capture for Booklister" to the right-click menu on BiblioCommons pages and "Clear accumulated list" to the extension icon's right-click menu.</li>
-        <li>Host permissions on BiblioCommons's catalog domains and the cover image source those catalogs use: needed to read book metadata from catalog pages, query the availability API for branch-specific call numbers, and fetch the same cover thumbnail your catalog page already displays so it can be embedded in the captured row. None of these requests are observed, logged, or routed through anything I operate.</li>
-      </ul>
-
-      <p><strong>What the extension does not do.</strong> No analytics. No telemetry. No usage logging. No remote-loaded code. No third-party SDKs. No cookies. No sign-in. No identification of you to any party. The extension ships as a fixed bundle of static files and runs entirely from your computer once installed. It cannot be updated remotely without a new store-approved release that you choose to accept through your browser's normal extension update mechanism.</p>
+      <p>I do not log, capture, or otherwise observe what you capture, when you capture it, or that you used the extension at all. Nothing about your use of the extension is sent to me, to Booklister, or to any server I operate. The extension stores a few small settings locally in your browser so it can remember them across sessions, but none of that information ever leaves your computer.</p>
 
       <h2>Data retention</h2>
       <p>While your library has an active Booklister instance, your account, membership, and library config are retained. When a staff member is removed from a library, their membership record is deleted immediately, which removes their access. Their Firebase Auth account (which no longer has permission to read any library data after the membership is removed) is cleaned up during a periodic audit, or sooner on request. When a library ends its Booklister relationship, all associated data is deleted within one business day of confirmation.</p>
