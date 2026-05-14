@@ -2,166 +2,290 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Booklister Helper. Options</title>
+  <title>Booklister Helper · Settings</title>
   <style>
+    :root {
+      --blue: #1976d2;
+      --blue-dark: #1565c0;
+      --blue-soft: rgba(25, 118, 210, 0.15);
+      --red: #e53935;
+      --text: #1f2937;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --surface: #fafafa;
+      --bg: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
     body {
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       font-size: 14px;
-      color: #222;
-      padding: 16px 20px;
-      min-width: 380px;
-      max-width: 480px;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0;
+      padding: 28px 24px;
+      min-width: 440px;
+      max-width: 520px;
       line-height: 1.5;
     }
-    h1 {
-      font-size: 16px;
-      margin: 0 0 12px;
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
     }
-    h2 {
-      font-size: 14px;
-      margin: 18px 0 8px;
-      padding-top: 14px;
-      border-top: 1px solid #eee;
+    .header-icon {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
     }
-    label.field {
+    .header-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .header-text h1 {
+      font-size: 17px;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text);
+    }
+    .header-text .subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .saved-indicator {
+      font-size: 12px;
+      color: var(--blue);
+      opacity: 0;
+      transition: opacity 0.2s;
+      flex-shrink: 0;
+    }
+    .saved-indicator.show {
+      opacity: 1;
+    }
+
+    /* Setting card */
+    .setting {
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .setting-label {
       display: block;
       font-weight: 600;
-      margin-bottom: 4px;
+      font-size: 14px;
+      margin: 0;
     }
+    .setting-help {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 4px 0 12px;
+    }
+    .setting-help.last {
+      margin-bottom: 0;
+    }
+
+    /* Text input */
     input[type="text"] {
       width: 100%;
       padding: 8px 10px;
       font-size: 14px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
     }
-    label.toggle {
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px var(--blue-soft);
+    }
+    input[type="text"]::placeholder {
+      color: #9ca3af;
+    }
+
+    /* Toggle row layout */
+    .toggle-row {
       display: flex;
       align-items: flex-start;
-      gap: 8px;
-      font-weight: 500;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .toggle-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .toggle-info .setting-help {
+      margin-bottom: 0;
+    }
+
+    /* iOS-style toggle switch */
+    .toggle {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
       cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #d1d5db;
+      transition: background 0.18s;
+      border-radius: 22px;
     }
-    label.toggle input[type="checkbox"] {
-      margin-top: 2px;
+    .toggle-slider::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
+      background: #ffffff;
+      transition: transform 0.18s;
+      border-radius: 50%;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.18);
     }
-    .help {
-      font-size: 12px;
-      color: #666;
-      margin: 6px 0 14px;
+    .toggle input:checked + .toggle-slider {
+      background: var(--blue);
     }
-    .row {
+    .toggle input:checked + .toggle-slider::before {
+      transform: translateX(18px);
+    }
+    .toggle input:focus-visible + .toggle-slider {
+      box-shadow: 0 0 0 3px var(--blue-soft);
+    }
+
+    /* Sub-row for managing the accumulated list */
+    .list-manage {
       display: flex;
-      gap: 8px;
       align-items: center;
-      margin-top: 12px;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
     }
-    button {
-      padding: 8px 14px;
-      font-size: 14px;
-      border: 1px solid #2e7d32;
-      background: #2e7d32;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
+    .list-manage-info .label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
     }
-    button:hover { background: #266a2a; }
-    button.secondary {
-      border-color: #777;
-      background: #fff;
-      color: #333;
+    .list-manage-info .meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
     }
-    button.secondary:hover { background: #f5f5f5; }
-    button.danger {
-      border-color: #b00020;
-      background: #fff;
-      color: #b00020;
-    }
-    button.danger:hover { background: #fdf0f2; }
-    .status {
+    button.clear {
+      padding: 6px 12px;
       font-size: 12px;
-      color: #2e7d32;
-      min-height: 16px;
+      font-family: inherit;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
     }
-    .section {
+    button.clear:hover:not(:disabled) {
+      border-color: var(--red);
+      color: var(--red);
+    }
+    button.clear:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Footer */
+    .footer {
       margin-top: 18px;
       padding-top: 14px;
-      border-top: 1px solid #eee;
+      border-top: 1px solid var(--border);
       font-size: 12px;
-      color: #555;
+      color: var(--text-muted);
     }
-    .count {
-      font-size: 12px;
-      color: #555;
-      margin-left: 6px;
+    .footer a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
-  <h1>Booklister Helper</h1>
-
-  <h2>Preferred branch</h2>
-
-  <label class="field" for="preferred-branch">Branch name or code (optional)</label>
-  <input
-    id="preferred-branch"
-    type="text"
-    placeholder="e.g. San Rafael Downtown"
-    autocomplete="off"
-  />
-  <div class="help">
-    Case-insensitive substring of your branch name as it appears in the
-    Availability table (or the branch code, like <code>SR</code>). When
-    set, the extension picks that branch's call number when capturing a
-    book. Leave blank to use BiblioCommons' own "local branch"
-    detection, which works automatically when you're signed in or
-    browsing from your library's IP range.
+  <div class="header">
+    <svg class="header-icon" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="18" y="30" width="92" height="90" rx="10" fill="#ffffff" stroke="#1976d2" stroke-width="6"/>
+      <rect x="48" y="10" width="32" height="26" rx="4" fill="#1976d2"/>
+      <rect x="54" y="16" width="20" height="6" rx="1.5" fill="#ffffff" opacity="0.85"/>
+      <rect x="36" y="48" width="56" height="62" rx="3" fill="#1976d2"/>
+      <rect x="36" y="48" width="6" height="62" rx="3" fill="#0d47a1"/>
+      <rect x="36" y="74" width="56" height="10" fill="#e53935"/>
+    </svg>
+    <div class="header-text">
+      <h1>Booklister Helper</h1>
+      <div class="subtitle">Settings</div>
+    </div>
+    <span class="saved-indicator" id="saved" role="status" aria-live="polite">Saved</span>
   </div>
 
-  <h2>Accumulate mode</h2>
-
-  <label class="toggle">
-    <input id="accumulate-mode" type="checkbox" />
-    <span>
-      Accumulate single-book captures into a running list
-      <span class="count" id="accumulate-count" aria-live="polite"></span>
-    </span>
-  </label>
-  <div class="help">
-    When on, each click on a single book record <em>appends</em> the
-    book to a list and copies the entire list to the clipboard. The
-    toolbar badge shows the running count. Useful when you're browsing
-    individual books and want to gather 13-15 of them before pasting
-    into Booklister all at once. Right-click the toolbar icon and
-    choose <em>Clear accumulated list</em> to start over, or use the
-    button below.
-    <br /><br />
-    List-page captures (clicking the icon on a curated list URL) are
-    independent of this setting; they always copy the entire list to
-    the clipboard fresh.
+  <div class="setting">
+    <label class="setting-label" for="preferred-branch">Preferred branch</label>
+    <div class="setting-help">Pin captures to a specific branch. Leave blank to auto-detect.</div>
+    <input
+      id="preferred-branch"
+      type="text"
+      placeholder="e.g. San Rafael Downtown"
+      autocomplete="off"
+      spellcheck="false"
+    />
   </div>
 
-  <div class="row">
-    <button id="clear-list" class="danger" type="button">Clear accumulated list</button>
-    <span id="clear-status" class="status" role="status"></span>
+  <div class="setting">
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <div class="setting-label">Accumulate captures</div>
+        <div class="setting-help last">Each single-book capture adds to a running list instead of replacing the clipboard.</div>
+      </div>
+      <label class="toggle">
+        <input id="accumulate-mode" type="checkbox" />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="list-manage">
+      <div class="list-manage-info">
+        <div class="label">Accumulated list</div>
+        <div class="meta" id="accumulate-count">Empty</div>
+      </div>
+      <button id="clear-list" class="clear" type="button" disabled>Clear</button>
+    </div>
   </div>
 
-  <h2>Save</h2>
-
-  <div class="row">
-    <button id="save" type="button">Save options</button>
-    <span id="status" class="status" role="status"></span>
-  </div>
-
-  <div class="section">
-    Booklister Helper captures the book record from the page you're
-    looking at. It does not collect or transmit any data outside your
-    browser; the only network calls it makes are the same Availability-
-    by-location request your library's catalog page already makes when
-    you click that button, plus a fetch of the cover image bytes from
-    your library's cover provider (typically Syndetics) so the cover
-    travels with the booklist.
+  <div class="footer">
+    <a href="https://booklister.org/extension.html" target="_blank" rel="noopener">Learn more about Booklister Helper</a>
   </div>
 
   <script src="options.js"></script>
