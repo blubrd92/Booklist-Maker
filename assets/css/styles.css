@@ -683,6 +683,42 @@ body.has-library-config .header-credit {
 .quick-add-extension-tip a {
   font-style: normal;
 }
+.quick-add-paste-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.quick-add-paste-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--primary-color);
+  background: var(--primary-light);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.quick-add-paste-btn:hover {
+  border-color: var(--primary-color);
+}
+.quick-add-paste-btn:focus-visible {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.2);
+}
+.quick-add-paste-status {
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+.quick-add-paste-status.is-success { color: var(--success-color); }
+.quick-add-paste-status.is-error { color: var(--danger-color); }
 .quick-add-field {
   margin-bottom: 14px;
 }

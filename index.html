@@ -700,6 +700,12 @@
           <p class="quick-add-help quick-add-extension-tip">
             On a BiblioCommons library catalog? The <a href="extension.html" target="_blank" rel="noopener">Booklister Helper browser extension</a> captures titles from catalog pages with one click to paste here, covers included.
           </p>
+          <div class="quick-add-paste-row">
+            <button type="button" id="quick-add-paste-btn" class="quick-add-paste-btn">
+              <i class="fa-solid fa-clipboard" aria-hidden="true"></i> Paste from clipboard
+            </button>
+            <span id="quick-add-paste-status" class="quick-add-paste-status" role="status" aria-live="polite"></span>
+          </div>
           <label for="quick-add-multi-text" class="sr-only">Paste title rows</label>
           <textarea id="quick-add-multi-text" class="quick-add-multi-textarea"
                     rows="8" spellcheck="false"

@@ -5154,12 +5154,17 @@ const BooklistApp = (function() {
     }
     updateQuickAddSubmitEnabled();
 
-    // Reset Spreadsheet pane fields and toggle.
+    // Reset Multiple titles pane fields, toggle, and paste status.
     if (multiText) multiText.value = '';
     if (multiTitleCase) multiTitleCase.checked = true;
     if (multiError) {
       multiError.hidden = true;
       multiError.textContent = '';
+    }
+    const pasteStatus = document.getElementById('quick-add-paste-status');
+    if (pasteStatus) {
+      pasteStatus.textContent = '';
+      pasteStatus.classList.remove('is-success', 'is-error');
     }
 
     // Always default to the Single tab on open.
@@ -5551,6 +5556,45 @@ const BooklistApp = (function() {
           multiError.hidden = true;
           multiError.textContent = '';
         }
+      });
+    }
+
+    // "Paste from clipboard" button (Multiple titles tab): reads the
+    // clipboard and, if it parses as spreadsheet rows, drops them into
+    // the textarea so the user can review and click Add. Reading the
+    // clipboard needs a user gesture, which this click provides. Any
+    // failure falls back to a "paste manually" hint, so the plain
+    // Ctrl/Cmd+V flow is never blocked.
+    const pasteBtn = document.getElementById('quick-add-paste-btn');
+    const pasteStatus = document.getElementById('quick-add-paste-status');
+    function setQuickAddPasteStatus(msg, kind) {
+      if (!pasteStatus) return;
+      pasteStatus.textContent = msg || '';
+      pasteStatus.classList.remove('is-success', 'is-error');
+      if (kind) pasteStatus.classList.add('is-' + kind);
+    }
+    if (pasteBtn && multiText) {
+      pasteBtn.addEventListener('click', async function() {
+        let text;
+        try {
+          text = await navigator.clipboard.readText();
+        } catch {
+          setQuickAddPasteStatus('Couldn’t read the clipboard. Paste manually with Ctrl/Cmd+V.', 'error');
+          return;
+        }
+        const parsed = BookUtils.parseQuickAddTsv(text, { maxRows: CONFIG.QUICK_ADD_MAX_PASTE_ROWS });
+        if (!parsed || parsed.rows.length === 0) {
+          setQuickAddPasteStatus('Clipboard doesn’t have spreadsheet rows to add.', 'error');
+          return;
+        }
+        multiText.value = text;
+        updateQuickAddSubmitEnabled();
+        if (multiError && !multiError.hidden) {
+          multiError.hidden = true;
+          multiError.textContent = '';
+        }
+        const n = parsed.rows.length;
+        setQuickAddPasteStatus(`${n} ${n === 1 ? 'title' : 'titles'} ready — review and click Add.`, 'success');
       });
     }
   }
