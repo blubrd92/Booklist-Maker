@@ -163,7 +163,7 @@ captureListBtn.addEventListener('click', () => {
   // fetches) runs in the content script and takes several seconds. The
   // popup closes immediately; the content script's in-page toast is the
   // user's progress + completion feedback.
-  chrome.tabs.sendMessage(activeTabId, {
+  browser.tabs.sendMessage(activeTabId, {
     type: 'capture-selected-bibs',
     bibIds: Array.from(selected),
   });
@@ -174,7 +174,7 @@ async function initListMode() {
   showCaptureSubview('loading');
   let resp;
   try {
-    resp = await chrome.tabs.sendMessage(activeTabId, { type: 'list-page-bibs' });
+    resp = await browser.tabs.sendMessage(activeTabId, { type: 'list-page-bibs' });
   } catch {
     captureMessage.textContent = 'Could not reach the page. Refresh the tab and reopen this popup.';
     showCaptureSubview('message');
@@ -198,7 +198,7 @@ async function initListMode() {
 captureRecordBtn.addEventListener('click', () => {
   if (activeTabId === null) return;
   // Fire-and-forget, same rationale as the list capture above.
-  chrome.tabs.sendMessage(activeTabId, { type: 'capture' });
+  browser.tabs.sendMessage(activeTabId, { type: 'capture' });
   window.close();
 });
 
@@ -206,7 +206,7 @@ async function initRecordMode() {
   showCaptureSubview('loading');
   let resp;
   try {
-    resp = await chrome.tabs.sendMessage(activeTabId, { type: 'record-page-brief' });
+    resp = await browser.tabs.sendMessage(activeTabId, { type: 'record-page-brief' });
   } catch {
     captureMessage.textContent = 'Could not reach the page. Refresh the tab and reopen this popup.';
     showCaptureSubview('message');
@@ -224,7 +224,7 @@ async function initRecordMode() {
 
 // ── Capture pane: entry point ──
 async function initCapture() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   activeTabId = tab && tab.id != null ? tab.id : null;
   // tab.url is available for BiblioCommons tabs via host_permissions; it's
   // undefined for other sites, which is itself enough to route to the
@@ -255,7 +255,7 @@ function flashSaved() {
 
 async function refreshAccumulatedCount() {
   try {
-    const local = await chrome.storage.local.get({ accumulatedRows: [] });
+    const local = await browser.storage.local.get({ accumulatedRows: [] });
     const n = Array.isArray(local.accumulatedRows) ? local.accumulatedRows.length : 0;
     accumulateCount.textContent = n > 0 ? `${n} ${n === 1 ? 'book' : 'books'}` : 'Empty';
     clearBtn.disabled = n === 0;
@@ -267,7 +267,7 @@ async function refreshAccumulatedCount() {
 
 async function loadSettings() {
   try {
-    const sync = await chrome.storage.sync.get({ preferredBranch: '', accumulateMode: false });
+    const sync = await browser.storage.sync.get({ preferredBranch: '', accumulateMode: false });
     branchInput.value = sync.preferredBranch || '';
     accumulateToggle.checked = !!sync.accumulateMode;
   } catch {
@@ -282,7 +282,7 @@ async function loadSettings() {
 let branchDebounceTimer;
 async function saveBranch() {
   try {
-    await chrome.storage.sync.set({ preferredBranch: branchInput.value.trim() });
+    await browser.storage.sync.set({ preferredBranch: branchInput.value.trim() });
     flashSaved();
   } catch {
     // Storage quota / availability failures are rare; nothing actionable.
@@ -305,7 +305,7 @@ window.addEventListener('blur', () => {
 
 accumulateToggle.addEventListener('change', async () => {
   try {
-    await chrome.storage.sync.set({ accumulateMode: !!accumulateToggle.checked });
+    await browser.storage.sync.set({ accumulateMode: !!accumulateToggle.checked });
   } catch {
     // Revert the visible toggle if the write failed, so it doesn't lie.
     accumulateToggle.checked = !accumulateToggle.checked;
@@ -313,13 +313,13 @@ accumulateToggle.addEventListener('change', async () => {
 });
 
 clearBtn.addEventListener('click', async () => {
-  await chrome.storage.local.set({ accumulatedRows: [] });
+  await browser.storage.local.set({ accumulatedRows: [] });
   await refreshAccumulatedCount();
 });
 
 // Keep the accumulated count fresh if a capture happens in another tab
 // while this popup is open.
-chrome.storage.onChanged.addListener((changes, area) => {
+browser.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && 'accumulatedRows' in changes) {
     refreshAccumulatedCount();
   }

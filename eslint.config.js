@@ -114,7 +114,8 @@ export default [
     // script + popup. Plain JS, sourceType "script" because we don't
     // use ES module imports inside the extension files (each file runs
     // in its own MV3 context — service worker, isolated content world,
-    // popup).
+    // popup). The vendored webextension-polyfill is excluded from
+    // linting via the ignores block below.
     files: ["extension/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
@@ -133,8 +134,11 @@ export default [
         requestAnimationFrame: "readonly",
         // Service worker globals (background.js)
         btoa: "readonly",
-        // Chrome extension API
-        chrome: "readonly",
+        importScripts: "readonly",
+        // Extension API. All extension code calls `browser.*` (the
+        // webextension-polyfill provides it in Chrome/Edge; Firefox
+        // has it natively).
+        browser: "readonly",
       },
     },
     rules: {
@@ -148,6 +152,13 @@ export default [
     },
   },
   {
-    ignores: ["node_modules/", "eslint.config.js", "vitest.config.js", "tests/"],
+    ignores: [
+      "node_modules/",
+      "eslint.config.js",
+      "vitest.config.js",
+      "tests/",
+      // Vendored third-party library, shipped as-is; not our code to lint.
+      "extension/vendor/",
+    ],
   },
 ];

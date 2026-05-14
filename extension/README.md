@@ -48,6 +48,10 @@ In all three modes, the cover is embedded as a base64 `data:image/...` URL so sa
 
 For Firefox: go to `about:debugging` → **This Firefox** → **Load Temporary Add-on**, then pick the `manifest.json` file inside `extension/`.
 
+## Cross-browser
+
+One codebase runs on Chrome, Edge, and Firefox with no per-browser builds. All extension code calls the `browser.*` API namespace through the bundled [`webextension-polyfill`](https://github.com/mozilla/webextension-polyfill) in `vendor/` (Firefox has `browser.*` natively; the polyfill provides the promise-based shim on Chromium). The manifest carries both `background.service_worker` (Chrome/Edge) and `background.scripts` (Firefox); each browser reads the key it understands and ignores the other. `browser_specific_settings.gecko` sets the Firefox extension id and a `121.0` minimum.
+
 ## Configuration
 
 Settings live in the **Settings** tab of the popup: click the toolbar icon, then the Settings tab. Changes auto-save, so there's no Save button.
@@ -85,8 +89,8 @@ There is no analytics. No tracking. The TSV row goes from the page directly to y
 
 - `host_permissions` are limited to `*.bibliocommons.com`, `gateway.bibliocommons.com`, and `*.syndetics.com`. The extension cannot read any other site.
 - The content script only runs on URLs matching `*://*.bibliocommons.com/v2/record/*` and `*://*.bibliocommons.com/v2/list/*` (BiblioCommons book record + curated list pages).
-- `chrome.storage.sync` keys: `preferredBranch` (your typed substring) and `accumulateMode` (boolean). These follow you across Chrome installs if you're signed into Chrome.
-- `chrome.storage.local` key: `accumulatedRows` (the array of staged TSV rows when accumulate mode is on). Local-only because each row can carry an embedded cover (~30-80 KB) and the per-item sync quota is 8 KB.
+- `browser.storage.sync` keys: `preferredBranch` (your typed substring) and `accumulateMode` (boolean). These follow you across browser installs if you're signed into the browser's sync.
+- `browser.storage.local` key: `accumulatedRows` (the array of staged TSV rows when accumulate mode is on). Local-only because each row can carry an embedded cover (~30-80 KB) and the per-item sync quota is 8 KB.
 - The cover-image fetch goes through the extension's service worker (which has `host_permissions` for Syndetics) so it can read the image bytes regardless of CORS, and it does not use your cookies (`credentials: 'omit'`), so no authenticated identity leaks to the cover provider.
 - No remote-loaded code. The extension ships as a fixed bundle of static JS files.
 

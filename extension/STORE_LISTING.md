@@ -71,9 +71,11 @@ Check all three of the standard certifications:
 
 ## Per-store notes
 
+The same ZIP uploads to all three stores. The extension calls the `browser.*` API namespace through the bundled `webextension-polyfill` (`extension/vendor/`), the manifest carries both a `background.service_worker` key (Chrome/Edge) and a `background.scripts` key (Firefox), and `browser_specific_settings.gecko` carries the Firefox extension id. No per-browser builds.
+
 - **Chrome Web Store**: $5 one-time developer fee. Submission ZIP is the contents of `extension/` (without a wrapping directory). Review typically 1-3 days.
-- **Firefox Add-ons**: free. The `browser_specific_settings.gecko` block is already in `manifest.json`. Review typically <24 hours.
-- **Microsoft Edge Add-ons**: free. Accepts the same Chromium MV3 package as Chrome. Review typically 24-72 hours.
+- **Firefox Add-ons**: free. `strict_min_version` is `121.0` (the version where the dual background key works cleanly). Review typically <24 hours.
+- **Microsoft Edge Add-ons**: free. Accepts the same package as Chrome. Review typically 24-72 hours.
 
 Submit in the order above; after each store goes live, swap the corresponding "link coming soon" placeholder in `extension.html` for the real install URL.
 

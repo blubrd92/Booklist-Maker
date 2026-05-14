@@ -299,7 +299,7 @@
   async function fetchCoverAsDataUrl(coverUrl) {
     if (!coverUrl) return '';
     try {
-      const resp = await chrome.runtime.sendMessage({
+      const resp = await browser.runtime.sendMessage({
         type: 'fetch-image-as-data-url',
         url: coverUrl,
       });
@@ -347,7 +347,7 @@
 
   async function readPreferredBranch() {
     try {
-      const stored = await chrome.storage.sync.get({ preferredBranch: '' });
+      const stored = await browser.storage.sync.get({ preferredBranch: '' });
       return stored.preferredBranch || '';
     } catch {
       return '';
@@ -356,7 +356,7 @@
 
   async function readAccumulateMode() {
     try {
-      const stored = await chrome.storage.sync.get({ accumulateMode: false });
+      const stored = await browser.storage.sync.get({ accumulateMode: false });
       return !!stored.accumulateMode;
     } catch {
       return false;
@@ -365,7 +365,7 @@
 
   async function readAccumulatedRows() {
     try {
-      const stored = await chrome.storage.local.get({ accumulatedRows: [] });
+      const stored = await browser.storage.local.get({ accumulatedRows: [] });
       return Array.isArray(stored.accumulatedRows) ? stored.accumulatedRows : [];
     } catch {
       return [];
@@ -374,7 +374,7 @@
 
   async function writeAccumulatedRows(rows) {
     try {
-      await chrome.storage.local.set({ accumulatedRows: rows });
+      await browser.storage.local.set({ accumulatedRows: rows });
     } catch {
       // Storage failures shouldn't break clipboard write; swallow.
     }
@@ -590,7 +590,7 @@
     };
   }
 
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  browser.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg?.type === 'capture') {
       handleCapture().then(sendResponse).catch((err) => {
         console.error('[Booklister Helper] capture failed:', err);

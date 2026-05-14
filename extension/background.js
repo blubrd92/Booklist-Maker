@@ -19,9 +19,23 @@
  * 3. Two right-click context menu items: "Clear accumulated list" on the
  *    toolbar icon, and "Capture for Booklister" on BiblioCommons pages
  *    (which just opens the popup, the same as clicking the toolbar icon).
+ *
+ * All extension API calls go through the `browser.*` namespace (the
+ * webextension-polyfill provides the promise-based shim in Chrome/Edge;
+ * Firefox has it natively), so the same code runs unmodified in every
+ * browser.
  */
 
 'use strict';
+
+// Load the cross-browser API polyfill. Chrome/Edge run this file as an
+// MV3 service worker, where importScripts is available. Firefox runs it
+// as a background-page script and loads the polyfill via the manifest's
+// background.scripts array instead, where importScripts doesn't exist,
+// hence the typeof guard.
+if (typeof importScripts === 'function') {
+  importScripts('vendor/browser-polyfill.min.js');
+}
 
 // ---------------------------------------------------------------------------
 // Persistent badge (accumulate mode count)
@@ -37,24 +51,24 @@
  */
 async function restorePersistentBadge() {
   try {
-    const sync = await chrome.storage.sync.get({ accumulateMode: false });
-    const local = await chrome.storage.local.get({ accumulatedRows: [] });
+    const sync = await browser.storage.sync.get({ accumulateMode: false });
+    const local = await browser.storage.local.get({ accumulatedRows: [] });
     const count = Array.isArray(local.accumulatedRows) ? local.accumulatedRows.length : 0;
     if (sync.accumulateMode && count > 0) {
-      await chrome.action.setBadgeBackgroundColor({ color: '#1565c0' });
-      await chrome.action.setBadgeText({ text: String(count) });
+      await browser.action.setBadgeBackgroundColor({ color: '#1565c0' });
+      await browser.action.setBadgeText({ text: String(count) });
     } else {
-      await chrome.action.setBadgeText({ text: '' });
+      await browser.action.setBadgeText({ text: '' });
     }
   } catch (err) {
     console.warn('[Booklister Helper] restorePersistentBadge failed:', err);
   }
 }
 
-chrome.runtime.onStartup.addListener(() => {
+browser.runtime.onStartup.addListener(() => {
   restorePersistentBadge();
 });
-chrome.runtime.onInstalled.addListener(() => {
+browser.runtime.onInstalled.addListener(() => {
   restorePersistentBadge();
   ensureContextMenu();
 });
@@ -62,7 +76,7 @@ chrome.runtime.onInstalled.addListener(() => {
 // React to storage changes from content.js (which mutates accumulatedRows
 // when adding to the list) or from the popup's Settings tab (which can
 // toggle accumulateMode or clear the list).
-chrome.storage.onChanged.addListener((changes, area) => {
+browser.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && 'accumulatedRows' in changes) restorePersistentBadge();
   if (area === 'sync' && 'accumulateMode' in changes) restorePersistentBadge();
 });
@@ -81,13 +95,13 @@ const MENU_ID_CAPTURE_PAGE = 'booklister-helper-capture-page';
 
 function ensureContextMenu() {
   try {
-    chrome.contextMenus.removeAll(() => {
-      chrome.contextMenus.create({
+    browser.contextMenus.removeAll(() => {
+      browser.contextMenus.create({
         id: MENU_ID_CLEAR_LIST,
         title: 'Clear accumulated list',
         contexts: ['action'],
       });
-      chrome.contextMenus.create({
+      browser.contextMenus.create({
         id: MENU_ID_CAPTURE_PAGE,
         title: 'Capture for Booklister',
         contexts: ['page'],
@@ -102,9 +116,9 @@ function ensureContextMenu() {
   }
 }
 
-chrome.contextMenus.onClicked.addListener((info) => {
+browser.contextMenus.onClicked.addListener((info) => {
   if (info.menuItemId === MENU_ID_CLEAR_LIST) {
-    chrome.storage.local.set({ accumulatedRows: [] }).catch(() => {});
+    browser.storage.local.set({ accumulatedRows: [] }).catch(() => {});
     return;
   }
 
@@ -113,8 +127,8 @@ chrome.contextMenus.onClicked.addListener((info) => {
     // it, the same as clicking the toolbar icon. openPopup needs a recent
     // browser; on older ones the item is a no-op and the user can click
     // the toolbar icon instead.
-    if (chrome.action.openPopup) {
-      chrome.action.openPopup().catch(() => {});
+    if (browser.action.openPopup) {
+      browser.action.openPopup().catch(() => {});
     }
   }
 });
@@ -166,7 +180,7 @@ async function fetchImageAsDataUrl(url) {
   }
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+browser.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'fetch-image-as-data-url') {
     fetchImageAsDataUrl(msg.url).then(sendResponse).catch(() => sendResponse({ ok: false, reason: 'exception' }));
     return true; // keep the channel open for the async response
