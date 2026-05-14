@@ -5,14 +5,16 @@
   <title>Booklister Helper</title>
   <style>
     :root {
-      --blue: #1976d2;
-      --blue-dark: #1565c0;
-      --blue-soft: rgba(25, 118, 210, 0.15);
+      /* Mirrors the Booklister website palette (assets/css/styles.css):
+         indigo primary, slate text, the same surface/border greys. */
+      --primary: #5c6bc0;
+      --primary-hover: #3f51b5;
+      --primary-soft: rgba(92, 107, 192, 0.15);
       --red: #e53935;
-      --text: #1f2937;
-      --text-muted: #6b7280;
-      --border: #e5e7eb;
-      --surface: #fafafa;
+      --text: #2d3748;
+      --text-muted: #718096;
+      --border: #e1e5eb;
+      --surface: #f5f7fa;
       --bg: #ffffff;
     }
 
@@ -76,12 +78,12 @@
     }
     .tab:hover { color: var(--text); }
     .tab.active {
-      color: var(--blue);
-      border-bottom-color: var(--blue);
+      color: var(--primary);
+      border-bottom-color: var(--primary);
     }
     .tab:focus-visible {
       outline: none;
-      box-shadow: inset 0 0 0 2px var(--blue-soft);
+      box-shadow: inset 0 0 0 2px var(--primary-soft);
     }
 
     /* Panes */
@@ -138,13 +140,13 @@
       transition: border-color 0.12s, color 0.12s;
     }
     .toolbar button:hover {
-      border-color: var(--blue);
-      color: var(--blue);
+      border-color: var(--primary);
+      color: var(--primary);
     }
     .toolbar button:focus-visible {
       outline: none;
-      border-color: var(--blue);
-      box-shadow: 0 0 0 3px var(--blue-soft);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
     }
     .selected-count {
       margin-left: auto;
@@ -174,7 +176,7 @@
     .row input[type="checkbox"] {
       margin-top: 3px;
       flex-shrink: 0;
-      accent-color: var(--blue);
+      accent-color: var(--primary);
       width: 15px;
       height: 15px;
       cursor: pointer;
@@ -246,19 +248,19 @@
       font-family: inherit;
       font-weight: 600;
       color: #ffffff;
-      background: var(--blue);
-      border: 1px solid var(--blue);
+      background: var(--primary);
+      border: 1px solid var(--primary);
       border-radius: 6px;
       cursor: pointer;
       transition: background 0.12s, border-color 0.12s;
     }
     button.primary:hover:not(:disabled) {
-      background: var(--blue-dark);
-      border-color: var(--blue-dark);
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
     }
     button.primary:focus-visible {
       outline: none;
-      box-shadow: 0 0 0 3px var(--blue-soft);
+      box-shadow: 0 0 0 3px var(--primary-soft);
     }
     button.primary:disabled {
       background: #cbd5e1;
@@ -300,8 +302,8 @@
     }
     input[type="text"]:focus {
       outline: none;
-      border-color: var(--blue);
-      box-shadow: 0 0 0 3px var(--blue-soft);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
     }
     input[type="text"]::placeholder { color: #9ca3af; }
 
@@ -341,10 +343,10 @@
       border-radius: 50%;
       box-shadow: 0 1px 2px rgba(0,0,0,0.18);
     }
-    .toggle input:checked + .toggle-slider { background: var(--blue); }
+    .toggle input:checked + .toggle-slider { background: var(--primary); }
     .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
     .toggle input:focus-visible + .toggle-slider {
-      box-shadow: 0 0 0 3px var(--blue-soft);
+      box-shadow: 0 0 0 3px var(--primary-soft);
     }
 
     .list-manage {
@@ -389,7 +391,7 @@
     }
     .saved-indicator {
       font-size: 12px;
-      color: var(--blue);
+      color: var(--primary);
       opacity: 0;
       transition: opacity 0.2s;
       margin-top: 10px;
@@ -401,11 +403,11 @@
 <body>
   <header>
     <svg class="header-icon" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect x="18" y="30" width="92" height="90" rx="10" fill="#ffffff" stroke="#1976d2" stroke-width="6"/>
-      <rect x="48" y="10" width="32" height="26" rx="4" fill="#1976d2"/>
+      <rect x="18" y="30" width="92" height="90" rx="10" fill="#ffffff" stroke="#5c6bc0" stroke-width="6"/>
+      <rect x="48" y="10" width="32" height="26" rx="4" fill="#5c6bc0"/>
       <rect x="54" y="16" width="20" height="6" rx="1.5" fill="#ffffff" opacity="0.85"/>
-      <rect x="36" y="48" width="56" height="62" rx="3" fill="#1976d2"/>
-      <rect x="36" y="48" width="6" height="62" rx="3" fill="#0d47a1"/>
+      <rect x="36" y="48" width="56" height="62" rx="3" fill="#5c6bc0"/>
+      <rect x="36" y="48" width="6" height="62" rx="3" fill="#3949ab"/>
       <rect x="36" y="74" width="56" height="10" fill="#e53935"/>
     </svg>
     <h1>Booklister Helper</h1>

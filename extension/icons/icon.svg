@@ -3,9 +3,9 @@
   Booklister Helper icon (master source).
 
   Design: a clipboard with a single book cover inside it, where the book
-  carries the same blue + red horizontal bar signature as the main
-  Booklister favicon. The clipboard metaphor signals "capture / copy"
-  (the extension's job); the inner book + red bar visually pairs the
+  carries the indigo + red horizontal bar signature of the Booklister
+  website. The clipboard metaphor signals "capture / copy" (the
+  extension's job); the inner book + red bar visually pairs the
   extension with the main tool.
 
   ViewBox 128x128 so the masters render cleanly at 128, 48, and 16
@@ -15,27 +15,26 @@
     icons/icon-128.png  (128x128)
   using any rasterizer (inkscape, rsvg-convert, ImageMagick, Figma).
 
-  Colors match assets/css/styles.css and the favicon:
-    #1976d2 = Booklister blue
-    #e53935 = Booklister red
-    #0d47a1 = darker blue (book spine accent)
+  Colors mirror the Booklister website palette (assets/css/styles.css):
+    #5c6bc0 = Booklister indigo (the primary-color token)
+    #3949ab = darker indigo (book spine accent)
+    #e53935 = Booklister red (the danger-color token)
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Booklister Helper icon">
-  <!-- Clipboard body: white fill, thick blue stroke so it survives at 48x48. -->
-  <rect x="18" y="30" width="92" height="90" rx="10" fill="#ffffff" stroke="#1976d2" stroke-width="6"/>
+  <!-- Clipboard body: white fill, thick indigo stroke so it survives at 48x48. -->
+  <rect x="18" y="30" width="92" height="90" rx="10" fill="#ffffff" stroke="#5c6bc0" stroke-width="6"/>
 
-  <!-- Clipboard clip at the top: blue rectangle with a small white inset
+  <!-- Clipboard clip at the top: indigo rectangle with a small white inset
        suggesting the spring mechanism. The clip is the primary visual
        differentiator from the main Booklister favicon. -->
-  <rect x="48" y="10" width="32" height="26" rx="4" fill="#1976d2"/>
+  <rect x="48" y="10" width="32" height="26" rx="4" fill="#5c6bc0"/>
   <rect x="54" y="16" width="20" height="6" rx="1.5" fill="#ffffff" opacity="0.85"/>
 
-  <!-- Inside the clipboard: a single book cover (blue) with a darker
+  <!-- Inside the clipboard: a single book cover (indigo) with a darker
        spine accent on the left and the signature red bar across the
-       middle. Matches the main favicon's blue + red treatment so the
-       extension reads as a Booklister product at a glance. -->
-  <rect x="36" y="48" width="56" height="62" rx="3" fill="#1976d2"/>
-  <rect x="36" y="48" width="6" height="62" rx="3" fill="#0d47a1"/>
+       middle, so the extension reads as a Booklister product at a glance. -->
+  <rect x="36" y="48" width="56" height="62" rx="3" fill="#5c6bc0"/>
+  <rect x="36" y="48" width="6" height="62" rx="3" fill="#3949ab"/>
 
   <!-- Red horizontal bar: the Booklister signature. Keep this prominent
        since it remains recognizable even at 16x16 when finer details
