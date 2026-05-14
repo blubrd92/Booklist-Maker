@@ -73,6 +73,15 @@
   // Field cleaners
   // ---------------------------------------------------------------------------
 
+  // Fallback text when a BiblioCommons record genuinely has no author/creator
+  // (rare but real: some reference works, anonymous publications, government
+  // documents). Booklister's Quick Add Spreadsheet handler skips any row whose
+  // author cell is empty, so an empty author here would silently drop the book
+  // from the user's paste with no indication. Emitting a visible placeholder
+  // both gets the row through Booklister's validation and tells the user "fix
+  // me before printing" when they review the booklist.
+  const NO_AUTHOR_PLACEHOLDER = 'No author listed';
+
   /**
    * Strip BiblioCommons' "lifetime dates" suffix from author names so
    * Booklister's flipAuthorName handles the comma-flip correctly.
@@ -173,7 +182,7 @@
       bibId,
       title: brief.title || '',
       subTitle: brief.subTitle || '',
-      author: cleanAuthor(authorRaw),
+      author: cleanAuthor(authorRaw) || NO_AUTHOR_PLACEHOLDER,
       coverUrl,
       fallbackCallNumber,
     };
@@ -216,7 +225,7 @@
         bibId: id,
         title: bib.title || '',
         subTitle: bib.subtitle || '',
-        author: cleanAuthor(authorRaw),
+        author: cleanAuthor(authorRaw) || NO_AUTHOR_PLACEHOLDER,
         coverUrl: imageUrl,
         fallbackCallNumber: bib.callNumber || '',
       });
