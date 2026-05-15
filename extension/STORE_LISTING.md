@@ -2,6 +2,19 @@
 
 Reference text for the Booklister Helper store submissions. The descriptions and the single-purpose statement are the only things stores genuinely require copy for; the rest is guidance for the form fields that come up during submission.
 
+## Versioning — read before re-submitting
+
+**Version `1.0.0` has been submitted to the Chrome Web Store, Firefox Add-ons (AMO), and Microsoft Edge Add-ons (May 2026).** Stores reject any re-upload that carries the same version string, even if the package contents differ. **Before re-zipping for any future submission, bump `version` in `extension/manifest.json`.**
+
+Suggested convention (SemVer):
+- `1.0.x` — bug fixes, store-validator workarounds, copy tweaks, single-string changes (e.g. a new cover-provider added to `host_permissions`).
+- `1.x.0` — new user-facing capability (a new capture mode, a new setting, etc.).
+- `2.0.0` — breaking changes to the TSV format the extension emits, or to anything Booklister's Quick Add depends on.
+
+After bumping, re-zip from `extension/` (same steps as the original submission) and upload to each store under their "Upload new version" / "New package" flow.
+
+---
+
 Common metadata to provide on every store:
 
 - Privacy policy: `https://booklister.org/privacy.html`
@@ -71,11 +84,11 @@ Check all three of the standard certifications:
 
 ## Per-store notes
 
-The same ZIP uploads to all three stores. The extension calls the `browser.*` API namespace through the bundled `webextension-polyfill` (`extension/vendor/`), the manifest carries both a `background.service_worker` key (Chrome/Edge) and a `background.scripts` key (Firefox), and `browser_specific_settings.gecko` carries the Firefox extension id. No per-browser builds.
+The same ZIP uploads to all three stores. The extension calls the `browser.*` API namespace through the bundled `webextension-polyfill` (`extension/vendor/`); Firefox has `browser.*` natively, Chromium gets the promise-based shim. The manifest uses one MV3 `background.service_worker` key for all three browsers (Firefox 121+ supports `service_worker` natively, treating it as an event page). `browser_specific_settings.gecko` carries the Firefox extension id and the `data_collection_permissions: { required: ["none"] }` declaration. No per-browser builds.
 
 - **Chrome Web Store**: $5 one-time developer fee. Submission ZIP is the contents of `extension/` (without a wrapping directory). Review typically 1-3 days.
-- **Firefox Add-ons**: free. `strict_min_version` is `121.0` (the version where the dual background key works cleanly). Review typically <24 hours.
-- **Microsoft Edge Add-ons**: free. Accepts the same package as Chrome. Review typically 24-72 hours.
+- **Firefox Add-ons**: free. `strict_min_version` is `121.0` (the version where Firefox started supporting MV3 `background.service_worker`). Review typically <24 hours.
+- **Microsoft Edge Add-ons**: free. Strict MV3 validator — rejects MV2-style keys like `background.scripts`. Accepts the same package as Chrome. Review typically 24-72 hours.
 
 Submit in the order above; after each store goes live, swap the corresponding "link coming soon" placeholder in `extension.html` for the real install URL.
 
