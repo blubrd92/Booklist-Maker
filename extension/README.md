@@ -79,7 +79,7 @@ If the availability API can't be reached for any reason, the extension falls bac
 The extension makes two network calls per capture, both to public-facing services your library's catalog already uses:
 
 1. `/v2/libraries/{library}/bibs/{bib}/availability` on `gateway.bibliocommons.com`, the same request your catalog page itself makes when you click "Availability by location."
-2. The cover image at `https://www.syndetics.com/...` (or whichever cover provider your library uses), the same image your catalog page embeds in the title's record.
+2. The cover image from whichever cover provider your library's catalog uses (commonly `*.syndetics.com` or `*.hoopladigital.com`), the same image your catalog page embeds in the title's record.
 
 Both calls go directly from your browser to those services. Nothing is sent to Booklister or to any server I control.
 
@@ -87,11 +87,11 @@ There is no analytics. No tracking. The TSV row goes from the page directly to y
 
 ## Privacy posture
 
-- `host_permissions` are limited to `*.bibliocommons.com`, `gateway.bibliocommons.com`, and `*.syndetics.com`. The extension cannot read any other site.
+- `host_permissions` are limited to `*.bibliocommons.com`, `gateway.bibliocommons.com`, and the cover-provider domains BiblioCommons catalogs use (`*.syndetics.com` and `*.hoopladigital.com`). The extension cannot read any other site.
 - The content script only runs on URLs matching `*://*.bibliocommons.com/v2/record/*` and `*://*.bibliocommons.com/v2/list/*` (BiblioCommons title record + curated list pages).
 - `browser.storage.sync` keys: `preferredBranch` (your typed substring) and `accumulateMode` (boolean). These follow you across browser installs if you're signed into the browser's sync.
 - `browser.storage.local` key: `accumulatedRows` (the array of staged TSV rows when accumulate mode is on). Local-only because each row can carry an embedded cover (~30-80 KB) and the per-item sync quota is 8 KB.
-- The cover-image fetch goes through the extension's service worker (which has `host_permissions` for Syndetics) so it can read the image bytes regardless of CORS, and it does not use your cookies (`credentials: 'omit'`), so no authenticated identity leaks to the cover provider.
+- The cover-image fetch goes through the extension's service worker (which has `host_permissions` for the cover-provider domains) so it can read the image bytes regardless of CORS, and it does not use your cookies (`credentials: 'omit'`), so no authenticated identity leaks to the cover provider.
 - No remote-loaded code. The extension ships as a fixed bundle of static JS files.
 
 ## Known limitations
