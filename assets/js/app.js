@@ -5167,8 +5167,10 @@ const BooklistApp = (function() {
       pasteStatus.classList.remove('is-success', 'is-error');
     }
 
-    // Always default to the Single tab on open.
-    setQuickAddTab('single');
+    // Default to the Multiple titles tab on open — the workhorse path
+    // (clipboard / extension / spreadsheet paste). The Single title tab
+    // stays one click away for the occasional one-off.
+    setQuickAddTab('multi');
 
     modal.style.display = 'flex';
     // Focus on next tick so the modal is visible first (some browsers
@@ -5515,11 +5517,11 @@ const BooklistApp = (function() {
         return;
       }
       e.preventDefault();
-      // Only two tabs, so Left/Home → single, Right/End → multi.
+      // Two tabs, Multi on the left now. Left/Home → multi, Right/End → single.
       if (e.key === 'ArrowLeft' || e.key === 'Home') {
-        setQuickAddTab('single');
-      } else {
         setQuickAddTab('multi');
+      } else {
+        setQuickAddTab('single');
       }
     }
     if (tabSingle) tabSingle.addEventListener('keydown', onTabKey);

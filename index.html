@@ -657,19 +657,19 @@
         </div>
 
         <div class="quick-add-tabs" role="tablist" aria-label="Quick Add modes">
-          <button type="button" role="tab" id="quick-add-tab-single"
+          <button type="button" role="tab" id="quick-add-tab-multi"
                   class="quick-add-tab-btn active"
                   aria-selected="true"
-                  aria-controls="quick-add-form">Single title</button>
-          <button type="button" role="tab" id="quick-add-tab-multi"
+                  aria-controls="quick-add-pane-multi">Multiple titles</button>
+          <button type="button" role="tab" id="quick-add-tab-single"
                   class="quick-add-tab-btn"
                   aria-selected="false"
                   tabindex="-1"
-                  aria-controls="quick-add-pane-multi">Multiple titles</button>
+                  aria-controls="quick-add-form">Single title</button>
         </div>
 
-        <form id="quick-add-form" class="modal-body quick-add-tab-content active"
-              role="tabpanel" aria-labelledby="quick-add-tab-single" novalidate>
+        <form id="quick-add-form" class="modal-body quick-add-tab-content"
+              role="tabpanel" aria-labelledby="quick-add-tab-single" novalidate hidden>
           <p class="quick-add-help">
             Fill in the title and author. Author names like <code>Smith, John</code> are flipped to <code>John Smith</code> when you submit.
           </p>
@@ -692,8 +692,8 @@
           <p id="quick-add-error" class="quick-add-error" hidden></p>
         </form>
 
-        <div id="quick-add-pane-multi" class="modal-body quick-add-tab-content quick-add-multi-pane"
-             role="tabpanel" aria-labelledby="quick-add-tab-multi" hidden>
+        <div id="quick-add-pane-multi" class="modal-body quick-add-tab-content quick-add-multi-pane active"
+             role="tabpanel" aria-labelledby="quick-add-tab-multi">
           <details class="quick-add-help-details">
             <summary>Spreadsheet paste format</summary>
             <p class="quick-add-help">
@@ -722,7 +722,7 @@
 
         <div class="modal-footer">
           <button type="button" class="btn" id="quick-add-cancel-btn">Cancel</button>
-          <button type="submit" form="quick-add-form" class="btn btn-primary" id="quick-add-submit-btn" data-mode="single" disabled>Add</button>
+          <button type="button" class="btn btn-primary" id="quick-add-submit-btn" data-mode="multi" disabled>Add</button>
         </div>
       </div>
     </div>
