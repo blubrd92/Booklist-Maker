@@ -685,9 +685,10 @@ body.has-library-config .header-credit {
 }
 .quick-add-paste-row {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 4px;
+  margin: 14px 0 12px;
 }
 .quick-add-paste-btn {
   flex-shrink: 0;
@@ -716,6 +717,7 @@ body.has-library-config .header-credit {
 .quick-add-paste-status {
   font-size: 0.75rem;
   color: var(--text-light);
+  text-align: center;
 }
 .quick-add-paste-status.is-success { color: var(--success-color); }
 .quick-add-paste-status.is-error { color: var(--danger-color); }
