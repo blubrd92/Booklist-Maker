@@ -5560,11 +5560,16 @@ const BooklistApp = (function() {
     }
 
     // "Paste from clipboard" button (Multiple titles tab): reads the
-    // clipboard and, if it parses as spreadsheet rows, drops them into
-    // the textarea so the user can review and click Add. Reading the
-    // clipboard needs a user gesture, which this click provides. Any
-    // failure falls back to a "paste manually" hint, so the plain
-    // Ctrl/Cmd+V flow is never blocked.
+    // clipboard and, if it parses as spreadsheet rows, imports directly
+    // through the normal multi-submit pipeline — clicking the button is
+    // already a clear "add these" intent, so no separate Add step is
+    // needed. submitQuickAddMulti brings slot-fitting, title-case, undo,
+    // auto-star, and the success / partial-success notifications. The
+    // textarea stays as the universal manual-paste path: clipboard reads
+    // can be blocked or prompt-gated on some browsers / privacy settings,
+    // and the textarea is also where you'd paste-and-tweak before adding.
+    // Any clipboard failure here falls back to a hint and leaves the
+    // manual Ctrl/Cmd+V flow untouched.
     const pasteBtn = document.getElementById('quick-add-paste-btn');
     const pasteStatus = document.getElementById('quick-add-paste-status');
     function setQuickAddPasteStatus(msg, kind) {
@@ -5588,13 +5593,11 @@ const BooklistApp = (function() {
           return;
         }
         multiText.value = text;
-        updateQuickAddSubmitEnabled();
         if (multiError && !multiError.hidden) {
           multiError.hidden = true;
           multiError.textContent = '';
         }
-        const n = parsed.rows.length;
-        setQuickAddPasteStatus(`${n} ${n === 1 ? 'title' : 'titles'} ready — review and click Add.`, 'success');
+        submitQuickAddMulti();
       });
     }
   }
