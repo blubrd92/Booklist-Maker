@@ -380,6 +380,48 @@
     }
   }
 
+  // Pending-recovery storage: when the clipboard write fails (typically
+  // because the user switched tabs mid-capture and the document isn't
+  // focused), we stash the TSV here so a click-to-copy toast can retry
+  // the write under a user gesture once they return. Stored in local
+  // (not session) so content scripts can access it without an access-
+  // level dance; a timestamp + stale check keeps it from haunting later
+  // page loads.
+  const PENDING_RECOVERY_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+
+  async function savePendingRecovery(tsv, successMessage) {
+    try {
+      await browser.storage.local.set({
+        pendingRecovery: { tsv, successMessage, timestamp: Date.now() },
+      });
+    } catch {
+      // Best-effort; if we can't save, the user will need to recapture.
+    }
+  }
+
+  async function loadPendingRecovery() {
+    try {
+      const stored = await browser.storage.local.get({ pendingRecovery: null });
+      const p = stored.pendingRecovery;
+      if (!p || typeof p.tsv !== 'string' || !p.tsv) return null;
+      if (typeof p.timestamp !== 'number' || (Date.now() - p.timestamp) > PENDING_RECOVERY_MAX_AGE_MS) {
+        await clearPendingRecovery();
+        return null;
+      }
+      return p;
+    } catch {
+      return null;
+    }
+  }
+
+  async function clearPendingRecovery() {
+    try {
+      await browser.storage.local.remove('pendingRecovery');
+    } catch {
+      // ignore
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Clipboard + toast
   // ---------------------------------------------------------------------------
@@ -441,6 +483,103 @@
     }, kind === 'info' ? 1500 : 2500);
   }
 
+  // A persistent toast with a "Click to copy" affordance. Used for clipboard
+  // recovery: when the original write failed (usually because the tab wasn't
+  // focused), we show this so the user can retry under a real user gesture.
+  // No auto-dismiss; the toast removes itself when the action succeeds, or
+  // when the user clicks the close button.
+  function showActionToast(message, onClick) {
+    const existing = document.getElementById('booklister-helper-toast');
+    if (existing) existing.remove();
+
+    const el = document.createElement('div');
+    el.id = 'booklister-helper-toast';
+    el.style.cssText = [
+      'position:fixed',
+      'top:20px',
+      'right:20px',
+      'z-index:2147483647',
+      'padding:12px 16px',
+      'border-radius:6px',
+      'font-family:system-ui,-apple-system,Segoe UI,sans-serif',
+      'font-size:14px',
+      'font-weight:500',
+      'color:#fff',
+      'background:#1565c0',
+      'box-shadow:0 4px 12px rgba(0,0,0,0.2)',
+      'opacity:0',
+      'transition:opacity 200ms ease',
+      'max-width:360px',
+      'display:flex',
+      'align-items:center',
+      'gap:12px',
+      'cursor:pointer',
+    ].join(';');
+
+    const text = document.createElement('span');
+    text.textContent = message;
+    text.style.cssText = 'flex:1';
+    el.appendChild(text);
+
+    const close = document.createElement('button');
+    close.textContent = '×';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.style.cssText = [
+      'background:transparent',
+      'border:0',
+      'color:#fff',
+      'font-size:20px',
+      'line-height:1',
+      'padding:0 4px',
+      'cursor:pointer',
+      'opacity:0.8',
+    ].join(';');
+    close.addEventListener('click', (e) => {
+      e.stopPropagation();
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 250);
+    });
+    el.appendChild(close);
+
+    el.addEventListener('click', () => {
+      onClick(el);
+    });
+
+    document.body.appendChild(el);
+    requestAnimationFrame(() => { el.style.opacity = '1'; });
+  }
+
+  // Shared write-with-recovery: try the clipboard write, and if it fails
+  // (the common cause is the document not being focused — e.g. the user
+  // switched tabs while the capture was running), stash the TSV and show
+  // a persistent click-to-copy toast that retries under a user gesture.
+  async function writeWithRecovery(tsv, successMessage) {
+    const wrote = await writeToClipboard(tsv);
+    if (wrote) {
+      await clearPendingRecovery();
+      showToast(successMessage, 'success');
+      return { ok: true };
+    }
+    await savePendingRecovery(tsv, successMessage);
+    showActionToast(
+      'Capture ready. Click here to copy to your clipboard.',
+      async (toastEl) => {
+        const retry = await writeToClipboard(tsv);
+        if (retry) {
+          await clearPendingRecovery();
+          if (toastEl) {
+            toastEl.style.opacity = '0';
+            setTimeout(() => toastEl.remove(), 250);
+          }
+          showToast(successMessage, 'success');
+        } else {
+          showToast('Still could not copy. Click the page first, then try again.', 'error');
+        }
+      },
+    );
+    return { ok: false, reason: 'clipboard-failed-recoverable' };
+  }
+
   // ---------------------------------------------------------------------------
   // Mode handlers
   // ---------------------------------------------------------------------------
@@ -478,13 +617,7 @@
       toastMessage = 'Copied! Paste into Booklister Quick Add → Multiple titles tab.';
     }
 
-    const wrote = await writeToClipboard(tsv);
-    if (!wrote) {
-      showToast('Could not copy to clipboard.', 'error');
-      return { ok: false, reason: 'clipboard-failed' };
-    }
-    showToast(toastMessage, 'success');
-    return { ok: true };
+    return writeWithRecovery(tsv, toastMessage);
   }
 
   async function handleListCapture(bibIdFilter) {
@@ -514,19 +647,13 @@
       }
     }
 
-    showToast(`Capturing ${bibs.length} titles, this may take a few seconds…`, 'info');
+    showToast(`Capturing ${bibs.length} titles, this may take a few seconds. Stay on this tab until you see the confirmation.`, 'info');
 
     const pref = await readPreferredBranch();
     const rowPromises = bibs.map((b) => captureOneBibToTsvRow(libraryDomain, b, pref));
     const rows = await Promise.all(rowPromises);
 
     const tsv = rows.join('\n');
-    const wrote = await writeToClipboard(tsv);
-    if (!wrote) {
-      showToast('Could not copy to clipboard.', 'error');
-      return { ok: false, reason: 'clipboard-failed' };
-    }
-
     const noun = rows.length === 1 ? 'title' : 'titles';
     let successMessage = `Copied ${rows.length} ${noun}. Paste into Booklister Quick Add → Multiple titles tab. Booklister will fit as many as your slots allow.`;
 
@@ -541,8 +668,7 @@
         successMessage += ` Your accumulated list of ${accumulated.length} ${accNoun} is still saved.`;
       }
     }
-    showToast(successMessage, 'success');
-    return { ok: true };
+    return writeWithRecovery(tsv, successMessage);
   }
 
   async function handleCapture() {
@@ -632,4 +758,28 @@
     }
     return false;
   });
+
+  // On script load, check for a stashed capture from a previous tab-switch
+  // and re-surface the click-to-copy recovery toast so the user can finish
+  // the handoff.
+  (async () => {
+    const pending = await loadPendingRecovery();
+    if (!pending) return;
+    showActionToast(
+      'Capture ready. Click here to copy to your clipboard.',
+      async (toastEl) => {
+        const wrote = await writeToClipboard(pending.tsv);
+        if (wrote) {
+          await clearPendingRecovery();
+          if (toastEl) {
+            toastEl.style.opacity = '0';
+            setTimeout(() => toastEl.remove(), 250);
+          }
+          showToast(pending.successMessage, 'success');
+        } else {
+          showToast('Still could not copy. Click the page first, then try again.', 'error');
+        }
+      },
+    );
+  })();
 })();
