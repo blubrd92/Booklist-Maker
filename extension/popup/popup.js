@@ -19,7 +19,7 @@ const listEl = document.getElementById('list');
 const selectedCountEl = document.getElementById('selected-count');
 const captureListBtn = document.getElementById('capture-list-btn');
 const selectAllBtn = document.getElementById('select-all');
-const selectFirstNEl = document.getElementById('select-first-n');
+const firstNBtns = document.querySelectorAll('.first-n-btn');
 const selectNoneBtn = document.getElementById('select-none');
 
 // Record-mode els
@@ -34,12 +34,11 @@ const copyBtn = document.getElementById('copy-list');
 const clearBtn = document.getElementById('clear-list');
 const savedIndicator = document.getElementById('saved');
 
-// A Booklister booklist holds 13-15 books depending on whether the QR
-// and branding blocks are on. 13 is the default since both are usually
-// active; the "First N" toolbar selector lets a library that runs
-// 14- or 15-slot booklists pick its own number, persisted across opens.
-const FIRST_N_DEFAULT = 13;
-const FIRST_N_CHOICES = [13, 14, 15];
+// A Booklister booklist holds 13-15 titles depending on whether the QR
+// and branding blocks are on. The toolbar exposes one button per choice
+// (First 13 / 14 / 15) so each click runs the action regardless of state
+// — a <select> would only fire `change` on actual value change, leaving
+// the user unable to re-apply the value already shown.
 const RECORD_PATH_RE = /\/v2\/record\//;
 const LIST_PATH_RE = /\/v2\/list\//;
 
@@ -152,15 +151,18 @@ selectAllBtn.addEventListener('click', () => {
   renderList();
   updateCount();
 });
-// Changing the "First N" selector both applies the selection and
-// persists N, so the choice sticks the next time the popup opens.
-selectFirstNEl.addEventListener('change', () => {
-  const n = parseInt(selectFirstNEl.value, 10) || FIRST_N_DEFAULT;
-  selected = new Set(books.slice(0, n).map((b) => b.bibId));
-  renderList();
-  updateCount();
-  browser.storage.sync.set({ firstNCount: n }).catch(() => {});
-});
+// Each First-N button selects that many books. Three separate buttons
+// (not one <select>) so the click always runs the action, including
+// when the user re-clicks the same N.
+for (const btn of firstNBtns) {
+  btn.addEventListener('click', () => {
+    const n = parseInt(btn.dataset.n, 10);
+    if (!n) return;
+    selected = new Set(books.slice(0, n).map((b) => b.bibId));
+    renderList();
+    updateCount();
+  });
+}
 selectNoneBtn.addEventListener('click', () => {
   selected = new Set();
   renderList();
@@ -282,14 +284,9 @@ async function loadSettings() {
     const sync = await browser.storage.sync.get({
       preferredBranch: '',
       accumulateMode: false,
-      firstNCount: FIRST_N_DEFAULT,
     });
     branchInput.value = sync.preferredBranch || '';
     accumulateToggle.checked = !!sync.accumulateMode;
-    const storedN = parseInt(sync.firstNCount, 10);
-    selectFirstNEl.value = String(
-      FIRST_N_CHOICES.includes(storedN) ? storedN : FIRST_N_DEFAULT,
-    );
   } catch {
     // Leave the form at its default empty/unchecked state.
   }

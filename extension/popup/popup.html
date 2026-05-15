@@ -148,26 +148,20 @@
       border-color: var(--primary);
       box-shadow: 0 0 0 3px var(--primary-soft);
     }
-    .toolbar select {
-      padding: 5px 8px;
-      font-size: 12px;
-      font-family: inherit;
+    /* "First [13][14][15]" group: a small "First" label followed by
+       three number buttons. Buttons inherit the regular .toolbar button
+       styling; this group just tightens their spacing and adds the
+       shared label so the trio reads as one control. */
+    .first-n-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .toolbar-label {
+      font-size: 11px;
       font-weight: 500;
-      color: var(--text);
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      cursor: pointer;
-      transition: border-color 0.12s, color 0.12s;
-    }
-    .toolbar select:hover {
-      border-color: var(--primary);
-      color: var(--primary);
-    }
-    .toolbar select:focus-visible {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px var(--primary-soft);
+      color: var(--text-muted);
+      padding-right: 2px;
     }
     .selected-count {
       margin-left: auto;
@@ -462,11 +456,12 @@
     <div id="capture-list" class="hidden">
       <div class="toolbar">
         <button id="select-all" type="button">All</button>
-        <select id="select-first-n" aria-label="Select the first 13, 14, or 15 titles">
-          <option value="13">First 13</option>
-          <option value="14">First 14</option>
-          <option value="15">First 15</option>
-        </select>
+        <span class="first-n-group">
+          <span class="toolbar-label" aria-hidden="true">First</span>
+          <button class="first-n-btn" data-n="13" type="button" aria-label="Select first 13 titles">13</button>
+          <button class="first-n-btn" data-n="14" type="button" aria-label="Select first 14 titles">14</button>
+          <button class="first-n-btn" data-n="15" type="button" aria-label="Select first 15 titles">15</button>
+        </span>
         <button id="select-none" type="button">None</button>
         <span class="selected-count" id="selected-count" aria-live="polite"></span>
       </div>
