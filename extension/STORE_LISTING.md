@@ -4,7 +4,7 @@ Reference text for the Booklister Helper store submissions. The descriptions and
 
 ## Versioning — read before re-submitting
 
-**Version `1.0.0` has been submitted to the Chrome Web Store, Firefox Add-ons (AMO), and Microsoft Edge Add-ons (May 2026).** Stores reject any re-upload that carries the same version string, even if the package contents differ. **Before re-zipping for any future submission, bump `version` in `extension/manifest.json`.**
+**Version `1.0.1` is the current version. `1.0.0` was the first submission to the Chrome Web Store, Firefox Add-ons (AMO), and Microsoft Edge Add-ons (May 2026); `1.0.1` is a clipboard-recovery + AMO-warning cleanup follow-up.** Stores reject any re-upload that carries the same version string, even if the package contents differ. **Before re-zipping for any future submission, bump `version` in `extension/manifest.json`.**
 
 Suggested convention (SemVer):
 - `1.0.x` — bug fixes, store-validator workarounds, copy tweaks, single-string changes (e.g. a new cover-provider added to `host_permissions`).
@@ -87,7 +87,7 @@ Check all three of the standard certifications:
 The same ZIP uploads to all three stores. The extension calls the `browser.*` API namespace through the bundled `webextension-polyfill` (`extension/vendor/`); Firefox has `browser.*` natively, Chromium gets the promise-based shim. The manifest uses one MV3 `background.service_worker` key for all three browsers (Firefox 121+ supports `service_worker` natively, treating it as an event page). `browser_specific_settings.gecko` carries the Firefox extension id and the `data_collection_permissions: { required: ["none"] }` declaration. No per-browser builds.
 
 - **Chrome Web Store**: $5 one-time developer fee. Submission ZIP is the contents of `extension/` (without a wrapping directory). Review typically 1-3 days.
-- **Firefox Add-ons**: free. `strict_min_version` is `121.0` (the version where Firefox started supporting MV3 `background.service_worker`). Review typically <24 hours.
+- **Firefox Add-ons**: free. `strict_min_version` is `140.0` (the version where Firefox introduced `browser_specific_settings.gecko.data_collection_permissions`; Firefox itself has supported MV3 `background.service_worker` since 121). Review typically <24 hours. AMO will still emit one informational warning about `background.service_worker` being "ignored" — it isn't (Firefox treats it as a non-persistent background page per MDN), and the warning is harmless. Adding a `background.scripts` fallback to silence the warning would re-trigger Edge's strict MV3 rejection, so it's left as-is.
 - **Microsoft Edge Add-ons**: free. Strict MV3 validator — rejects MV2-style keys like `background.scripts`. Accepts the same package as Chrome. Review typically 24-72 hours.
 
 Submit in the order above; after each store goes live, swap the corresponding "link coming soon" placeholder in `extension.html` for the real install URL.

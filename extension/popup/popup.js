@@ -60,14 +60,6 @@ for (const btn of tabBtns) {
   btn.addEventListener('click', () => showTab(btn.dataset.tab));
 }
 
-// ── Shared helpers ──
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
 // Renders one book row. With { selectable: true } it's a <label> with a
 // checkbox (the list selection UI); without, it's a plain <div> preview
 // (the record-page Capture tab).
@@ -112,7 +104,10 @@ function renderBookRow(book, { selectable }) {
   if (book.callNumber) {
     const call = document.createElement('div');
     call.className = 'call';
-    call.innerHTML = `Call: <code>${escapeHtml(book.callNumber)}</code>`;
+    call.appendChild(document.createTextNode('Call: '));
+    const code = document.createElement('code');
+    code.textContent = book.callNumber;
+    call.appendChild(code);
     info.appendChild(call);
   }
 
@@ -131,7 +126,7 @@ function showCaptureSubview(which) {
 
 // ── Capture pane: list mode ──
 function renderList() {
-  listEl.innerHTML = '';
+  listEl.replaceChildren();
   for (const book of books) {
     listEl.appendChild(renderBookRow(book, { selectable: true }));
   }
@@ -229,7 +224,7 @@ async function initRecordMode() {
     showCaptureSubview('message');
     return;
   }
-  recordPreviewEl.innerHTML = '';
+  recordPreviewEl.replaceChildren();
   recordPreviewEl.appendChild(renderBookRow(resp.brief, { selectable: false }));
   showCaptureSubview('record');
 }
