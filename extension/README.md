@@ -50,7 +50,7 @@ For Firefox: go to `about:debugging` → **This Firefox** → **Load Temporary A
 
 ## Cross-browser
 
-One codebase runs on Chrome, Edge, and Firefox with no per-browser builds. All extension code calls the `browser.*` API namespace through the bundled [`webextension-polyfill`](https://github.com/mozilla/webextension-polyfill) in `vendor/` (Firefox has `browser.*` natively; the polyfill provides the promise-based shim on Chromium). The manifest carries both `background.service_worker` (Chrome/Edge) and `background.scripts` (Firefox); each browser reads the key it understands and ignores the other. `browser_specific_settings.gecko` sets the Firefox extension id and a `121.0` minimum.
+One codebase runs on Chrome, Edge, and Firefox with no per-browser builds. All extension code calls the `browser.*` API namespace through the bundled [`webextension-polyfill`](https://github.com/mozilla/webextension-polyfill) in `vendor/` (Firefox has `browser.*` natively; the polyfill provides the promise-based shim on Chromium). The manifest uses a single MV3 `background.service_worker` key — Firefox 121+ supports `service_worker` natively (treating it as an event page), and the polyfill loader in `background.js` is guarded by a `typeof importScripts === 'function'` check so it works in either runtime context. `browser_specific_settings.gecko` sets the Firefox extension id, a `121.0` minimum, and `data_collection_permissions: { required: ["none"] }`.
 
 ## Configuration
 
