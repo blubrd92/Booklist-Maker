@@ -674,6 +674,78 @@ body.has-library-config .header-credit {
   border-radius: 3px;
   font-size: 0.85em;
 }
+.quick-add-extension-tip {
+  margin-top: -6px;
+  font-size: 0.8rem;
+  font-style: italic;
+  opacity: 0.85;
+}
+.quick-add-extension-tip a {
+  font-style: normal;
+}
+/* Spreadsheet-format help is collapsed by default behind a small disclosure
+   so the modal stays compact for the common (button / extension) flows;
+   manual-paste users expand it once and read the format details. */
+.quick-add-help-details {
+  margin: 0 0 6px;
+}
+.quick-add-help-details summary {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 2px 0;
+  user-select: none;
+  list-style-position: inside;
+}
+.quick-add-help-details summary:hover {
+  color: var(--text-color);
+}
+.quick-add-help-details[open] summary {
+  margin-bottom: 4px;
+}
+.quick-add-help-details > .quick-add-help {
+  margin: 0 0 6px;
+}
+
+.quick-add-paste-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 10px 0 8px;
+}
+.quick-add-paste-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--primary-color);
+  background: var(--primary-light);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.quick-add-paste-btn:hover {
+  border-color: var(--primary-color);
+}
+.quick-add-paste-btn:focus-visible {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.2);
+}
+.quick-add-paste-status {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  text-align: center;
+}
+.quick-add-paste-status.is-success { color: var(--success-color); }
+.quick-add-paste-status.is-error { color: var(--danger-color); }
 .quick-add-field {
   margin-bottom: 14px;
 }
@@ -787,7 +859,15 @@ body.has-library-config .header-credit {
 .quick-add-multi-textarea {
   width: 100%;
   box-sizing: border-box;
-  min-height: 180px;
+  /* field-sizing: content auto-shrinks the textarea to fit its content
+     (or the placeholder) and grows it as the user pastes/types, capped
+     by max-height. Browsers without field-sizing fall back to the
+     rows="4" attribute on the element. min-height keeps the empty
+     textarea visibly ~4 rows tall (the rows attribute alone is ignored
+     by browsers that honor field-sizing). */
+  field-sizing: content;
+  min-height: 100px;
+  max-height: 220px;
   padding: 9px 12px;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.85rem;

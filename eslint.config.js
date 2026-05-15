@@ -110,6 +110,55 @@ export default [
     },
   },
   {
-    ignores: ["node_modules/", "eslint.config.js", "vitest.config.js", "tests/"],
+    // Browser extension (extension/). MV3 service worker + content
+    // script + popup. Plain JS, sourceType "script" because we don't
+    // use ES module imports inside the extension files (each file runs
+    // in its own MV3 context — service worker, isolated content world,
+    // popup). The vendored webextension-polyfill is excluded from
+    // linting via the ignores block below.
+    files: ["extension/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "script",
+      globals: {
+        // Browser globals available in content scripts + popup
+        window: "readonly",
+        document: "readonly",
+        navigator: "readonly",
+        console: "readonly",
+        location: "readonly",
+        fetch: "readonly",
+        URL: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        requestAnimationFrame: "readonly",
+        // Service worker globals (background.js)
+        btoa: "readonly",
+        importScripts: "readonly",
+        // Extension API. All extension code calls `browser.*` (the
+        // webextension-polyfill provides it in Chrome/Edge; Firefox
+        // has it natively).
+        browser: "readonly",
+      },
+    },
+    rules: {
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "no-undef": "error",
+      "no-redeclare": "error",
+      "no-empty": "warn",
+      "eqeqeq": ["warn", "smart"],
+      "no-var": "warn",
+      "prefer-const": ["warn", { destructuring: "all" }],
+    },
+  },
+  {
+    ignores: [
+      "node_modules/",
+      "eslint.config.js",
+      "vitest.config.js",
+      "tests/",
+      // Vendored third-party library, shipped as-is; not our code to lint.
+      "extension/vendor/",
+    ],
   },
 ];

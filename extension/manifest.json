@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "Booklister Helper",
+  "version": "1.0.0",
+  "description": "Capture titles from BiblioCommons library catalogs and copy them as TSV for pasting into Booklister's Quick Add.",
+  "homepage_url": "https://booklister.org",
+
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+
+  "action": {
+    "default_title": "Booklister Helper",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+
+  "permissions": ["storage", "scripting", "contextMenus"],
+
+  "host_permissions": [
+    "*://*.bibliocommons.com/*",
+    "*://gateway.bibliocommons.com/*",
+    "*://*.syndetics.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["vendor/browser-polyfill.min.js", "background.js"]
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.bibliocommons.com/v2/record/*",
+        "*://*.bibliocommons.com/v2/list/*"
+      ],
+      "js": ["vendor/browser-polyfill.min.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "booklister-helper@booklister.org",
+      "strict_min_version": "121.0"
+    }
+  }
+}

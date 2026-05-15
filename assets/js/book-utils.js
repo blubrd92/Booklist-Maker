@@ -236,8 +236,8 @@
 
     /**
      * Parse a tab-separated paste from a spreadsheet (Google Sheets,
-     * Excel, Numbers, etc.) into rows of { title, author, callNumber }.
-     * Used by the Quick Add modal's "Spreadsheet" tab.
+     * Excel, Numbers, etc.) into rows of { title, author, callNumber,
+     * coverUrl }. Used by the Quick Add modal's "Spreadsheet" tab.
      *
      * Behavior:
      *  - Splits on \r?\n, drops blank lines, trims each line.
@@ -247,10 +247,22 @@
      *  - Auto-detects an optional header row (case-insensitive token
      *    match): cell[0] in {title, book title, name} OR cell[1] in
      *    {author, authors, by} OR cell[2] in {call number, callnumber,
-     *    call no, call#}. The matched row is excluded from the result.
+     *    call no, call#} OR cell[3] in {cover, cover url, image,
+     *    image url}. The matched row is excluded from the result.
      *  - Splits each remaining line on \t and takes cells [0], [1],
-     *    [2] as title, author, callNumber. Cells beyond [2] are
-     *    ignored.
+     *    [2], [3] as title, author, callNumber, coverUrl. Cells
+     *    beyond [3] are ignored.
+     *  - The coverUrl column is OPTIONAL and ignored unless the cell
+     *    parses as an http(s) URL or a `data:image/*` URL. The
+     *    Booklister Helper browser extension fetches the cover from
+     *    BiblioCommons' provider and emits a base64-encoded
+     *    `data:image/jpeg;base64,...` URL by default, so saved booklists
+     *    remain self-contained even if the cover provider's URLs change
+     *    or expire. Plain http(s) URLs are also accepted for users who
+     *    want hotlinked covers in their pastes. Anything else
+     *    (data:text/html, javascript:, file:, malformed) becomes empty
+     *    string. Users pasting plain spreadsheet content with 3 columns
+     *    are unaffected.
      *  - Empty cells become empty strings; the caller decides which
      *    rows to keep (e.g. require title + author).
      *  - Quoted cells are NOT unwrapped — Excel only quotes when a
@@ -263,7 +275,7 @@
      *
      * @param {string} rawText
      * @param {{ maxRows?: number }} [options]
-     * @returns {{ rows: Array<{title: string, author: string, callNumber: string}>,
+     * @returns {{ rows: Array<{title: string, author: string, callNumber: string, coverUrl: string}>,
      *            headerSkipped: boolean,
      *            truncated: boolean,
      *            truncatedAt: number } | null}
@@ -288,12 +300,14 @@
       const HEADER_TITLE  = /^(title|book title|name)$/i;
       const HEADER_AUTHOR = /^(author|authors|by)$/i;
       const HEADER_CALL   = /^(call number|callnumber|call no|call#)$/i;
+      const HEADER_COVER  = /^(cover|cover url|image|image url)$/i;
 
       const first = lines[0].split('\t').map(function(c) { return c.trim(); });
       const isHeader =
         HEADER_TITLE.test(first[0] || '') ||
         HEADER_AUTHOR.test(first[1] || '') ||
-        HEADER_CALL.test(first[2] || '');
+        HEADER_CALL.test(first[2] || '') ||
+        HEADER_COVER.test(first[3] || '');
       const dataLines = isHeader ? lines.slice(1) : lines;
 
       const requestedMax = options && options.maxRows;
@@ -302,12 +316,28 @@
         : dataLines.length;
       const sliced = dataLines.slice(0, max);
 
+      // Accept http: / https: URLs (raw hotlinks) and data:image/*
+      // URLs (base64-embedded image bytes — what the Booklister Helper
+      // browser extension produces by default, so .booklist files stay
+      // self-contained without runtime dependency on the cover provider).
+      // Reject everything else: data:text/html, data:application/...,
+      // javascript:, file:, malformed strings — these would either be
+      // unsafe or render as broken images.
+      function safeCoverUrl(raw) {
+        const v = (raw || '').trim();
+        if (!v) return '';
+        if (/^https?:\/\//i.test(v)) return v;
+        if (/^data:image\//i.test(v)) return v;
+        return '';
+      }
+
       const rows = sliced.map(function(line) {
         const cells = line.split('\t').map(function(c) { return c.trim(); });
         return {
           title: cells[0] || '',
           author: cells[1] || '',
           callNumber: cells[2] || '',
+          coverUrl: safeCoverUrl(cells[3]),
         };
       });
 

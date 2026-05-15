@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Booklister Helper</title>
+  <style>
+    :root {
+      /* Mirrors the Booklister website palette (assets/css/styles.css):
+         indigo primary, slate text, the same surface/border greys. */
+      --primary: #5c6bc0;
+      --primary-hover: #3f51b5;
+      --primary-soft: rgba(92, 107, 192, 0.15);
+      --red: #e53935;
+      --text: #2d3748;
+      --text-muted: #718096;
+      --border: #e1e5eb;
+      --surface: #f5f7fa;
+      --bg: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
+      width: 440px;
+      max-height: 560px;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* Hide utility: !important so it always wins over the display rules
+       on the panes / capture sub-views regardless of selector weight. */
+    .hidden { display: none !important; }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .header-icon {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+    }
+    header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text);
+    }
+
+    /* Tab strip */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color 0.12s, border-color 0.12s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .tab:focus-visible {
+      outline: none;
+      box-shadow: inset 0 0 0 2px var(--primary-soft);
+    }
+
+    /* Panes */
+    #pane-capture {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+    #pane-settings {
+      display: block;
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    /* Capture sub-views */
+    #capture-list {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+    #capture-record {
+      display: flex;
+      flex-direction: column;
+    }
+    #capture-loading,
+    #capture-message {
+      padding: 28px 18px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* List-mode toolbar */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .toolbar button {
+      padding: 5px 10px;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .toolbar button:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .toolbar button:focus-visible {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+    .toolbar select {
+      padding: 5px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      transition: border-color 0.12s, color 0.12s;
+    }
+    .toolbar select:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .toolbar select:focus-visible {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+    .selected-count {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Scrollable list of book rows */
+    #list {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 2px 0;
+    }
+
+    /* Book row (shared by the list selection UI and the record preview) */
+    .row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    label.row { cursor: pointer; }
+    label.row:hover { background: var(--surface); }
+    .row input[type="checkbox"] {
+      margin-top: 3px;
+      flex-shrink: 0;
+      accent-color: var(--primary);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+    .row .thumb {
+      width: 38px;
+      height: 56px;
+      flex-shrink: 0;
+      background: #eee;
+      object-fit: cover;
+      border-radius: 3px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+    .row .info {
+      flex: 1;
+      min-width: 0;
+    }
+    .row .title {
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 1.35;
+      color: var(--text);
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .row .author,
+    .row .call {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .row .call code {
+      font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+      font-size: 11px;
+      color: var(--text);
+      background: var(--surface);
+      padding: 0 4px;
+      border-radius: 3px;
+    }
+
+    /* Record-mode preview area */
+    #record-preview {
+      padding: 6px 0;
+    }
+    .record-hint {
+      padding: 0 16px 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Capture footer (shared by list + record modes) */
+    .capture-footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+    button.primary {
+      flex: 1;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 600;
+      color: #ffffff;
+      background: var(--primary);
+      border: 1px solid var(--primary);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    button.primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+    button.primary:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+    button.primary:disabled {
+      background: #cbd5e1;
+      border-color: #cbd5e1;
+      color: #ffffff;
+      cursor: not-allowed;
+    }
+
+    /* Settings pane */
+    .setting {
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .setting:last-child { margin-bottom: 0; }
+    .setting-label {
+      display: block;
+      font-weight: 600;
+      font-size: 13px;
+      margin: 0;
+    }
+    .setting-help {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 4px 0 10px;
+    }
+    .setting-help.last { margin-bottom: 0; }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+    input[type="text"]::placeholder { color: #9ca3af; }
+
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .toggle-info { flex: 1; min-width: 0; }
+    .toggle {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #d1d5db;
+      transition: background 0.18s;
+      border-radius: 22px;
+    }
+    .toggle-slider::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
+      background: #ffffff;
+      transition: transform 0.18s;
+      border-radius: 50%;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+    }
+    .toggle input:checked + .toggle-slider { background: var(--primary); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+    .toggle input:focus-visible + .toggle-slider {
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+
+    .list-manage {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .list-manage-info .label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .list-manage-info .meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+    .list-manage-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    button.copy,
+    button.clear {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    button.copy:hover:not(:disabled) {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    button.clear:hover:not(:disabled) {
+      border-color: var(--red);
+      color: var(--red);
+    }
+    button.copy:disabled,
+    button.clear:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .saved-indicator {
+      font-size: 12px;
+      color: var(--primary);
+      opacity: 0;
+      transition: opacity 0.2s;
+      margin-top: 10px;
+      min-height: 16px;
+    }
+    .saved-indicator.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <header>
+    <svg class="header-icon" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="18" y="30" width="92" height="90" rx="10" fill="#ffffff" stroke="#5c6bc0" stroke-width="6"/>
+      <rect x="48" y="10" width="32" height="26" rx="4" fill="#5c6bc0"/>
+      <rect x="54" y="16" width="20" height="6" rx="1.5" fill="#ffffff" opacity="0.85"/>
+      <rect x="36" y="48" width="56" height="62" rx="3" fill="#5c6bc0"/>
+      <rect x="36" y="48" width="6" height="62" rx="3" fill="#3949ab"/>
+      <rect x="36" y="74" width="56" height="10" fill="#d32f2f"/>
+    </svg>
+    <h1>Booklister Helper</h1>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" id="tab-capture" data-tab="capture" role="tab" type="button" aria-selected="true">Capture</button>
+    <button class="tab" id="tab-settings" data-tab="settings" role="tab" type="button" aria-selected="false">Settings</button>
+  </nav>
+
+  <!-- Capture pane: shows one of loading / list / record / message -->
+  <div id="pane-capture" role="tabpanel" aria-labelledby="tab-capture">
+    <div id="capture-loading">Loading…</div>
+
+    <div id="capture-message" class="hidden">
+      Open a BiblioCommons title or list page to capture from.
+    </div>
+
+    <!-- List mode: pick titles from a BiblioCommons list page -->
+    <div id="capture-list" class="hidden">
+      <div class="toolbar">
+        <button id="select-all" type="button">All</button>
+        <select id="select-first-n" aria-label="Select the first 13, 14, or 15 titles">
+          <option value="13">First 13</option>
+          <option value="14">First 14</option>
+          <option value="15">First 15</option>
+        </select>
+        <button id="select-none" type="button">None</button>
+        <span class="selected-count" id="selected-count" aria-live="polite"></span>
+      </div>
+      <div id="list"></div>
+      <div class="capture-footer">
+        <button id="capture-list-btn" class="primary" type="button" disabled>Capture selected</button>
+      </div>
+    </div>
+
+    <!-- Record mode: capture the single title on a record page -->
+    <div id="capture-record" class="hidden">
+      <div class="record-hint">This title will be copied to your clipboard:</div>
+      <div id="record-preview"></div>
+      <div class="capture-footer">
+        <button id="capture-record-btn" class="primary" type="button">Capture this title</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings pane -->
+  <div id="pane-settings" class="hidden" role="tabpanel" aria-labelledby="tab-settings">
+    <div class="setting">
+      <label class="setting-label" for="preferred-branch">Preferred branch</label>
+      <div class="setting-help">Pin captures to a specific branch. Leave blank to auto-detect.</div>
+      <input
+        id="preferred-branch"
+        type="text"
+        placeholder="Your branch name or code"
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+
+    <div class="setting">
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="setting-label">Accumulate captures</div>
+          <div class="setting-help last">Each single-title capture adds to a running list instead of replacing the clipboard.</div>
+        </div>
+        <label class="toggle">
+          <input id="accumulate-mode" type="checkbox" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="list-manage">
+        <div class="list-manage-info">
+          <div class="label">Accumulated list</div>
+          <div class="meta" id="accumulate-count">Empty</div>
+        </div>
+        <div class="list-manage-actions">
+          <button id="copy-list" class="copy" type="button" disabled>Copy</button>
+          <button id="clear-list" class="clear" type="button" disabled>Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="saved-indicator" id="saved" role="status" aria-live="polite">Saved</div>
+  </div>
+
+  <script src="../vendor/browser-polyfill.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

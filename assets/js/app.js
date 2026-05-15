@@ -963,7 +963,7 @@ const BooklistApp = (function() {
       })
       .catch(error => {
         console.error('There was a problem:', error);
-        resultsContainer.innerHTML = '<p class="error-message">Sorry, could not connect to the book server. Please check your network connection and try again.</p>';
+        resultsContainer.innerHTML = '<p class="error-message">Sorry, could not connect to the search server. Please check your network connection and try again.</p>';
         // Folio: worried about network error
         if (window.folio) window.folio.celebrate({
           reaction: 'wince', state: 'worried', event: 'network-error',
@@ -1242,7 +1242,7 @@ const BooklistApp = (function() {
           // stays at the standard blank placeholder and the user writes
           // their own (or reaches for the wand button on demand).
           description: shouldAutoFetchDescription()
-            ? 'Drafting book description... May take a few minutes.'
+            ? 'Drafting description... May take a few minutes.'
             : CONFIG.PLACEHOLDERS.description,
           cover_ids: carouselState.allCoverIds,
           currentCoverIndex: carouselState.currentCoverIndex,
@@ -1299,7 +1299,7 @@ const BooklistApp = (function() {
           }
         }
       } else {
-        showNotification(`All ${MAX_BOOKS} book slots are full. Please delete one before adding another.`);
+        showNotification(`All ${MAX_BOOKS} title slots are full. Please delete one before adding another.`);
       }
     } else {
       const indexToRemove = myBooklist.findIndex(item => item.key === book.key);
@@ -1515,7 +1515,7 @@ const BooklistApp = (function() {
     dragHandle.className = 'drag-handle';
     dragHandle.innerHTML = '&#9776;';
     dragHandle.setAttribute('role', 'button');
-    dragHandle.setAttribute('aria-label', `Reorder book ${index + 1}. Use arrow keys to move.`);
+    dragHandle.setAttribute('aria-label', `Reorder title ${index + 1}. Use arrow keys to move.`);
     dragHandle.setAttribute('tabindex', '0');
     dragHandle.title = 'Drag to reorder (or use arrow keys)';
     dragHandle.addEventListener('keydown', (e) => {
@@ -1593,7 +1593,7 @@ const BooklistApp = (function() {
       magicButton.className = 'magic-button';
       magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
       magicButton.title = 'Draft description';
-      magicButton.setAttribute('aria-label', 'Draft description for this book');
+      magicButton.setAttribute('aria-label', 'Draft description for this title');
       if (_pendingDescriptions.has(bookItem.key)) {
         magicButton.disabled = true;
         magicButton.classList.add('disabled');
@@ -1644,7 +1644,7 @@ const BooklistApp = (function() {
     deleteButton.className = 'delete-button';
     deleteButton.innerHTML = '&times;';
     deleteButton.title = 'Remove from list';
-    deleteButton.setAttribute('aria-label', `Remove book ${index + 1} from list`);
+    deleteButton.setAttribute('aria-label', `Remove title ${index + 1} from list`);
     deleteButton.onclick = () => handleDeleteBook(bookItem, index);
     
     controlsDiv.appendChild(dragHandle);
@@ -1697,7 +1697,7 @@ const BooklistApp = (function() {
       return;
     }
     if (_pendingDescriptions.has(bookItem.key)) {
-      showNotification('A description is already being drafted for this book.', 'info');
+      showNotification('A description is already being drafted for this title.', 'info');
       return;
     }
     pushUndo('ai-description');
@@ -2033,7 +2033,7 @@ const BooklistApp = (function() {
     const coverUploader = document.createElement('label');
     coverUploader.className = 'cover-uploader';
     coverUploader.setAttribute('role', 'button');
-    coverUploader.setAttribute('aria-label', 'Upload or change book cover');
+    coverUploader.setAttribute('aria-label', 'Upload or change cover');
     
     const coverImg = document.createElement('img');
     coverImg.crossOrigin = 'Anonymous';
@@ -4350,7 +4350,7 @@ const BooklistApp = (function() {
     if (elements.collageCoverHint) {
       elements.collageCoverHint.textContent = isExtended
         ? `Add covers 13-${count} below to create collage`
-        : 'Star 12 books to include in the collage';
+        : 'Star 12 titles to include in the collage';
     }
     if (elements.extraCoversLabel) {
       elements.extraCoversLabel.textContent = isExtended
@@ -4463,7 +4463,7 @@ const BooklistApp = (function() {
   function restoreFrontCoverPlaceholderText() {
     const placeholderText = elements.frontCoverUploader?.querySelector('.placeholder-text');
     if (placeholderText) {
-      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Create Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 books to include in the collage)';
+      placeholderText.innerHTML = 'Click to upload a custom cover<br/>(min 3000 x 4800 px recommended)<br/><br/>OR<br/><br/>Use the Create Cover tool<br/>in Settings &gt; Front Cover<br/>(Star 12 titles to include in the collage)';
     }
   }
 
@@ -4764,7 +4764,7 @@ const BooklistApp = (function() {
     
     const resultsContainer = document.getElementById('extra-cover-search-results');
     if (resultsContainer) {
-      resultsContainer.innerHTML = '<p class="modal-search-placeholder">Enter a search term to find book covers</p>';
+      resultsContainer.innerHTML = '<p class="modal-search-placeholder">Enter a search term to find covers</p>';
     }
     
     // Update count display
@@ -4805,7 +4805,7 @@ const BooklistApp = (function() {
     const query = queryParts.join(' ');
     
     if (!query) {
-      resultsContainer.innerHTML = '<p class="modal-search-placeholder">Enter a search term to find book covers</p>';
+      resultsContainer.innerHTML = '<p class="modal-search-placeholder">Enter a search term to find covers</p>';
       return;
     }
     
@@ -4827,7 +4827,7 @@ const BooklistApp = (function() {
       const booksWithCovers = books.filter(b => b.cover_i);
       
       if (booksWithCovers.length === 0) {
-        resultsContainer.innerHTML = '<p class="modal-search-placeholder">No books with covers found</p>';
+        resultsContainer.innerHTML = '<p class="modal-search-placeholder">No titles with covers found</p>';
         return;
       }
       
@@ -5154,12 +5154,17 @@ const BooklistApp = (function() {
     }
     updateQuickAddSubmitEnabled();
 
-    // Reset Spreadsheet pane fields and toggle.
+    // Reset Multiple titles pane fields, toggle, and paste status.
     if (multiText) multiText.value = '';
     if (multiTitleCase) multiTitleCase.checked = true;
     if (multiError) {
       multiError.hidden = true;
       multiError.textContent = '';
+    }
+    const pasteStatus = document.getElementById('quick-add-paste-status');
+    if (pasteStatus) {
+      pasteStatus.textContent = '';
+      pasteStatus.classList.remove('is-success', 'is-error');
     }
 
     // Always default to the Single tab on open.
@@ -5278,7 +5283,7 @@ const BooklistApp = (function() {
       return item.isBlank && index < MAX_BOOKS;
     });
     if (firstBlankIndex === -1) {
-      errorEl.textContent = 'No empty book slots left. Remove a book first, or turn off the QR/branding toggles to free up a slot.';
+      errorEl.textContent = 'No empty title slots left. Remove a title first, or turn off the QR/branding toggles to free up a slot.';
       errorEl.hidden = false;
       return;
     }
@@ -5369,7 +5374,7 @@ const BooklistApp = (function() {
       if (myBooklist[i].isBlank && i < MAX_BOOKS) blanks.push(i);
     }
     if (blanks.length === 0) {
-      setError('No empty book slots. Remove a book first or turn off the QR / branding toggles.');
+      setError('No empty title slots. Remove a title first or turn off the QR / branding toggles.');
       return;
     }
 
@@ -5386,6 +5391,12 @@ const BooklistApp = (function() {
       const title = useTitleCase ? BookUtils.toTitleCase(row.title) : row.title;
       const author = BookUtils.flipAuthorName(row.author);
       const callNumber = row.callNumber || CONFIG.PLACEHOLDERS.callNumber;
+      // row.coverUrl is set by the Booklister Helper browser extension
+      // (which emits a 4-column TSV with the BiblioCommons cover URL).
+      // Plain spreadsheet pastes leave it empty, in which case we fall
+      // back to the cover-pending placeholder. The URL is already
+      // sanitized to http/https by parseQuickAddTsv.
+      const coverUrl = row.coverUrl || CONFIG.PLACEHOLDER_COVER_URL;
       const include = starred < CONFIG.MIN_COVERS_FOR_COLLAGE;
       if (include) starred++;
 
@@ -5399,7 +5410,7 @@ const BooklistApp = (function() {
         description: CONFIG.PLACEHOLDERS.description,
         cover_ids: [],
         currentCoverIndex: 0,
-        customCoverData: CONFIG.PLACEHOLDER_COVER_URL,
+        customCoverData: coverUrl,
         includeInCollage: include,
       };
     }
@@ -5420,14 +5431,14 @@ const BooklistApp = (function() {
       // Plain success: close modal, success notification.
       closeQuickAddModal();
       showNotification(
-        'Added ' + toAdd + ' book' + (toAdd === 1 ? '' : 's') + '.' + headerNote,
+        'Added ' + toAdd + ' title' + (toAdd === 1 ? '' : 's') + '.' + headerNote,
         'success'
       );
     } else {
       // Partial: stay open, clear textarea so the user doesn't accidentally
       // re-add, info notification with the breakdown.
       textarea.value = '';
-      let msg = 'Added ' + toAdd + ' book' + (toAdd === 1 ? '' : 's') + '.';
+      let msg = 'Added ' + toAdd + ' title' + (toAdd === 1 ? '' : 's') + '.';
       if (overflow > 0) msg += ' ' + overflow + ' didn’t fit (no more empty slots).';
       if (skipped > 0) msg += ' ' + skipped + ' skipped (missing Title or Author).';
       msg += headerNote + truncNote;
@@ -5545,6 +5556,48 @@ const BooklistApp = (function() {
           multiError.hidden = true;
           multiError.textContent = '';
         }
+      });
+    }
+
+    // "Paste from clipboard" button (Multiple titles tab): reads the
+    // clipboard and, if it parses as spreadsheet rows, imports directly
+    // through the normal multi-submit pipeline — clicking the button is
+    // already a clear "add these" intent, so no separate Add step is
+    // needed. submitQuickAddMulti brings slot-fitting, title-case, undo,
+    // auto-star, and the success / partial-success notifications. The
+    // textarea stays as the universal manual-paste path: clipboard reads
+    // can be blocked or prompt-gated on some browsers / privacy settings,
+    // and the textarea is also where you'd paste-and-tweak before adding.
+    // Any clipboard failure here falls back to a hint and leaves the
+    // manual Ctrl/Cmd+V flow untouched.
+    const pasteBtn = document.getElementById('quick-add-paste-btn');
+    const pasteStatus = document.getElementById('quick-add-paste-status');
+    function setQuickAddPasteStatus(msg, kind) {
+      if (!pasteStatus) return;
+      pasteStatus.textContent = msg || '';
+      pasteStatus.classList.remove('is-success', 'is-error');
+      if (kind) pasteStatus.classList.add('is-' + kind);
+    }
+    if (pasteBtn && multiText) {
+      pasteBtn.addEventListener('click', async function() {
+        let text;
+        try {
+          text = await navigator.clipboard.readText();
+        } catch {
+          setQuickAddPasteStatus('Couldn’t read the clipboard. Paste manually with Ctrl/Cmd+V.', 'error');
+          return;
+        }
+        const parsed = BookUtils.parseQuickAddTsv(text, { maxRows: CONFIG.QUICK_ADD_MAX_PASTE_ROWS });
+        if (!parsed || parsed.rows.length === 0) {
+          setQuickAddPasteStatus('Clipboard doesn’t have spreadsheet rows to add.', 'error');
+          return;
+        }
+        multiText.value = text;
+        if (multiError && !multiError.hidden) {
+          multiError.hidden = true;
+          multiError.textContent = '';
+        }
+        submitQuickAddMulti();
       });
     }
   }

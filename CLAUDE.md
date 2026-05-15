@@ -8,6 +8,8 @@ Booklister (repo name: Booklist-Maker) is a web-based application for creating, 
 
 **Naming note (intentional mismatch)**: The user-facing brand is "Booklister" (in the browser tab title, header logo, content pages, canonical URLs, and meta tags). Internal code identifiers (`BooklistApp` namespace, `book-utils.js`, repo name `Booklist-Maker`, npm package `booklist-maker`, CSS class names, comments) still use "Booklist Maker" or "booklist". These were intentionally left unchanged during the rebrand to avoid breaking references, and should stay as-is unless a full code-wide rename is the task. When writing user-facing strings (page copy, titles, notifications, meta tags) use "Booklister". When referencing code identifiers, keep "BooklistApp" etc.
 
+**Terminology note (titles, not books)**: Booklister can be used for any catalogued title, not just books — DVDs, audiobooks, magazines, music, and so on. User-facing copy should prefer "title(s)" over "book(s)" wherever it reads naturally (e.g. the Quick Add tabs are "Single title" / "Multiple titles"; the extension says "Capture N titles"). This is a forward-looking convention for new and updated copy. It is **not** a mandate to rename the internal `book` data structure, the `myBooklist` array, `createBlankBook`, the `.booklist` file format, the `book-*` CSS classes, or any other code identifier — those are stable and stay. "Booklist" (the thing you make) and "Booklister" (the brand) also stay. The line: generic references to a catalogued item become "title" in user-facing strings; the product name, the file format, the brand, and all code identifiers do not.
+
 **Tech Stack**: Vanilla HTML5/CSS3/JavaScript (ES6+), no build process. Dev tooling: ESLint + Vitest (via npm).
 
 ## Running the Application
@@ -86,14 +88,56 @@ admin/                          Separate admin console app served at
   admin.js                      Admin console ES module: Google + email sign-in,
                                 libraries CRUD, memberships management, invite-by-
                                 email flow, promote/demote buttons
+extension/                      Browser extension (Manifest V3) — captures book
+                                records from BiblioCommons library catalogs and
+                                copies them as TSV for paste into Booklister's
+                                Quick Add Spreadsheet tab. Standalone codebase;
+                                shares nothing with the main tool except brand.
+  manifest.json                 MV3 manifest, host_permissions scoped to
+                                *.bibliocommons.com + gateway.bibliocommons.com
+                                + *.syndetics.com. Two content_scripts.matches:
+                                /v2/record/* (single book) + /v2/list/* (lists).
+  content.js                    Runs on record + list pages. Dispatches between
+                                handleSingleCapture and handleListCapture by URL.
+                                Reads the SSR JSON state blob (different shape
+                                per page type), fetches the holdings API + cover
+                                bytes per book in parallel, builds TSV row(s),
+                                writes to clipboard. Single-record mode honors
+                                the accumulate-mode toggle (appends to a
+                                running list in chrome.storage.local).
+  background.js                 Service worker. Toolbar click → sendMessage to
+                                content script. Per-tab popup setting opens the
+                                selection UI on /v2/list/ pages, runs onClicked
+                                everywhere else. Hosts the fetch-image-as-data-url
+                                proxy (cover fetches need host_permissions to
+                                bypass CORS). Maintains the persistent toolbar
+                                badge with the accumulated list count, refreshed
+                                on chrome.storage.onChanged. Two right-click
+                                context menu items: "Clear accumulated list"
+                                (on the toolbar action) and "Capture for
+                                Booklister" (on the page, scoped via
+                                documentUrlPatterns to bibliocommons record
+                                + list URLs only).
+  popup/popup.html|.js          Selection UI for list pages. Loads when the
+                                toolbar icon is clicked on /v2/list/ URLs.
+                                Asks the content script for the list's bibs,
+                                renders checkbox rows, dispatches the user's
+                                selection back via 'capture-selected-bibs'.
+  options/options.html|.js      Options page: preferred-branch substring,
+                                accumulate-mode toggle, clear-list button.
+                                Saved keys: preferredBranch + accumulateMode in
+                                chrome.storage.sync; accumulatedRows in
+                                chrome.storage.local (covers can exceed sync's
+                                per-item 8 KB quota).
 tests/
   setup.js                      Loads config.js + book-utils.js into jsdom via eval
   book-utils.test.js            Unit tests for all BookUtils functions
   config.test.js                Unit tests for CONFIG constants
   create-blank-book.test.js     Unit tests for the createBlankBook factory
-eslint.config.js                Two blocks: ES2022 sourceType "script" for the
+eslint.config.js                Three blocks: ES2022 sourceType "script" for the
                                 IIFE files, ES2022 sourceType "module" for the
-                                Firebase/admin module files
+                                Firebase/admin module files, sourceType "script"
+                                with chrome global for the extension/ files
 vitest.config.js                jsdom environment
 ```
 
@@ -173,7 +217,7 @@ Pure functions that eliminate duplicated logic. All are tested:
 - `BookUtils.hasEnoughCoversForCollage(booklist, extras, modeOrCount)` - Collage readiness check; accepts the same legacy-or-numeric input as the helpers above
 - `BookUtils.flipAuthorName(name)` - Flips "Last, First" → "First Last" only when the name has exactly one comma. Multi-comma strings stay as-is to avoid mangling multi-author or suffix cases. Used by the Quick Add submit handler.
 - `BookUtils.toTitleCase(str)` - Converts a string to English-style Title Case. Capitalizes first/last words plus all major words; lowercases articles, conjunctions, and short prepositions when not first/last. Preserves all-uppercase tokens of length 2+ as acronyms. Also capitalizes the first word of a subtitle (the word immediately after a token ending in `:`, `?`, or `!`) per Chicago/AP style — without this, a minor word at the start of a subtitle (`A Novel`, `Of Two Cities`, `With Love`) would get lowercased by the minor-word rule. Used by the Quick Add submit handler when the Title Case toggle is on.
-- `BookUtils.parseQuickAddTsv(rawText, options)` - Parses tab-separated rows pasted from a spreadsheet (Google Sheets, Excel, Numbers) into `{ rows, headerSkipped, truncated, truncatedAt }`. Each row is `{ title, author, callNumber }`. Auto-detects an optional header row (case-insensitive token match on `title|book title|name` / `author|authors|by` / `call number|callnumber|call no|call#`). Normalizes U+00A0 to regular space (Numbers sometimes inserts NBSP in cells). Filters whitespace-only lines but preserves leading-empty cells (so `\tJoe Smith\tFIC` becomes `{ title: '', author: 'Joe Smith', callNumber: 'FIC' }`). Honors an `options.maxRows` cap and reports `truncated`. Returns `null` for non-string / empty / whitespace-only input.
+- `BookUtils.parseQuickAddTsv(rawText, options)` - Parses tab-separated rows pasted from a spreadsheet (Google Sheets, Excel, Numbers) — or from the Booklister Helper browser extension — into `{ rows, headerSkipped, truncated, truncatedAt }`. Each row is `{ title, author, callNumber, coverUrl }`. Auto-detects an optional header row (case-insensitive token match on `title|book title|name` / `author|authors|by` / `call number|callnumber|call no|call#` / `cover|cover url|image|image url`). Normalizes U+00A0 to regular space (Numbers sometimes inserts NBSP in cells). Filters whitespace-only lines but preserves leading-empty cells (so `\tJoe Smith\tFIC` becomes `{ title: '', author: 'Joe Smith', callNumber: 'FIC', coverUrl: '' }`). The optional 4th `coverUrl` column accepts `http:` / `https:` URLs and `data:image/*` URLs (the format the Booklister Helper extension emits — base64-encoded image bytes so saved booklists stay self-contained); other schemes (`data:text/html`, `javascript:`, `file:`, malformed strings) become empty string for safety. Plain spreadsheet pastes with 3 columns are unaffected (every row gets `coverUrl: ''`). Honors an `options.maxRows` cap and reports `truncated`. Returns `null` for non-string / empty / whitespace-only input.
 - `BookUtils.isDraftStateEffectivelyEmpty(state)` - Whether a parsed draft (the shape produced by `serializeState`) is "effectively empty" — equivalent to a fresh page load with no user content. Used by `restoreDraftLocalIfPresent` to suppress the "Draft restored from this browser." toast when there's nothing meaningful to advertise. Returns true if every content surface is empty: all books are blank placeholders (or no books), `extraCollageCovers` is empty, no `images.frontCover` / `images.branding` / `images.customQr`, no `ui.qrCodeText` / `qrCodeUrl` / `coverTitle` / `coverLineTexts` content, and `meta.listName` is empty or the default-fallback string `'booklist'` (case-insensitive). Intentionally does NOT check style customizations, layout / collage settings, or visibility toggles — those are treated as "settings, not content." **This function is coupled to `serializeState`'s schema**: when adding a new "content" field to the saved state, extend this function so the toast keeps firing for drafts that contain only the new field. See the cross-file dependency table.
 
 ### Data Structures
@@ -403,6 +447,49 @@ Read rules: own doc, super-admin, or library admin of the same libraryId. Write 
 **Field whitelist** is enforced by `validMembershipFields()` in `firestore.rules`: only `libraryId`, `role`, and `email` are allowed. Random extra fields are rejected.
 
 **Single-library-per-user constraint**: each user has exactly one memberships doc (keyed by UID). To grant access to two libraries, you currently need two separate Firebase Auth accounts. This is a deliberate starting constraint (see "Forward-Looking Notes" below).
+
+## Browser Extension (`extension/`)
+
+Manifest V3 browser extension that captures a book record from a BiblioCommons library catalog page and copies it as a TSV row to the clipboard, ready for paste into Booklister's Quick Add → Spreadsheet tab. Lives at `extension/`; ships separately from the main tool (load-unpacked for development; eventually publish to Chrome Web Store + Firefox Add-ons + Edge Add-ons).
+
+**Hard scope**: BiblioCommons-powered catalogs only (`*.bibliocommons.com`). The extension makes no attempt to be a generic catalog-scraper. Other catalog systems (Aspen Discovery, Vega, Polaris LEAP, Encore, Sierra, etc.) are out of scope — adding them would be a separate extension or a separate adapter file.
+
+**Three capture modes** (single, list-page, accumulate). Single is the default: click the toolbar icon on a `/v2/record/` page → one TSV row to clipboard. List-page mode triggers automatically on `/v2/list/` URLs: clicking the toolbar icon there opens a **selection popup** (`popup/popup.html`) that shows every book on the list with a checkbox + cover thumbnail + title / author / call number. The user picks which books to capture (typically 13-15 from a 20-50+ book curated list), clicks **Capture N books**, and the per-book holdings + cover fetches run in parallel via `Promise.all` for the chosen subset. Accumulate mode is an opt-in setting (off by default) that changes single-record behavior: each capture appends a row to `chrome.storage.local.accumulatedRows` and copies the entire accumulated TSV to the clipboard, so users can browse 13 books one at a time and paste them all at once. The toolbar badge shows the running count when accumulate is on. List-page mode operates independently of accumulate — it always copies the selected books to the clipboard fresh, never touches `accumulatedRows`. A right-click context menu item ("Clear accumulated list", `contexts: ['action']`) and a button on the options page reset the running list.
+
+**Per-tab popup wiring**: the toolbar icon's behavior depends on the active tab's URL. The manifest does NOT declare `default_popup`; instead, `background.js` listens to `chrome.tabs.onUpdated` and calls `chrome.action.setPopup({tabId, popup: 'popup/popup.html'})` on `/v2/list/` URLs, or `setPopup({tabId, popup: ''})` everywhere else. With the popup unset, `chrome.action.onClicked` fires and runs the existing single-record / accumulate flow. With the popup set, clicking the icon opens the popup and `onClicked` does NOT fire — Chrome routes the interaction to the popup HTML instead. This per-tab toggle is why the same icon does different things depending on which BiblioCommons page you're on.
+
+**File layout**:
+
+- `manifest.json` — MV3, `host_permissions` scoped to `*.bibliocommons.com` + `gateway.bibliocommons.com` + `*.syndetics.com`. Two `content_scripts.matches` entries: `*://*.bibliocommons.com/v2/record/*` (single book records) and `*://*.bibliocommons.com/v2/list/*` (curated list pages). Adds the `contextMenus` permission for the right-click "Clear accumulated list" item.
+- `content.js` — runs on both page types. Wires a `chrome.runtime.onMessage` listener that dispatches three message types: `'capture'` (toolbar click on a record page → `handleSingleCapture`, with accumulate-mode appending if enabled), `'list-page-bibs'` (popup asks for the page's bib list to render selection UI; replies synchronously with shallow briefs, no fetches), and `'capture-selected-bibs'` (popup → after user selection; runs `handleListCapture(bibIdFilter)` fire-and-forget since the popup window is already closed). All capture paths share the `captureOneBibToTsvRow(libraryDomain, brief, preferredBranch)` helper which fires holdings + cover fetches in parallel for one book. Brief extraction is split into two normalizers (`extractRecordBrief` for `state.entities.catalogBibs[<bibId>]`, `extractListBibs` for `state.list.bibsByMetadataId` + `state.list.items`) since the two SSR shapes are different — list-page bibs have direct `imageUrl` / `callNumber` / `authors[]` fields rather than the record page's nested `brief.coverImage` / `fields[].items[]` / `creators[].fullName` structure.
+- `background.js` — service worker. Listens for `chrome.action.onClicked` (toolbar icon) and forwards a `'capture'` message to the active tab. Sets per-tab popup via `chrome.tabs.onUpdated` so the icon click opens `popup/popup.html` on list pages and falls back to `onClicked` everywhere else. Hosts the `'fetch-image-as-data-url'` proxy used for cover fetches (CORS bypass via host_permissions). Maintains the persistent toolbar badge: subscribes to `chrome.storage.onChanged` and recomputes badge text from `accumulateMode` (sync) + `accumulatedRows.length` (local). Registers a `chrome.contextMenus` item with `contexts: ['action']` for "Clear accumulated list".
+- `popup/popup.html` + `popup.js` — list-page selection UI. Loads when the user clicks the toolbar icon on a `/v2/list/` URL. Sends `'list-page-bibs'` to the active tab's content script, gets back the list of bibs, renders one row per book (checkbox + cover thumbnail loaded directly from the Syndetics URL via `<img src>` — no SW proxy needed since `<img>` doesn't require CORS for display + title + author + call number). Header buttons: All / First 13 / None for quick selection presets, plus individual checkboxes. Default state is all selected. Capture button text reflects the current selected count and is disabled at 0 selected. On click, sends `'capture-selected-bibs'` with the array of selected `bibId`s and immediately calls `window.close()` — the actual capture pipeline runs in the content script (5-10s for 13 books) and the user sees progress via the in-page toast on the BiblioCommons tab.
+- `options/options.html` + `options.js` — preferred-branch text input, accumulate-mode checkbox, clear-list button. Saved keys: `preferredBranch` and `accumulateMode` in `chrome.storage.sync`; `accumulatedRows` (string[] of TSV row strings) in `chrome.storage.local` because each row can carry an embedded cover (~30-80 KB) and sync's per-item quota is 8 KB.
+
+**Why the fetch lives in the content script, not the service worker**: BiblioCommons' gateway API (`https://gateway.bibliocommons.com/v2/libraries/<lib>/bibs/<bibId>/availability`) responds with `access-control-allow-origin: https://<lib>.bibliocommons.com`. A `fetch` from the service worker carries the `chrome-extension://<id>` origin and gets CORS-rejected. The content script inherits the page's origin, so its fetch is accepted. This is the architectural reason `content.js` does the heavy lifting and `background.js` is a thin click → message forwarder.
+
+**Call-number selection logic** (in `content.js`'s `pickItem`):
+
+1. If user set a `preferredBranch` substring, filter items whose `branchName` (or `branchCode`) contains it (case-insensitive).
+2. Otherwise filter to items where the API marks `local: true` (BiblioCommons' own "this is your branch" signal, derived from logged-in account / IP).
+3. If either filter yields nothing, fall through to all items.
+4. Within the candidate list, prefer `availability.statusType === 'AVAILABLE'` over unavailable, then take the first.
+5. If the holdings API call fails entirely, fall back to the SSR state's `CALLCLASS / CALLNO_LOCAL[0]`.
+
+**TSV output format**: `title<TAB>author<TAB>callNumber<TAB>coverDataUrl\n`. Title combines `brief.title` + `: ` + `brief.subTitle` when subtitle is present (so the post-colon word triggers Booklister's subtitle-capitalization rule). Author goes through `cleanAuthor()` which strips trailing lifetime-date suffixes (`"Styron, William, 1925-2006"` → `"Styron, William"`) so Booklister's `flipAuthorName` does the right thing on add. The 4th column is a `data:image/jpeg;base64,...` URL — the extension's service worker fetches the BiblioCommons cover URL (`brief.coverImage.large`, served from Syndetics), reads the bytes via `arrayBuffer()`, and base64-encodes them via `btoa(String.fromCharCode(...bytes))`. Embedding the bytes (rather than passing a hotlinked URL) means PDF export at 600 DPI never depends on the cover provider returning CORS headers, and saved `.booklist` files stay self-contained even if the Syndetics URL expires or changes. Cost is ~30-80 KB of base64 per cover, comparable to what Booklister stores via its own `compressImage` helper. Empty 4th column when the bib has no `coverImage` block or the fetch fails (graceful fallback to placeholder cover). Embedded tabs / newlines in any field are collapsed to spaces.
+
+**Why the cover fetch lives in `background.js`, not `content.js`**: cover providers like Syndetics don't return CORS headers for `fetch` requests, so a content-script fetch from the BiblioCommons page origin would be CORS-blocked. The service worker's `fetch` is granted privileged access by the extension's `host_permissions` (`*://*.syndetics.com/*`) — it can read response bodies regardless of CORS. Content script asks via `chrome.runtime.sendMessage({type: 'fetch-image-as-data-url', url})` and gets back `{ok: true, dataUrl}` or an error reason. Service workers in MV3 don't have `FileReader`, so the blob → base64 conversion uses a manual `Uint8Array` + `btoa` loop.
+
+**Privacy posture**: zero analytics, no remote-loaded code, no data sent anywhere outside the user's browser. The only network call is the same Availability-by-location request the BiblioCommons page itself makes when the user clicks that button. Documented in `extension/README.md`.
+
+**Dependency on BiblioCommons internals**: the extension reads a private Redux state shape and a private gateway API. Both are stable across the consortiums I tested (MARINet + Sonoma County, both running `nerf07 9.35.x`) but BiblioCommons can change them on a release. Maintenance pattern: when something breaks, fetch a new bib page + a new availability response, diff against the test fixtures, update selectors / paths.
+
+**What it does NOT do (and the reasons)**:
+
+- No multi-select on search results / list pages. Planned for v2; the data is sparser on those pages (no call numbers) which makes the v1 single-record flow more useful per click.
+- No automatic open of "Availability by location" overlay. We bypass that entirely by calling the API directly.
+- No write back to Booklister. The TSV-to-clipboard handoff means the main tool stays Firebase-free and unmodified by the extension. Eventually a postMessage path could be added, but it's not worth the cross-cutting complexity for v1.
+- No support for browsers other than Chromium-based + Firefox. Safari needs Xcode-based packaging; deferred until there's demonstrated demand.
 
 ## Static Content Pages
 
