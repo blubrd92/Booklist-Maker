@@ -694,9 +694,12 @@
 
         <div id="quick-add-pane-multi" class="modal-body quick-add-tab-content quick-add-multi-pane"
              role="tabpanel" aria-labelledby="quick-add-tab-multi" hidden>
-          <p class="quick-add-help">
-            In Google Sheets, Excel, Numbers, or any spreadsheet, select rows with columns in this order: <code>Title</code>, <code>Author</code>, <code>Call Number</code> (optional). Copy, paste below, then press <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> to add. Header rows are auto-detected and skipped.
-          </p>
+          <details class="quick-add-help-details">
+            <summary>Spreadsheet paste format</summary>
+            <p class="quick-add-help">
+              In Google Sheets, Excel, Numbers, or any spreadsheet, select rows with columns in this order: <code>Title</code>, <code>Author</code>, <code>Call Number</code> (optional). Copy, paste below, then press <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> to add. Header rows are auto-detected and skipped.
+            </p>
+          </details>
           <p class="quick-add-help quick-add-extension-tip">
             On a BiblioCommons library catalog? The <a href="extension.html" target="_blank" rel="noopener">Booklister Helper browser extension</a> captures titles from catalog pages with one click to paste here, covers included.
           </p>
@@ -708,7 +711,7 @@
           </div>
           <label for="quick-add-multi-text" class="sr-only">Paste title rows</label>
           <textarea id="quick-add-multi-text" class="quick-add-multi-textarea"
-                    rows="8" spellcheck="false"
+                    rows="3" spellcheck="false"
                     placeholder="The Great Gatsby&#9;F. Scott Fitzgerald&#9;FIC FIT&#10;Beloved&#9;Toni Morrison&#9;FIC MOR"></textarea>
           <label class="quick-add-checkbox-label" for="quick-add-multi-titlecase">
             <input type="checkbox" id="quick-add-multi-titlecase" checked>

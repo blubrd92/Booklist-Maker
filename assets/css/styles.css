@@ -683,12 +683,37 @@ body.has-library-config .header-credit {
 .quick-add-extension-tip a {
   font-style: normal;
 }
+/* Spreadsheet-format help is collapsed by default behind a small disclosure
+   so the modal stays compact for the common (button / extension) flows;
+   manual-paste users expand it once and read the format details. */
+.quick-add-help-details {
+  margin: 0 0 6px;
+}
+.quick-add-help-details summary {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 2px 0;
+  user-select: none;
+  list-style-position: inside;
+}
+.quick-add-help-details summary:hover {
+  color: var(--text-color);
+}
+.quick-add-help-details[open] summary {
+  margin-bottom: 4px;
+}
+.quick-add-help-details > .quick-add-help {
+  margin: 0 0 6px;
+}
+
 .quick-add-paste-row {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  margin: 14px 0 12px;
+  margin: 10px 0 8px;
 }
 .quick-add-paste-btn {
   flex-shrink: 0;
@@ -834,7 +859,14 @@ body.has-library-config .header-credit {
 .quick-add-multi-textarea {
   width: 100%;
   box-sizing: border-box;
-  min-height: 180px;
+  /* field-sizing: content auto-shrinks the textarea to fit its content
+     (or the placeholder) and grows it as the user pastes/types, capped
+     by max-height. Browsers without field-sizing fall back to the
+     rows="3" attribute on the element, which is also a fine compact
+     default. min-height keeps an empty textarea visibly usable. */
+  field-sizing: content;
+  min-height: 80px;
+  max-height: 220px;
   padding: 9px 12px;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.85rem;
