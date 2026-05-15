@@ -2,6 +2,19 @@
 
 Reference text for the Booklister Helper store submissions. The descriptions and the single-purpose statement are the only things stores genuinely require copy for; the rest is guidance for the form fields that come up during submission.
 
+## Versioning — read before re-submitting
+
+**Version `1.0.0` has been submitted to the Chrome Web Store, Firefox Add-ons (AMO), and Microsoft Edge Add-ons (May 2026).** Stores reject any re-upload that carries the same version string, even if the package contents differ. **Before re-zipping for any future submission, bump `version` in `extension/manifest.json`.**
+
+Suggested convention (SemVer):
+- `1.0.x` — bug fixes, store-validator workarounds, copy tweaks, single-string changes (e.g. a new cover-provider added to `host_permissions`).
+- `1.x.0` — new user-facing capability (a new capture mode, a new setting, etc.).
+- `2.0.0` — breaking changes to the TSV format the extension emits, or to anything Booklister's Quick Add depends on.
+
+After bumping, re-zip from `extension/` (same steps as the original submission) and upload to each store under their "Upload new version" / "New package" flow.
+
+---
+
 Common metadata to provide on every store:
 
 - Privacy policy: `https://booklister.org/privacy.html`
