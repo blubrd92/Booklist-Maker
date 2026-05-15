@@ -5600,6 +5600,20 @@ const BooklistApp = (function() {
           multiError.textContent = '';
         }
         submitQuickAddMulti();
+        // submitQuickAddMulti clears the textarea on full/partial success
+        // and leaves it intact on hard failure (no slots, etc.). The empty
+        // textarea is our signal that at least one row landed, so wiping
+        // the clipboard is safe — and welcome, given the extension's TSV
+        // can be hundreds of kilobytes of base64 cover bytes the user
+        // doesn't want hanging around.
+        if (multiText.value === '') {
+          try {
+            await navigator.clipboard.writeText('');
+          } catch {
+            // Best-effort; some browsers reject empty writes or revoke
+            // permission after a successful read. Not worth surfacing.
+          }
+        }
       });
     }
   }
