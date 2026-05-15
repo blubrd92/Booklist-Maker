@@ -5167,8 +5167,10 @@ const BooklistApp = (function() {
       pasteStatus.classList.remove('is-success', 'is-error');
     }
 
-    // Always default to the Single tab on open.
-    setQuickAddTab('single');
+    // Default to the Multiple titles tab on open — the workhorse path
+    // (clipboard / extension / spreadsheet paste). The Single title tab
+    // stays one click away for the occasional one-off.
+    setQuickAddTab('multi');
 
     modal.style.display = 'flex';
     // Focus on next tick so the modal is visible first (some browsers
@@ -5515,11 +5517,11 @@ const BooklistApp = (function() {
         return;
       }
       e.preventDefault();
-      // Only two tabs, so Left/Home → single, Right/End → multi.
+      // Two tabs, Multi on the left now. Left/Home → multi, Right/End → single.
       if (e.key === 'ArrowLeft' || e.key === 'Home') {
-        setQuickAddTab('single');
-      } else {
         setQuickAddTab('multi');
+      } else {
+        setQuickAddTab('single');
       }
     }
     if (tabSingle) tabSingle.addEventListener('keydown', onTabKey);
@@ -5598,6 +5600,20 @@ const BooklistApp = (function() {
           multiError.textContent = '';
         }
         submitQuickAddMulti();
+        // submitQuickAddMulti clears the textarea on full/partial success
+        // and leaves it intact on hard failure (no slots, etc.). The empty
+        // textarea is our signal that at least one row landed, so wiping
+        // the clipboard is safe — and welcome, given the extension's TSV
+        // can be hundreds of kilobytes of base64 cover bytes the user
+        // doesn't want hanging around.
+        if (multiText.value === '') {
+          try {
+            await navigator.clipboard.writeText('');
+          } catch {
+            // Best-effort; some browsers reject empty writes or revoke
+            // permission after a successful read. Not worth surfacing.
+          }
+        }
       });
     }
   }
