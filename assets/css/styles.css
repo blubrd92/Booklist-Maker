@@ -862,10 +862,11 @@ body.has-library-config .header-credit {
   /* field-sizing: content auto-shrinks the textarea to fit its content
      (or the placeholder) and grows it as the user pastes/types, capped
      by max-height. Browsers without field-sizing fall back to the
-     rows="3" attribute on the element, which is also a fine compact
-     default. min-height keeps an empty textarea visibly usable. */
+     rows="4" attribute on the element. min-height keeps the empty
+     textarea visibly ~4 rows tall (the rows attribute alone is ignored
+     by browsers that honor field-sizing). */
   field-sizing: content;
-  min-height: 80px;
+  min-height: 100px;
   max-height: 220px;
   padding: 9px 12px;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
