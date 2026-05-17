@@ -1,21 +1,53 @@
-# Browser-Store Listing Copy
+# Booklister Helper: store re-submission notes
 
-Reference text for the Booklister Helper store submissions. The descriptions and the single-purpose statement are the only things stores genuinely require copy for; the rest is guidance for the form fields that come up during submission.
-
-## Versioning — read before re-submitting
-
-**Version `1.0.1` is the current version. `1.0.0` was the first submission to the Chrome Web Store, Firefox Add-ons (AMO), and Microsoft Edge Add-ons (May 2026); `1.0.1` is a clipboard-recovery + AMO-warning cleanup follow-up.** Stores reject any re-upload that carries the same version string, even if the package contents differ. **Before re-zipping for any future submission, bump `version` in `extension/manifest.json`.**
-
-Suggested convention (SemVer):
-- `1.0.x` — bug fixes, store-validator workarounds, copy tweaks, single-string changes (e.g. a new cover-provider added to `host_permissions`).
-- `1.x.0` — new user-facing capability (a new capture mode, a new setting, etc.).
-- `2.0.0` — breaking changes to the TSV format the extension emits, or to anything Booklister's Quick Add depends on.
-
-After bumping, re-zip from `extension/` (same steps as the original submission) and upload to each store under their "Upload new version" / "New package" flow.
+The initial Chrome / Firefox / Edge listings (descriptions, single-purpose statement, permission justifications, icons, screenshots) were entered once on the `1.0.0` submission and live on the stores now. This file is what you need for **subsequent** uploads: the version bump rule, the release notes for the current version, the re-zip + upload steps, and the common metadata you may still need to reconfirm.
 
 ---
 
-Common metadata to provide on every store:
+## Bumping the version
+
+**Every re-upload requires a new `version` in `extension/manifest.json`.** Stores reject any re-upload that carries the same version string, even if the package contents differ.
+
+**Pair the version bump with a release-notes update in this file (the "Release notes" section below).** Stores ask for "what's new in this version" on every upload, and the text in that section is what you paste in. Bumping the manifest without updating the release notes leaves you scrambling for words at submission time.
+
+SemVer convention:
+- `1.0.x` — bug fixes, store-validator workarounds, copy tweaks, single-string changes (e.g. a new cover provider added to `host_permissions`).
+- `1.x.0` — new user-facing capability (a new capture mode, a new setting, etc.).
+- `2.0.0` — breaking changes to the TSV format the extension emits, or to anything Booklister's Quick Add depends on.
+
+---
+
+## Release notes
+
+Paste the section for the current version into each store's "What's new" / "Version notes" / "Release notes" field on upload.
+
+### 1.0.1 (current)
+
+Reliability and store-warning cleanup. No new user-facing features.
+
+- Recover gracefully from clipboard write failures. If you switch tabs while a list capture is running, the browser blocks the clipboard write because the page is no longer focused. The extension now stashes the captured rows and shows a click-to-copy banner so you can finish the handoff when you return to the tab.
+- The "Capturing N titles" status now reminds you to stay on the tab until the confirmation lands, so the fallback above is rarely needed.
+- Internal cleanup to clear Firefox add-on validator warnings: removed dynamic `innerHTML` use in the popup, bumped the Firefox minimum version to 140 to match the `data_collection_permissions` declaration.
+
+### 1.0.0
+
+Initial release. See store listing page for the feature description.
+
+---
+
+## Re-zip + upload steps
+
+1. Bump `version` in `extension/manifest.json`.
+2. Update the "Release notes" section above with a new entry for the version you're about to ship.
+3. From inside the `extension/` directory, zip its **contents** (not the directory itself) so `manifest.json` sits at the root of the archive. Same ZIP uploads to all three stores.
+4. Chrome Web Store → developer dashboard → Booklister Helper → Package → Upload new package.
+5. Firefox Add-ons (AMO) → Developer Hub → Booklister Helper → Upload new version.
+6. Microsoft Edge Add-ons → Partner Center → Booklister Helper → Update → New package.
+7. Paste the matching release-notes block into each store's "What's new" field.
+
+---
+
+## Common metadata (in case a store asks again)
 
 - Privacy policy: `https://booklister.org/privacy.html`
 - Homepage: `https://booklister.org/extension.html`
@@ -25,89 +57,10 @@ Common metadata to provide on every store:
 
 ---
 
-## Short description
+## Per-store gotchas to remember
 
-Use the same one on every store. Chrome's hard limit is 132 characters; Firefox and Edge accept similar lengths.
+The same ZIP uploads to all three stores. Things that have bitten past submissions:
 
-> Capture titles from your BiblioCommons library catalog into Booklister's printable booklist tool. Free and private.
-
----
-
-## Long description
-
-Booklister Helper is a small, free browser extension that captures titles from your library's online catalog into Booklister. Open a title's record page on your library's catalog, click the extension icon, and the title, author, call number, and cover image all land on your clipboard, ready to paste into Booklister's Quick Add.
-
-**Works with BiblioCommons catalogs only.** BiblioCommons is a software platform many North American public libraries use as the front-end of their catalog. To check whether your library uses it, open any title's page on your library's catalog and look at the URL. If it contains `bibliocommons.com`, you're set.
-
-If your library is on a different catalog system, this extension won't help today. Other catalog platforms may be supported in the future.
-
-Three workflows:
-
-1. **One title at a time.** Open a title's record page, click the extension, paste into Booklister's Quick Add Multiple titles tab.
-2. **Multiple titles from a BiblioCommons list.** Open any BiblioCommons list page and click the extension. A popup lets you pick which titles to capture, then copies the selected rows to your clipboard.
-3. **Running list while you browse.** Turn on accumulate mode in the settings and each toolbar click appends to a running list. Paste into Booklister whenever you have enough titles.
-
-**Privacy.** Booklister Helper runs only on BiblioCommons pages. Nothing about your use of it is sent to me, to Booklister, or to any server I operate. No analytics, no telemetry, no tracking. Full privacy details at `https://booklister.org/privacy.html`.
-
-Booklister itself is a free web tool for making printable booklists for library displays, available at `https://booklister.org`. The Booklister Helper extension is an optional companion to that tool.
-
----
-
-## Single-purpose statement (Chrome's required field)
-
-> Booklister Helper has one purpose: capturing title records (title, author, call number, and cover image) from BiblioCommons library catalog pages and writing them as tab-separated values to the user's clipboard for pasting into Booklister's Quick Add tool.
-
----
-
-## Permission justifications (Chrome asks per-permission)
-
-Chrome's submission form asks for a 1-2 sentence justification for each permission and host permission. Use these answers.
-
-- `storage` — to remember the user's settings (preferred branch, accumulate mode) and the running list of captured rows between browser sessions. Stored locally; nothing is transmitted.
-- `scripting` — so the content script can run on BiblioCommons pages to read title metadata for capture.
-- `contextMenus` — to add right-click items for capturing on BiblioCommons pages and for clearing the accumulated list.
-- Host permissions on the BiblioCommons catalog domains and the cover image source those catalogs use — to read title metadata from catalog pages, query the availability API for branch-specific call numbers, and fetch the cover thumbnail the catalog page already displays.
-
----
-
-## Data usage disclosure (Chrome's privacy practices form)
-
-Chrome asks a structured yes/no questionnaire about what data the extension collects. Most categories are No. The one Yes is **Website content**: the extension reads title metadata from BiblioCommons catalog pages when the user explicitly invokes it. It is used only for the extension's core function and is not sold, shared, or transferred to anyone.
-
-Check all three of the standard certifications:
-
-- I do not sell or transfer user data to third parties outside of the approved use cases.
-- I do not use or transfer user data for purposes unrelated to my item's single purpose.
-- I do not use or transfer user data to determine creditworthiness or for lending purposes.
-
----
-
-## Per-store notes
-
-The same ZIP uploads to all three stores. The extension calls the `browser.*` API namespace through the bundled `webextension-polyfill` (`extension/vendor/`); Firefox has `browser.*` natively, Chromium gets the promise-based shim. The manifest uses one MV3 `background.service_worker` key for all three browsers (Firefox 121+ supports `service_worker` natively, treating it as an event page). `browser_specific_settings.gecko` carries the Firefox extension id and the `data_collection_permissions: { required: ["none"] }` declaration. No per-browser builds.
-
-- **Chrome Web Store**: $5 one-time developer fee. Submission ZIP is the contents of `extension/` (without a wrapping directory). Review typically 1-3 days.
-- **Firefox Add-ons**: free. `strict_min_version` is `140.0` (the version where Firefox introduced `browser_specific_settings.gecko.data_collection_permissions`; Firefox itself has supported MV3 `background.service_worker` since 121). Review typically <24 hours. AMO will still emit one informational warning about `background.service_worker` being "ignored" — it isn't (Firefox treats it as a non-persistent background page per MDN), and the warning is harmless. Adding a `background.scripts` fallback to silence the warning would re-trigger Edge's strict MV3 rejection, so it's left as-is.
-- **Microsoft Edge Add-ons**: free. Strict MV3 validator — rejects MV2-style keys like `background.scripts`. Accepts the same package as Chrome. Review typically 24-72 hours.
-
-Submit in the order above; after each store goes live, swap the corresponding "link coming soon" placeholder in `extension.html` for the real install URL.
-
----
-
-## Icons
-
-SVG masters live at `extension/icons/icon.svg` and `extension/icons/icon-promo.svg`. Rasterize the main icon to PNG at 16, 48, and 128 pixels with whatever tool you prefer (rsvg-convert, Inkscape, a design app), drop the PNGs alongside the SVGs, and the manifest paths resolve. Stores require PNG for the in-extension icons; the SVG is just the source you edit when iterating on the design.
-
-The promo tile (`icon-promo.svg`) renders to a 440×280 PNG for Chrome's small promo slot on the store listing page.
-
----
-
-## Screenshots
-
-Chrome requires at least one screenshot at 1280×800 or 640×400; Firefox and Edge accept similar. Most useful set, in order:
-
-1. Selection popup with a real BiblioCommons list loaded.
-2. A single-title capture in progress (toolbar icon visible on a BiblioCommons record page).
-3. The captured TSV pasted into Booklister's Quick Add Multiple titles tab.
-
-The options page and the right-click menu are optional fourth and fifth shots if you want a longer reel. Use the same set across all three stores.
+- **Chrome Web Store**: $5 one-time developer fee already paid on this account. Review typically 1-3 days.
+- **Firefox Add-ons (AMO)**: free. Will emit one informational warning about `background.service_worker` being "ignored by Firefox" — this is incorrect (Firefox 121+ treats it as a non-persistent background page per MDN) and the warning is harmless. Do **not** add a `background.scripts` fallback to silence it; that re-triggers the Edge rejection below. Review typically <24 hours.
+- **Microsoft Edge Add-ons**: free. Strict MV3 validator. Rejects any MV2-style background keys (`background.scripts`, `background.page`). The manifest uses only `background.service_worker` for this reason. Review typically 24-72 hours.

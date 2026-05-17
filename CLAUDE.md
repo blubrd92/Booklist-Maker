@@ -670,6 +670,7 @@ When editing one file, check these related files:
 | Library doc schema (`libraries/<id>` or `libraries-public/<id>`) | `admin/admin.js` (form + openLibraryModal + handleLibraryFormSubmit), `app.js` `applyLibraryConfig()`, `library-config.js` (if the schema has new fields the loader should handle). |
 | Memberships doc schema | `admin/admin.js` (handleAddMembership, loadMemberships), `firestore.rules` `validMembershipFields()`, any new fields need to be added to the key whitelist. |
 | Admin console auth state | `admin/admin.js` `resolveUserRole()` is the single source of truth for "super-admin | library-admin | none". If you add new roles, start there. |
+| `extension/manifest.json` `version` | `extension/STORE_LISTING.md` "Release notes" section. Every version bump needs a matching new entry there; the stores ask for "what's new" text on each upload and STORE_LISTING.md is where that copy lives. Bumping without updating leaves you scrambling at submission time. |
 
 ### Adding New Code
 
