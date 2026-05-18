@@ -671,6 +671,7 @@ When editing one file, check these related files:
 | Memberships doc schema | `admin/admin.js` (handleAddMembership, loadMemberships), `firestore.rules` `validMembershipFields()`, any new fields need to be added to the key whitelist. |
 | Admin console auth state | `admin/admin.js` `resolveUserRole()` is the single source of truth for "super-admin | library-admin | none". If you add new roles, start there. |
 | `extension/manifest.json` `version` | `extension/STORE_LISTING.md` "Release notes" section. Every version bump needs a matching new entry there; the stores ask for "what's new" text on each upload and STORE_LISTING.md is where that copy lives. Bumping without updating leaves you scrambling at submission time. |
+| `extension/manifest.json` `background` block | `extension/build-zips.mjs` (the per-browser packager that strips `background.scripts` from the Chromium variant). If the background shape changes, eyeball that the strip still does the right thing. The script reads the canonical manifest and emits two zips to `dist/` via `npm run package:extension`: Firefox keeps both background keys, Chromium drops `scripts`. Edge's MV3 validator rejects `background.scripts`; Firefox AMO requires it; Chrome accepts either form. |
 
 ### Adding New Code
 

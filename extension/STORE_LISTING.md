@@ -1,6 +1,6 @@
 # Booklister Helper: store re-submission notes
 
-The initial Chrome / Firefox / Edge listings (descriptions, single-purpose statement, permission justifications, icons, screenshots) were entered once on the `1.0.0` submission and live on the stores now. This file is what you need for **subsequent** uploads: the version bump rule, the release notes for the current version, the re-zip + upload steps, and the common metadata you may still need to reconfirm.
+The initial Chrome / Firefox / Edge listings (descriptions, single-purpose statement, permission justifications, icons, screenshots) were entered once on the `1.0.0` submission and live on the stores now. This file is what you need for **subsequent** uploads: the version bump rule, the release notes for the current version, the build + upload steps, and the common metadata you may still need to reconfirm.
 
 ---
 
@@ -21,7 +21,13 @@ SemVer convention:
 
 Paste the section for the current version into each store's "What's new" / "Version notes" / "Release notes" field on upload.
 
-### 1.0.2 (current)
+### 1.0.3 (current)
+
+Edge compatibility fix. No user-visible changes.
+
+- Ship Chrome / Edge with a Chromium-specific manifest that omits `background.scripts`. Edge's MV3 validator rejects that field outright, so we now build two ZIPs from the same source: one for Firefox (both background keys) and one for Chromium browsers (service worker only). Same code, same behavior, two manifests.
+
+### 1.0.2
 
 Firefox compatibility fix. No user-visible changes.
 
@@ -41,16 +47,32 @@ Initial release. See store listing page for the feature description.
 
 ---
 
-## Re-zip + upload steps
+## Build + upload steps
 
 1. Bump `version` in `extension/manifest.json`.
 2. Update the "Release notes" section above with a new entry for the version you're about to ship.
-3. From inside the `extension/` directory, zip its **contents** (not the directory itself) so `manifest.json` sits at the root of the archive. Same ZIP uploads to all three stores.
-4. Name the ZIP `booklister-helper-<version>.zip` (e.g. `booklister-helper-1.0.2.zip`). The version comes straight from `manifest.json`. This is just so you can tell uploads apart on disk; the stores rename it on receipt.
-5. Chrome Web Store → developer dashboard → Booklister Helper → Package → Upload new package.
-6. Firefox Add-ons (AMO) → Developer Hub → Booklister Helper → Upload new version.
-7. Microsoft Edge Add-ons → Partner Center → Booklister Helper → Update → New package.
-8. Paste the matching release-notes block into each store's "What's new" field.
+3. From the repo root, run:
+
+   ```
+   npm run package:extension
+   ```
+
+   This produces two ZIPs in `dist/`:
+
+   - `booklister-helper-<version>-firefox.zip` (Firefox / AMO)
+   - `booklister-helper-<version>-chromium.zip` (Chrome Web Store + Microsoft Edge)
+
+   The Firefox zip keeps both `background.service_worker` and `background.scripts` (AMO requires the pairing). The Chromium zip has `background.scripts` stripped (Edge rejects it). The script handles the difference; you don't edit the manifest by hand.
+
+4. Upload each zip to its store:
+
+   - **Chrome Web Store** → developer dashboard → Booklister Helper → Package → Upload new package → upload `*-chromium.zip`.
+   - **Microsoft Edge Add-ons** → Partner Center → Booklister Helper → Update → New package → upload `*-chromium.zip` (same file as Chrome).
+   - **Firefox Add-ons (AMO)** → Developer Hub → Booklister Helper → Upload new version → upload `*-firefox.zip`.
+
+5. Paste the matching release-notes block into each store's "What's new" field.
+
+`dist/` is gitignored, so the zips never get committed.
 
 ---
 
@@ -66,17 +88,15 @@ Initial release. See store listing page for the feature description.
 
 ## Per-store gotchas to remember
 
-The same ZIP uploads to all three stores. Things that have bitten past submissions:
-
-- **Chrome Web Store**: $5 one-time developer fee already paid on this account. Review typically 1-3 days.
-- **Firefox Add-ons (AMO)**: free. As of 2026 AMO **requires** `background.scripts` to be paired with `background.service_worker` for any MV3 extension. Without the `scripts` fallback the upload is rejected outright (this used to be a warning; it escalated to an error). The current manifest declares both keys. Review typically <24 hours.
-- **Microsoft Edge Add-ons**: free. Edge's MV3 validator rejected `background.scripts` on the 1.0.0 submission, which is why 1.0.1 only had `service_worker`. 1.0.2 had to add `scripts` back to satisfy Firefox. **If Edge rejects 1.0.2 for the same reason as 1.0.0, the only fix is per-browser builds** (a Firefox-only zip with `scripts`, a Chrome/Edge zip with only `service_worker`). Try the unified upload first; if rejected, see the "Per-browser builds (only if Edge rejects)" section below. Review typically 24-72 hours.
+- **Chrome Web Store**: $5 one-time developer fee already paid on this account. Accepts the Chromium zip. Review typically 1-3 days.
+- **Firefox Add-ons (AMO)**: free. Requires both `background.service_worker` and `background.scripts`; the Firefox zip carries both. Review typically <24 hours.
+- **Microsoft Edge Add-ons**: free. Rejects `background.scripts` in MV3 with the exact error `The background.scripts field cannot be used with manifest version 3`. The Chromium zip strips that field. Review typically 24-72 hours.
 
 ---
 
-## Background manifest: why both keys are declared
+## Background manifest: why two builds are needed
 
-The `background` block in `manifest.json` declares both `service_worker` and `scripts`:
+The canonical `manifest.json` in the repo declares both `background.service_worker` and `background.scripts`:
 
 ```json
 "background": {
@@ -85,22 +105,12 @@ The `background` block in `manifest.json` declares both `service_worker` and `sc
 }
 ```
 
-Each browser picks the key it understands:
+Each browser picks the key it understands, but the two main stores disagree on whether the other key is allowed to coexist:
 
-- **Chrome / Edge** use `service_worker` and ignore `scripts`. The service worker runs `background.js` directly; the polyfill is loaded inside that file via `importScripts('vendor/browser-polyfill.min.js')` (guarded by `typeof importScripts === 'function'` so it only fires in the service-worker context).
-- **Firefox** uses `scripts` (loaded as a non-persistent background page) and ignores `service_worker`. The polyfill is loaded as the first entry in the `scripts` array because Firefox background pages don't have `importScripts`.
+- **Firefox** uses `scripts` (loaded as a non-persistent background page) and ignores `service_worker`. The polyfill is loaded as the first entry in the `scripts` array because Firefox background pages don't have `importScripts`. AMO **requires** `scripts` to be present.
+- **Chrome** uses `service_worker` and ignores `scripts`. Chrome accepts the dual-key form too.
+- **Edge** uses `service_worker` but **rejects** `scripts` outright at validation time.
 
-If you ever need to refactor `background.js`, keep the `typeof importScripts` guard around the polyfill load — without it, Firefox will throw a ReferenceError on startup.
+`extension/build-zips.mjs` reconciles this by producing one ZIP with both keys (for Firefox) and a second ZIP with `background.scripts` deleted (for Chrome and Edge). The `background.js` file is unchanged in both: the `typeof importScripts === 'function'` guard at the top picks the right code path for whichever runtime is loading it.
 
----
-
-## Per-browser builds (only if Edge rejects)
-
-If a future Edge submission rejects the unified ZIP because of `background.scripts`, the workaround is two zips:
-
-1. **Chrome/Edge ZIP**: same as the Firefox ZIP but with the `scripts` line removed from `background`. Upload to Chrome Web Store and to Edge Add-ons.
-2. **Firefox ZIP**: the unified manifest as-is (both keys). Upload to AMO.
-
-To do this by hand: zip the `extension/` contents as-is for Firefox, then duplicate the ZIP, open the duplicate, and edit `manifest.json` inside it to remove the `"scripts": [...]` line and its trailing comma. Upload that one to Chrome and Edge.
-
-This is documented as a fallback, not the default, because a single ZIP is much easier to maintain. Edge accepted `service_worker` alone on 1.0.0, and Mozilla's now-mandated dual-key pattern is widely used in the ecosystem, so Edge may well accept it on 1.0.2. Try the unified upload first.
+If you ever need to refactor `background.js`, keep the `typeof importScripts` guard around the polyfill load. Without it, Firefox will throw a ReferenceError on startup.

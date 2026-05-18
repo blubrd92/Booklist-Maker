@@ -6,7 +6,8 @@
   "scripts": {
     "lint": "eslint assets/js/ extension/",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "package:extension": "node extension/build-zips.mjs"
   },
   "keywords": [],
   "author": "",

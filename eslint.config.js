@@ -152,6 +152,24 @@ export default [
     },
   },
   {
+    // Build tooling that runs in Node, not in a browser or extension
+    // runtime. Separate block so we don't inherit the extension's
+    // browser/service-worker globals.
+    files: ["extension/build-zips.mjs"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+    rules: {
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "no-undef": "error",
+    },
+  },
+  {
     ignores: [
       "node_modules/",
       "eslint.config.js",
