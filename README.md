@@ -99,4 +99,8 @@ Please read [CLAUDE.md](./CLAUDE.md) before making changes. It documents:
 
 ## License
 
-ISC.
+Copyright © 2026 Booklister. All rights reserved.
+
+The source is published in this repository for transparency and reference. No license is granted to use, modify, distribute, or create derivative works from this code. For licensing inquiries, email me from the [contact page](https://booklister.org/contact.html).
+
+Third-party code in `extension/vendor/` is governed by its own licenses. The webextension-polyfill at `extension/vendor/browser-polyfill.min.js` is MPL 2.0 (Mozilla Public License) and remains under that license.
