@@ -49,30 +49,27 @@ Initial release. See store listing page for the feature description.
 
 ## Build + upload steps
 
-1. Bump `version` in `extension/manifest.json`.
-2. Update the "Release notes" section above with a new entry for the version you're about to ship.
-3. From the repo root, run:
+The repo doesn't live on the developer's local machine; the developer edits on GitHub and asks Claude to produce the store-ready zips. Process:
 
-   ```
-   npm run package:extension
-   ```
+1. **Developer** bumps `version` in `extension/manifest.json` via the GitHub web editor.
+2. **Developer** adds a new entry to the "Release notes" section above describing what's in this version.
+3. **Developer** asks Claude to "build and send the extension zips for v\<version\>."
+4. **Claude** (whoever's reading this) pulls the latest main, runs `npm run package:extension` from the repo root, and delivers both zips to the developer via `SendUserFile`. Output lives in `dist/` (gitignored), so the zips never get committed. The build script (`extension/build-zips.mjs`) reads `manifest.json` and emits:
 
-   This produces two ZIPs in `dist/`:
+   - `booklister-helper-<version>-firefox.zip` — keeps both `background.service_worker` and `background.scripts`. AMO requires the pairing.
+   - `booklister-helper-<version>-chromium.zip` — `background.scripts` stripped. Edge rejects that field; Chrome accepts either form, so this single zip goes to both Chromium stores.
 
-   - `booklister-helper-<version>-firefox.zip` (Firefox / AMO)
-   - `booklister-helper-<version>-chromium.zip` (Chrome Web Store + Microsoft Edge)
+   The script handles the manifest difference; do not hand-edit either zip.
 
-   The Firefox zip keeps both `background.service_worker` and `background.scripts` (AMO requires the pairing). The Chromium zip has `background.scripts` stripped (Edge rejects it). The script handles the difference; you don't edit the manifest by hand.
-
-4. Upload each zip to its store:
+5. **Developer** uploads each zip to its store:
 
    - **Chrome Web Store** → developer dashboard → Booklister Helper → Package → Upload new package → upload `*-chromium.zip`.
    - **Microsoft Edge Add-ons** → Partner Center → Booklister Helper → Update → New package → upload `*-chromium.zip` (same file as Chrome).
    - **Firefox Add-ons (AMO)** → Developer Hub → Booklister Helper → Upload new version → upload `*-firefox.zip`.
 
-5. Paste the matching release-notes block into each store's "What's new" field.
+6. **Developer** pastes the matching release-notes block into each store's "What's new" field.
 
-`dist/` is gitignored, so the zips never get committed.
+> **Note to Claude reading this in a future session:** when the developer asks you to ship a new extension version, your job is steps 3 (only the "build" half) and 4. Run `npm run package:extension`, then immediately call `SendUserFile` with both zips from `dist/`. The developer does not have a local checkout, so they cannot run the script themselves; if you forget the `SendUserFile` step they are stuck.
 
 ---
 
