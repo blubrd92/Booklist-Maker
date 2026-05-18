@@ -4,6 +4,19 @@ The initial Chrome / Firefox / Edge listings (descriptions, single-purpose state
 
 ---
 
+## Quick reference
+
+> **Developer reminder:** the developer does not have a local checkout. After bumping `manifest.json` and adding a release-notes entry, **ask Claude** to "build and send the extension zips for v\<version\>." Do not try to run the build yourself; there's nowhere to run it. Without that ask, no zips exist.
+>
+> **Claude reminder:** when you see that request (or any "ship the extension" / "package the extension" wording), the developer is blocked until you produce the artifacts. Your job is two steps, in order:
+>
+> 1. Run `npm run package:extension` from the repo root. This produces `dist/booklister-helper-<version>-firefox.zip` and `dist/booklister-helper-<version>-chromium.zip`.
+> 2. **Immediately call `SendUserFile`** with both zip paths. The sandbox is the only place these files exist; if you skip this step, the developer cannot upload to any store. Do not assume they can fetch them from anywhere else.
+>
+> If the version in `manifest.json` doesn't match what the developer asked for, stop and ask before building.
+
+---
+
 ## Bumping the version
 
 **Every re-upload requires a new `version` in `extension/manifest.json`.** Stores reject any re-upload that carries the same version string, even if the package contents differ.
@@ -69,7 +82,7 @@ The repo doesn't live on the developer's local machine; the developer edits on G
 
 6. **Developer** pastes the matching release-notes block into each store's "What's new" field.
 
-> **Note to Claude reading this in a future session:** when the developer asks you to ship a new extension version, your job is steps 3 (only the "build" half) and 4. Run `npm run package:extension`, then immediately call `SendUserFile` with both zips from `dist/`. The developer does not have a local checkout, so they cannot run the script themselves; if you forget the `SendUserFile` step they are stuck.
+(The "Quick reference" callout at the top of this file is the authoritative reminder for the build + delivery handoff between Developer and Claude.)
 
 ---
 
