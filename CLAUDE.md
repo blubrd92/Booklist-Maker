@@ -43,6 +43,14 @@ terms.html                      Terms of service content page (covers public too
                                 feature, and the standard set of boilerplate
                                 clauses; California governing law)
 CNAME                           Custom domain (booklister.org)
+sitemap.xml                     Static sitemap of the 7 user-facing pages,
+                                referenced from robots.txt and submitted to
+                                Google Search Console. Update when adding or
+                                removing a content page.
+robots.txt                      Allow-all crawl directive plus the Sitemap:
+                                reference. Per-domain; only governs
+                                booklister.org. The admin subdomain controls
+                                indexing via its own meta noindex tag.
 firestore.rules                 Firestore security rules (deployed manually via
                                 Firebase console; this file is the source of truth)
 assets/
