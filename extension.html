@@ -37,13 +37,15 @@
     <article class="content-article">
       <h1>Booklister Helper</h1>
 
-      <p>Booklister Helper is a small, free browser extension for library catalogs powered by <strong>BiblioCommons</strong>. If your library is on a BiblioCommons catalog, the extension lets you capture titles straight into Booklister: open a title's record page in your catalog, click the extension icon, and the title, author, call number, and cover image all land on your clipboard, ready to paste into Booklister's Quick Add. No retyping, no copy-paste juggling, no hunting for cover images.</p>
+      <p>Booklister Helper is a small, free browser extension that captures titles from your library's online catalog into Booklister. Open a title's record page in your catalog, click the extension icon, and the title, author, call number, and cover image all land on your clipboard, ready to paste into Booklister's Quick Add. No retyping, no copy-paste juggling, no hunting for cover images.</p>
 
-      <h2>How to tell if your library uses BiblioCommons</h2>
+      <p>Today the Helper supports library catalogs powered by <strong>BiblioCommons</strong>, the software platform behind many North American public-library catalogs. Support for additional catalog systems is on the roadmap and will be added based on what libraries ask for most.</p>
 
-      <p>BiblioCommons is a software platform many North American public libraries use as the front-end of their catalog. The easiest way to tell whether yours uses it: open any title's record page on your library's catalog and look at the URL. If it contains <code>bibliocommons.com</code>, you're good to go.</p>
+      <h2>Catalogs the Helper supports today</h2>
 
-      <p>If your library is on a different catalog system, drop a note from the <a href="contact.html">contact</a> page and let me know what your library uses. If there's enough interest in a specific platform, I may build a separate extension or adapter for it in the future.</p>
+      <p>BiblioCommons is the only catalog system the Helper currently works with. The easiest way to tell whether your library uses it: open any title's record page on your library's catalog and look at the URL. If it contains <code>bibliocommons.com</code>, you're good to go.</p>
+
+      <p>If your library runs on a different catalog system (Aspen Discovery, Vega, Polaris LEAP, Encore, Sierra OPAC, BiblioCore, and so on), the Helper can't capture from it today. Drop a note from the <a href="contact.html">contact</a> page and let me know what your library uses. Demand for a specific platform is what drives which one I prioritize next.</p>
 
       <h2>Install</h2>
 
@@ -70,29 +72,29 @@
         <li>One row lands on your clipboard. Paste into Booklister's Quick Add → Multiple titles tab and press <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> to add the title.</li>
       </ol>
 
-      <h3>Multiple titles from a BiblioCommons list</h3>
+      <h3>Multiple titles from a curated list</h3>
 
-      <p>This workflow targets BiblioCommons's built-in <strong>Lists</strong> feature, the one where library staff publish staff picks, themed reading lists, and seasonal recommendations, and where patrons build their own reading lists. In a BiblioCommons catalog you typically find these under nav links and headings like <em>Lists</em>, <em>Staff Picks</em>, <em>Featured Lists</em>, <em>Recommended Lists</em>, or <em>My Lists</em>. The URL of an individual list page contains <code>/v2/list/</code>.</p>
+      <p>This workflow targets the <strong>Lists</strong> feature in your catalog, the one where library staff publish staff picks, themed reading lists, and seasonal recommendations, and where patrons build their own reading lists. In a BiblioCommons catalog you typically find these under nav links and headings like <em>Lists</em>, <em>Staff Picks</em>, <em>Featured Lists</em>, <em>Recommended Lists</em>, or <em>My Lists</em>. The URL of an individual list page contains <code>/v2/list/</code>. (When the Helper adds support for other catalog systems, list capture will look for the equivalent construct on each one.)</p>
 
       <ol>
-        <li>Open any BiblioCommons list page: a staff-published list, your own list, or any patron's public list.</li>
+        <li>Open any catalog list page: a staff-published list, your own list, or any patron's public list.</li>
         <li>Click the Booklister Helper toolbar icon. A small popup opens showing every title on the list with a cover thumbnail and a checkbox.</li>
         <li>Pick the titles you want. All titles are checked by default. Use the <strong>All</strong>, <strong>None</strong>, and <strong>First N</strong> controls (the First N selector picks 13, 14, or 15) for quick presets, or check and uncheck individual rows.</li>
         <li>Click <strong>Capture N titles</strong>. The extension takes about five to ten seconds for thirteen titles while it fetches the right call number and cover for each one.</li>
         <li>A multi-row TSV lands on your clipboard. Paste into Booklister and submit.</li>
       </ol>
 
-      <p>This is the fastest workflow when you're starting a Booklister booklist from an existing BiblioCommons list, since most published lists run longer than the 13-15 slots on a Booklister booklist. Picking the subset in the catalog is faster than trimming inside Booklister.</p>
+      <p>This is the fastest workflow when you're starting a Booklister booklist from an existing curated list, since most published lists run longer than the 13-15 slots on a Booklister booklist. Picking the subset in the catalog is faster than trimming inside Booklister.</p>
 
       <h3>Running list while you browse</h3>
       <p>If you'd rather collect titles one at a time as you browse, turn on <strong>Accumulate captures</strong> in the extension's settings. Then each toolbar click appends to a running list instead of overwriting the clipboard, and the toolbar badge shows how many titles you've staged. Paste into Booklister whenever you have enough. Right-click the toolbar icon and pick <strong>Clear accumulated list</strong> to start over.</p>
 
       <h3>Right-click access</h3>
-      <p>On any supported catalog page, you can right-click anywhere on the page and pick <strong>Capture for Booklister</strong> from the menu instead of clicking the toolbar icon. On a record page it captures that title. On a list page it opens the same selection popup as a left-click on the toolbar icon. The menu item only appears on BiblioCommons record and list pages, so it doesn't clutter your right-click menu anywhere else.</p>
+      <p>On any supported catalog page, you can right-click anywhere on the page and pick <strong>Capture for Booklister</strong> from the menu instead of clicking the toolbar icon. On a record page it captures that title. On a list page it opens the same selection popup as a left-click on the toolbar icon. The menu item only appears on supported catalog pages, so it doesn't clutter your right-click menu anywhere else.</p>
 
       <h2>Branch selection (consortium catalogs)</h2>
 
-      <p>If your library shares a catalog with other libraries in a consortium, the same title often has different call numbers across the participating libraries, and the extension has to pick one. By default it uses BiblioCommons's own "your local branch" detection, which works automatically when you're signed in to your library account or browsing from your library's IP range. So on a work computer at the library, you usually don't have to do anything.</p>
+      <p>If your library shares a catalog with other libraries in a consortium, the same title often has different call numbers across the participating libraries, and the extension has to pick one. On BiblioCommons catalogs, it defaults to the catalog's own "your local branch" detection, which works automatically when you're signed in to your library account or browsing from your library's IP range. So on a work computer at the library, you usually don't have to do anything. (Other catalog systems may handle local-branch detection differently when the Helper adds support for them; specifics will land on this page as each is added.)</p>
 
       <p>If you'd rather pin a specific branch (useful for outreach booklists, school visits, or pop-up displays at a specific location), set the <strong>Preferred branch</strong> field in the extension's options to a substring of your branch name as it appears in the catalog's Availability table.</p>
 
@@ -102,7 +104,7 @@
 
       <ul>
         <li><strong>Doesn't send anything to me or to any server I control.</strong> The captured row goes from the catalog page straight to your clipboard, locally, in your browser. I never see what you capture.</li>
-        <li><strong>Doesn't run on any site other than your library catalog.</strong> The extension only has permission to read pages on BiblioCommons-powered library catalog domains. It has no permission to read anything you browse on other websites and never will.</li>
+        <li><strong>Doesn't run on any site other than your library catalog.</strong> The extension only has permission to read pages on the catalog domains it's been built to support (BiblioCommons today, more in the future). It has no permission to read anything you browse on other websites and never will.</li>
         <li><strong>Doesn't track you.</strong> No analytics, no telemetry, no usage logging.</li>
         <li><strong>Doesn't load any code from the internet.</strong> The extension ships as a fixed bundle of files and runs entirely from your computer once installed. It can't be updated or changed remotely without a new store-approved release that you decide whether to accept.</li>
         <li><strong>Doesn't use cookies or accounts.</strong> No sign-in, no profile, no settings stored anywhere except locally in your browser.</li>
