@@ -103,4 +103,4 @@ There is no analytics. No tracking. The TSV row goes from the page directly to y
 
 ## License
 
-ISC, same as the parent Booklister project.
+Copyright © 2026 Booklister. All rights reserved. The source is published in this repository for transparency and reference; no license is granted to use, modify, distribute, or create derivative works. See the root [LICENSE](../LICENSE) file for the full notice and for the third-party code carve-out (the bundled webextension-polyfill in `vendor/` remains under its own MPL 2.0 license).
