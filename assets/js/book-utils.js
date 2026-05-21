@@ -218,6 +218,15 @@
           prevWordEndedSubtitle = /[:?!]$/.test(tokens[i]);
         }
       }
+      // Capitalize the first letter of each hyphen-separated segment so a
+      // compound like "Word-Word" stays "Word-Word" instead of collapsing
+      // to "Word-word". BiblioCommons enters hyphenated titles this way.
+      function capitalizeWord(word) {
+        return word.split('-').map(function(seg) {
+          if (!seg) return seg;
+          return seg.charAt(0).toUpperCase() + seg.slice(1).toLowerCase();
+        }).join('-');
+      }
       return tokens.map(function(token, i) {
         if (!/\S/.test(token)) return token;
         const lower = token.toLowerCase();
@@ -230,7 +239,7 @@
         if (i !== firstWordIdx && i !== lastWordIdx && !subtitleStarts.has(i) && minorWords.has(lower)) {
           return lower;
         }
-        return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
+        return capitalizeWord(token);
       }).join('');
     },
 

@@ -718,6 +718,13 @@ describe('BookUtils.toTitleCase', () => {
     expect(globalThis.BookUtils.toTitleCase('book: a tale: of two cities'))
       .toBe('Book: A Tale: Of Two Cities');
   });
+
+  it('capitalizes the word after a hyphen', () => {
+    expect(globalThis.BookUtils.toTitleCase('spider-man')).toBe('Spider-Man');
+    expect(globalThis.BookUtils.toTitleCase('the well-being guide'))
+      .toBe('The Well-Being Guide');
+    expect(globalThis.BookUtils.toTitleCase('x-ray vision')).toBe('X-Ray Vision');
+  });
 });
 
 describe('BookUtils.parseQuickAddTsv', () => {

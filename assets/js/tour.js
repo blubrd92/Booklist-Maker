@@ -316,7 +316,7 @@
         },
         {
           target: '#branding-uploader',
-          text: "Add your library's logo or branding here. It appears on the back cover, giving the list a polished, official look. I'll add the default one for now.",
+          text: "Add your library's logo or branding here. It appears on the back cover, giving the list a polished, official look. I'll add an example one for now.",
           state: 'idle',
           prepare: function() {
             openSidebarTab('tab-settings');
