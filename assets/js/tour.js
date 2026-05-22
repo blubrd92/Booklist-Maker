@@ -424,7 +424,7 @@
         },
         {
           target: '#export-pdf-button',
-          text: "When everything looks right, hit Generate PDF. For best results, print at Default or Actual Size scaling, double-sided, and flip on short edge. Fit to Page will lower the print quality. Your booklist is going to look great!",
+          text: "When everything looks right, hit Generate PDF. For best results, print at Default or Actual Size scaling, double-sided, and flip on short edge. Your booklist is going to look great!",
           state: 'excited',
           padding: 6,
         },
