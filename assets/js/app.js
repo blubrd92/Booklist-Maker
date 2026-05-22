@@ -134,10 +134,16 @@ const BooklistApp = (function() {
 
   /** Delete a key from IDB (fire-and-forget) */
   function _deleteImageIDB(key) {
-    _openImageDB().then(db => {
+    // Resolves only once the delete transaction has committed, so callers
+    // that reload the page (resetToBlank) can await it and not race the
+    // draft back into existence.
+    return _openImageDB().then(db => new Promise(resolve => {
       const tx = db.transaction('images', 'readwrite');
       tx.objectStore('images').delete(key);
-    }).catch(() => {});
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    })).catch(() => {});
   }
 
   /** Get or create a reference ID for a data URL, storing it in cache + IDB */
@@ -6378,12 +6384,18 @@ const BooklistApp = (function() {
     } catch { /* ignore corrupt data */ }
   }
 
-  function resetToBlank() {
+  async function resetToBlank() {
     try { localStorage.removeItem('has-draft'); } catch {}
-    // Clear draft and legacy keys from IndexedDB
-    _deleteImageIDB('draft');
-    _deleteImageIDB('draft-front-cover');
     isDirtyLocal = false; // Prevent beforeunload after user already confirmed reset
+    // Clear draft and legacy keys from IndexedDB. Await the deletes so the
+    // reload doesn't race them — otherwise the draft survives and gets
+    // restored on the next load.
+    try {
+      await Promise.all([
+        _deleteImageIDB('draft'),
+        _deleteImageIDB('draft-front-cover'),
+      ]);
+    } catch { /* best-effort; reload regardless */ }
     location.reload();
   }
   
