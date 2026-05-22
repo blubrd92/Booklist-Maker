@@ -679,28 +679,32 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   let notificationTimeout = null;
   
-  function showNotification(message, type = 'error', autoHide = true) {
+  function showNotification(message, type = 'error', autoHide = true, duration = null) {
     if (!elements.notificationArea) return;
-    
+
     // Clear any existing timeout
     if (notificationTimeout) {
       clearTimeout(notificationTimeout);
       notificationTimeout = null;
     }
-    
+
     elements.notificationArea.textContent = message;
     elements.notificationArea.className = type;
     elements.notificationArea.classList.add('show');
-    
+
     if (autoHide) {
       // Success notifications auto-hide faster since they're just confirmations;
-      // errors get the full duration so users have time to read them.
-      const duration = type === 'success'
+      // errors get the full duration so users have time to read them. Callers
+      // can pass an explicit `duration` to override either default.
+      const defaultDuration = type === 'success'
         ? CONFIG.NOTIFICATION_DURATION_SUCCESS_MS
         : CONFIG.NOTIFICATION_DURATION_MS;
+      const useDuration = (typeof duration === 'number' && duration > 0)
+        ? duration
+        : defaultDuration;
       notificationTimeout = setTimeout(() => {
         hideNotification();
-      }, duration);
+      }, useDuration);
     }
   }
   
@@ -1604,7 +1608,7 @@ const BooklistApp = (function() {
       magicButton = document.createElement('button');
       magicButton.className = 'magic-button';
       magicButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
-      magicButton.title = 'Draft description';
+      magicButton.title = 'Draft description. Shift+click to paste your own summary for the drafter to condense.';
       magicButton.setAttribute('aria-label', 'Draft description for this title');
       if (_pendingDescriptions.has(bookItem.key)) {
         magicButton.disabled = true;
@@ -5768,7 +5772,12 @@ const BooklistApp = (function() {
       canvas2.width = 0; canvas2.height = 0;
 
       pdf.save(suggestedName);
-      showNotification('PDF download started.', 'success');
+      showNotification(
+        'PDF download started. When you print, use Default or Actual Size scaling. Fit to Page will lower the print quality.',
+        'success',
+        true,
+        5000
+      );
 
       // Folio: excited about PDF. The 'satisfied' reaction overlays
       // the 'excited' state immediately (no animation head-start) —
