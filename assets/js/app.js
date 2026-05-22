@@ -7271,6 +7271,11 @@ const BooklistApp = (function() {
     });
     
     elements.resetBlankButton.addEventListener('click', () => {
+      // The guided tour swaps in a sample list and stashes the user's real
+      // work in the tour-backup IndexedDB slot. Resetting mid-tour would
+      // wipe that backup along with everything else. Reset isn't part of
+      // the tour flow, so ignore the click while a tour is active.
+      if (_tourActive) return;
       const ok = confirm('Reset to a blank list? This clears the current list and local draft. You can still load a saved .booklist later.');
       if (!ok) return;
       resetToBlank();
