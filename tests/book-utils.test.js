@@ -1012,6 +1012,30 @@ describe('BookUtils.isDraftStateEffectivelyEmpty', () => {
     expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
   });
 
+  it('returns true when the only branding is the library default (brandingIsLibraryDefault)', () => {
+    const s = emptyState({
+      images: {
+        frontCover: null,
+        branding: '/assets/img/libraries/sanrafael/logo.png',
+        brandingIsLibraryDefault: true,
+        customQr: null,
+      },
+    });
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(true);
+  });
+
+  it('returns false for a user-uploaded branding image even with the flag absent', () => {
+    const s = emptyState({
+      images: {
+        frontCover: null,
+        branding: 'data:image/png;base64,iVBOR',
+        brandingIsLibraryDefault: false,
+        customQr: null,
+      },
+    });
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
   it('returns false when a custom QR image is set', () => {
     const s = emptyState({ images: { frontCover: null, branding: null, customQr: 'data:image/png;base64,iVBOR' } });
     expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);

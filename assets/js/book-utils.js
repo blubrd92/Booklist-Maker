@@ -423,7 +423,13 @@
       });
       const noExtras = !Array.isArray(state.extraCollageCovers) || state.extraCollageCovers.length === 0;
       const images = state.images || {};
-      const noImages = !images.frontCover && !images.branding && !images.customQr;
+      // On branded instances the library logo is auto-applied by
+      // applyLibraryConfig on every load, so images.branding is set even
+      // when the user uploaded nothing. serializeState flags that case
+      // via images.brandingIsLibraryDefault — don't count the library's
+      // own default branding as user content.
+      const brandingIsContent = !!images.branding && !images.brandingIsLibraryDefault;
+      const noImages = !images.frontCover && !brandingIsContent && !images.customQr;
       const ui = state.ui || {};
       const coverLineTexts = Array.isArray(ui.coverLineTexts) ? ui.coverLineTexts : [];
       const noText = !(ui.qrCodeText || '').trim()
