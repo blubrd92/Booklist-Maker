@@ -87,34 +87,23 @@
           state: 'searching',
           prepare: function() {
             openSidebarTab('tab-search');
-            // Pre-fill and submit a demo search
-            const input = document.getElementById('keywordInput');
-            if (input && !input.value) {
-              input.value = 'Discworld';
-              input.classList.add('tour-demo-filled');
-              // Auto-click search after a beat. Capture the current
-              // section + step at schedule time; if the user has
-              // advanced or exited before the 600ms fires, skip the
-              // click so a stale search request doesn't render results
-              // into the sidebar after the tour state has moved on
-              // (or after exitTour has cleared #results-container).
-              const sectionAtSchedule = currentSectionId;
-              const stepAtSchedule = currentStepIndex;
-              setTimeout(function() {
-                if (currentSectionId !== sectionAtSchedule
-                    || currentStepIndex !== stepAtSchedule) {
-                  return;
-                }
-                const searchBtn = document.getElementById('fetchButton');
-                if (searchBtn) searchBtn.click();
-              }, 600);
-            }
+            // Auto-run a demo search after a short beat so the
+            // results-focused steps that follow have books to show.
+            // Re-checked at fire time: skip ONLY if the tour has fully
+            // exited. A mere step advance must not cancel it — otherwise
+            // a fast click-through past this step leaves the results
+            // steps spotlighting an empty container.
+            setTimeout(function() {
+              if (!currentSectionId) return;
+              runDemoSearch();
+            }, 600);
           },
         },
         {
           target: '#results-container',
           text: "Results show up here from OpenLibrary. It has a huge catalog, but not everything. If a book doesn't come up, you can always add it manually and upload your own cover. Or use the Quick Add button to type in title, author, and call number.",
           state: 'evaluating',
+          waitFor: hasSearchResults,
           prepare: function() { openSidebarTab('tab-search'); },
           padding: 4,
         },
@@ -122,7 +111,7 @@
           target: '#results-container',
           text: "Some results have arrow buttons to browse different cover editions. If there are multiple, pick the one that looks best for your display.",
           state: 'evaluating',
-          interactive: true,
+          waitFor: hasSearchResults,
           prepare: function() {
             const results = document.getElementById('results-container');
             if (results) results.scrollTop = 0;
@@ -132,7 +121,7 @@
           target: '#results-container',
           text: "Click 'Add to List' to drop a book into the next open slot. It'll appear in your preview right away.",
           state: 'excited',
-          interactive: true,
+          waitFor: hasSearchResults,
           prepare: function() {
             openSidebarTab('tab-search');
             const results = document.getElementById('results-container');
@@ -598,6 +587,30 @@
   /* ----------------------------------------------------------------
      HELPERS
      ---------------------------------------------------------------- */
+  // True once the demo search has rendered result cards into the
+  // sidebar. Used as a step `waitFor` so the results-focused Search &
+  // Add steps don't spotlight an empty container while the OpenLibrary
+  // request is still in flight.
+  function hasSearchResults() {
+    return !!document.querySelector('#results-container .book-card');
+  }
+
+  // Kick off the demo Discworld search. No-op if results are already
+  // showing or a search is already running, so revisiting the first
+  // Search & Add step doesn't fire a duplicate request.
+  function runDemoSearch() {
+    if (hasSearchResults()) return;
+    const results = document.getElementById('results-container');
+    if (results && /Searching/.test(results.textContent || '')) return;
+    const input = document.getElementById('keywordInput');
+    if (input) {
+      input.value = 'Discworld';
+      input.classList.add('tour-demo-filled');
+    }
+    const searchBtn = document.getElementById('fetchButton');
+    if (searchBtn) searchBtn.click();
+  }
+
   function openSidebarTab(tabId) {
     // Ensure sidebar is expanded
     const sidebar = document.querySelector('.sidebar');
@@ -1083,6 +1096,33 @@
     // Run prepare if defined
     if (step.prepare) step.prepare();
 
+    // Some steps depend on async content (e.g. the demo search
+    // results). Poll for step.waitFor before revealing so the
+    // spotlight doesn't land on an empty container. Capped at 4s so a
+    // slow or failed load can't hang the tour — past the cap the step
+    // reveals anyway.
+    if (step.waitFor && !step.waitFor()) {
+      const sectionAtStart = currentSectionId;
+      const stepAtStart = currentStepIndex;
+      let waited = 0;
+      (function pollWaitFor() {
+        // Bail if the tour exited or the user navigated away while
+        // this poll was pending — otherwise it would reveal a step
+        // the user has already moved past.
+        if (currentSectionId !== sectionAtStart || currentStepIndex !== stepAtStart) return;
+        if (step.waitFor() || waited >= 4000) {
+          revealCurrentStep(section, step);
+          return;
+        }
+        waited += 100;
+        setTimeout(pollWaitFor, 100);
+      })();
+      return;
+    }
+    revealCurrentStep(section, step);
+  }
+
+  function revealCurrentStep(section, step) {
     // Small delay for DOM to settle after prepare
     setTimeout(function() {
       // Bail out if the tour was exited (e.g. user held ArrowRight past
