@@ -32,6 +32,7 @@ const BooklistApp = (function() {
   let _lastUndoTime = 0;
   let _isRestoring = false;  // Guard flag to prevent side effects during undo/redo restore
   let _tourActive = false;   // Guard flag: suppresses pushUndo and autosave during guided tour
+  let _resetting = false;    // Guard flag: suppresses autosave once a reset-to-blank is in progress
 
   // Tracks book keys with in-flight AI description requests so the
   // magic button can be disabled per-book while a fetch is running.
@@ -266,13 +267,13 @@ const BooklistApp = (function() {
   const debouncedSave = (() => {
     let t;
     function trigger() {
-      if (_isRestoring || _tourActive) return; // Don't autosave during undo/redo restore or tour
+      if (_isRestoring || _tourActive || _resetting) return; // Don't autosave during undo/redo restore, tour, or reset
       isDirtyLocal = true;    // Edits not yet in localStorage
       hasUnsavedFile = true;  // Edits not yet in a .booklist file
       updateSaveIndicator();
       clearTimeout(t);
       t = setTimeout(() => {
-        if (_isRestoring || _tourActive) return; // Re-check at execution time
+        if (_isRestoring || _tourActive || _resetting) return; // Re-check at execution time
         saveDraftLocal();
       }, CONFIG.AUTOSAVE_DEBOUNCE_MS);
     }
@@ -6334,6 +6335,7 @@ const BooklistApp = (function() {
   let _draftSaveGenId = 0; // Generation counter to handle concurrent saves
 
   function saveDraftLocal() {
+    if (_resetting) return; // A reset is clearing the draft; don't write it back
     const thisGenId = ++_draftSaveGenId;
     const s = serializeState();
     _putImageIDB('draft', JSON.stringify(s)).then(() => {
@@ -6385,7 +6387,14 @@ const BooklistApp = (function() {
   }
 
   async function resetToBlank() {
+    // Block any further autosave and cancel a pending debounced save, so a
+    // stale timer can't write the still-populated in-memory state back into
+    // the draft slot during the awaits below (which would survive reload).
+    _resetting = true;
+    debouncedSave.cancel();
+    debouncedCoverRegen.cancel();
     try { localStorage.removeItem('has-draft'); } catch {}
+    try { localStorage.removeItem('booklist-draft'); } catch { /* legacy key cleanup, best-effort */ }
     isDirtyLocal = false; // Prevent beforeunload after user already confirmed reset
     // Clear draft and legacy keys from IndexedDB. Await the deletes so the
     // reload doesn't race them — otherwise the draft survives and gets
