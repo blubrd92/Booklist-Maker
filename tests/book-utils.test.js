@@ -997,6 +997,27 @@ describe('BookUtils.isDraftStateEffectivelyEmpty', () => {
     expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
   });
 
+  it('returns false when a blank slot has a user-typed description', () => {
+    // Typing into the description field does not clear isBlank (only
+    // typing into the title field does), so the empty-check has to
+    // look at the description text itself.
+    const s = emptyState();
+    s.books[2].description = 'A great story about a postman.';
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
+  it('still returns true when description equals the placeholder string', () => {
+    const s = emptyState();
+    s.books[2].description = '[Enter a brief description here...]';
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(true);
+  });
+
+  it('returns false when a blank slot has a user-typed authorDisplay', () => {
+    const s = emptyState();
+    s.books[5].authorDisplay = 'By Terry Pratchett - FIC';
+    expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);
+  });
+
   it('returns false when extraCollageCovers has any entry', () => {
     const s = emptyState({ extraCollageCovers: [{ id: 'x', coverData: 'data:image/jpeg;base64,/9j/' }] });
     expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(false);

@@ -418,8 +418,23 @@
     isDraftStateEffectivelyEmpty: function(state) {
       if (!state) return true;
       const books = Array.isArray(state.books) ? state.books : [];
+      // A blank-flagged slot can still hold user-typed description or
+      // author text — only the title field's input handler clears
+      // isBlank, so typing into description/author keeps the flag true
+      // even though real content is present. Treat such a slot as
+      // non-empty so the draft-restored toast fires when the user has
+      // typed anything into a blank entry.
+      const PH = (CONFIG && CONFIG.PLACEHOLDERS) || {};
+      const realText = function(val, placeholder) {
+        const s = (val == null ? '' : String(val)).trim();
+        return s !== '' && s !== placeholder;
+      };
       const allBlank = books.length === 0 || books.every(function(b) {
-        return b && b.isBlank;
+        if (!b) return true;
+        if (!b.isBlank) return false;
+        if (realText(b.description, PH.description)) return false;
+        if (realText(b.authorDisplay, PH.authorWithCall)) return false;
+        return true;
       });
       const noExtras = !Array.isArray(state.extraCollageCovers) || state.extraCollageCovers.length === 0;
       const images = state.images || {};
