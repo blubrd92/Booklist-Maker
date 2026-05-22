@@ -115,10 +115,15 @@ const BooklistApp = (function() {
   }
 
   function _clearImageDB() {
-    _openImageDB().then(db => {
+    // Resolves once the clear transaction has committed, so callers that
+    // reload the page (resetToBlank) can await it.
+    return _openImageDB().then(db => new Promise(resolve => {
       const tx = db.transaction('images', 'readwrite');
       tx.objectStore('images').clear();
-    }).catch(() => {});
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    })).catch(() => {});
   }
 
   /** Store a value in IDB and wait for the transaction to complete */
@@ -6393,17 +6398,17 @@ const BooklistApp = (function() {
     _resetting = true;
     debouncedSave.cancel();
     debouncedCoverRegen.cancel();
-    try { localStorage.removeItem('has-draft'); } catch {}
+    try { localStorage.removeItem('has-draft'); } catch { /* private browsing, best-effort */ }
     try { localStorage.removeItem('booklist-draft'); } catch { /* legacy key cleanup, best-effort */ }
+    try { localStorage.removeItem('booklist-tour-backup'); } catch { /* legacy key cleanup, best-effort */ }
     isDirtyLocal = false; // Prevent beforeunload after user already confirmed reset
-    // Clear draft and legacy keys from IndexedDB. Await the deletes so the
-    // reload doesn't race them — otherwise the draft survives and gets
-    // restored on the next load.
+    // Wipe the whole IndexedDB image store, awaited so the reload can't
+    // race it. This clears not just the draft but also the tour-backup
+    // key — otherwise recoverTourBackupIfPresent() resurrects the pre-tour
+    // state into a fresh draft on the next load and the "Draft restored"
+    // toast reappears even though the user just reset.
     try {
-      await Promise.all([
-        _deleteImageIDB('draft'),
-        _deleteImageIDB('draft-front-cover'),
-      ]);
+      await _clearImageDB();
     } catch { /* best-effort; reload regardless */ }
     location.reload();
   }
