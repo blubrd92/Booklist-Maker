@@ -5773,7 +5773,7 @@ const BooklistApp = (function() {
 
       pdf.save(suggestedName);
       showNotification(
-        'PDF download started. Print at Default or Actual Size for best quality.',
+        'PDF download started. Print at Default or Actual Size scaling for best quality.',
         'success',
         true,
         5000
