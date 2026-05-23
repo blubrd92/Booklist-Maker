@@ -1392,13 +1392,13 @@ const BooklistApp = (function() {
       }
     }
     
-    // Force scroll recalculation for settings tab
-    const settingsTab = document.getElementById('tab-settings');
-    if (settingsTab) {
+    // Force scroll recalculation for the Front Cover tab panel
+    const frontCoverTab = document.getElementById('tab-front-cover');
+    if (frontCoverTab) {
       requestAnimationFrame(() => {
-        settingsTab.style.overflow = 'hidden';
+        frontCoverTab.style.overflow = 'hidden';
         requestAnimationFrame(() => {
-          settingsTab.style.overflow = '';
+          frontCoverTab.style.overflow = '';
         });
       });
     }
@@ -4280,13 +4280,13 @@ const BooklistApp = (function() {
       elements.coverAdvancedStyle.classList.toggle('visible', isAdvanced);
     }
     
-    // Force scroll recalculation for settings tab
-    const settingsTab = document.getElementById('tab-settings');
-    if (settingsTab) {
+    // Force scroll recalculation for the Front Cover tab panel
+    const frontCoverTab = document.getElementById('tab-front-cover');
+    if (frontCoverTab) {
       requestAnimationFrame(() => {
-        settingsTab.style.overflow = 'hidden';
+        frontCoverTab.style.overflow = 'hidden';
         requestAnimationFrame(() => {
-          settingsTab.style.overflow = '';
+          frontCoverTab.style.overflow = '';
         });
       });
     }
@@ -4353,13 +4353,13 @@ const BooklistApp = (function() {
     if (elements.extraCoversSection) {
       elements.extraCoversSection.style.display = isExtended ? 'block' : 'none';
 
-      // Force scroll recalculation for settings tab
-      const settingsTab = document.getElementById('tab-settings');
-      if (settingsTab) {
+      // Force scroll recalculation for the Front Cover tab panel
+      const frontCoverTab = document.getElementById('tab-front-cover');
+      if (frontCoverTab) {
         requestAnimationFrame(() => {
-          settingsTab.style.overflow = 'hidden';
+          frontCoverTab.style.overflow = 'hidden';
           requestAnimationFrame(() => {
-            settingsTab.style.overflow = '';
+            frontCoverTab.style.overflow = '';
           });
         });
       }
