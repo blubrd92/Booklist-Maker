@@ -503,18 +503,20 @@ body.has-library-config .header-credit {
   border: none;
   outline: none;
   cursor: pointer;
-  padding: 14px 16px;
+  padding: 14px 6px;
   transition: all var(--transition-fast);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   flex: 1;
+  min-width: 0;
   color: var(--text-light);
   border-bottom: 3px solid transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   position: relative;
+  white-space: nowrap;
 }
 .tab-btn i {
   font-size: 1.05rem;
@@ -572,8 +574,24 @@ body.has-library-config .header-credit {
 }
 
 /* Settings Tab - Scrollable container */
-#tab-settings {
+#tab-settings,
+#tab-text-styling,
+#tab-front-cover,
+#tab-back-cover {
   padding: 12px;
+}
+
+.tab-panel-heading {
+  margin: 0 0 12px 0;
+  padding: 10px 14px;
+  background: var(--secondary-color);
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 /* Sidebar Card */

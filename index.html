@@ -116,13 +116,19 @@
   <div class="app-container">
     
     <aside class="sidebar" role="complementary" aria-label="Search and Settings">
-      
+
       <div class="sidebar-tabs" role="tablist">
-        <button class="tab-btn active" onclick="openTab(event, 'tab-search')" role="tab" aria-selected="true" aria-controls="tab-search">
+        <button class="tab-btn active" onclick="openTab(event, 'tab-search')" role="tab" aria-selected="true" aria-controls="tab-search" aria-label="Search">
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search
         </button>
-        <button class="tab-btn" onclick="openTab(event, 'tab-settings')" role="tab" aria-selected="false" aria-controls="tab-settings">
-          <i class="fa-solid fa-sliders" aria-hidden="true"></i> Settings
+        <button class="tab-btn" onclick="openTab(event, 'tab-text-styling')" role="tab" aria-selected="false" aria-controls="tab-text-styling" aria-label="Text Styling">
+          <i class="fa-solid fa-font" aria-hidden="true"></i> Text
+        </button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-front-cover')" role="tab" aria-selected="false" aria-controls="tab-front-cover" aria-label="Front Cover">
+          <i class="fa-solid fa-image" aria-hidden="true"></i> Front
+        </button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-back-cover')" role="tab" aria-selected="false" aria-controls="tab-back-cover" aria-label="Back Cover">
+          <i class="fa-solid fa-qrcode" aria-hidden="true"></i> Back
         </button>
       </div>
 
@@ -173,12 +179,9 @@
         <div id="results-container" class="results-scroll-area" role="region" aria-label="Search results" aria-live="polite"></div>
       </div>
 
-      <div id="tab-settings" class="tab-content export-controls" role="tabpanel" aria-labelledby="settings-tab">
+      <div id="tab-text-styling" class="tab-content export-controls" role="tabpanel" aria-labelledby="text-styling-tab">
 
-        <!-- Text Styling Section -->
-        <details class="settings-section" open>
-          <summary title="Customize fonts, sizes, and colors for titles, authors, and descriptions"><i class="fa-solid fa-font" aria-hidden="true"></i> Text Styling</summary>
-          <div class="settings-section-content">
+        <h2 class="tab-panel-heading"><i class="fa-solid fa-font" aria-hidden="true"></i> Text Styling</h2>
 
         <div class="form-group" data-style-group="title">
           <label>Title</label>
@@ -227,13 +230,11 @@
           <label for="stretch-block-covers-toggle">Stretch Covers</label>
         </div>
 
-          </div>
-        </details>
+      </div>
 
-        <!-- Front Cover Section (Cover Header + Cover Layout merged) -->
-        <details class="settings-section">
-          <summary title="Configure the front cover title, styling, and collage layout"><i class="fa-solid fa-image" aria-hidden="true"></i> Front Cover</summary>
-          <div class="settings-section-content">
+      <div id="tab-front-cover" class="tab-content export-controls" role="tabpanel" aria-labelledby="front-cover-tab">
+
+        <h2 class="tab-panel-heading"><i class="fa-solid fa-image" aria-hidden="true"></i> Front Cover</h2>
 
         <div class="form-group" id="cover-header-text-group">
           <label>Cover Header Text</label>
@@ -592,13 +593,11 @@
             </div>
           </div>
 
-          </div>
-        </details>
+      </div>
 
-        <!-- Back Cover Section -->
-        <details class="settings-section">
-          <summary title="Configure QR code, branding visibility, and QR text styling"><i class="fa-solid fa-qrcode" aria-hidden="true"></i> Back Cover</summary>
-          <div class="settings-section-content">
+      <div id="tab-back-cover" class="tab-content export-controls" role="tabpanel" aria-labelledby="back-cover-tab">
+
+        <h2 class="tab-panel-heading"><i class="fa-solid fa-qrcode" aria-hidden="true"></i> Back Cover</h2>
 
         <div class="form-group">
           <label>Back Cover Elements</label>
@@ -641,9 +640,6 @@
               </div>
           </div>
         </div>
-
-          </div>
-        </details>
 
       </div>
     </aside>
@@ -1052,22 +1048,6 @@
           var fc = document.getElementById('folio-container');
           if (fc) fc.style.left = sidebar.classList.contains('collapsed') ? '0' : '';
         });
-      }
-
-      // Fix scroll calculation when settings sections toggle rapidly
-      const settingsTab = document.getElementById('tab-settings');
-      if (settingsTab) {
-        settingsTab.addEventListener('toggle', function(e) {
-          if (e.target.classList.contains('settings-section')) {
-            // Force reflow to fix scroll height calculation
-            requestAnimationFrame(function() {
-              settingsTab.style.overflow = 'hidden';
-              requestAnimationFrame(function() {
-                settingsTab.style.overflow = '';
-              });
-            });
-          }
-        }, true);
       }
     });
   </script>

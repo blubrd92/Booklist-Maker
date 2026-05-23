@@ -219,7 +219,7 @@
             // Keep the "not yet generated" state so back-navigation is clean
             clearTourFrontCover();
 
-            openSidebarTab('tab-settings');
+            openSidebarTab('tab-front-cover');
             openSettingsSection('Front Cover', '#generate-cover-button');
 
             // Switch to advanced cover mode and set title lines
@@ -274,7 +274,7 @@
           text: "This is where you switch between layouts. Pick one and recreate the cover to see the change. Let me switch to Tilted.",
           state: 'evaluating',
           prepare: function() {
-            openSidebarTab('tab-settings');
+            openSidebarTab('tab-front-cover');
             openSettingsSection('Front Cover', '#collage-layout-selector');
           },
         },
@@ -299,7 +299,7 @@
           text: "Pick 12, 16, or 20 covers for the cover collage. The 16 and 20 modes open extra cover slots below where you can add supplementary images.",
           state: 'evaluating',
           prepare: function() {
-            openSidebarTab('tab-settings');
+            openSidebarTab('tab-front-cover');
             openSettingsSection('Front Cover', '.collage-cover-count-group');
           },
         },
@@ -308,7 +308,7 @@
           text: "Add your library's logo or branding here. It appears on the back cover, giving the list a polished, official look. I'll add an example one for now.",
           state: 'idle',
           prepare: function() {
-            openSidebarTab('tab-settings');
+            openSidebarTab('tab-back-cover');
             openSettingsSection('Back Cover');
             scrollPreviewTo('print-page-1', { alignEnd: true });
             // Apply the default branding image
@@ -332,14 +332,11 @@
       icon: 'fa-solid fa-palette',
       steps: [
         {
-          target: '#tab-settings',
-          text: "The Settings tab is where you dial in the look. Fonts, colors, text sizes, spacing... it's all here.",
+          target: '.sidebar-tabs',
+          text: "These tabs are where you dial in the look. Text Styling, Front Cover, and Back Cover each open their own panel with everything you need: fonts, colors, sizes, spacing, layout, QR codes, and more.",
           state: 'evaluating',
           prepare: function() {
-            openSidebarTab('tab-settings');
-            // Scroll settings tab to the top so Text Styling is visible
-            const tabSettings = document.getElementById('tab-settings');
-            if (tabSettings) tabSettings.scrollTop = 0;
+            openSidebarTab('tab-text-styling');
           },
           padding: 0,
         },
@@ -356,21 +353,20 @@
           },
         },
         {
-          target: '.settings-section:first-of-type',
-          text: "The Text Styling section controls fonts, sizes, and colors for book titles, authors, and descriptions on the list page.",
+          target: '#tab-text-styling',
+          text: "The Text Styling tab controls fonts, sizes, and colors for book titles, authors, and descriptions on the list page.",
           state: 'evaluating',
           prepare: function() {
-            openSidebarTab('tab-settings');
-            openSettingsSection('Text Styling');
+            openSidebarTab('tab-text-styling');
           },
           padding: 0,
         },
         {
           target: '#qr-code-area',
-          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. You can enter the QR Code url in the Back Cover section in the Settings tab. Let me add one linking to Terry Pratchett's Wikipedia page. If preferred, you can also upload your own QR Code image in its place.",
+          text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. You can enter the QR Code url in the Back Cover tab. Let me add one linking to Terry Pratchett's Wikipedia page. If preferred, you can also upload your own QR Code image in its place.",
           state: 'idle',
           prepare: function() {
-            openSidebarTab('tab-settings');
+            openSidebarTab('tab-back-cover');
             openSettingsSection('Back Cover');
             scrollPreviewTo('print-page-1', { alignEnd: true });
             // Set QR URL and generate
@@ -673,36 +669,31 @@
     scrollContainer.scrollTop = Math.max(0, top);
   }
 
+  // Each former settings section is now its own top-level tab, so there
+  // is no accordion to expand. Kept as a thin helper so existing callers
+  // (and any external references) still work: if a subTargetSelector is
+  // provided, scrolls the active tab panel to center that sub-element.
   function openSettingsSection(sectionName, subTargetSelector) {
-    const sections = document.querySelectorAll('.settings-section');
-    sections.forEach(function(details) {
-      const summary = details.querySelector('summary');
-      if (summary && summary.textContent.includes(sectionName)) {
-        if (!details.open) details.open = true;
-        // Scroll within .tab-content directly (no scrollIntoView).
-        // Capture step + section at schedule time so a rapid step
-        // change before the 100ms fires doesn't queue up a scroll to
-        // a section the user has already moved past.
-        const sectionAtSchedule = currentSectionId;
-        const stepAtSchedule = currentStepIndex;
-        setTimeout(function() {
-          if (currentSectionId !== sectionAtSchedule
-              || currentStepIndex !== stepAtSchedule) {
-            return;
-          }
-          const tabSettings = document.getElementById('tab-settings');
-          if (!tabSettings) return;
-          if (subTargetSelector) {
-            const sub = details.querySelector(subTargetSelector);
-            if (sub) {
-              scrollWithin(tabSettings, sub, { center: true });
-              return;
-            }
-          }
-          scrollWithin(tabSettings, details);
-        }, 100);
+    const tabIdByName = {
+      'Text Styling': 'tab-text-styling',
+      'Front Cover': 'tab-front-cover',
+      'Back Cover': 'tab-back-cover',
+    };
+    const tabId = tabIdByName[sectionName];
+    if (!tabId) return;
+    const panel = document.getElementById(tabId);
+    if (!panel) return;
+    if (!subTargetSelector) return;
+    const sectionAtSchedule = currentSectionId;
+    const stepAtSchedule = currentStepIndex;
+    setTimeout(function() {
+      if (currentSectionId !== sectionAtSchedule
+          || currentStepIndex !== stepAtSchedule) {
+        return;
       }
-    });
+      const sub = panel.querySelector(subTargetSelector);
+      if (sub) scrollWithin(panel, sub, { center: true });
+    }, 100);
   }
 
   function scrollPreviewTo(elementId, { alignEnd = false } = {}) {
@@ -1053,17 +1044,12 @@
     const resultsContainer = document.getElementById('results-container');
     if (resultsContainer) resultsContainer.innerHTML = '';
 
-    // Collapse all settings sections, then open Text Styling
-    const sections = document.querySelectorAll('.settings-section');
-    sections.forEach(function(details) { details.open = false; });
-    sections.forEach(function(details) {
-      const summary = details.querySelector('summary');
-      if (summary && summary.textContent.includes('Text Styling')) details.open = true;
+    // Reset scroll position on each settings tab panel so the next
+    // time the user opens one they start at the top.
+    ['tab-text-styling', 'tab-front-cover', 'tab-back-cover'].forEach(function(id) {
+      const panel = document.getElementById(id);
+      if (panel) panel.scrollTop = 0;
     });
-
-    // Scroll settings tab to top
-    const tabSettings = document.getElementById('tab-settings');
-    if (tabSettings) tabSettings.scrollTop = 0;
 
     // Force QR code and branding on for the tour so all UI areas are visible
     const qrToggle = document.getElementById('toggle-qr-code');
@@ -1264,10 +1250,12 @@
     const results = document.getElementById('results-container');
     if (results) results.innerHTML = '';
 
-    // Reset the settings tab scroll so the next time the user opens
-    // Settings they start at the top
-    const tabSettings = document.getElementById('tab-settings');
-    if (tabSettings) tabSettings.scrollTop = 0;
+    // Reset the settings tab panels' scroll so the next time the user
+    // opens one they start at the top.
+    ['tab-text-styling', 'tab-front-cover', 'tab-back-cover'].forEach(function(id) {
+      const panel = document.getElementById(id);
+      if (panel) panel.scrollTop = 0;
+    });
 
     // Restore Folio visibility state (class-only; the user's saved
     // preference in localStorage was never touched during the tour)
