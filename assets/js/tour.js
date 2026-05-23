@@ -232,6 +232,7 @@
       title: 'Front Cover',
       description: 'Build your front cover with a collage of book covers.',
       icon: 'fa-solid fa-grip',
+      needsSampleState: true,
       steps: [
         {
           target: '#front-cover-uploader',
@@ -361,6 +362,7 @@
       title: 'Customize & Style',
       description: 'List page text and back cover.',
       icon: 'fa-solid fa-palette',
+      needsSampleState: true,
       steps: [
         {
           target: '.tab-btn[aria-controls="tab-text-styling"]',
@@ -460,6 +462,7 @@
       title: 'Export & Finish',
       description: 'Save your work and generate the final PDF.',
       icon: 'fa-solid fa-file-pdf',
+      needsSampleState: true,
       steps: [
         {
           target: '#save-list-button',
@@ -1107,6 +1110,19 @@
         container.classList.remove('folio-hidden');
       }
     }
+
+    // Sub-section tours that depend on having books need to seed
+    // the sample state up front. In full tour mode, Your Booklist
+    // step 1 loads it naturally; sub-section tours starting later
+    // (Front Cover, Customize & Style, Export & Finish) skip that
+    // step, so without this seed the section would run against an
+    // empty tool: the cover collage steps in Front Cover would
+    // generate empty collages, and downstream styling steps would
+    // demo against blank book entries.
+    if (!fullTour && SECTIONS[sectionId] && SECTIONS[sectionId].needsSampleState) {
+      BooklistApp.applyState(TOUR_SAMPLE_STATE, { silent: true });
+    }
+
     showCurrentStep();
   }
 
