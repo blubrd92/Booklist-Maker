@@ -398,6 +398,15 @@
             if (qrText) {
               qrText.innerText = "Welcome to the Discworld, a world on the back of a giant turtle, where Pratchett will make you laugh, make you think, and break your heart. Scan the code to learn more about the author, then find the books on the shelf.";
               qrText.style.color = '';
+              // The QR blurb's placeholder is a CSS ::before gated on the
+              // .is-empty class. Setting innerText alone doesn't tell that
+              // system the field is no longer empty, so the placeholder
+              // keeps rendering on top of the sample text. Firing an input
+              // event runs the field's normal handler, which calls
+              // updateQrEmptyState() and removes the class. Side effects
+              // (debouncedSave, pushUndo) are already suppressed during
+              // the tour by the _tourActive guard.
+              qrText.dispatchEvent(new Event('input', { bubbles: true }));
               if (mainContent) scrollWithin(mainContent, qrText, { center: true });
             }
           },

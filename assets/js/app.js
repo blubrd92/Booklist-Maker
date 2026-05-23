@@ -33,6 +33,7 @@ const BooklistApp = (function() {
   let _isRestoring = false;  // Guard flag to prevent side effects during undo/redo restore
   let _tourActive = false;   // Guard flag: suppresses pushUndo and autosave during guided tour
   let _resetting = false;    // Guard flag: suppresses autosave once a reset-to-blank is in progress
+  let _initialStyleGroups = null; // Snapshot of the HTML default style-group values, captured early in init() before any draft-restore can mutate the controls. enterTourMode restores from this so the tour starts at a consistent visual baseline.
 
   // Tracks book keys with in-flight AI description requests so the
   // magic button can be disabled per-book while a fetch is running.
@@ -8249,6 +8250,16 @@ const BooklistApp = (function() {
     // Disable undo/redo buttons
     updateUndoRedoButtons();
 
+    // Reset the text/style controls to the HTML defaults snapshot
+    // captured at init. Without this the tour would start with whatever
+    // styles the user had set pre-tour, then visibly snap to the sample
+    // styles at the your-booklist section's applyState(TOUR_SAMPLE_STATE)
+    // call. The QR placeholder size shift was the most visible symptom.
+    if (_initialStyleGroups) {
+      applyStyleGroups(_initialStyleGroups);
+      applyStyles();
+    }
+
     _isRestoring = false;
     return true;
   }
@@ -8585,6 +8596,11 @@ const BooklistApp = (function() {
     setupQrPlaceholder();
     initializeBooklist();
     applyStyles();
+    // Snapshot the HTML default style-group values now, before any draft
+    // restore can mutate the controls. enterTourMode restores from this
+    // so the tour starts at a consistent visual baseline regardless of
+    // the user's pre-tour customizations.
+    _initialStyleGroups = captureStyleGroups();
     initializeSortable();
     initializeCustomFontDropdowns();
     renderExtraCoversGrid();
