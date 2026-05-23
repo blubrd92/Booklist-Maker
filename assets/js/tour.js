@@ -138,7 +138,7 @@
       steps: [
         {
           target: '#print-page-2',
-          text: "Now let me load a sample Discworld booklist so you can see what a full list looks like. Each entry shows the cover, title, author, and description. You can type directly into these fields to edit anything.",
+          text: "Now let me load a sample Discworld booklist so you can see what a full list looks like. Don't worry — your own list is saved and will come back when the tour ends. Each entry shows the cover, title, author, and description. You can type directly into these fields to edit anything.",
           state: 'excited',
           prepare: function() {
             BooklistApp.applyState(TOUR_SAMPLE_STATE, { silent: true });
@@ -213,14 +213,14 @@
         },
         {
           target: '#generate-cover-button',
-          text: "This button creates the collage. You can find it in the Front Cover tab, right under the title text inputs. You need at least 12 starred books with covers. Let me set a title and pick a layout first.",
+          text: "This button creates the collage. You can find it in the Front Cover tab, right under the title text inputs. You need at least 12 starred books with covers. Let me set up the cover title and styling first, then we'll look at layouts.",
           state: 'excited',
           prepare: function() {
             // Keep the "not yet generated" state so back-navigation is clean
             clearTourFrontCover();
 
             openSidebarTab('tab-front-cover');
-            openSettingsSection('Front Cover', '#generate-cover-button');
+            scrollToSubTarget('tab-front-cover', '#generate-cover-button');
 
             // Switch to advanced cover mode and set title lines
             const advToggle = document.getElementById('cover-advanced-toggle');
@@ -275,7 +275,7 @@
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-front-cover');
-            openSettingsSection('Front Cover', '#collage-layout-selector');
+            scrollToSubTarget('tab-front-cover', '#collage-layout-selector');
           },
         },
         {
@@ -300,27 +300,7 @@
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-front-cover');
-            openSettingsSection('Front Cover', '.collage-cover-count-group');
-          },
-        },
-        {
-          target: '#branding-uploader',
-          text: "Add your library's logo or branding here. It appears on the back cover, giving the list a polished, official look. I'll add an example one for now.",
-          state: 'idle',
-          prepare: function() {
-            openSidebarTab('tab-back-cover');
-            openSettingsSection('Back Cover');
-            scrollPreviewTo('print-page-1', { alignEnd: true });
-            // Apply the default branding image
-            const uploader = document.getElementById('branding-uploader');
-            if (uploader) {
-              const img = uploader.querySelector('img');
-              if (img) {
-                img.src = 'assets/img/branding-default.png';
-                img.dataset.isPlaceholder = 'false';
-              }
-              uploader.classList.add('has-image');
-            }
+            scrollToSubTarget('tab-front-cover', '.collage-cover-count-group');
           },
         },
       ]
@@ -331,15 +311,6 @@
       description: 'Fonts, colors, layout, and QR codes.',
       icon: 'fa-solid fa-palette',
       steps: [
-        {
-          target: '.sidebar-tabs',
-          text: "These tabs are where you dial in the look. Text Styling, Front Cover, and Back Cover each open their own panel with everything you need: fonts, colors, sizes, spacing, layout, QR codes, and more.",
-          state: 'evaluating',
-          prepare: function() {
-            openSidebarTab('tab-text-styling');
-          },
-          padding: 0,
-        },
         {
           target: '#list-name-input',
           text: "Give your booklist a name. This shows up on the PDF filename when you export, so make it descriptive.",
@@ -362,12 +333,39 @@
           padding: 0,
         },
         {
+          target: '#cover-title-style-group',
+          text: "This is where you style the cover title — fonts, sizes, colors, and the background bar with optional gradient. The purple-to-blue gradient on the sample cover was set up right here. The text inputs just above are where you type what your cover says.",
+          state: 'excited',
+          prepare: function() {
+            openSidebarTab('tab-front-cover');
+            scrollToSubTarget('tab-front-cover', '#cover-title-style-group');
+          },
+        },
+        {
+          target: '#branding-uploader',
+          text: "Add your library's logo or branding here. It appears on the back cover, giving the list a polished, official look. I'll add an example one for now.",
+          state: 'idle',
+          prepare: function() {
+            openSidebarTab('tab-back-cover');
+            scrollPreviewTo('print-page-1', { alignEnd: true });
+            // Apply the default branding image
+            const uploader = document.getElementById('branding-uploader');
+            if (uploader) {
+              const img = uploader.querySelector('img');
+              if (img) {
+                img.src = 'assets/img/branding-default.png';
+                img.dataset.isPlaceholder = 'false';
+              }
+              uploader.classList.add('has-image');
+            }
+          },
+        },
+        {
           target: '#qr-code-area',
           text: "Add a QR code to link patrons to an online booklist, a reading challenge, or any resource you want to highlight. You can enter the QR Code url in the Back Cover tab. Let me add one linking to Terry Pratchett's Wikipedia page. If preferred, you can also upload your own QR Code image in its place.",
           state: 'idle',
           prepare: function() {
             openSidebarTab('tab-back-cover');
-            openSettingsSection('Back Cover');
             scrollPreviewTo('print-page-1', { alignEnd: true });
             // Set QR URL and generate
             const qrInput = document.getElementById('qr-url-input');
@@ -669,21 +667,15 @@
     scrollContainer.scrollTop = Math.max(0, top);
   }
 
-  // Each former settings section is now its own top-level tab, so there
-  // is no accordion to expand. Kept as a thin helper so existing callers
-  // (and any external references) still work: if a subTargetSelector is
-  // provided, scrolls the active tab panel to center that sub-element.
-  function openSettingsSection(sectionName, subTargetSelector) {
-    const tabIdByName = {
-      'Text Styling': 'tab-text-styling',
-      'Front Cover': 'tab-front-cover',
-      'Back Cover': 'tab-back-cover',
-    };
-    const tabId = tabIdByName[sectionName];
-    if (!tabId) return;
+  // Scrolls a tab panel so the given sub-element is centered. Used by
+  // tour steps that spotlight a control inside the Front Cover or Back
+  // Cover tab — opening the tab alone is not enough if the panel was
+  // scrolled to a previous position. Schedules the scroll on a 100ms
+  // tick and skips if the user has already advanced past the step.
+  function scrollToSubTarget(tabId, subTargetSelector) {
+    if (!tabId || !subTargetSelector) return;
     const panel = document.getElementById(tabId);
     if (!panel) return;
-    if (!subTargetSelector) return;
     const sectionAtSchedule = currentSectionId;
     const stepAtSchedule = currentStepIndex;
     setTimeout(function() {
