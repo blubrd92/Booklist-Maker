@@ -73,6 +73,18 @@
           state: 'idle',
           padding: 6,
         },
+        {
+          target: '#list-name-input',
+          text: "Last orientation beat: give your booklist a name. It becomes the PDF filename when you export, so make it descriptive. You can come back and change it anytime.",
+          state: 'idle',
+          prepare: function() {
+            const mainContent = document.querySelector('.main-content');
+            if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'instant' });
+            // Set the sample list name
+            const nameInput = document.getElementById('list-name-input');
+            if (nameInput) nameInput.value = 'The Disc and Beyond';
+          },
+        },
       ]
     },
 
@@ -81,6 +93,15 @@
       description: 'Find books and add them to your list.',
       icon: 'fa-solid fa-magnifying-glass',
       steps: [
+        {
+          target: '.tab-btn[aria-controls="tab-search"]',
+          text: "The Search tab is where you find books to add to your list. Type a keyword, title, or author and hit Search. Open Library is the catalog behind the scenes.",
+          state: 'evaluating',
+          prepare: function() {
+            openSidebarTab('tab-search');
+          },
+          padding: 4,
+        },
         {
           target: '#search-form',
           text: "Start here. Type a keyword, title, or author into the search field and hit the Search button. Let me run a demo search for Discworld, a fantasy series by Terry Pratchett.",
@@ -104,6 +125,7 @@
           text: "Results show up here from OpenLibrary. It has a huge catalog, but not everything. If a book doesn't come up, you can always add it manually and upload your own cover. Or use the Quick Add button to type in title, author, and call number.",
           state: 'evaluating',
           waitFor: hasSearchResults,
+          loadingText: 'Looking up books on Open Library...',
           prepare: function() { openSidebarTab('tab-search'); },
           padding: 4,
         },
@@ -112,6 +134,7 @@
           text: "Some results have arrow buttons to browse different cover editions. If there are multiple, pick the one that looks best for your display.",
           state: 'evaluating',
           waitFor: hasSearchResults,
+          loadingText: 'Looking up books on Open Library...',
           prepare: function() {
             const results = document.getElementById('results-container');
             if (results) results.scrollTop = 0;
@@ -122,11 +145,21 @@
           text: "Click 'Add to List' to drop a book into the next open slot. It'll appear in your preview right away.",
           state: 'excited',
           waitFor: hasSearchResults,
+          loadingText: 'Looking up books on Open Library...',
           prepare: function() {
             openSidebarTab('tab-search');
             const results = document.getElementById('results-container');
             if (results) results.scrollTop = 0;
           },
+        },
+        {
+          target: '#quickAddBtn',
+          text: "Quick Add is for titles that didn't turn up in search, or for pasting in a whole list at once. It opens a modal with two tabs: Single title for one entry, or Multiple titles for a spreadsheet paste. The Booklister Helper browser extension uses Quick Add to import titles from BiblioCommons catalogs in one click.",
+          state: 'evaluating',
+          prepare: function() {
+            openSidebarTab('tab-search');
+          },
+          padding: 4,
         },
       ]
     },
@@ -138,7 +171,7 @@
       steps: [
         {
           target: '#print-page-2',
-          text: "Now let me load a sample Discworld booklist so you can see what a full list looks like. Don't worry — your own list is saved and will come back when the tour ends. Each entry shows the cover, title, author, and description. You can type directly into these fields to edit anything.",
+          text: "Now let me load a sample Discworld booklist so you can see what a full list looks like. Don't worry, your own list is saved and will come back when the tour ends. Each entry shows the cover, title, author, and description. You can type directly into these fields to edit anything.",
           state: 'excited',
           prepare: function() {
             BooklistApp.applyState(TOUR_SAMPLE_STATE, { silent: true });
@@ -196,7 +229,7 @@
     },
 
     'covers-collage': {
-      title: 'Covers & Collage',
+      title: 'Front Cover',
       description: 'Build your front cover with a collage of book covers.',
       icon: 'fa-solid fa-grip',
       steps: [
@@ -212,8 +245,17 @@
           },
         },
         {
+          target: '.tab-btn[aria-controls="tab-front-cover"]',
+          text: "The Front Cover tab is where you build it. Text inputs for the title, style controls for fonts and colors, the layout picker, and the cover count all live here.",
+          state: 'evaluating',
+          prepare: function() {
+            openSidebarTab('tab-front-cover');
+          },
+          padding: 4,
+        },
+        {
           target: '#generate-cover-button',
-          text: "This button creates the collage. You can find it in the Front Cover tab, right under the title text inputs. You need at least 12 starred books with covers. Let me set up the cover title and styling first, then we'll look at layouts.",
+          text: "This button creates the collage. You'll find it in the Front Cover tab, right under the title text inputs. You need at least 12 starred books with covers. Let me set up the cover title and styling first, then we'll look at layouts.",
           state: 'excited',
           prepare: function() {
             // Keep the "not yet generated" state so back-navigation is clean
@@ -270,6 +312,15 @@
           },
         },
         {
+          target: '#cover-title-style-group',
+          text: "And the purple-to-blue gradient you just saw came from here. This is the Cover Header Style section: fonts, sizes, colors, and the background bar with optional gradient. The text inputs just above are where you type what your cover says.",
+          state: 'excited',
+          prepare: function() {
+            openSidebarTab('tab-front-cover');
+            scrollToSubTarget('tab-front-cover', '#cover-title-style-group');
+          },
+        },
+        {
           target: '#collage-layout-selector',
           text: "This is where you switch between layouts. Pick one and recreate the cover to see the change. Let me switch to Tilted.",
           state: 'evaluating',
@@ -308,38 +359,35 @@
 
     'customize-style': {
       title: 'Customize & Style',
-      description: 'Fonts, colors, layout, and QR codes.',
+      description: 'List page text and back cover.',
       icon: 'fa-solid fa-palette',
       steps: [
         {
-          target: '#list-name-input',
-          text: "Give your booklist a name. This shows up on the PDF filename when you export, so make it descriptive.",
-          state: 'idle',
-          prepare: function() {
-            const mainContent = document.querySelector('.main-content');
-            if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'instant' });
-            // Set the sample list name
-            const nameInput = document.getElementById('list-name-input');
-            if (nameInput) nameInput.value = 'The Disc and Beyond';
-          },
-        },
-        {
-          target: '#tab-text-styling',
+          target: '.tab-btn[aria-controls="tab-text-styling"]',
           text: "The Text Styling tab controls fonts, sizes, and colors for book titles, authors, and descriptions on the list page.",
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-text-styling');
           },
-          padding: 0,
+          padding: 4,
         },
         {
-          target: '#cover-title-style-group',
-          text: "This is where you style the cover title — fonts, sizes, colors, and the background bar with optional gradient. The purple-to-blue gradient on the sample cover was set up right here. The text inputs just above are where you type what your cover says.",
-          state: 'excited',
+          target: '#back-cover-panel',
+          text: "And on the back of page 1 is the back cover. It's where the QR code, the branding logo, and a short blurb sit.",
+          state: 'evaluating',
           prepare: function() {
-            openSidebarTab('tab-front-cover');
-            scrollToSubTarget('tab-front-cover', '#cover-title-style-group');
+            scrollPreviewTo('print-page-1', { alignEnd: true });
           },
+          padding: 4,
+        },
+        {
+          target: '.tab-btn[aria-controls="tab-back-cover"]',
+          text: "And this is the Back Cover tab. It controls the QR code, branding visibility, and the QR text style.",
+          state: 'evaluating',
+          prepare: function() {
+            openSidebarTab('tab-back-cover');
+          },
+          padding: 4,
         },
         {
           target: '#branding-uploader',
@@ -1062,6 +1110,30 @@
     showCurrentStep();
   }
 
+  // Renders an "I'm waiting on something" state in the tour panel
+  // while a step's waitFor predicate is still false. Without this, the
+  // panel and spotlight from the PREVIOUS step stay on screen while
+  // the user presses Next and nothing visibly changes, which reads as
+  // the tour having frozen. Counter advances immediately so the user
+  // knows the press registered; Next is disabled because the new step
+  // isn't ready to read yet.
+  function showLoadingState(section, step) {
+    if (!panel || !spotlight) return;
+    const sectionLabel = panel.querySelector('.tour-panel-section');
+    const message = panel.querySelector('.tour-panel-message');
+    const counter = panel.querySelector('.tour-step-counter');
+    const nextBtn = panel.querySelector('.tour-next-btn');
+    const prevBtn = panel.querySelector('.tour-prev-btn');
+    if (sectionLabel) sectionLabel.textContent = section.title;
+    if (message) message.textContent = step.loadingText || 'Loading...';
+    if (counter) counter.textContent = (globalStepIndex() + 1) + ' / ' + totalSteps();
+    if (nextBtn) { nextBtn.disabled = true; nextBtn.textContent = 'Next'; }
+    if (prevBtn) prevBtn.disabled = (globalStepIndex() === 0);
+    spotlight.classList.remove('visible');
+    spotlight.classList.add('no-target');
+    panel.classList.add('visible', 'tour-panel-loading');
+  }
+
   function showCurrentStep() {
     const section = SECTIONS[currentSectionId];
     const step = section.steps[currentStepIndex];
@@ -1089,6 +1161,9 @@
     // slow or failed load can't hang the tour — past the cap the step
     // reveals anyway.
     if (step.waitFor && !step.waitFor()) {
+      // Show a visible "waiting" state so the user knows the press
+      // registered and the tour is loading, not frozen.
+      showLoadingState(section, step);
       const sectionAtStart = currentSectionId;
       const stepAtStart = currentStepIndex;
       let waited = 0;
@@ -1169,7 +1244,12 @@
         counter.textContent = (gIdx + 1) + ' / ' + total;
 
         prevBtn.disabled = (gIdx === 0);
+        nextBtn.disabled = false;
         nextBtn.textContent = (gIdx === total - 1) ? 'Finish' : 'Next';
+
+        // Clear the waiting state set by showLoadingState (if this
+        // reveal came after a waitFor poll).
+        panel.classList.remove('tour-panel-loading');
 
         ensureTargetVisible(target);
         positionSpotlight(target, step.padding);

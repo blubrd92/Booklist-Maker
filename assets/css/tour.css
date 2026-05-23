@@ -269,6 +269,15 @@
   white-space: pre-line;
 }
 
+/* Loading state shown by showLoadingState() while a step's waitFor
+   predicate is still false (e.g. the demo search hasn't returned).
+   Subtle italic + muted color signals "this is a placeholder, real
+   narration is coming". */
+.tour-panel.tour-panel-loading .tour-panel-message {
+  color: var(--text-muted, #888);
+  font-style: italic;
+}
+
 /* Navigation */
 .tour-panel-nav {
   padding: 10px 22px 16px;
