@@ -154,7 +154,7 @@
         },
         {
           target: '#quickAddBtn',
-          text: "Quick Add is for titles that didn't turn up in search, or for pasting in a whole list at once. It opens a modal with two tabs: Single title for one entry, or Multiple titles for a spreadsheet paste. The Booklister Helper browser extension uses Quick Add to import titles from BiblioCommons catalogs in one click.",
+          text: "Quick Add is for titles that didn't turn up in search, or for pasting in a whole list at once. It opens a modal with two tabs: Single title for one entry, or Multiple titles for a spreadsheet paste.",
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-search');
