@@ -75,7 +75,7 @@
         },
         {
           target: '#list-name-input',
-          text: "Last orientation beat: give your booklist a name. It becomes the PDF filename when you export, so make it descriptive. You can come back and change it anytime.",
+          text: "And right up here, give your booklist a name. It becomes the PDF filename when you export, so make it descriptive. You can change it anytime.",
           state: 'idle',
           prepare: function() {
             const mainContent = document.querySelector('.main-content');
