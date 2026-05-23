@@ -577,24 +577,10 @@ body.has-library-config .header-credit {
 }
 
 /* Settings Tab - Scrollable container */
-#tab-settings,
 #tab-text-styling,
 #tab-front-cover,
 #tab-back-cover {
   padding: 12px;
-}
-
-.tab-panel-heading {
-  margin: 0 0 12px 0;
-  padding: 10px 14px;
-  background: var(--secondary-color);
-  color: white;
-  font-size: 0.95rem;
-  font-weight: 600;
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 /* Sidebar Card */
