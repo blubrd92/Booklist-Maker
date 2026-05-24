@@ -276,13 +276,20 @@
             if (line1) line1.value = 'Mind How You Go';
             if (line2) line2.value = 'Reading Terry Pratchett';
 
-            // Set title bar gradient background
+            // Set title bar gradient background. Dispatch a change
+            // event on the gradient toggle so app.js's handler runs
+            // and reveals the second color picker's wrapper plus the
+            // gradient direction row — without it the checkbox visually
+            // ticks on but its dependent controls stay hidden.
             const bgColor = document.getElementById('cover-title-bg-color');
             const gradToggle = document.getElementById('cover-title-gradient-toggle');
             const bgColor2 = document.getElementById('cover-title-bg-color2');
             if (bgColor) bgColor.value = '#6b46c1';
-            if (gradToggle) gradToggle.checked = true;
-            if (bgColor2) { bgColor2.value = '#63b3ed'; bgColor2.style.display = ''; }
+            if (bgColor2) bgColor2.value = '#63b3ed';
+            if (gradToggle && !gradToggle.checked) {
+              gradToggle.checked = true;
+              gradToggle.dispatchEvent(new Event('change'));
+            }
 
             // Set layout to classic and enable stretch covers
             const selector = document.getElementById('collage-layout-selector');
