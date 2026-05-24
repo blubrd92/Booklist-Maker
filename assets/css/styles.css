@@ -380,6 +380,22 @@ body.has-library-config .header-credit {
   background-color: rgba(255,255,255,0.2);
   transform: translateY(-1px);
 }
+/* Ghost variant for utility actions (Reset). Same shape and family as
+   .btn-header but visually demoted so it does not compete with the
+   primary flow buttons (Load / Save / Generate PDF). */
+.btn-header.btn-header-ghost {
+  background-color: transparent;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.75);
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  min-width: 0;
+}
+.btn-header.btn-header-ghost:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.95);
+}
 /* Unsaved-file indicator dot on Save button */
 #save-list-button {
   position: relative;

@@ -69,7 +69,7 @@
         },
         {
           target: '.header-actions',
-          text: "Up here you can Load a saved list, Save your work, Reset to start fresh, and Generate PDF when everything looks right.",
+          text: "Up here you can Load a saved list, Save your work, and Generate PDF when everything looks right. Reset over on the left clears the list and starts over.",
           state: 'idle',
           padding: 6,
         },
