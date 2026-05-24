@@ -380,16 +380,13 @@ body.has-library-config .header-credit {
   background-color: rgba(255,255,255,0.2);
   transform: translateY(-1px);
 }
-/* Ghost variant for utility actions (Reset). Same shape and family as
-   .btn-header but visually demoted so it does not compete with the
-   primary flow buttons (Load / Save / Generate PDF). */
+/* Ghost variant for utility actions (Reset). Same shape, size, and
+   family as .btn-header — demotion comes purely from color so the
+   button still aligns with its siblings in the header row. */
 .btn-header.btn-header-ghost {
   background-color: transparent;
   border-color: rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.75);
-  padding: 6px 12px;
-  font-size: 0.8rem;
-  min-width: 0;
 }
 .btn-header.btn-header-ghost:hover {
   background-color: rgba(255, 255, 255, 0.08);
