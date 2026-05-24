@@ -6041,9 +6041,11 @@ const BooklistApp = (function() {
     setStr('cover-title-gradient-direction', ct.bgGradientDirection || 'to-bottom');
     const gradDirRow = document.getElementById('cover-title-gradient-direction-row');
     if (gradDirRow) gradDirRow.style.display = ct.bgGradient ? '' : 'none';
-    // If the loaded state already has gradient on, treat the direction
-    // as already chosen so a later off→on toggle preserves it.
-    if (ct.bgGradient) _gradientEnabledThisSession = true;
+    // Sync the session flag to the loaded state's gradient status.
+    // Bidirectional so a state restore (file load, draft restore,
+    // tour exit) fully resets the flag instead of letting it carry
+    // over from the previous in-memory state.
+    _gradientEnabledThisSession = !!ct.bgGradient;
 
     // Simple mode styling
     const simple = ct.simple || {};
