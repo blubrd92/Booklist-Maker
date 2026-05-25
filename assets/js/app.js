@@ -692,12 +692,26 @@ const BooklistApp = (function() {
   function showNotification(message, type = 'error', autoHide = true, duration = null) {
     if (!elements.notificationArea) return;
 
-    // If the gated-library auth modal is up, hold the notification
-    // until the modal hides. The modal element lives in the DOM on
-    // every instance (public tool included) but stays `hidden` unless
-    // auth.js explicitly opens it.
+    // Hold the notification if the tool isn't visible to the user yet.
+    // Two signals, both synchronous:
+    //   1. The `.awaiting-library-config` class on <html>, set by the
+    //      inline head script at page load on branded instances and
+    //      only removed by applyLibraryConfig when the config has been
+    //      applied. This covers the gap between init-time toasts (e.g.
+    //      draft-restore on the post-sign-out reload) and the auth
+    //      modal opening — which is asynchronous behind Firebase SDK
+    //      load + Firestore lookup, so an init-time toast otherwise
+    //      fires well before the modal has had a chance to show.
+    //   2. The auth modal being explicitly visible, in case
+    //      .awaiting-library-config has been cleared but the modal is
+    //      back up for some other reason (e.g. a library-config-failed
+    //      retry).
+    // On the public tool .awaiting-library-config is never set and the
+    // auth modal stays hidden, so this gate never trips.
+    const awaitingConfig = document.documentElement.classList.contains('awaiting-library-config');
     const authModal = document.getElementById('auth-modal');
-    if (authModal && !authModal.hidden) {
+    const modalVisible = authModal && !authModal.hidden;
+    if (awaitingConfig || modalVisible) {
       _deferredNotifications.push({ message, type, autoHide, duration });
       return;
     }
@@ -8599,12 +8613,25 @@ const BooklistApp = (function() {
   }
   window.addEventListener('library-config-ready', _onLibraryConfigReady);
 
-  // Drain notifications that were queued while the gated-library auth
-  // modal was up. Dispatched by auth.js's hideModal whenever the modal
-  // transitions from visible to hidden. Stagger them slightly so they
-  // don't overwrite each other instantly — the notification system uses
-  // a single area that's replaced on each call.
-  window.addEventListener('auth-modal-hidden', () => {
+  // Drain notifications that were queued while the tool wasn't yet
+  // visible (because .awaiting-library-config was set, or because the
+  // gated-library auth modal was up). Two triggers cover both flows:
+  //
+  //   * 'auth-modal-hidden' — auth.js dispatches this when the login
+  //     modal transitions from visible to hidden (successful sign-in
+  //     on a gated instance).
+  //   * 'library-config-ready' — fires when library config is applied
+  //     and applyLibraryConfig clears the .awaiting-library-config
+  //     class. Covers the case where a branded instance loads with a
+  //     persisted session and the modal never opens at all.
+  //
+  // The drain is deferred via setTimeout(0) so it runs after any
+  // synchronous listeners for the same event finish their work (e.g.
+  // applyLibraryConfig clearing the class, auth.js hiding the modal).
+  // That way the showNotification gate at the start of the drained
+  // call sees the post-ready state and lets the toast through instead
+  // of re-queueing.
+  function _drainDeferredNotifications() {
     if (_deferredNotifications.length === 0) return;
     let delay = 250;
     while (_deferredNotifications.length > 0) {
@@ -8612,7 +8639,9 @@ const BooklistApp = (function() {
       setTimeout(() => showNotification(args.message, args.type, args.autoHide, args.duration), delay);
       delay += (CONFIG.NOTIFICATION_DURATION_SUCCESS_MS || 2000) + 300;
     }
-  });
+  }
+  window.addEventListener('auth-modal-hidden', () => setTimeout(_drainDeferredNotifications, 0));
+  window.addEventListener('library-config-ready', () => setTimeout(_drainDeferredNotifications, 0));
 
   // Belt-and-suspenders: if library-config.js has already run and set the
   // global before we got here (possible under future script-order changes,
