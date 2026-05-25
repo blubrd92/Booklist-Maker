@@ -1131,6 +1131,17 @@
     // would have run on the way here. Replay is best-effort: a single
     // prepare throwing doesn't stop the chain.
     //
+    // Critical timing: applyState triggers renderBooklist which
+    // materializes the .list-item DOM and kicks off cover image
+    // fetches. generateCoverCollage (called by Section 4 step
+    // prepares) reads from those .list-item images and uses
+    // naturalWidth>0 as its "image is loaded" signal. Without a
+    // settle delay between applyState and the replay, those prepares
+    // run before the images have started loading, the function
+    // falls back to URL-based loading, and the resulting collage
+    // either lags the user's reading window or never reaches them.
+    // A short await lets the DOM and initial image fetches settle.
+    //
     // Without this, Customize & Style sub-tours show no cover collage,
     // and Export & Finish sub-tours show neither the collage nor the
     // branding/QR that Customize & Style would have added.
@@ -1140,6 +1151,10 @@
       const needsSample = chain.some(id => SECTIONS[id] && SECTIONS[id].needsSampleState);
       if (needsSample) {
         BooklistApp.applyState(TOUR_SAMPLE_STATE, { silent: true });
+        // Let renderBooklist settle and the .list-item cover images
+        // begin loading. 300ms is enough for the DOM to materialize
+        // and for warmed (or fast) image fetches to complete.
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
       for (let i = 0; i < targetIdx; i++) {
         const sec = SECTIONS[SECTION_ORDER[i]];
@@ -1150,6 +1165,25 @@
             try { step.prepare(); } catch { /* best-effort replay */ }
           }
         }
+      }
+
+      // Safety net: if the in-replay generateCoverCollage calls
+      // raced something and didn't produce a cover, schedule one
+      // final attempt after enough time for renderBooklist + image
+      // fetches to fully complete. Only fires if the front cover
+      // is still a placeholder (the successful path sets
+      // .has-image), so a successful replay generation doesn't
+      // trigger a duplicate. The _collageGenId guard inside
+      // generateCoverCollage handles any straggler in-flight calls.
+      if (needsSample && targetIdx > 0) {
+        const sectionAtStart = sectionId;
+        setTimeout(() => {
+          if (currentSectionId !== sectionAtStart) return;
+          const uploader = document.getElementById('front-cover-uploader');
+          if (uploader && !uploader.classList.contains('has-image')) {
+            BooklistApp.generateCoverCollage();
+          }
+        }, 1500);
       }
     }
 
