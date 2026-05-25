@@ -81,7 +81,6 @@
     searching: {
       triggered: {
         'search-started':  "Let's see what's out there...",
-        'results-loading': "Open Library is thinking...",
       },
       ambient: [
         "I know Open Library has it...",
@@ -95,7 +94,29 @@
     },
     excited: {
       triggered: {
-        'book-added':       "Great pick!",
+        'book-added': [
+          "Great pick!",
+          "Good one.",
+          "Ooh, that one.",
+          "Onto the list it goes.",
+          "Nice choice.",
+          "I'd read that.",
+          "*nods approvingly*",
+        ],
+        'quick-add-single': [
+          "Typed it in yourself, even better.",
+          "Direct add. I like efficiency.",
+          "Quick and clean.",
+          "Skipping the search, I see. Bold.",
+          "*nods at the manual entry*",
+        ],
+        'quick-add-multi': [
+          "Whoa, that's a stack!",
+          "A whole batch at once. Productive.",
+          "*purrs at the spreadsheet energy*",
+          "Look at all these new arrivals.",
+          "Now we're cooking.",
+        ],
         'cover-uploaded': [
           "Looking good!",
           "Oh, that's a nice cover.",

@@ -27,7 +27,7 @@
     'getting-started',
     'search-add',
     'your-booklist',
-    'covers-collage',
+    'front-cover',
     'customize-style',
     'export-finish'
   ];
@@ -228,7 +228,7 @@
       ]
     },
 
-    'covers-collage': {
+    'front-cover': {
       title: 'Front Cover',
       description: 'Build your front cover with a collage of book covers.',
       icon: 'fa-solid fa-grip',

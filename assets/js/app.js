@@ -5331,7 +5331,7 @@ const BooklistApp = (function() {
     myBooklist[firstBlankIndex] = newBook;
 
     if (window.folio) {
-      window.folio.celebrate({ reaction: 'nod', state: 'excited', event: 'book-added' });
+      window.folio.celebrate({ reaction: 'nod', state: 'excited', event: 'quick-add-single' });
     }
 
     closeQuickAddModal();
@@ -5435,7 +5435,7 @@ const BooklistApp = (function() {
     }
 
     if (window.folio) {
-      window.folio.celebrate({ reaction: 'nod', state: 'excited', event: 'book-added' });
+      window.folio.celebrate({ reaction: 'nod', state: 'excited', event: 'quick-add-multi' });
     }
     renderBooklist();
     debouncedSave();
