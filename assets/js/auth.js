@@ -149,7 +149,16 @@ if (auth) {
 
   function hideModal() {
     const modalEl = document.getElementById('auth-modal');
-    if (modalEl) modalEl.hidden = true;
+    if (!modalEl) return;
+    const wasVisible = !modalEl.hidden;
+    modalEl.hidden = true;
+    // Let other layers (app.js) know the modal is no longer blocking
+    // the screen. Used to drain notifications that were queued while
+    // the modal was up — e.g. "Draft restored from this browser."
+    // firing on the post-sign-out reload before the user signs back in.
+    if (wasVisible) {
+      window.dispatchEvent(new CustomEvent('auth-modal-hidden'));
+    }
   }
 
   // Map a library-config load error to a user-facing message. The error

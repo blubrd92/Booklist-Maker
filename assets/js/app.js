@@ -679,9 +679,28 @@ const BooklistApp = (function() {
   // Notification System
   // ---------------------------------------------------------------------------
   let notificationTimeout = null;
-  
+  // Notifications that fired while the gated-library auth modal was
+  // covering the screen. Held here until the modal hides (an
+  // 'auth-modal-hidden' event from auth.js), then drained so the user
+  // actually sees them. Without this, the post-sign-out page reload
+  // restores the local draft and fires "Draft restored from this
+  // browser." right as the login modal re-opens — the toast would
+  // render behind the modal and disappear before the user gets back
+  // to the tool.
+  const _deferredNotifications = [];
+
   function showNotification(message, type = 'error', autoHide = true, duration = null) {
     if (!elements.notificationArea) return;
+
+    // If the gated-library auth modal is up, hold the notification
+    // until the modal hides. The modal element lives in the DOM on
+    // every instance (public tool included) but stays `hidden` unless
+    // auth.js explicitly opens it.
+    const authModal = document.getElementById('auth-modal');
+    if (authModal && !authModal.hidden) {
+      _deferredNotifications.push({ message, type, autoHide, duration });
+      return;
+    }
 
     // Clear any existing timeout
     if (notificationTimeout) {
@@ -8579,6 +8598,21 @@ const BooklistApp = (function() {
     }
   }
   window.addEventListener('library-config-ready', _onLibraryConfigReady);
+
+  // Drain notifications that were queued while the gated-library auth
+  // modal was up. Dispatched by auth.js's hideModal whenever the modal
+  // transitions from visible to hidden. Stagger them slightly so they
+  // don't overwrite each other instantly — the notification system uses
+  // a single area that's replaced on each call.
+  window.addEventListener('auth-modal-hidden', () => {
+    if (_deferredNotifications.length === 0) return;
+    let delay = 250;
+    while (_deferredNotifications.length > 0) {
+      const args = _deferredNotifications.shift();
+      setTimeout(() => showNotification(args.message, args.type, args.autoHide, args.duration), delay);
+      delay += (CONFIG.NOTIFICATION_DURATION_SUCCESS_MS || 2000) + 300;
+    }
+  });
 
   // Belt-and-suspenders: if library-config.js has already run and set the
   // global before we got here (possible under future script-order changes,
