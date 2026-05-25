@@ -1118,16 +1118,39 @@
       }
     }
 
-    // Sub-section tours that depend on having books need to seed
-    // the sample state up front. In full tour mode, Your Booklist
-    // step 1 loads it naturally; sub-section tours starting later
-    // (Front Cover, Customize & Style, Export & Finish) skip that
-    // step, so without this seed the section would run against an
-    // empty tool: the cover collage steps in Front Cover would
-    // generate empty collages, and downstream styling steps would
-    // demo against blank book entries.
-    if (!fullTour && SECTIONS[sectionId] && SECTIONS[sectionId].needsSampleState) {
-      BooklistApp.applyState(TOUR_SAMPLE_STATE, { silent: true });
+    // Sub-section tours: replay state from prior sections so the
+    // tool looks the way it would if the user had taken the full
+    // tour up to this point.
+    //
+    // needsSampleState flags the sections that build visible cumulative
+    // state (Front Cover builds the collage; Customize & Style adds
+    // branding/QR; Export & Finish inherits both). When a sub-tour
+    // starts at one of these sections we (1) seed the sample books
+    // and (2) replay every earlier needsSampleState section's
+    // step.prepare hooks in sequence — the same hooks the full tour
+    // would have run on the way here. Replay is best-effort: a single
+    // prepare throwing doesn't stop the chain.
+    //
+    // Without this, Customize & Style sub-tours show no cover collage,
+    // and Export & Finish sub-tours show neither the collage nor the
+    // branding/QR that Customize & Style would have added.
+    if (!fullTour) {
+      const targetIdx = SECTION_ORDER.indexOf(sectionId);
+      const chain = SECTION_ORDER.slice(0, targetIdx + 1);
+      const needsSample = chain.some(id => SECTIONS[id] && SECTIONS[id].needsSampleState);
+      if (needsSample) {
+        BooklistApp.applyState(TOUR_SAMPLE_STATE, { silent: true });
+      }
+      for (let i = 0; i < targetIdx; i++) {
+        const sec = SECTIONS[SECTION_ORDER[i]];
+        if (!sec || !sec.needsSampleState || !sec.steps) continue;
+        for (const step of sec.steps) {
+          if (step.condition && !step.condition()) continue;
+          if (typeof step.prepare === 'function') {
+            try { step.prepare(); } catch { /* best-effort replay */ }
+          }
+        }
+      }
     }
 
     showCurrentStep();
