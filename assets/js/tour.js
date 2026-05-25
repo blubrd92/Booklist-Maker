@@ -410,7 +410,7 @@
             if (uploader) {
               const img = uploader.querySelector('img');
               if (img) {
-                img.src = 'assets/img/branding-default.png';
+                img.src = 'assets/img/tour-branding-folio.png';
                 img.dataset.isPlaceholder = 'false';
               }
               uploader.classList.add('has-image');
