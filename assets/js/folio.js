@@ -52,7 +52,7 @@
     greeting: {
       triggered: {
         'page-load':      "Ready to build a booklist?",
-        'draft-restored': "Welcome back! Your draft is right where you left it.",
+        'draft-restored': "Welcome back! Ready to keep working on your list?",
         'file-loaded':    "Ooh, let's see what we're working with.",
         'wake-up':        "I'm awake! I'm awake!",
       },
