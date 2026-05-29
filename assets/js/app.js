@@ -675,6 +675,21 @@ const BooklistApp = (function() {
     }
   }
   
+  // Nudge a scrollable tab panel to recompute its scroll height after
+  // its contents change height (e.g. a control group is shown/hidden).
+  // Toggling overflow across two animation frames forces the reflow.
+  // Used by the Front Cover panel where dependent controls expand.
+  function forceTabScrollRecalc(tabId) {
+    const panel = document.getElementById(tabId);
+    if (!panel) return;
+    requestAnimationFrame(() => {
+      panel.style.overflow = 'hidden';
+      requestAnimationFrame(() => {
+        panel.style.overflow = '';
+      });
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Notification System
   // ---------------------------------------------------------------------------
@@ -713,6 +728,12 @@ const BooklistApp = (function() {
     const modalVisible = authModal && !authModal.hidden;
     if (awaitingConfig || modalVisible) {
       _deferredNotifications.push({ message, type, autoHide, duration });
+      // Cap the queue so a stuck-hidden tool (e.g. a library-config-failed
+      // retry loop that keeps the auth modal up) can't grow it unbounded.
+      // Drop the oldest; the most recent notifications are the relevant ones.
+      if (_deferredNotifications.length > CONFIG.MAX_DEFERRED_NOTIFICATIONS) {
+        _deferredNotifications.splice(0, _deferredNotifications.length - CONFIG.MAX_DEFERRED_NOTIFICATIONS);
+      }
       return;
     }
 
@@ -1426,15 +1447,7 @@ const BooklistApp = (function() {
     }
     
     // Force scroll recalculation for the Front Cover tab panel
-    const frontCoverTab = document.getElementById('tab-front-cover');
-    if (frontCoverTab) {
-      requestAnimationFrame(() => {
-        frontCoverTab.style.overflow = 'hidden';
-        requestAnimationFrame(() => {
-          frontCoverTab.style.overflow = '';
-        });
-      });
-    }
+    forceTabScrollRecalc('tab-front-cover');
   }
   
   function handleLayoutChange() {
@@ -4314,15 +4327,7 @@ const BooklistApp = (function() {
     }
     
     // Force scroll recalculation for the Front Cover tab panel
-    const frontCoverTab = document.getElementById('tab-front-cover');
-    if (frontCoverTab) {
-      requestAnimationFrame(() => {
-        frontCoverTab.style.overflow = 'hidden';
-        requestAnimationFrame(() => {
-          frontCoverTab.style.overflow = '';
-        });
-      });
-    }
+    forceTabScrollRecalc('tab-front-cover');
   }
   
   // ---------------------------------------------------------------------------
@@ -4387,15 +4392,7 @@ const BooklistApp = (function() {
       elements.extraCoversSection.style.display = isExtended ? 'block' : 'none';
 
       // Force scroll recalculation for the Front Cover tab panel
-      const frontCoverTab = document.getElementById('tab-front-cover');
-      if (frontCoverTab) {
-        requestAnimationFrame(() => {
-          frontCoverTab.style.overflow = 'hidden';
-          requestAnimationFrame(() => {
-            frontCoverTab.style.overflow = '';
-          });
-        });
-      }
+      forceTabScrollRecalc('tab-front-cover');
     }
     if (elements.collageCoverHint) {
       elements.collageCoverHint.textContent = isExtended
@@ -6074,11 +6071,15 @@ const BooklistApp = (function() {
     setStr('cover-title-gradient-direction', ct.bgGradientDirection || 'to-bottom');
     const gradDirRow = document.getElementById('cover-title-gradient-direction-row');
     if (gradDirRow) gradDirRow.style.display = ct.bgGradient ? '' : 'none';
-    // Sync the session flag to the loaded state's gradient status.
-    // Bidirectional so a state restore (file load, draft restore,
-    // tour exit) fully resets the flag instead of letting it carry
-    // over from the previous in-memory state.
-    _gradientEnabledThisSession = !!ct.bgGradient;
+    // Sync the session flag to the loaded state. Derived purely from the
+    // restored state (not carried over from the previous in-memory flag).
+    // Treat the restored direction as already-chosen — so a later manual
+    // gradient enable preserves it rather than snapping back to the
+    // top-to-bottom default — whenever gradient is on OR the saved
+    // direction is non-default. A blank/default state leaves the flag
+    // false so the first enable still defaults to top-to-bottom.
+    _gradientEnabledThisSession = !!ct.bgGradient
+      || (!!ct.bgGradientDirection && ct.bgGradientDirection !== 'to-bottom');
 
     // Simple mode styling
     const simple = ct.simple || {};
@@ -6463,8 +6464,16 @@ const BooklistApp = (function() {
     // key — otherwise recoverTourBackupIfPresent() resurrects the pre-tour
     // state into a fresh draft on the next load and the "Draft restored"
     // toast reappears even though the user just reset.
+    //
+    // Race the clear against a timeout so a hung IndexedDB (e.g. the open
+    // request blocked by another tab) can't strand the reset: _resetting
+    // stays true until the page reloads, so the reload MUST happen. Worst
+    // case the clear didn't finish, but the reload re-runs cleanup anyway.
     try {
-      await _clearImageDB();
+      await Promise.race([
+        _clearImageDB(),
+        new Promise(resolve => setTimeout(resolve, 1500)),
+      ]);
     } catch { /* best-effort; reload regardless */ }
     location.reload();
   }
@@ -8637,7 +8646,15 @@ const BooklistApp = (function() {
     while (_deferredNotifications.length > 0) {
       const args = _deferredNotifications.shift();
       setTimeout(() => showNotification(args.message, args.type, args.autoHide, args.duration), delay);
-      delay += (CONFIG.NOTIFICATION_DURATION_SUCCESS_MS || 2000) + 300;
+      // Space the next toast by how long THIS one stays on screen, so an
+      // earlier (longer) error toast isn't overwritten before it's read.
+      // A non-auto-hiding toast still gets a sensible gap.
+      const onScreen = (typeof args.duration === 'number' && args.duration > 0)
+        ? args.duration
+        : (args.type === 'success'
+          ? CONFIG.NOTIFICATION_DURATION_SUCCESS_MS
+          : CONFIG.NOTIFICATION_DURATION_MS);
+      delay += onScreen + 300;
     }
   }
   window.addEventListener('auth-modal-hidden', () => setTimeout(_drainDeferredNotifications, 0));
@@ -8699,6 +8716,11 @@ const BooklistApp = (function() {
     if (_pendingLibraryConfig) {
       applyLibraryConfig(_pendingLibraryConfig);
       _pendingLibraryConfig = null;
+      // applyLibraryConfig cleared .awaiting-library-config. If
+      // 'library-config-ready' fired before init() ran, its drain
+      // listener saw the class still set and re-queued anything pending
+      // with no later re-drain. Flush here now that the tool is visible.
+      _drainDeferredNotifications();
     }
 
     // Recover tour backup (if page was refreshed mid-tour), then restore draft.

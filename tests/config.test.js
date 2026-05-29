@@ -51,6 +51,12 @@ describe('CONFIG existence', () => {
     expect(typeof globalThis.CONFIG.AUTOSAVE_DEBOUNCE_MS).toBe('number');
   });
 
+  it('CONFIG.MAX_DEFERRED_NOTIFICATIONS is a positive integer', () => {
+    expect(typeof globalThis.CONFIG.MAX_DEFERRED_NOTIFICATIONS).toBe('number');
+    expect(globalThis.CONFIG.MAX_DEFERRED_NOTIFICATIONS).toBeGreaterThan(0);
+    expect(Number.isInteger(globalThis.CONFIG.MAX_DEFERRED_NOTIFICATIONS)).toBe(true);
+  });
+
   it('CONFIG.NOTIFICATION_DURATION_MS is a number', () => {
     expect(typeof globalThis.CONFIG.NOTIFICATION_DURATION_MS).toBe('number');
   });

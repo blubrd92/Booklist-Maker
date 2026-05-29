@@ -131,7 +131,7 @@
         },
         {
           target: '#results-container',
-          text: "Some results have arrow buttons to browse different cover editions. If there are multiple, pick the one that looks best for your display.",
+          text: "Some results have arrow buttons to browse different cover editions. When there are multiple, you can pick the one that looks best for your display.",
           state: 'evaluating',
           waitFor: hasSearchResults,
           loadingText: 'Looking up books on Open Library...',
@@ -142,7 +142,7 @@
         },
         {
           target: '#results-container',
-          text: "Click 'Add to List' to drop a book into the next open slot. It'll appear in your preview right away.",
+          text: "Each result has an 'Add to List' button that drops the book into the next open slot. It shows up in your preview right away.",
           state: 'excited',
           waitFor: hasSearchResults,
           loadingText: 'Looking up books on Open Library...',
@@ -233,6 +233,14 @@
       description: 'Build your front cover with a collage of book covers.',
       icon: 'fa-solid fa-grip',
       needsSampleState: true,
+      // Cumulative state this section leaves behind: styled cover header
+      // with the gradient bar, Tilted layout (the last layout the steps
+      // demonstrate), and a generated collage. Used by sub-tour seeding.
+      seedState: function() {
+        applyTourCoverStyling();
+        selectTourLayout('tilted');
+        BooklistApp.generateCoverCollage();
+      },
       steps: [
         {
           target: '#front-cover-uploader',
@@ -265,41 +273,8 @@
             openSidebarTab('tab-front-cover');
             scrollToSubTarget('tab-front-cover', '#generate-cover-button');
 
-            // Switch to advanced cover mode and set title lines
-            const advToggle = document.getElementById('cover-advanced-toggle');
-            if (advToggle && !advToggle.checked) {
-              advToggle.checked = true;
-              advToggle.dispatchEvent(new Event('change'));
-            }
-            const line1 = document.getElementById('cover-line-1');
-            const line2 = document.getElementById('cover-line-2');
-            if (line1) line1.value = 'Mind How You Go';
-            if (line2) line2.value = 'Reading Terry Pratchett';
-
-            // Set title bar gradient background. Dispatch a change
-            // event on the gradient toggle so app.js's handler runs
-            // and reveals the second color picker's wrapper plus the
-            // gradient direction row — without it the checkbox visually
-            // ticks on but its dependent controls stay hidden.
-            const bgColor = document.getElementById('cover-title-bg-color');
-            const gradToggle = document.getElementById('cover-title-gradient-toggle');
-            const bgColor2 = document.getElementById('cover-title-bg-color2');
-            if (bgColor) bgColor.value = '#6b46c1';
-            if (bgColor2) bgColor2.value = '#63b3ed';
-            if (gradToggle && !gradToggle.checked) {
-              gradToggle.checked = true;
-              gradToggle.dispatchEvent(new Event('change'));
-            }
-
-            // Set layout to classic and enable stretch covers
-            const selector = document.getElementById('collage-layout-selector');
-            if (selector) {
-              selector.querySelectorAll('.layout-option').forEach(function(opt) {
-                opt.classList.toggle('selected', opt.dataset.layout === 'classic');
-              });
-            }
-            const stretchToggle = document.getElementById('stretch-covers-toggle');
-            if (stretchToggle) stretchToggle.checked = true;
+            applyTourCoverStyling();
+            selectTourLayout('classic');
           },
         },
         {
@@ -310,12 +285,7 @@
             scrollPreviewTo('print-page-1');
             // Explicitly set layout to classic so navigating back from
             // the Tilted demo step shows classic again
-            const selector = document.getElementById('collage-layout-selector');
-            if (selector) {
-              selector.querySelectorAll('.layout-option').forEach(function(opt) {
-                opt.classList.toggle('selected', opt.dataset.layout === 'classic');
-              });
-            }
+            selectTourLayout('classic');
             BooklistApp.generateCoverCollage();
           },
         },
@@ -344,12 +314,7 @@
           prepare: function() {
             scrollPreviewTo('print-page-1');
             // Switch to tilted layout and regenerate
-            const selector = document.getElementById('collage-layout-selector');
-            if (selector) {
-              selector.querySelectorAll('.layout-option').forEach(function(opt) {
-                opt.classList.toggle('selected', opt.dataset.layout === 'tilted');
-              });
-            }
+            selectTourLayout('tilted');
             BooklistApp.generateCoverCollage();
           },
         },
@@ -370,6 +335,14 @@
       description: 'List page text and back cover.',
       icon: 'fa-solid fa-palette',
       needsSampleState: true,
+      // Cumulative state this section leaves behind: the sample branding
+      // logo, a generated QR code, and the back-cover blurb. Used by
+      // sub-tour seeding (e.g. Export & Finish replays it).
+      seedState: function() {
+        applyTourBranding();
+        applyTourQrCode();
+        applyTourQrText();
+      },
       steps: [
         {
           target: '.tab-btn[aria-controls="tab-text-styling"]',
@@ -405,16 +378,7 @@
           prepare: function() {
             openSidebarTab('tab-back-cover');
             scrollPreviewTo('print-page-1', { alignEnd: true });
-            // Apply the default branding image
-            const uploader = document.getElementById('branding-uploader');
-            if (uploader) {
-              const img = uploader.querySelector('img');
-              if (img) {
-                img.src = 'assets/img/tour-branding-folio.png';
-                img.dataset.isPlaceholder = 'false';
-              }
-              uploader.classList.add('has-image');
-            }
+            applyTourBranding();
           },
         },
         {
@@ -424,13 +388,7 @@
           prepare: function() {
             openSidebarTab('tab-back-cover');
             scrollPreviewTo('print-page-1', { alignEnd: true });
-            // Set QR URL and generate
-            const qrInput = document.getElementById('qr-url-input');
-            if (qrInput) qrInput.value = 'https://en.wikipedia.org/wiki/Terry_Pratchett';
-            setTimeout(function() {
-              const qrBtn = document.getElementById('generate-qr-button');
-              if (qrBtn) qrBtn.click();
-            }, 300);
+            applyTourQrCode();
             const qr = document.getElementById('qr-code-area');
             const mainContent = document.querySelector('.main-content');
             if (qr && mainContent) {
@@ -443,23 +401,10 @@
           text: "This text area is your back cover blurb, next to the QR code. Write a short description, reading prompt, or friendly message for patrons.",
           state: 'idle',
           prepare: function() {
-            // Set the sample QR text
+            applyTourQrText();
             const qrText = document.getElementById('qr-code-text');
             const mainContent = document.querySelector('.main-content');
-            if (qrText) {
-              qrText.innerText = "Welcome to the Discworld, a world on the back of a giant turtle, where Pratchett will make you laugh, make you think, and break your heart. Scan the code to learn more about the author, then find the books on the shelf.";
-              qrText.style.color = '';
-              // The QR blurb's placeholder is a CSS ::before gated on the
-              // .is-empty class. Setting innerText alone doesn't tell that
-              // system the field is no longer empty, so the placeholder
-              // keeps rendering on top of the sample text. Firing an input
-              // event runs the field's normal handler, which calls
-              // updateQrEmptyState() and removes the class. Side effects
-              // (debouncedSave, pushUndo) are already suppressed during
-              // the tour by the _tourActive guard.
-              qrText.dispatchEvent(new Event('input', { bubbles: true }));
-              if (mainContent) scrollWithin(mainContent, qrText, { center: true });
-            }
+            if (qrText && mainContent) scrollWithin(mainContent, qrText, { center: true });
           },
         },
       ]
@@ -670,6 +615,96 @@
     }
     const searchBtn = document.getElementById('fetchButton');
     if (searchBtn) searchBtn.click();
+  }
+
+  // ----------------------------------------------------------------
+  // Sample-state builders. These set the cumulative *state* the tour
+  // demonstrates (cover styling, layout, branding, QR) with no tour
+  // navigation (no tab switches, no scrolling). step.prepare functions
+  // call them to build state incrementally during the full tour, and
+  // section.seedState calls them to reconstruct the same state when a
+  // sub-tour starts at a later section. Keeping the state logic here —
+  // not inlined in prepare — means editing a step's choreography can't
+  // silently change what a sub-tour seeds, and the sample values live
+  // in exactly one place.
+  // ----------------------------------------------------------------
+  const TOUR_QR_URL = 'https://en.wikipedia.org/wiki/Terry_Pratchett';
+  const TOUR_QR_BLURB = "Welcome to the Discworld, a world on the back of a giant turtle, where Pratchett will make you laugh, make you think, and break your heart. Scan the code to learn more about the author, then find the books on the shelf.";
+  const TOUR_BRANDING_SRC = 'assets/img/tour-branding-folio.png';
+
+  // Advanced cover header: title lines, the purple→blue gradient bar,
+  // and stretch covers. Dispatches a change on the gradient toggle so
+  // app.js reveals the second color picker + direction row.
+  function applyTourCoverStyling() {
+    const advToggle = document.getElementById('cover-advanced-toggle');
+    if (advToggle && !advToggle.checked) {
+      advToggle.checked = true;
+      advToggle.dispatchEvent(new Event('change'));
+    }
+    const line1 = document.getElementById('cover-line-1');
+    const line2 = document.getElementById('cover-line-2');
+    if (line1) line1.value = 'Mind How You Go';
+    if (line2) line2.value = 'Reading Terry Pratchett';
+    const bgColor = document.getElementById('cover-title-bg-color');
+    const gradToggle = document.getElementById('cover-title-gradient-toggle');
+    const bgColor2 = document.getElementById('cover-title-bg-color2');
+    if (bgColor) bgColor.value = '#6b46c1';
+    if (bgColor2) bgColor2.value = '#63b3ed';
+    if (gradToggle && !gradToggle.checked) {
+      gradToggle.checked = true;
+      gradToggle.dispatchEvent(new Event('change'));
+    }
+    const stretchToggle = document.getElementById('stretch-covers-toggle');
+    if (stretchToggle) stretchToggle.checked = true;
+  }
+
+  // Mark the given layout option selected in the layout picker.
+  function selectTourLayout(layoutName) {
+    const selector = document.getElementById('collage-layout-selector');
+    if (!selector) return;
+    selector.querySelectorAll('.layout-option').forEach(function(opt) {
+      opt.classList.toggle('selected', opt.dataset.layout === layoutName);
+    });
+  }
+
+  // Drop the sample library logo into the branding uploader.
+  function applyTourBranding() {
+    const uploader = document.getElementById('branding-uploader');
+    if (!uploader) return;
+    const img = uploader.querySelector('img');
+    if (img) {
+      img.src = TOUR_BRANDING_SRC;
+      img.dataset.isPlaceholder = 'false';
+    }
+    uploader.classList.add('has-image');
+  }
+
+  // Set the sample QR URL and generate the code.
+  function applyTourQrCode() {
+    const qrInput = document.getElementById('qr-url-input');
+    if (qrInput) qrInput.value = TOUR_QR_URL;
+    const qrBtn = document.getElementById('generate-qr-button');
+    if (qrBtn) qrBtn.click();
+  }
+
+  // Fill the back-cover blurb. Fires an input event so the QR
+  // placeholder's .is-empty class clears (the placeholder is a CSS
+  // ::before, so setting innerText alone leaves it rendering on top).
+  function applyTourQrText() {
+    const qrText = document.getElementById('qr-code-text');
+    if (!qrText) return;
+    qrText.innerText = TOUR_QR_BLURB;
+    qrText.style.color = '';
+    qrText.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  // Reset every settings tab panel's scroll to the top so the next
+  // time the user opens one it starts fresh.
+  function resetSettingsTabScroll() {
+    ['tab-text-styling', 'tab-front-cover', 'tab-back-cover'].forEach(function(id) {
+      const panel = document.getElementById(id);
+      if (panel) panel.scrollTop = 0;
+    });
   }
 
   function openSidebarTab(tabId) {
@@ -1096,10 +1131,7 @@
 
     // Reset scroll position on each settings tab panel so the next
     // time the user opens one they start at the top.
-    ['tab-text-styling', 'tab-front-cover', 'tab-back-cover'].forEach(function(id) {
-      const panel = document.getElementById(id);
-      if (panel) panel.scrollTop = 0;
-    });
+    resetSettingsTabScroll();
 
     // Force QR code and branding on for the tour so all UI areas are visible
     const qrToggle = document.getElementById('toggle-qr-code');
@@ -1125,22 +1157,23 @@
     // needsSampleState flags the sections that build visible cumulative
     // state (Front Cover builds the collage; Customize & Style adds
     // branding/QR; Export & Finish inherits both). When a sub-tour
-    // starts at one of these sections we (1) seed the sample books
-    // and (2) replay every earlier needsSampleState section's
-    // step.prepare hooks in sequence — the same hooks the full tour
-    // would have run on the way here. Replay is best-effort: a single
-    // prepare throwing doesn't stop the chain.
+    // starts at one of these sections we (1) seed the sample books and
+    // (2) call each earlier needsSampleState section's seedState() to
+    // reconstruct the state the full tour would have produced by here.
+    // seedState is a dedicated state-builder (no tour navigation), so
+    // this is one call per section rather than replaying every step's
+    // prepare. Seeding is best-effort: a single seedState throwing
+    // doesn't stop the chain.
     //
     // Critical timing: applyState triggers renderBooklist which
     // materializes the .list-item DOM and kicks off cover image
-    // fetches. generateCoverCollage (called by Section 4 step
-    // prepares) reads from those .list-item images and uses
-    // naturalWidth>0 as its "image is loaded" signal. Without a
-    // settle delay between applyState and the replay, those prepares
-    // run before the images have started loading, the function
-    // falls back to URL-based loading, and the resulting collage
-    // either lags the user's reading window or never reaches them.
-    // A short await lets the DOM and initial image fetches settle.
+    // fetches. generateCoverCollage (called by Front Cover's seedState)
+    // reads from those .list-item images and uses naturalWidth>0 as its
+    // "image is loaded" signal. Without a settle delay between
+    // applyState and seeding, it runs before the images have started
+    // loading, falls back to URL-based loading, and the resulting
+    // collage either lags the user's reading window or never reaches
+    // them. A short await lets the DOM and initial image fetches settle.
     //
     // Without this, Customize & Style sub-tours show no cover collage,
     // and Export & Finish sub-tours show neither the collage nor the
@@ -1158,27 +1191,28 @@
       }
       for (let i = 0; i < targetIdx; i++) {
         const sec = SECTIONS[SECTION_ORDER[i]];
-        if (!sec || !sec.needsSampleState || !sec.steps) continue;
-        for (const step of sec.steps) {
-          if (step.condition && !step.condition()) continue;
-          if (typeof step.prepare === 'function') {
-            try { step.prepare(); } catch { /* best-effort replay */ }
-          }
+        if (!sec || !sec.needsSampleState) continue;
+        if (typeof sec.seedState === 'function') {
+          try { sec.seedState(); } catch { /* best-effort seeding */ }
         }
       }
 
-      // Safety net: if the in-replay generateCoverCollage calls
-      // raced something and didn't produce a cover, schedule one
-      // final attempt after enough time for renderBooklist + image
-      // fetches to fully complete. Only fires if the front cover
-      // is still a placeholder (the successful path sets
-      // .has-image), so a successful replay generation doesn't
-      // trigger a duplicate. The _collageGenId guard inside
-      // generateCoverCollage handles any straggler in-flight calls.
+      // Safety net: if the seed generateCoverCollage call raced the
+      // image fetches and didn't produce a cover, schedule one final
+      // attempt after enough time for renderBooklist + image fetches to
+      // fully complete. Only fires if the front cover is still a
+      // placeholder (the successful path sets .has-image), so a
+      // successful seed doesn't trigger a duplicate. Guarded on the
+      // section AND step captured at schedule time so it doesn't render
+      // a collage under the user after they've navigated within (or
+      // out of) the section during the await/timer windows. The
+      // _collageGenId guard inside generateCoverCollage handles any
+      // straggler in-flight calls.
       if (needsSample && targetIdx > 0) {
         const sectionAtStart = sectionId;
+        const stepAtStart = currentStepIndex;
         setTimeout(() => {
-          if (currentSectionId !== sectionAtStart) return;
+          if (currentSectionId !== sectionAtStart || currentStepIndex !== stepAtStart) return;
           const uploader = document.getElementById('front-cover-uploader');
           if (uploader && !uploader.classList.contains('has-image')) {
             BooklistApp.generateCoverCollage();
@@ -1404,10 +1438,7 @@
 
     // Reset the settings tab panels' scroll so the next time the user
     // opens one they start at the top.
-    ['tab-text-styling', 'tab-front-cover', 'tab-back-cover'].forEach(function(id) {
-      const panel = document.getElementById(id);
-      if (panel) panel.scrollTop = 0;
-    });
+    resetSettingsTabScroll();
 
     // Restore Folio visibility state (class-only; the user's saved
     // preference in localStorage was never touched during the tour)

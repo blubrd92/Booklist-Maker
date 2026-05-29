@@ -1412,57 +1412,6 @@ input[type="color"]:hover {
 }
 .grid-2 label { margin: 0; font-size: 0.8rem; font-weight: 500; }
 
-/* Settings Section Headers (collapsible) */
-.settings-section {
-  margin-bottom: 10px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  background: white;
-  flex-shrink: 0;
-}
-.settings-section > summary {
-  padding: 12px 14px;
-  background: var(--secondary-color);
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid transparent;
-  transition: all var(--transition-fast);
-  list-style: none;
-  border-radius: var(--radius) var(--radius) 0 0;
-}
-.settings-section:not([open]) > summary {
-  border-radius: var(--radius);
-}
-.settings-section > summary::-webkit-details-marker { display: none; }
-.settings-section > summary::before {
-  content: '\f078';
-  font-family: 'Font Awesome 6 Free';
-  font-weight: 900;
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.8);
-  transition: transform var(--transition-fast);
-  width: 16px;
-  text-align: center;
-}
-.settings-section[open] > summary::before {
-  transform: rotate(180deg);
-}
-.settings-section > summary:hover {
-  background: var(--secondary-light);
-}
-.settings-section[open] > summary {
-  border-bottom: 1px solid var(--border-color);
-}
-.settings-section-content {
-  padding: 12px;
-  background: #fff;
-}
-
 /* --- MAIN CONTENT --- */
 .main-content {
   flex: 1;

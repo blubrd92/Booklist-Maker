@@ -47,6 +47,9 @@
     // Timing
     NOTIFICATION_DURATION_MS: 3000,
     NOTIFICATION_DURATION_SUCCESS_MS: 1500,
+    // Max notifications held while the tool is hidden (auth modal /
+    // awaiting library config) before the oldest are dropped.
+    MAX_DEFERRED_NOTIFICATIONS: 10,
     AUTOSAVE_DEBOUNCE_MS: 400,
     PDF_RENDER_DELAY_MS: 300,
 
