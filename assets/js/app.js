@@ -2324,10 +2324,28 @@ const BooklistApp = (function() {
     '#d53f8c',   // Vibrant Pink
   ];
 
+  // A color input counts as "in use" unless it's hidden for a reason
+  // other than living in an inactive settings tab. The settings controls
+  // are split across separate tab panels (Text Styling / Front Cover /
+  // Back Cover); only the active one is rendered (the rest are
+  // display:none), but the colors inside the inactive tabs are still part
+  // of the booklist. So we look past a hidden .tab-content panel while
+  // still excluding a control hidden by its own feature toggle (e.g. the
+  // second gradient color when the gradient is off). Walking ancestors is
+  // necessary because offsetParent/getComputedStyle on the input itself
+  // can't tell those two cases apart.
+  function _colorInputInUse(input) {
+    for (let el = input; el && el !== document.body; el = el.parentElement) {
+      if (el.classList && el.classList.contains('tab-content')) continue;
+      if (window.getComputedStyle(el).display === 'none') return false;
+    }
+    return true;
+  }
+
   function getUsedColors() {
     const freq = {};
     document.querySelectorAll('input[type="color"]').forEach(input => {
-      if (input.offsetParent === null) return;
+      if (!_colorInputInUse(input)) return;
       const c = (input.value || '').toLowerCase();
       if (c) freq[c] = (freq[c] || 0) + 1;
     });
