@@ -612,6 +612,31 @@ const BooklistApp = (function() {
         element.style.color = placeholderColor;
       }
     });
+
+    // Backstop against the browser's native contenteditable undo stack.
+    // The soft placeholder is cleared on focus; the browser records that
+    // clear as an editable change, and a native undo can later unwind it —
+    // dropping the placeholder string back into the field as real content,
+    // in the user's text color, with the caret left sitting inside it.
+    // That is the "cursor pushed into the placeholder" / "old text merged
+    // into the placeholder" bug. The app's snapshot-based undo (driven by
+    // the global Ctrl+Z keydown handler) is the intended undo for these
+    // fields, so block native history operations here entirely. This is
+    // the input-level belt to the keydown handler's preventDefault
+    // suspenders: some browsers/timings still fire historyUndo/historyRedo
+    // at the input level even when the keydown default was prevented (held
+    // Ctrl+Z auto-repeat, Cmd+Z on macOS, the Edit menu, trackpad
+    // gestures), and that is the path that resurrects the placeholder.
+    // Only history input types are blocked, so normal typing/paste are
+    // unaffected. Contenteditable only — <input>/<textarea> placeholder
+    // fields keep their native per-character undo.
+    if (useInnerText) {
+      element.addEventListener('beforeinput', (e) => {
+        if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
+          e.preventDefault();
+        }
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------
