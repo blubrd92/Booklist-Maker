@@ -7471,18 +7471,24 @@ const BooklistApp = (function() {
 
   /**
    * Toggle the .is-empty class on #qr-code-text based on current content.
-   * Matches Chrome/Safari leaving a stray <br> after delete-all (innerText
-   * collapses <br> to '\n', which trims to ''). Also scrubs the stray <br>
-   * (or any other no-text DOM crumbs the browser leaves behind) so the
-   * contenteditable is truly empty — otherwise pressing Enter on the
-   * "empty" field would keep adding <br>s and bloat the editable area
-   * inside the fixed-height container. Caret is restored to position 0
-   * if the field still has focus, so active typing isn't disrupted.
+   * Uses textContent, NOT innerText: innerText is layout-aware and returns
+   * '' for an element that hasn't been laid out yet (or sits in a
+   * display:none subtree). During a draft restore, applyState sets the
+   * blurb and calls this before the browser has performed first layout, so
+   * an innerText read would wrongly report empty and the scrub below would
+   * wipe the just-restored text. textContent is layout-independent and
+   * matches the layout-independent innerHTML it guards. A stray <br> left
+   * by the browser after delete-all has no text, so textContent still
+   * trims to '' and the scrub fires. The scrub keeps the contenteditable
+   * truly empty so pressing Enter on the "empty" field doesn't keep adding
+   * <br>s and bloat the fixed-height container. Caret is restored to
+   * position 0 if the field still has focus, so active typing isn't
+   * disrupted.
    */
   function updateQrEmptyState() {
     if (!elements.qrCodeTextArea) return;
     const el = elements.qrCodeTextArea;
-    const isEmpty = (el.innerText || '').trim() === '';
+    const isEmpty = (el.textContent || '').trim() === '';
     el.classList.toggle('is-empty', isEmpty);
     if (isEmpty && el.innerHTML !== '') {
       const wasFocused = document.activeElement === el;
