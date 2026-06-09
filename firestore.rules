@@ -88,11 +88,17 @@ service cloud.firestore {
     // Schema validation for memberships docs. Limits keys to libraryId,
     // optional role (staff or admin), and optional email (a cached
     // display label; the real source of truth is Firebase Auth).
+    // The email check matters more than it looks: the admin console
+    // displays it as the staff row's label and the type-to-confirm
+    // Remove flow matches against it, so it must at least be a string
+    // of sane size (320 is the RFC 5321 max address length).
     function validMembershipFields(data) {
       return data.libraryId is string
              && data.libraryId.size() > 0
              && data.keys().hasOnly(['libraryId', 'role', 'email'])
-             && data.get('role', 'staff') in ['staff', 'admin'];
+             && data.get('role', 'staff') in ['staff', 'admin']
+             && data.get('email', '') is string
+             && data.get('email', '').size() <= 320;
     }
 
     // -------------------------------------------------------------------------

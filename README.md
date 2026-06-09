@@ -13,7 +13,7 @@ Live at **[booklister.org](https://booklister.org)**.
 - **Per-book editing**: title, author, description, cover (carousel of alternate editions or upload your own), call number
 - **AI-drafted descriptions** via the magic-wand button on each book
 - **Cover collage**: auto-generated front cover from 12, 16, or 20 starred books, in four layouts (Classic, Masonry, Staggered, Tilted) with a customizable title bar
-- **Typography**: 25 font choices with per-element font, size, weight, italic, color, line-spacing, and alignment controls
+- **Typography**: 30 font choices with per-element font, size, weight, italic, color, line-spacing, and alignment controls
 - **QR code**: generated from any URL, or replaced with a custom uploaded image
 - **Custom branding**: upload a library logo to appear on the back cover
 - **High-quality PDF export**: two-page 11"×8.5" landscape output at 600 DPI, designed to be printed double-sided and folded into a bifold brochure (back cover + front cover on one side, two inside panels on the other)
@@ -48,8 +48,10 @@ Both lint and tests should pass before committing JavaScript changes.
 index.html                  Main tool UI
 about.html
 for-libraries.html
+extension.html
 contact.html
-privacy.html                Static content pages
+privacy.html
+terms.html                  Static content pages
 assets/
   css/                      Stylesheets
   js/

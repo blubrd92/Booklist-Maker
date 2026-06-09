@@ -265,8 +265,10 @@
 
   /**
    * Pick the best item for the user's preferred branch:
-   *   1. If preferredBranch is set, filter items whose branchName or
-   *      branchCode contains it (case-insensitive).
+   *   1. If preferredBranch is set, filter items whose branchName
+   *      CONTAINS it, or whose branchCode EQUALS it (case-insensitive).
+   *      Codes are short ("MA"), so substring-matching them would
+   *      over-match; names are long, so substring is the friendly fit.
    *   2. Otherwise filter to items where the API marks `local: true`.
    *   3. If either filter yields nothing, fall through to all items.
    *   4. Within the candidate list, prefer AVAILABLE over UNAVAILABLE.
@@ -375,8 +377,12 @@
   async function writeAccumulatedRows(rows) {
     try {
       await browser.storage.local.set({ accumulatedRows: rows });
+      return true;
     } catch {
-      // Storage failures shouldn't break clipboard write; swallow.
+      // Storage failures shouldn't break the clipboard write, but the
+      // caller needs to know so its toast doesn't claim the row was
+      // added to a list that didn't actually persist.
+      return false;
     }
   }
 
@@ -451,7 +457,10 @@
     }
   }
 
-  function showToast(message, kind) {
+  // durationMs (optional) overrides the default auto-dismiss timing
+  // (1.5s for info, 2.5s otherwise) — used by toasts whose message has
+  // to outlive a multi-second operation.
+  function showToast(message, kind, durationMs) {
     const existing = document.getElementById('booklister-helper-toast');
     if (existing) existing.remove();
 
@@ -480,7 +489,7 @@
     setTimeout(() => {
       el.style.opacity = '0';
       setTimeout(() => el.remove(), 250);
-    }, kind === 'info' ? 1500 : 2500);
+    }, durationMs || (kind === 'info' ? 1500 : 2500));
   }
 
   // A persistent toast with a "Click to copy" affordance. Used for clipboard
@@ -609,9 +618,11 @@
     if (accumulate) {
       const existing = await readAccumulatedRows();
       existing.push(row);
-      await writeAccumulatedRows(existing);
+      const persisted = await writeAccumulatedRows(existing);
       tsv = existing.join('\n');
-      toastMessage = `Added (${existing.length} ${existing.length === 1 ? 'title' : 'titles'} in list). Paste into Booklister Quick Add → Multiple titles.`;
+      toastMessage = persisted
+        ? `Added (${existing.length} ${existing.length === 1 ? 'title' : 'titles'} in list). Paste into Booklister Quick Add → Multiple titles.`
+        : 'Copied to clipboard, but the accumulated list could not be saved (storage full?). Paste now to avoid losing it.';
     } else {
       tsv = row;
       toastMessage = 'Copied! Paste into Booklister Quick Add → Multiple titles tab.';
@@ -647,7 +658,10 @@
       }
     }
 
-    showToast(`Capturing ${bibs.length} titles, this may take a few seconds. Stay on this tab until you see the confirmation.`, 'info');
+    // Long duration: the capture pipeline runs 5-10s for a typical list,
+    // and this is the instruction telling the user not to tab away — it
+    // must stay up while the work runs, not vanish after 1.5s.
+    showToast(`Capturing ${bibs.length} titles, this may take a few seconds. Stay on this tab until you see the confirmation.`, 'info', 10000);
 
     const pref = await readPreferredBranch();
     const rowPromises = bibs.map((b) => captureOneBibToTsvRow(libraryDomain, b, pref));

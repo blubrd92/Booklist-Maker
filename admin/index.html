@@ -283,10 +283,13 @@
       <div class="admin-modal-body">
         <p>Delete <strong id="admin-delete-library-name"></strong>?</p>
         <p class="admin-note admin-note-warning">
-          This removes the library's config document from Firestore. Any existing
-          subdomain will go back to the generic Booklister experience on its next
-          page load. Memberships for this library are NOT deleted — manage those
-          separately.
+          This removes the library's config document from Firestore, along with
+          <strong id="admin-delete-membership-count">all of its staff
+          memberships</strong>, so recreating the same library ID later starts
+          with a clean roster. Any existing subdomain will go back to the
+          generic Booklister experience on its next page load. Firebase Auth
+          accounts are not deleted (the client SDK can't do that), but without
+          a membership they have no access.
         </p>
         <div class="admin-field admin-confirm-typing-field">
           <label for="admin-delete-confirm-input">

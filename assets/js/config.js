@@ -132,7 +132,7 @@
     // request. Values here override the script's defaults for
     // production calls (the script's CONFIG only applies to direct
     // GET diagnostic requests that bypass the tool). The easter egg
-    // modal (Ctrl+Shift+D) can override individual values for a
+    // modal (Ctrl+Alt+D / Cmd+Option+D) can override individual values for a
     // single session. Whatever is sent only takes effect if the
     // Apps Script's ALLOWED whitelist includes the field.
     //

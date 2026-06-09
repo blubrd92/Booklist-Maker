@@ -33,6 +33,7 @@ const BooklistApp = (function() {
   let _isRestoring = false;  // Guard flag to prevent side effects during undo/redo restore
   let _tourActive = false;   // Guard flag: suppresses pushUndo and autosave during guided tour
   let _resetting = false;    // Guard flag: suppresses autosave once a reset-to-blank is in progress
+  let _initialRestorePending = true; // Guard flag: suppresses autosave between init() and the async draft restore completing. init() renders a blank booklist, whose render schedules a debounced save; if the IndexedDB draft read takes longer than AUTOSAVE_DEBOUNCE_MS (cold start, open blocked by another tab), that blank save would commit first and overwrite the user's saved draft. Cleared in the restore chain's finally.
   let _initialStyleGroups = null; // Snapshot of the HTML default style-group values, captured early in init() before any draft-restore can mutate the controls. enterTourMode restores from this so the tour starts at a consistent visual baseline.
 
   // Tracks book keys with in-flight AI description requests so the
@@ -273,13 +274,13 @@ const BooklistApp = (function() {
   const debouncedSave = (() => {
     let t;
     function trigger() {
-      if (_isRestoring || _tourActive || _resetting) return; // Don't autosave during undo/redo restore, tour, or reset
+      if (_isRestoring || _tourActive || _resetting || _initialRestorePending) return; // Don't autosave during undo/redo restore, tour, reset, or before the startup draft restore lands
       isDirtyLocal = true;    // Edits not yet in localStorage
       hasUnsavedFile = true;  // Edits not yet in a .booklist file
       updateSaveIndicator();
       clearTimeout(t);
       t = setTimeout(() => {
-        if (_isRestoring || _tourActive || _resetting) return; // Re-check at execution time
+        if (_isRestoring || _tourActive || _resetting || _initialRestorePending) return; // Re-check at execution time
         saveDraftLocal();
       }, CONFIG.AUTOSAVE_DEBOUNCE_MS);
     }
@@ -6448,7 +6449,7 @@ const BooklistApp = (function() {
       if (thisGenId === _draftSaveGenId) {
         isDirtyLocal = false;
       }
-      try { localStorage.setItem('has-draft', 'true'); } catch {}
+      try { localStorage.setItem('has-draft', 'true'); } catch { /* private browsing, best-effort */ }
     }).catch(() => {
       showNotification('Failed to save draft. Use Save to download a .booklist file.', 'error');
     });
@@ -6465,13 +6466,13 @@ const BooklistApp = (function() {
           try {
             const frontCover = await _getImageIDB('draft-front-cover');
             if (frontCover && parsed.images) parsed.images.frontCover = frontCover;
-          } catch {}
+          } catch { /* legacy front-cover read, best-effort */ }
           // Migrate to new IDB key
           await _putImageIDB('draft', JSON.stringify(parsed));
           // Clean up old storage
           localStorage.removeItem('booklist-draft');
           _deleteImageIDB('draft-front-cover');
-          try { localStorage.setItem('has-draft', 'true'); } catch {}
+          try { localStorage.setItem('has-draft', 'true'); } catch { /* private browsing, best-effort */ }
           applyState(parsed, { silent: true });
           if (!BookUtils.isDraftStateEffectivelyEmpty(parsed)) {
             showNotification('Draft restored from this browser.', 'success');
@@ -6488,7 +6489,14 @@ const BooklistApp = (function() {
       if (!BookUtils.isDraftStateEffectivelyEmpty(parsed)) {
         showNotification('Draft restored from this browser.', 'success');
       }
-    } catch { /* ignore corrupt data */ }
+    } catch (err) {
+      // Don't swallow this silently: a throw mid-applyState leaves a
+      // partially restored UI, and the user's next edit would autosave
+      // that partial state over the intact draft. Tell them so they can
+      // recover from a .booklist file before editing.
+      console.error('Draft restore failed:', err);
+      showNotification('Could not restore your saved draft. If you have a saved .booklist file, load it before making changes.', 'error');
+    }
   }
 
   async function resetToBlank() {
@@ -7329,13 +7337,32 @@ const BooklistApp = (function() {
     });
     
     elements.loadListInput.addEventListener('change', async (e) => {
+      // Same reasoning as the reset button above: clearUndoHistory()
+      // wipes the whole IndexedDB image store including the tour-backup
+      // key, so loading a file mid-tour would destroy the user's
+      // stashed pre-tour state. Load isn't part of the tour flow either.
+      if (_tourActive) {
+        e.target.value = '';
+        return;
+      }
       const file = e.target.files?.[0];
       if (!file) return;
+      // Snapshot the current state so a malformed file can be rolled
+      // back instead of leaving a half-applied UI that the next
+      // autosave would write over the intact draft.
+      const preLoadState = serializeState();
       try {
         const text = await file.text();
         const parsed = JSON.parse(text);
-        clearUndoHistory();
         applyState(parsed);
+        // Clear undo history only AFTER applyState succeeds.
+        // clearUndoHistory() wipes the entire IndexedDB image store —
+        // including the 'draft' key — so clearing first meant a file
+        // that passed JSON.parse but threw inside applyState (e.g. a
+        // null entry in books) destroyed the autosaved draft with
+        // nothing to replace it: refresh after the error toast lost
+        // all of the user's work.
+        clearUndoHistory();
         // Direct save (not debounced) so the IndexedDB draft reflects
         // the just-loaded file immediately. The previous code used
         // debouncedSave() which scheduled a write 400ms later — if the
@@ -7361,6 +7388,9 @@ const BooklistApp = (function() {
         }
       } catch (err) {
         console.error('Import failed:', err);
+        // Roll back any partial application of the bad file so the
+        // UI (and the next autosave) reflect the pre-load state.
+        try { applyState(preLoadState, { silent: true }); } catch { /* rollback is best-effort */ }
         showNotification('Could not load this file. Is it a valid .booklist?', 'error');
       } finally {
         e.target.value = '';
@@ -7957,8 +7987,16 @@ const BooklistApp = (function() {
 
     // Coalesce: if same group within the coalescing window, replace top instead of pushing
     if (group && group === _lastUndoGroup && (now - _lastUndoTime) < UNDO_COALESCE_MS && _undoStack.length > 0) {
-      // Don't replace — keep the original pre-mutation snapshot on top
+      // Don't replace — keep the original pre-mutation snapshot on top.
+      // Still clear the redo stack: this is a new mutation, and a stale
+      // redo entry surviving here would silently overwrite the new edit
+      // when clicked. (Normally redo is already empty on this path —
+      // undo()/redo() reset the coalesce state — but keep it explicit.)
       _lastUndoTime = now;
+      if (_redoStack.length > 0) {
+        _redoStack = [];
+        updateUndoRedoButtons();
+      }
       return;
     }
 
@@ -8172,6 +8210,12 @@ const BooklistApp = (function() {
       return;
     }
 
+    // Reset coalesce state: a same-group action arriving within the
+    // coalesce window AFTER an undo must push a fresh pre-mutation
+    // snapshot, not coalesce into a stack whose top just changed.
+    _lastUndoGroup = null;
+    _lastUndoTime = 0;
+
     // Push current state onto redo stack, pop real undo entry, restore.
     _redoStack.push(currentJson);
     const snapshot = _undoStack.pop();
@@ -8195,6 +8239,10 @@ const BooklistApp = (function() {
       updateUndoRedoButtons();
       return;
     }
+
+    // Same coalesce-state reset as undo() — see comment there.
+    _lastUndoGroup = null;
+    _lastUndoTime = 0;
 
     _undoStack.push(currentJson);
     const snapshot = _redoStack.pop();
@@ -8408,7 +8456,7 @@ const BooklistApp = (function() {
    */
   async function recoverTourBackupIfPresent() {
     // Clean up legacy localStorage tour backup if present (from pre-IDB versions)
-    try { localStorage.removeItem('booklist-tour-backup'); } catch {}
+    try { localStorage.removeItem('booklist-tour-backup'); } catch { /* legacy key cleanup, best-effort */ }
 
     try {
       const raw = await _getImageIDB(TOUR_BACKUP_IDB_KEY);
@@ -8417,7 +8465,7 @@ const BooklistApp = (function() {
       if (backup.state) {
         // Write the pre-tour state directly into the draft IDB slot
         await _putImageIDB('draft', JSON.stringify(backup.state));
-        try { localStorage.setItem('has-draft', 'true'); } catch {}
+        try { localStorage.setItem('has-draft', 'true'); } catch { /* private browsing, best-effort */ }
       }
       _deleteImageIDB(TOUR_BACKUP_IDB_KEY);
       return true;
@@ -8774,7 +8822,11 @@ const BooklistApp = (function() {
 
     // Recover tour backup (if page was refreshed mid-tour), then restore draft.
     // Both are async (IndexedDB), chained to ensure correct ordering.
-    recoverTourBackupIfPresent().then(() => restoreDraftLocalIfPresent());
+    // Autosave stays suppressed (_initialRestorePending) until this chain
+    // settles so the blank init render can't clobber the saved draft.
+    recoverTourBackupIfPresent()
+      .then(() => restoreDraftLocalIfPresent())
+      .finally(() => { _initialRestorePending = false; });
 
     // Folio: greet based on whether a draft exists (has-draft flag is sync)
     if (window.folio) {
@@ -8871,6 +8923,7 @@ const BooklistApp = (function() {
 // =============================================================================
 // TAB SWITCHING (Global for HTML onclick)
 // =============================================================================
+/* exported openTab -- called from onclick attributes in index.html */
 function openTab(evt, tabName) {
   const tabcontent = document.getElementsByClassName("tab-content");
   for (let i = 0; i < tabcontent.length; i++) {

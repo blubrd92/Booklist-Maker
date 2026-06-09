@@ -170,10 +170,12 @@ captureListBtn.addEventListener('click', () => {
   // fetches) runs in the content script and takes several seconds. The
   // popup closes immediately; the content script's in-page toast is the
   // user's progress + completion feedback.
+  // .catch() so a tab that navigated away since the popup opened doesn't
+  // surface an unhandled rejection; there's no UI left to report into.
   browser.tabs.sendMessage(activeTabId, {
     type: 'capture-selected-bibs',
     bibIds: Array.from(selected),
-  });
+  }).catch(() => {});
   window.close();
 });
 
@@ -204,8 +206,9 @@ async function initListMode() {
 // ── Capture pane: record mode ──
 captureRecordBtn.addEventListener('click', () => {
   if (activeTabId === null) return;
-  // Fire-and-forget, same rationale as the list capture above.
-  browser.tabs.sendMessage(activeTabId, { type: 'capture' });
+  // Fire-and-forget, same rationale (and same .catch) as the list
+  // capture above.
+  browser.tabs.sendMessage(activeTabId, { type: 'capture' }).catch(() => {});
   window.close();
 });
 

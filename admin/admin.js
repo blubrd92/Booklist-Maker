@@ -778,6 +778,20 @@ function openDeleteModal(lib) {
   document.getElementById('admin-delete-library-name').textContent =
     (lib.data.displayName || lib.id) + ' (' + lib.id + ')';
   document.getElementById('admin-delete-confirm-target').textContent = lib.id;
+  // Fill in the membership count asynchronously so the warning says
+  // exactly how many staff lose access. Falls back to generic wording
+  // if the count read fails — the delete itself re-queries anyway.
+  const countEl = document.getElementById('admin-delete-membership-count');
+  countEl.textContent = 'all of its staff memberships';
+  getDocs(query(collection(db, 'memberships'), where('libraryId', '==', lib.id)))
+    .then(snap => {
+      if (deletingLibrary && deletingLibrary.id === lib.id) {
+        countEl.textContent = snap.size === 1
+          ? 'its 1 staff membership'
+          : 'its ' + snap.size + ' staff memberships';
+      }
+    })
+    .catch(err => console.warn('[admin] membership count read failed:', err));
   const input = document.getElementById('admin-delete-confirm-input');
   input.value = '';
   document.getElementById('admin-delete-confirm-btn').disabled = true;
@@ -823,7 +837,22 @@ async function handleDeleteConfirm() {
   confirmBtn.disabled = true;
   confirmBtn.textContent = 'Deleting…';
   try {
-    await deleteDoc(doc(db, collectionName, deletingLibrary.id));
+    // Cascade-delete the library's memberships along with the config doc.
+    // Orphaned memberships keep their rule-level power (an old library
+    // admin could still manage staff rows under the dead ID), and
+    // recreating the same library ID later would instantly restore every
+    // stale member's access. Batched so the config doc and the roster go
+    // atomically; chunked because a writeBatch caps at 500 operations.
+    const memberSnap = await getDocs(
+      query(collection(db, 'memberships'), where('libraryId', '==', deletingLibrary.id))
+    );
+    const refs = memberSnap.docs.map(d => d.ref);
+    refs.push(doc(db, collectionName, deletingLibrary.id));
+    for (let i = 0; i < refs.length; i += 500) {
+      const batch = writeBatch(db);
+      refs.slice(i, i + 500).forEach(ref => batch.delete(ref));
+      await batch.commit();
+    }
     closeDeleteModal();
     await loadLibraries();
   } catch (err) {

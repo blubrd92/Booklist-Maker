@@ -118,13 +118,23 @@ function dispatch(name, detail) {
       return;
     }
   } catch (err) {
-    // A permission-denied here usually just means this library isn't in
-    // the public collection — fall through to the gated path. Only log;
-    // don't fail outright.
-    console.warn(
-      '[library-config] libraries-public read threw, falling through to gated path:',
-      err
-    );
+    // Only fall through to the gated path on permission-denied — that
+    // just means this library isn't in the public collection. Any other
+    // throw (unavailable, deadline-exceeded, generic network failure) is
+    // a transport problem: a PUBLIC branded instance hitting a blip here
+    // would otherwise drop its users into a login modal that no
+    // credentials can satisfy. Note a missing doc does NOT throw — it
+    // returns exists() === false above — so transport errors are the
+    // only thing besides permissions that lands in this catch.
+    if (err && err.code === 'permission-denied') {
+      console.warn(
+        '[library-config] libraries-public read permission-denied, falling through to gated path:',
+        err
+      );
+    } else {
+      dispatch('library-config-failed', { error: err });
+      return;
+    }
   }
 
   // Gated path: show the login modal or use a persisted session.

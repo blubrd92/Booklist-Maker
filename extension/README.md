@@ -38,6 +38,10 @@ In all three modes, the cover is embedded as a base64 `data:image/...` URL so sa
 
 > **Note on the clipboard contents**: because each cover is embedded as base64 image bytes, the TSV will be a long-looking string of dense text (~30-80 KB per title). That's normal; just paste and submit. Booklister parses it transparently and renders the covers from those bytes.
 
+## Install
+
+Published on the [Chrome Web Store](https://chromewebstore.google.com/detail/ajofgegcbpfpbmmhhdgdhaedffjhiifl), [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/booklister-helper/), and [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/booklister-helper/echnfbopchlajglepcagaahgcmjefple). See [booklister.org/extension.html](https://booklister.org/extension.html) for the user-facing install guide.
+
 ## Install (development)
 
 1. Clone the [Booklist-Maker repo](https://github.com/blubrd92/Booklist-Maker).
@@ -58,7 +62,7 @@ Settings live in the **Settings** tab of the popup: click the toolbar icon, then
 
 Two settings:
 
-- **Preferred branch** (optional): a substring of your branch name as it appears in BiblioCommons' Availability table (or the branch code, like `SR`). When set, the extension picks that branch's call number when a title has multiple branches with different call numbers. Leave blank to use BiblioCommons' own "local branch" detection, which works automatically when you're signed in to your library account or browsing from your library's IP range. Applied to single-record captures, list-page captures, and every title in an accumulated list.
+- **Preferred branch** (optional): a substring of your branch name as it appears in BiblioCommons' Availability table, or the exact branch code, like `SR` (codes are short, so they match exactly rather than by substring). When set, the extension picks that branch's call number when a title has multiple branches with different call numbers. Leave blank to use BiblioCommons' own "local branch" detection, which works automatically when you're signed in to your library account or browsing from your library's IP range. Applied to single-record captures, list-page captures, and every title in an accumulated list.
 
 - **Accumulate captures** (default off): when on, single-title captures append to a list rather than overwriting the clipboard. The toolbar badge shows the running count. List-page captures (clicking on a `/v2/list/` URL) are independent of this; they always copy the entire list to the clipboard fresh.
 
@@ -98,7 +102,6 @@ There is no analytics. No tracking. The TSV row goes from the page directly to y
 
 - **BiblioCommons-only**, on purpose. Adding adapters for other catalog systems would be a separate extension or a separate adapter file.
 - **Search results pages** (`/search?...`) are not supported. Search results don't carry per-title call numbers in the page state, so capture quality would be much worse than the record / list flows. Use single-record or list-page capture instead.
-- **Manual install**, no Chrome Web Store / Firefox Add-ons listing yet. Once the v1 stabilizes I'll publish it.
 - **Brittle to BiblioCommons redesigns.** They run a single SaaS codebase, so this is rare in practice (~1-2 times a year), but selectors / API shapes may need a refresh occasionally.
 
 ## License

@@ -662,6 +662,10 @@
   function initToggle() {
     if (!folioContainer || !folioToggle) return;
 
+    // INTENTIONAL: Folio is hidden by default for first-time visitors
+    // (absent key fails the === 'false' check). He's opt-in — only a
+    // visitor who has explicitly toggled him on (key === 'false') sees
+    // him on load. Don't "fix" this to default-shown.
     const shown = localStorage.getItem('folio-hidden') === 'false';
     if (!shown) folioContainer.classList.add('folio-hidden');
 

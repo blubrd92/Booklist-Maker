@@ -93,23 +93,26 @@ const MENU_ID_CLEAR_LIST = 'booklister-helper-clear-list';
 // shows only on those URLs.
 const MENU_ID_CAPTURE_PAGE = 'booklister-helper-capture-page';
 
-function ensureContextMenu() {
+async function ensureContextMenu() {
+  // NOTE: removeAll must be awaited, not given a callback. The polyfill
+  // wraps it with maxArgs: 0, so passing a callback throws synchronously
+  // ("Expected at most 0 arguments") — which previously meant the menus
+  // were never created on Chrome/Edge and the catch silently ate it.
   try {
-    browser.contextMenus.removeAll(() => {
-      browser.contextMenus.create({
-        id: MENU_ID_CLEAR_LIST,
-        title: 'Clear accumulated list',
-        contexts: ['action'],
-      });
-      browser.contextMenus.create({
-        id: MENU_ID_CAPTURE_PAGE,
-        title: 'Capture for Booklister',
-        contexts: ['page'],
-        documentUrlPatterns: [
-          '*://*.bibliocommons.com/v2/record/*',
-          '*://*.bibliocommons.com/v2/list/*',
-        ],
-      });
+    await browser.contextMenus.removeAll();
+    browser.contextMenus.create({
+      id: MENU_ID_CLEAR_LIST,
+      title: 'Clear accumulated list',
+      contexts: ['action'],
+    });
+    browser.contextMenus.create({
+      id: MENU_ID_CAPTURE_PAGE,
+      title: 'Capture for Booklister',
+      contexts: ['page'],
+      documentUrlPatterns: [
+        '*://*.bibliocommons.com/v2/record/*',
+        '*://*.bibliocommons.com/v2/list/*',
+      ],
     });
   } catch (err) {
     console.warn('[Booklister Helper] context menu setup failed:', err);

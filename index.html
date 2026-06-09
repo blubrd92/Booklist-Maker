@@ -49,7 +49,10 @@
       // Mirror these rules in assets/js/firebase-init.js.
       var isPagesDev = h.endsWith('.pages.dev');
       var allowOverride = isLocal || isPagesDev;
-      var hasOverride = allowOverride && /[?&]library=/.test(window.location.search);
+      // Require a non-empty value ([^&]) so a bare `?library=` doesn't
+      // hide the tool here while firebase-init.js (which checks the
+      // param's truthiness) stays public and never reveals it.
+      var hasOverride = allowOverride && /[?&]library=[^&]/.test(window.location.search);
       var isPublic = PUBLIC_HOSTS.indexOf(h) !== -1 || isPagesDev;
       if (!isPublic || hasOverride) {
         document.documentElement.classList.add('awaiting-library-config');

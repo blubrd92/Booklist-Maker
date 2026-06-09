@@ -45,6 +45,12 @@ const urlParams = new URLSearchParams(window.location.search);
 const libraryOverride = allowLibraryOverride ? urlParams.get('library') : null;
 
 const isPublicHost = PUBLIC_HOSTS.has(hostname) || isPagesDevHost(hostname);
+// INTENTIONAL fail-closed: any hostname not in PUBLIC_HOSTS and not a
+// .pages.dev preview is treated as a branded instance — including LAN IPs
+// and unknown mirror domains. Those hosts load Firebase and sit behind the
+// login flow with a (likely nonexistent) library ID derived from the first
+// hostname label, rather than silently serving the public tool. To test
+// the public tool on such a host, use localhost or a .pages.dev preview.
 const isBrandedInstance = !isPublicHost || (allowLibraryOverride && !!libraryOverride);
 
 let app = null;

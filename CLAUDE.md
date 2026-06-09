@@ -36,6 +36,10 @@ Lint and test should both pass before committing changes to JavaScript files.
 index.html                      Main tool UI, single page (semantic HTML5, ARIA)
 about.html                      Static "about" content page
 for-libraries.html              Static branded-instance info content page
+extension.html                  Booklister Helper content page (the footer's
+                                "Helper" link): what the extension does, store
+                                links (Chrome Web Store / Firefox Add-ons /
+                                Edge Add-ons), install + usage guide
 contact.html                    Static contact content page
 privacy.html                    Privacy policy content page (CalOPPA-oriented)
 terms.html                      Terms of service content page (covers public tool,
@@ -63,7 +67,7 @@ assets/
   js/
     config.js                   CONFIG constants (loaded first as global)
     book-utils.js               BookUtils shared pure functions (loaded second)
-    app.js                      Core application logic (IIFE, ~6100 lines)
+    app.js                      Core application logic (IIFE, ~8900 lines)
     folio.js                    Animated cat mascot companion
     tour.js                     Guided tour system
     preview-helper.js           IIFE. Cloudflare Pages preview-only mode-picker
@@ -105,51 +109,80 @@ extension/                      Browser extension (Manifest V3) — captures boo
                                 copies them as TSV for paste into Booklister's
                                 Quick Add Spreadsheet tab. Standalone codebase;
                                 shares nothing with the main tool except brand.
+                                All extension code calls the `browser.*` API via
+                                the vendored webextension-polyfill (Firefox has
+                                it natively; the polyfill shims Chromium).
   manifest.json                 MV3 manifest, host_permissions scoped to
                                 *.bibliocommons.com + gateway.bibliocommons.com
-                                + *.syndetics.com. Two content_scripts.matches:
-                                /v2/record/* (single book) + /v2/list/* (lists).
-  content.js                    Runs on record + list pages. Dispatches between
-                                handleSingleCapture and handleListCapture by URL.
-                                Reads the SSR JSON state blob (different shape
-                                per page type), fetches the holdings API + cover
-                                bytes per book in parallel, builds TSV row(s),
-                                writes to clipboard. Single-record mode honors
-                                the accumulate-mode toggle (appends to a
-                                running list in chrome.storage.local).
-  background.js                 Service worker. Toolbar click → sendMessage to
-                                content script. Per-tab popup setting opens the
-                                selection UI on /v2/list/ pages, runs onClicked
-                                everywhere else. Hosts the fetch-image-as-data-url
-                                proxy (cover fetches need host_permissions to
-                                bypass CORS). Maintains the persistent toolbar
-                                badge with the accumulated list count, refreshed
-                                on chrome.storage.onChanged. Two right-click
-                                context menu items: "Clear accumulated list"
-                                (on the toolbar action) and "Capture for
-                                Booklister" (on the page, scoped via
-                                documentUrlPatterns to bibliocommons record
-                                + list URLs only).
-  popup/popup.html|.js          Selection UI for list pages. Loads when the
-                                toolbar icon is clicked on /v2/list/ URLs.
-                                Asks the content script for the list's bibs,
-                                renders checkbox rows, dispatches the user's
-                                selection back via 'capture-selected-bibs'.
-  options/options.html|.js      Options page: preferred-branch substring,
-                                accumulate-mode toggle, clear-list button.
-                                Saved keys: preferredBranch + accumulateMode in
-                                chrome.storage.sync; accumulatedRows in
-                                chrome.storage.local (covers can exceed sync's
-                                per-item 8 KB quota).
+                                + *.syndetics.com + *.hoopladigital.com (the
+                                last two are cover providers). Two
+                                content_scripts.matches: /v2/record/* (single
+                                book) + /v2/list/* (lists). Declares an
+                                always-on action.default_popup, the contextMenus
+                                permission, a Firefox browser_specific_settings
+                                block, and BOTH background.service_worker
+                                (Chromium) and background.scripts (Firefox) —
+                                see build-zips.mjs for why.
+  content.js                    Runs on record + list pages. Handles four
+                                message types from the popup/background:
+                                'capture' (single record, honors accumulate
+                                mode), 'capture-selected-bibs' (list capture for
+                                the popup's checked subset), 'list-page-bibs'
+                                and 'record-page-brief' (shallow metadata reads
+                                the popup uses to render its Capture tab; no
+                                fetches). Reads the SSR JSON state blob
+                                (different shape per page type), fetches the
+                                holdings API + cover bytes per book in parallel,
+                                builds TSV row(s), writes to clipboard. If the
+                                clipboard write fails (tab unfocused), stashes
+                                the TSV and shows a persistent click-to-copy
+                                recovery toast.
+  background.js                 Service worker (Chromium) / background page
+                                (Firefox). Three small jobs: the
+                                fetch-image-as-data-url proxy (cover fetches
+                                need host_permissions to bypass CORS), the
+                                persistent toolbar badge with the accumulated
+                                list count (refreshed on storage.onChanged), and
+                                two right-click context menu items — "Clear
+                                accumulated list" (on the toolbar action) and
+                                "Capture for Booklister" (on the page, scoped
+                                via documentUrlPatterns to bibliocommons record
+                                + list URLs; just opens the popup).
+  popup/popup.html|.js          Always-on popup (action.default_popup) with two
+                                tabs. Capture tab is context-aware: on a
+                                /v2/record/ page it shows a one-title preview +
+                                capture button; on a /v2/list/ page it renders
+                                checkbox rows with All / First N / None presets
+                                and dispatches the selection via
+                                'capture-selected-bibs'; anywhere else it shows
+                                guidance. Settings tab: preferred-branch
+                                substring, accumulate-mode toggle, clear-list
+                                button (auto-saved; this replaced the old
+                                options page). Saved keys: preferredBranch +
+                                accumulateMode in browser.storage.sync;
+                                accumulatedRows in browser.storage.local
+                                (covers can exceed sync's per-item 8 KB quota).
+  vendor/browser-polyfill.min.js  Vendored webextension-polyfill (MPL 2.0).
+  icons/                        Toolbar + store icons (16/48/128).
+  build-zips.mjs                Per-browser packager (node, `npm run
+                                package:extension`): emits a Firefox zip (both
+                                background keys) and a Chromium zip (strips
+                                background.scripts — Edge's MV3 validator
+                                rejects it; Firefox AMO requires it) to dist/.
+  README.md                     Usage, settings, privacy posture, store links.
+  STORE_LISTING.md              Store listing copy + per-version release notes
+                                (every manifest version bump needs an entry).
 tests/
   setup.js                      Loads config.js + book-utils.js into jsdom via eval
   book-utils.test.js            Unit tests for all BookUtils functions
   config.test.js                Unit tests for CONFIG constants
   create-blank-book.test.js     Unit tests for the createBlankBook factory
-eslint.config.js                Three blocks: ES2022 sourceType "script" for the
+eslint.config.js                Four blocks: ES2022 sourceType "script" for the
                                 IIFE files, ES2022 sourceType "module" for the
                                 Firebase/admin module files, sourceType "script"
-                                with chrome global for the extension/ files
+                                with the `browser` global for the extension/
+                                files (vendor/ ignored), and a Node module block
+                                for extension/build-zips.mjs
 vitest.config.js                jsdom environment
 ```
 
@@ -212,7 +245,7 @@ All constants live in the `CONFIG` object:
 - **PDF export**: 600 DPI, 6.25x canvas scale (600/96), 11"x8.5" output
 - **QR code**: `QR_SIZE_PX` (900) — renders at 600 DPI equivalent, CSS constrains display to 144px
 - **APIs**: Open Library search + covers endpoints
-- **Fonts**: Array of 25 font objects `{ value, label }` (single source of truth for all dropdowns)
+- **Fonts**: Array of 30 font objects `{ value, label }` (single source of truth for all dropdowns)
 - **Timing**: `AUTOSAVE_DEBOUNCE_MS` (400), `NOTIFICATION_DURATION_MS` (3000)
 - **Placeholders**: Cover URLs, text defaults, colors
 
@@ -261,7 +294,8 @@ Pure functions that eliminate duplicated logic. All are tested:
 - `myBooklist` array: all book objects (max 13-15 depending on UI toggles)
 - `extraCollageCovers` array: additional covers for extended mode (up to 8)
 - `MAX_BOOKS`: dynamically adjusted based on QR code and branding toggles
-- **IndexedDB autosave**: debounced via `saveDraftLocal()`, restored by `restoreDraftLocalIfPresent()`. Full state stored in IndexedDB under `'draft'` key (no localStorage size limits). A lightweight `'has-draft'` flag in localStorage enables sync checks.
+- **IndexedDB autosave**: debounced via `saveDraftLocal()`, restored by `restoreDraftLocalIfPresent()`. Full state stored in IndexedDB under `'draft'` key (no localStorage size limits). A lightweight `'has-draft'` flag in localStorage enables sync checks. Autosave is suppressed by guard flags during undo/redo restore (`_isRestoring`), the tour (`_tourActive`), reset (`_resetting`), and the startup window between `init()` and the async draft restore completing (`_initialRestorePending` — without it, the blank init render's debounced save could land before the IndexedDB draft read on a slow start and overwrite the saved draft).
+- **Load-file safety**: the `.booklist` Load handler snapshots the current state, applies the file, and only THEN calls `clearUndoHistory()` (which wipes the whole IndexedDB image store, draft included). A file that throws mid-`applyState` is rolled back to the snapshot. Loading is also blocked mid-tour, since the store wipe would destroy the `'tour-backup'` key.
 - **File export/import**: `.booklist` JSON files via `serializeState()` / `applyState()`
 - **Dirty tracking**: `isDirtyLocal` (crash guard), `hasUnsavedFile` (download guard with unsaved indicator on save button)
 - `beforeunload` warning when there are unsaved local changes
@@ -281,7 +315,7 @@ Uploaded images are compressed on capture to reduce `.booklist` file size:
 - **jsPDF + html2canvas** - PDF generation (6.25x canvas scale for 600 DPI print quality)
 - **QRCode.js** - QR code generation
 - **Font Awesome 6.4.0** - Icons
-- **Google Fonts** - 25 typography options (preloaded via hidden divs)
+- **Google Fonts** - 30 typography options (preloaded via hidden divs)
 - **Firebase SDK v10.14.1** (`gstatic.com/firebasejs`) - App, Auth, Firestore. Loaded via `import()` inside ES module files, ONLY on branded library subdomains and on the admin console. Never loaded on the public tool at booklister.org.
 
 ### External APIs
@@ -300,7 +334,7 @@ Uploaded images are compressed on capture to reduce `.booklist` file size:
 5. **PDF Export**: `exportPdf()` pipeline: html2canvas captures at 6.25x scale, jsPDF outputs 11"x8.5" at 600 DPI. Awaits `waitForFonts()` and `waitForImagesDecoded()` before capture to guard against empty branding/cover captures from in-flight image loads.
 6. **Styling**: Per-element font/size/weight/color/line-spacing controls for title, author, description. Cover header has simple (unified) and advanced (per-line) modes.
 7. **QR/Branding**: QR code generation from URL (900px for 600 DPI), custom branding image upload, both toggleable. Front cover and branding uploaders have delete buttons (`.cover-delete-btn`, `.branding-delete-btn`) hidden in print mode. **On the public tool the branding uploader ships blank** (no default image, no "Use Default" button). On branded instances, `applyLibraryConfig()` populates the branding from the library's config, and the "Use Default" button becomes a fallback that reloads the library's logo. **Custom QR upload (optional override):** the QR canvas is wrapped in a `<label class="custom-uploader qr-code-uploader">` so users can drop in their own image (compressed at `CONFIG.QR_SIZE_PX = 900` to match the auto-generated QR's pixel density). When set, a sibling `<img id="qr-code-custom-img">` overlays the auto-generated QR and the URL input + Update button are disabled (and greyed via `body.has-custom-qr`) — the URL value is preserved, so clicking the `.qr-delete-btn` restores the auto-generated QR immediately without retyping. State serializes as `images.customQr` and goes through the same `_extractImages` / `_resolveImageRef` IndexedDB pipeline as `frontCover` / `branding`. **QR blurb placeholder** (`#qr-code-text`) is the only contenteditable in the codebase that uses a CSS `::before` pseudo-element instead of `setupPlaceholderField`'s soft-text approach. The visual placeholder text comes from `CONFIG.PLACEHOLDERS.qrText` written into a CSS custom property (`--qr-placeholder-text`) at init, and is shown via `#qr-code-text.is-empty:not(:focus)::before` toggled by the `updateQrEmptyState()` helper based on `innerText.trim() === ''`. The `:not(:focus)` gate hides the placeholder while the field is focused — matches the clear-on-focus behavior of the other placeholder fields in the app for UX consistency. The `::before` is `position: absolute; inset: 4px;` so it overlays the editable area instead of stacking as a flex sibling, and `updateQrEmptyState()` also scrubs any stray `<br>` Chrome/Safari leaves behind on delete-all (with caret restored to position 0 when the field is focused) so the editable area doesn't bloat with empty lines. `_currentQrText` (module-level mirror) remains the source of truth for serialization since `innerText` returns `''` on `display:none` elements when "Show QR Code" is off. Print-mode CSS (`.print-mode #qr-code-text.is-empty:not(:focus)::before { content: none; }`) suppresses the pseudo-element so an unedited QR blurb does not leak into the PDF. The book title / author / description fields still use the original `setupPlaceholderField` soft-text approach because their placeholder strings are short, obvious sentinels (e.g. `[Enter Title]`) that don't read like real content even if the swap-on-focus state machine briefly desyncs.
-8. **AI Descriptions (the Magic button)**: "Magic button" on each book calls Google Apps Script with title+author, receives generated description. **Per the policy declared in `terms.html`, this feature is gated to specific branded library instances and is enabled by explicit per-library decision by the developer; it is not available on the free public tool and is not enabled by default on a branded instance.** The current code path runs unconditionally wherever the button is rendered; if you ever wire up the gating in code (e.g. a `LIBRARY_CONFIG.magicButtonEnabled` flag that hides the button and the auto-draft-on-add toggle when false), align it with the ToS language so the two don't drift.
+8. **AI Descriptions (the Magic button)**: "Magic button" on each book calls Google Apps Script with title+author, receives generated description. **Per the policy declared in `terms.html`, this feature is gated to specific branded library instances and is enabled by explicit per-library decision by the developer; it is not available on the free public tool and is not enabled by default on a branded instance.** The gating is wired in code: the button only renders when `window.LIBRARY_CONFIG` exists and `LIBRARY_CONFIG.disableAutodrafter` isn't set (see the library doc schema for `disableAutodrafter` and `requireSourceText`). The drafter's request parameters live in `CONFIG.DRAFTER_DEFAULTS` (word targets, temperature, draft count, retries); an easter-egg modal on Ctrl+Alt+D / Cmd+Option+D (branded instances only) can override individual values for the current session. Note the Apps Script URL itself is hardcoded in `app.js` and is callable by anyone who reads the source — the client-side gating controls UI exposure, not endpoint access.
 9. **Branded library auth (gated instances only)**: Login modal, email/password sign-in with visibility toggle, password reset via email. See the Firebase Integration section below for the full flow.
 
 ## Collage Cover Count (12 / 16 / 20)
@@ -344,6 +378,7 @@ Supports three collage cover counts: 12 (standard), 16 (4×4), and 20 (extended)
 
 Animated SVG cat companion with state-based animations and contextual quips.
 
+- **Hidden by default, on purpose**: first-time visitors do NOT see Folio. The toggle reads `localStorage.getItem('folio-hidden') === 'false'`, so an absent key means hidden — he's opt-in via the show/hide toggle, and only visitors who explicitly turned him on get him (and the greeting animations) on later loads. Don't "fix" this to default-shown; see the INTENTIONAL comment in `folio.js`'s `initToggle()`.
 - **States**: idle, greeting, searching, excited, evaluating, sleeping, worried
 - **Micro-reactions**: nod, perk, wince, watch (eye tracking), yawn, startle, satisfied
 - **Quip system**: Triggered quips for specific events (e.g., 'book-added', 'pdf-exported') + ambient shuffle-bag pool (prevents repeats)
@@ -368,12 +403,12 @@ Guided tour with 6 sections (30 steps total): Getting Started, Search & Add, You
 
 The public tool at `booklister.org` has no accounts, no sign-in, no Firebase code. This is a hard invariant: the tool works exactly as it did before Firebase was added, and nothing from the Firebase layer touches the public user's experience.
 
-On branded library subdomains (`sonoma.booklister.org`, etc.) and on localhost with a `?library=<id>` override, the Firebase layer activates. The flow:
+On branded library subdomains (`sonoma.booklister.org`, etc.) and on localhost with a `?library=<id>` override, the Firebase layer activates. **Unknown hostnames fail closed**: any host that isn't in `PUBLIC_HOSTS` and isn't a `*.pages.dev` preview (a LAN IP, a fork's mirror domain) is treated as a branded instance — Firebase loads and the tool sits behind the login flow with a library ID derived from the first hostname label, rather than silently serving the public tool. This is intentional; to test the public tool, use localhost or a preview deploy. The flow:
 
 1. Inline head script adds `.awaiting-library-config` to `<html>` synchronously, hiding the body via `visibility: hidden`. This prevents a flash of the unbranded tool before the library config loads.
 2. `firebase-init.js` runs as a deferred module. If the hostname is in `PUBLIC_HOSTS`, returns immediately with null exports. Otherwise dynamically imports Firebase App/Auth/Firestore from `gstatic.com`, initializes them, and sets `window.firebaseAuth` / `window.firebaseDb`.
 3. `auth.js` attaches listeners for `'library-config-needs-auth'`, `'library-config-ready'`, and `'library-config-failed'` synchronously at the top of its module. Also wires the sign-out button in the header.
-4. `library-config.js` derives the `libraryId` from the hostname subdomain (or `?library=` param), tries `libraries-public/<id>` first. If that doc exists it's a public branded instance: dispatches `'library-config-ready'` with the config and the tool unlocks. If that doc doesn't exist it's a gated instance: sets `LIBRARY_REQUIRES_AUTH = true`, subscribes to `onAuthStateChanged`, and either dispatches `'library-config-needs-auth'` (no persisted session) or reads `libraries/<id>` immediately (session exists).
+4. `library-config.js` derives the `libraryId` from the hostname subdomain (or `?library=` param), tries `libraries-public/<id>` first. If that doc exists it's a public branded instance: dispatches `'library-config-ready'` with the config and the tool unlocks. If that doc doesn't exist (the read succeeds with `exists() === false`) — or the read throws `permission-denied` — it's treated as a gated instance: sets `LIBRARY_REQUIRES_AUTH = true`, subscribes to `onAuthStateChanged`, and either dispatches `'library-config-needs-auth'` (no persisted session) or reads `libraries/<id>` immediately (session exists). Any OTHER throw from the `libraries-public` read (`unavailable`, network failure) dispatches `'library-config-failed'` instead — a public branded instance hitting a transport blip must show an error, not a login modal no credentials can satisfy.
 5. `auth.js` responds to `'library-config-needs-auth'` by revealing the `#auth-modal`. On successful sign-in, `library-config.js`'s `onAuthStateChanged` handler reads `libraries/<id>` and dispatches `'library-config-ready'`.
 6. `app.js`'s `applyLibraryConfig()` hook (registered at IIFE top level) picks up `'library-config-ready'` and applies the config: document title, header credit, branding image. Removes the `.awaiting-library-config` class to reveal the tool.
 
@@ -393,7 +428,7 @@ A separate app at `/admin/` in the same repo, served at `admin.booklister.org` v
 **Initial super-admin bootstrap is manual**: go to Firebase console, create an `admins` collection, add a doc with the super-admin's Firebase Auth UID as the doc ID. This is the ONLY manual Firestore write in the whole system; everything else happens through the admin UI.
 
 **Key admin features:**
-- Libraries CRUD: list (with "no library admins" warning badge on gated libraries that currently have zero library admins), create, edit (library ID is immutable after creation; type is changed via the dedicated Convert button, not the disabled radios), delete
+- Libraries CRUD: list (with "no library admins" warning badge on gated libraries that currently have zero library admins), create, edit (library ID is immutable after creation; type is changed via the dedicated Convert button, not the disabled radios), delete. **Delete cascades**: the library doc AND every memberships doc with that libraryId are removed in writeBatch chunks (the delete modal shows the membership count). Without the cascade, orphaned memberships kept rule-level power under the dead ID and recreating the same library ID instantly restored all old staff access. Firebase Auth accounts are not deleted (client SDK limitation), but without a membership they have no access.
 - Convert library type (super-admin only): a "Convert to public/gated" button in the library edit modal moves the doc between `libraries-public` and `libraries` atomically via a Firestore `writeBatch`. Memberships are kept intact (dormant on public, active on gated) so a public→gated→public round trip doesn't lose the staff list. Library admins don't see the convert button, and the Firestore rules already restrict writes to both collections to super-admins regardless.
 - Memberships management per library: list staff with email + UID + role badge, invite new staff by email (creates Firebase Auth user via a secondary Firebase app instance so the admin's session isn't disrupted, then sends a password reset email as the invite), remove staff, promote to library admin, demote to staff
 - Move staff to another library (super-admin only): "Move" button on each staff row updates `memberships/<uid>` in place — sets `libraryId` to the chosen target library and forces `role: 'staff'`. Sidesteps the email-already-in-use trap that would block a remove + re-invite workflow (removing a membership doesn't delete the Firebase Auth account, so the email is still held). Demoting on move is intentional: super-admin can re-promote in the new library if needed.
@@ -431,11 +466,17 @@ Document shape (current; intentionally minimal):
 {
   displayName: "San Rafael Public Library",
   brandingImagePath: "assets/img/libraries/sanrafael/logo.png",
-  autoDraftDescriptionsDefault: true   // optional; defaults to true if missing
+  autoDraftDescriptionsDefault: true,  // optional; defaults to true if missing
+  disableAutodrafter: false,           // optional; defaults to false if missing
+  requireSourceText: false             // optional; defaults to false if missing
 }
 ```
 
 **`autoDraftDescriptionsDefault`** controls the starting state of the Search-tab "Auto-draft descriptions on add" toggle for this library's staff. When `true` (or missing, for backward compatibility with libraries that predate the setting), the tool auto-drafts a description each time a book is added from search. When `false`, book-add leaves the blank description placeholder and staff write their own. Individual staff can still flip the toggle in their own browser (preference is stored in localStorage under `booklister.autoDraftDescriptions`); this field is just the per-library default they see on first use, before they've touched the toggle themselves. The wand button on individual books is unaffected by this setting.
+
+**`disableAutodrafter`** turns the AI drafter off entirely for this library: the Magic button isn't rendered on books, the auto-draft-on-add toggle is hidden, and `shouldAutoFetchDescription()` always returns false. This is the per-library gating mechanism behind the ToS language that the Magic button is enabled "by explicit per-library decision."
+
+**`requireSourceText`** keeps the Magic button but changes its behavior: every click opens the paste-a-source-text modal (the drafter condenses the pasted summary) instead of searching on title + author, and auto-draft-on-add is disabled. For libraries that want AI-assisted phrasing but not AI-sourced facts. (Without this flag, Shift+click / Cmd+click on the Magic button opens the same modal as a power-user shortcut.)
 
 ### `libraries/{libraryId}`
 Gated branded library configs (like `sonoma`). Readable only by members of that library (via the memberships check) OR by super-admins. Writable only by super-admins. Loaded by `library-config.js` after successful sign-in.
@@ -456,41 +497,41 @@ Document shape:
 
 Read rules: own doc, super-admin, or library admin of the same libraryId. Write rules: super-admin unconditionally; library admin can create/update/delete STAFF rows in their own library (cannot promote to admin, cannot change libraryId, cannot demote another admin).
 
-**Field whitelist** is enforced by `validMembershipFields()` in `firestore.rules`: only `libraryId`, `role`, and `email` are allowed. Random extra fields are rejected.
+**Field whitelist** is enforced by `validMembershipFields()` in `firestore.rules`: only `libraryId`, `role`, and `email` are allowed. Random extra fields are rejected. `email` must be a string of at most 320 characters (it's displayed as the staff row's label in the admin console and matched by the type-to-confirm Remove flow, so it can't be allowed to hold arbitrary types or megabyte strings).
 
 **Single-library-per-user constraint**: each user has exactly one memberships doc (keyed by UID). To grant access to two libraries, you currently need two separate Firebase Auth accounts. This is a deliberate starting constraint (see "Forward-Looking Notes" below).
 
 ## Browser Extension (`extension/`)
 
-Manifest V3 browser extension that captures a book record from a BiblioCommons library catalog page and copies it as a TSV row to the clipboard, ready for paste into Booklister's Quick Add → Spreadsheet tab. Lives at `extension/`; ships separately from the main tool (load-unpacked for development; eventually publish to Chrome Web Store + Firefox Add-ons + Edge Add-ons).
+Manifest V3 browser extension ("Booklister Helper") that captures book records from BiblioCommons library catalog pages and copies them as TSV rows to the clipboard, ready for paste into Booklister's Quick Add → Spreadsheet tab. Lives at `extension/`; ships separately from the main tool. Published on the Chrome Web Store, Firefox Add-ons, and Microsoft Edge Add-ons (links on `extension.html`); load-unpacked for development.
 
 **Hard scope**: BiblioCommons-powered catalogs only (`*.bibliocommons.com`). The extension makes no attempt to be a generic catalog-scraper. Other catalog systems (Aspen Discovery, Vega, Polaris LEAP, Encore, Sierra, etc.) are out of scope — adding them would be a separate extension or a separate adapter file.
 
-**Three capture modes** (single, list-page, accumulate). Single is the default: click the toolbar icon on a `/v2/record/` page → one TSV row to clipboard. List-page mode triggers automatically on `/v2/list/` URLs: clicking the toolbar icon there opens a **selection popup** (`popup/popup.html`) that shows every book on the list with a checkbox + cover thumbnail + title / author / call number. The user picks which books to capture (typically 13-15 from a 20-50+ book curated list), clicks **Capture N books**, and the per-book holdings + cover fetches run in parallel via `Promise.all` for the chosen subset. Accumulate mode is an opt-in setting (off by default) that changes single-record behavior: each capture appends a row to `chrome.storage.local.accumulatedRows` and copies the entire accumulated TSV to the clipboard, so users can browse 13 books one at a time and paste them all at once. The toolbar badge shows the running count when accumulate is on. List-page mode operates independently of accumulate — it always copies the selected books to the clipboard fresh, never touches `accumulatedRows`. A right-click context menu item ("Clear accumulated list", `contexts: ['action']`) and a button on the options page reset the running list.
+**Cross-browser layer**: all extension code calls the promise-based `browser.*` API namespace via the vendored [webextension-polyfill](https://github.com/mozilla/webextension-polyfill) at `extension/vendor/browser-polyfill.min.js` (MPL 2.0). Firefox has `browser.*` natively; the polyfill shims Chromium. Do not write `chrome.*` calls or pass trailing callbacks to `browser.*` APIs — the polyfill enforces promise signatures and throws on extra callback arguments (this silently broke context-menu setup once; see `ensureContextMenu` in background.js). The canonical manifest declares BOTH `background.service_worker` (Chromium) and `background.scripts` (Firefox); `build-zips.mjs` (`npm run package:extension`) emits a per-browser zip pair to `dist/` — Firefox keeps both keys (AMO requires the pairing), Chromium drops `scripts` (Edge's MV3 validator rejects it).
 
-**Per-tab popup wiring**: the toolbar icon's behavior depends on the active tab's URL. The manifest does NOT declare `default_popup`; instead, `background.js` listens to `chrome.tabs.onUpdated` and calls `chrome.action.setPopup({tabId, popup: 'popup/popup.html'})` on `/v2/list/` URLs, or `setPopup({tabId, popup: ''})` everywhere else. With the popup unset, `chrome.action.onClicked` fires and runs the existing single-record / accumulate flow. With the popup set, clicking the icon opens the popup and `onClicked` does NOT fire — Chrome routes the interaction to the popup HTML instead. This per-tab toggle is why the same icon does different things depending on which BiblioCommons page you're on.
+**Three capture modes** (single, list-page, accumulate). The toolbar icon always opens the popup (`action.default_popup`); the popup's **Capture tab is context-aware**, re-reading the active tab's URL each time it opens. On a `/v2/record/` page it shows a one-title preview (via the `'record-page-brief'` message) and a "Capture this title" button → one TSV row to clipboard. On a `/v2/list/` URL it shows every book on the list with a checkbox + cover thumbnail + title / author / call number; the user picks which books to capture (typically 13-15 from a 20-50+ book curated list) and clicks **Capture N titles** — the per-book holdings + cover fetches run in parallel via `Promise.all` for the chosen subset. Anywhere else it shows guidance. Accumulate mode is an opt-in setting (off by default) that changes single-record behavior: each capture appends a row to `browser.storage.local.accumulatedRows` and copies the entire accumulated TSV to the clipboard, so users can browse 13 books one at a time and paste them all at once. The toolbar badge shows the running count when accumulate is on. List-page capture operates independently of accumulate — it always copies the selected books to the clipboard fresh, never touches `accumulatedRows`. A right-click context menu item ("Clear accumulated list", `contexts: ['action']`) and a button on the popup's Settings tab reset the running list.
 
 **File layout**:
 
-- `manifest.json` — MV3, `host_permissions` scoped to `*.bibliocommons.com` + `gateway.bibliocommons.com` + `*.syndetics.com`. Two `content_scripts.matches` entries: `*://*.bibliocommons.com/v2/record/*` (single book records) and `*://*.bibliocommons.com/v2/list/*` (curated list pages). Adds the `contextMenus` permission for the right-click "Clear accumulated list" item.
-- `content.js` — runs on both page types. Wires a `chrome.runtime.onMessage` listener that dispatches three message types: `'capture'` (toolbar click on a record page → `handleSingleCapture`, with accumulate-mode appending if enabled), `'list-page-bibs'` (popup asks for the page's bib list to render selection UI; replies synchronously with shallow briefs, no fetches), and `'capture-selected-bibs'` (popup → after user selection; runs `handleListCapture(bibIdFilter)` fire-and-forget since the popup window is already closed). All capture paths share the `captureOneBibToTsvRow(libraryDomain, brief, preferredBranch)` helper which fires holdings + cover fetches in parallel for one book. Brief extraction is split into two normalizers (`extractRecordBrief` for `state.entities.catalogBibs[<bibId>]`, `extractListBibs` for `state.list.bibsByMetadataId` + `state.list.items`) since the two SSR shapes are different — list-page bibs have direct `imageUrl` / `callNumber` / `authors[]` fields rather than the record page's nested `brief.coverImage` / `fields[].items[]` / `creators[].fullName` structure.
-- `background.js` — service worker. Listens for `chrome.action.onClicked` (toolbar icon) and forwards a `'capture'` message to the active tab. Sets per-tab popup via `chrome.tabs.onUpdated` so the icon click opens `popup/popup.html` on list pages and falls back to `onClicked` everywhere else. Hosts the `'fetch-image-as-data-url'` proxy used for cover fetches (CORS bypass via host_permissions). Maintains the persistent toolbar badge: subscribes to `chrome.storage.onChanged` and recomputes badge text from `accumulateMode` (sync) + `accumulatedRows.length` (local). Registers a `chrome.contextMenus` item with `contexts: ['action']` for "Clear accumulated list".
-- `popup/popup.html` + `popup.js` — list-page selection UI. Loads when the user clicks the toolbar icon on a `/v2/list/` URL. Sends `'list-page-bibs'` to the active tab's content script, gets back the list of bibs, renders one row per book (checkbox + cover thumbnail loaded directly from the Syndetics URL via `<img src>` — no SW proxy needed since `<img>` doesn't require CORS for display + title + author + call number). Header buttons: All / First 13 / None for quick selection presets, plus individual checkboxes. Default state is all selected. Capture button text reflects the current selected count and is disabled at 0 selected. On click, sends `'capture-selected-bibs'` with the array of selected `bibId`s and immediately calls `window.close()` — the actual capture pipeline runs in the content script (5-10s for 13 books) and the user sees progress via the in-page toast on the BiblioCommons tab.
-- `options/options.html` + `options.js` — preferred-branch text input, accumulate-mode checkbox, clear-list button. Saved keys: `preferredBranch` and `accumulateMode` in `chrome.storage.sync`; `accumulatedRows` (string[] of TSV row strings) in `chrome.storage.local` because each row can carry an embedded cover (~30-80 KB) and sync's per-item quota is 8 KB.
+- `manifest.json` — MV3, `host_permissions` scoped to `*.bibliocommons.com` + `gateway.bibliocommons.com` + `*.syndetics.com` + `*.hoopladigital.com` (the last two are cover-image providers). Two `content_scripts.matches` entries: `*://*.bibliocommons.com/v2/record/*` (single book records) and `*://*.bibliocommons.com/v2/list/*` (curated list pages); both load the polyfill before `content.js`. Permissions: `storage` + `contextMenus` only. Declares `action.default_popup` (always-on), a `browser_specific_settings.gecko` block (Firefox id, min version 140, `data_collection_permissions: none`), and the dual background keys described above.
+- `content.js` — runs on both page types. Wires a `browser.runtime.onMessage` listener that dispatches four message types: `'capture'` (record-page capture → `handleSingleCapture`, with accumulate-mode appending if enabled), `'record-page-brief'` (popup asks for the record's title/author/cover to render its preview; synchronous, no fetches), `'list-page-bibs'` (popup asks for the page's bib list to render selection UI; synchronous shallow briefs, no fetches), and `'capture-selected-bibs'` (popup → after user selection; runs `handleListCapture(bibIdFilter)` fire-and-forget since the popup window is already closed). All capture paths share the `captureOneBibToTsvRow(libraryDomain, brief, preferredBranch)` helper which fires holdings + cover fetches in parallel for one book. Brief extraction is split into two normalizers (`extractRecordBrief` for `state.entities.catalogBibs[<bibId>]`, `extractListBibs` for `state.list.bibsByMetadataId` + `state.list.items`) since the two SSR shapes are different — list-page bibs have direct `imageUrl` / `callNumber` / `authors[]` fields rather than the record page's nested `brief.coverImage` / `fields[].items[]` / `creators[].fullName` structure. Also owns the clipboard-recovery path: if the clipboard write fails (usually because the tab lost focus mid-capture), the TSV is stashed in `browser.storage.local` and a persistent click-to-copy toast retries the write under a real user gesture.
+- `background.js` — service worker (Chromium) / background page (Firefox). Three jobs: hosts the `'fetch-image-as-data-url'` proxy used for cover fetches (CORS bypass via host_permissions); maintains the persistent toolbar badge by subscribing to `browser.storage.onChanged` and recomputing badge text from `accumulateMode` (sync) + `accumulatedRows.length` (local); registers the two context menu items — "Clear accumulated list" (`contexts: ['action']`) and "Capture for Booklister" (page context, scoped via `documentUrlPatterns`, just calls `browser.action.openPopup()`).
+- `popup/popup.html` + `popup.js` — the always-on popup, two tabs. **Capture tab**: context-aware per the modes above; list mode renders one row per book (checkbox + cover thumbnail loaded directly from the cover provider URL via `<img src>` — no SW proxy needed since `<img>` doesn't require CORS for display), with All / First N (13/14/15) / None presets, default all-selected, and the capture button disabled at 0 selected. On click, sends `'capture-selected-bibs'` with the selected `bibId`s and immediately calls `window.close()` — the actual capture pipeline runs in the content script (5-10s for 13 books) and the user sees progress via the in-page toast on the BiblioCommons tab. **Settings tab** (replaced the old options page): preferred-branch text input, accumulate-mode checkbox, clear-list button; auto-saved on change. Saved keys: `preferredBranch` and `accumulateMode` in `browser.storage.sync`; `accumulatedRows` (string[] of TSV row strings) in `browser.storage.local` because each row can carry an embedded cover (~30-80 KB) and sync's per-item quota is 8 KB.
+- `build-zips.mjs`, `README.md`, `STORE_LISTING.md` — packaging + store metadata; see the cross-file dependency table for the version-bump coupling.
 
-**Why the fetch lives in the content script, not the service worker**: BiblioCommons' gateway API (`https://gateway.bibliocommons.com/v2/libraries/<lib>/bibs/<bibId>/availability`) responds with `access-control-allow-origin: https://<lib>.bibliocommons.com`. A `fetch` from the service worker carries the `chrome-extension://<id>` origin and gets CORS-rejected. The content script inherits the page's origin, so its fetch is accepted. This is the architectural reason `content.js` does the heavy lifting and `background.js` is a thin click → message forwarder.
+**Why the holdings fetch lives in the content script, not the service worker**: BiblioCommons' gateway API (`https://gateway.bibliocommons.com/v2/libraries/<lib>/bibs/<bibId>/availability`) responds with `access-control-allow-origin: https://<lib>.bibliocommons.com`. A `fetch` from the service worker carries the `chrome-extension://<id>` origin and gets CORS-rejected. The content script inherits the page's origin, so its fetch is accepted. This is the architectural reason `content.js` does the heavy lifting and `background.js` stays thin.
 
 **Call-number selection logic** (in `content.js`'s `pickItem`):
 
-1. If user set a `preferredBranch` substring, filter items whose `branchName` (or `branchCode`) contains it (case-insensitive).
+1. If user set a `preferredBranch`, filter items whose `branchName` CONTAINS it or whose `branchCode` EQUALS it (both case-insensitive; codes are short, so substring-matching them would over-match).
 2. Otherwise filter to items where the API marks `local: true` (BiblioCommons' own "this is your branch" signal, derived from logged-in account / IP).
 3. If either filter yields nothing, fall through to all items.
 4. Within the candidate list, prefer `availability.statusType === 'AVAILABLE'` over unavailable, then take the first.
 5. If the holdings API call fails entirely, fall back to the SSR state's `CALLCLASS / CALLNO_LOCAL[0]`.
 
-**TSV output format**: `title<TAB>author<TAB>callNumber<TAB>coverDataUrl\n`. Title combines `brief.title` + `: ` + `brief.subTitle` when subtitle is present (so the post-colon word triggers Booklister's subtitle-capitalization rule). Author goes through `cleanAuthor()` which strips trailing lifetime-date suffixes (`"Styron, William, 1925-2006"` → `"Styron, William"`) so Booklister's `flipAuthorName` does the right thing on add. The 4th column is a `data:image/jpeg;base64,...` URL — the extension's service worker fetches the BiblioCommons cover URL (`brief.coverImage.large`, served from Syndetics), reads the bytes via `arrayBuffer()`, and base64-encodes them via `btoa(String.fromCharCode(...bytes))`. Embedding the bytes (rather than passing a hotlinked URL) means PDF export at 600 DPI never depends on the cover provider returning CORS headers, and saved `.booklist` files stay self-contained even if the Syndetics URL expires or changes. Cost is ~30-80 KB of base64 per cover, comparable to what Booklister stores via its own `compressImage` helper. Empty 4th column when the bib has no `coverImage` block or the fetch fails (graceful fallback to placeholder cover). Embedded tabs / newlines in any field are collapsed to spaces.
+**TSV output format**: `title<TAB>author<TAB>callNumber<TAB>coverDataUrl\n`. Title combines `brief.title` + `: ` + `brief.subTitle` when subtitle is present (so the post-colon word triggers Booklister's subtitle-capitalization rule). Author goes through `cleanAuthor()` which strips trailing lifetime-date suffixes (`"Styron, William, 1925-2006"` → `"Styron, William"`) so Booklister's `flipAuthorName` does the right thing on add. The 4th column is a `data:image/jpeg;base64,...` URL — the extension's service worker fetches the cover URL (`brief.coverImage.large`, served from Syndetics or Hoopla), reads the bytes via `arrayBuffer()`, and base64-encodes them with a per-byte `String.fromCharCode` loop + `btoa` (a loop, not a spread — spreading a large byte array would risk a stack overflow). Embedding the bytes (rather than passing a hotlinked URL) means PDF export at 600 DPI never depends on the cover provider returning CORS headers, and saved `.booklist` files stay self-contained even if the cover URL expires or changes. Cost is ~30-80 KB of base64 per cover, comparable to what Booklister stores via its own `compressImage` helper. Empty 4th column when the bib has no `coverImage` block or the fetch fails (graceful fallback to placeholder cover). Embedded tabs / newlines in any field are collapsed to spaces.
 
-**Why the cover fetch lives in `background.js`, not `content.js`**: cover providers like Syndetics don't return CORS headers for `fetch` requests, so a content-script fetch from the BiblioCommons page origin would be CORS-blocked. The service worker's `fetch` is granted privileged access by the extension's `host_permissions` (`*://*.syndetics.com/*`) — it can read response bodies regardless of CORS. Content script asks via `chrome.runtime.sendMessage({type: 'fetch-image-as-data-url', url})` and gets back `{ok: true, dataUrl}` or an error reason. Service workers in MV3 don't have `FileReader`, so the blob → base64 conversion uses a manual `Uint8Array` + `btoa` loop.
+**Why the cover fetch lives in `background.js`, not `content.js`**: cover providers like Syndetics don't return CORS headers for `fetch` requests, so a content-script fetch from the BiblioCommons page origin would be CORS-blocked. The service worker's `fetch` is granted privileged access by the extension's `host_permissions` (`*://*.syndetics.com/*`, `*://*.hoopladigital.com/*`) — it can read response bodies regardless of CORS. Content script asks via `browser.runtime.sendMessage({type: 'fetch-image-as-data-url', url})` and gets back `{ok: true, dataUrl}` or an error reason. Service workers in MV3 don't have `FileReader`, so the blob → base64 conversion uses the manual loop described above.
 
 **Privacy posture**: zero analytics, no remote-loaded code, no data sent anywhere outside the user's browser. The only network call is the same Availability-by-location request the BiblioCommons page itself makes when the user clicks that button. Documented in `extension/README.md`.
 
@@ -498,22 +539,23 @@ Manifest V3 browser extension that captures a book record from a BiblioCommons l
 
 **What it does NOT do (and the reasons)**:
 
-- No multi-select on search results / list pages. Planned for v2; the data is sparser on those pages (no call numbers) which makes the v1 single-record flow more useful per click.
+- No capture from search results pages (`/search?...`). Search results don't carry per-title call numbers in the page state, so capture quality would be much worse than the record / list flows.
 - No automatic open of "Availability by location" overlay. We bypass that entirely by calling the API directly.
 - No write back to Booklister. The TSV-to-clipboard handoff means the main tool stays Firebase-free and unmodified by the extension. Eventually a postMessage path could be added, but it's not worth the cross-cutting complexity for v1.
 - No support for browsers other than Chromium-based + Firefox. Safari needs Xcode-based packaging; deferred until there's demonstrated demand.
 
 ## Static Content Pages
 
-Five plain HTML pages live at the repo root alongside `index.html`:
+Six plain HTML pages live at the repo root alongside `index.html`:
 
 - **`about.html`** — first-person page explaining the tool, why it was built, and the Folio mascot
 - **`for-libraries.html`** — branded-instance info page: what a branded instance looks like, catalog integrations, expectations, and winding-down process
+- **`extension.html`** — the Booklister Helper page (the footer's "Helper" link): what the extension does, live store links (Chrome Web Store / Firefox Add-ons / Edge Add-ons), and the usage guide
 - **`contact.html`** — minimal contact page with mailto link and response-time expectations
 - **`privacy.html`** — privacy policy with CalOPPA-compliant disclosures: effective date, Do Not Track section, third-party collection disclosure, review/correct/delete process. Voice matches the other content pages. No em dashes (preference). If the policy text ever changes, update both "Effective" and "Last updated" dates at the top of the page.
 - **`terms.html`** — terms of service. Covers four scopes: the free public tool, branded library instances (accounts, data ownership, suspension, 60-day discontinuation notice), the Magic button AI feature (custom-instance-only, at developer's discretion, disable-at-any-time for cost or any other reason), and standard boilerplate (no warranties, limitation of liability, indemnification, California governing law). Same voice as `privacy.html`. Bump the "Effective" and "Last updated" dates at the top whenever the text changes. **If a feature change makes any clause inaccurate (e.g. cloud booklist storage gets added, AI provider changes, governing law moves), update both `terms.html` and the matching section of `privacy.html` in the same commit.**
 
-**Shared structure**: All five reuse the same `.app-header` (with logo as an anchor link back to `index.html`), CSS variables, and `.site-footer` nav. They opt into a flex-column body layout via `<body class="content-page">`. Header and footer are natural flex items (NOT position: sticky or position: fixed anymore — earlier revisions used sticky/fixed to work around scroll issues; the current architecture uses internal scrolling on `.content-main` instead, which cleanly confines the scrollbar to the area between the header and footer).
+**Shared structure**: All six reuse the same `.app-header` (with logo as an anchor link back to `index.html`), CSS variables, and `.site-footer` nav. They opt into a flex-column body layout via `<body class="content-page">`. Header and footer are natural flex items (NOT position: sticky or position: fixed anymore — earlier revisions used sticky/fixed to work around scroll issues; the current architecture uses internal scrolling on `.content-main` instead, which cleanly confines the scrollbar to the area between the header and footer).
 
 **Content page scroll model**: The body inherits `height: 100vh; overflow: hidden` from the base body rule. `.content-main` has `flex: 1; min-height: 0; overflow-y: auto` which makes it the scroll container. The `min-height: 0` is the flexbox incantation required to let a flex child shrink below its content's natural height so overflow kicks in. Without it, the scrollbar never appears. If you ever touch `.content-main` layout, preserve `min-height: 0`.
 
@@ -546,7 +588,7 @@ Three test files cover the pure / DOM-light surfaces of the codebase:
 - `tests/config.test.js` — invariants on the `CONFIG` object (constants exist, layout math adds up, font list is well-formed, etc.)
 - `tests/create-blank-book.test.js` — the `createBlankBook` factory's shape and defaults
 
-Roughly ~175 test cases total across the three files. Exact counts drift as utilities are added; check `npm run test` output rather than relying on a number cached here.
+Roughly ~215 test cases total across the three files. Exact counts drift as utilities are added; check `npm run test` output rather than relying on a number cached here.
 
 `app.js` is not tested directly due to its heavy DOM dependency and IIFE encapsulation. The strategy is to push as much logic as possible out of `app.js` and into `book-utils.js` (or `config.js` for constants) where it can be tested in isolation.
 
@@ -561,7 +603,7 @@ This project uses IIFEs with globals — there are no ES6 imports to signal cros
 - **Before adding a utility function**, check `book-utils.js` — it may already exist. `BookUtils` has functions for cover validation, starred book filtering, cover counting, URL building, and collage readiness checks.
 - **Before adding or using a constant**, check `config.js` — it may already be in `CONFIG`. Layout dimensions, cover limits, timing values, API URLs, placeholder URLs, and font lists all live there.
 - **Before adding inline logic in `app.js`**, consider whether it belongs in `book-utils.js` as a shared, testable function instead.
-- **Before writing a new function**, search `app.js` for existing functions that do the same thing. At ~6000 lines, it's easy to miss what's already there.
+- **Before writing a new function**, search `app.js` for existing functions that do the same thing. At ~8900 lines, it's easy to miss what's already there.
 
 ### Never Hardcode These Values
 

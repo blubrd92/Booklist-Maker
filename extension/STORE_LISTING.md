@@ -34,7 +34,17 @@ SemVer convention:
 
 Paste the section for the current version into each store's "What's new" / "Version notes" / "Release notes" field on upload.
 
-### 1.0.3 (current)
+### 1.0.4 (current)
+
+Bug fixes from a code review. No new features.
+
+- Fixed the right-click context menu items ("Clear accumulated list" on the toolbar icon, "Capture for Booklister" on catalog pages) never appearing on Chrome and Edge. A polyfill API misuse threw during menu setup and was silently swallowed; Firefox was unaffected.
+- The "Capturing N titles — stay on this tab" notice now stays on screen for the duration of the capture instead of disappearing after 1.5 seconds.
+- If a capture's clipboard copy succeeds but the accumulated list can't be saved (storage full), the confirmation toast now says so instead of reporting the title as added.
+- Removed the unused `scripting` permission from the manifest.
+- Clearer wording for how the preferred-branch setting matches branch codes (exact match) vs branch names (substring).
+
+### 1.0.3
 
 Edge compatibility fix. No user-visible changes.
 
