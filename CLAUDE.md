@@ -379,7 +379,9 @@ Supports three collage cover counts: 12 (standard), 16 (4×4), and 20 (extended)
 
 Animated SVG cat companion with state-based animations and contextual quips.
 
-- **Hidden by default, on purpose**: first-time visitors do NOT see Folio. The toggle reads `localStorage.getItem('folio-hidden') === 'false'`, so an absent key means hidden — he's opt-in via the show/hide toggle, and only visitors who explicitly turned him on get him (and the greeting animations) on later loads. Don't "fix" this to default-shown; see the INTENTIONAL comment in `folio.js`'s `initToggle()`.
+- **Hidden by default, on purpose**: first-time visitors do NOT see Folio. The toggle reads `localStorage.getItem('folio-hidden') === 'false'`, so an absent key means hidden — he's opt-in via the show/hide toggle, and only visitors who explicitly turned him on get him on later loads. Don't "fix" this to default-shown; see the INTENTIONAL comment in `folio.js`'s `initToggle()`.
+- **No first-paint flash**: the container ships WITH `.folio-hidden` in `index.html`, and `initToggle()` REMOVES it for opted-in visitors (it used to add it for everyone else, which flashed the cat between first paint and DOMContentLoaded). Keep that polarity if you touch either side. The tour's force-show/restore in `tour.js` operates on the same class and is unaffected.
+- **Greeting rules**: the greeting plays in exactly two places — on page load when Folio is already toggled on (app.js gates its `page-load` / `draft-restored` celebrate on the same localStorage convention), and at the moment the user toggles him on (`initToggle`'s click handler fires the `'toggled-on'` greeting quip). No invisible greetings.
 - **States**: idle, greeting, searching, excited, evaluating, sleeping, worried
 - **Micro-reactions**: nod, perk, wince, watch (eye tracking), yawn, startle, satisfied
 - **Quip system**: Triggered quips for specific events (e.g., 'book-added', 'pdf-exported') + ambient shuffle-bag pool (prevents repeats)

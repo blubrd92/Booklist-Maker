@@ -8848,8 +8848,15 @@ const BooklistApp = (function() {
       .then(() => restoreDraftLocalIfPresent())
       .finally(() => { _initialRestorePending = false; });
 
-    // Folio: greet based on whether a draft exists (has-draft flag is sync)
-    if (window.folio) {
+    // Folio: greet based on whether a draft exists (has-draft flag is
+    // sync). Only when Folio is actually shown (same localStorage
+    // convention as folio.js's initToggle) — he's opt-in and hidden by
+    // default, and an invisible greeting would burn the moment: a user
+    // who toggles him on seconds later should get the toggled-on
+    // greeting from folio.js, not catch the tail of this one.
+    let folioShown = false;
+    try { folioShown = localStorage.getItem('folio-hidden') === 'false'; } catch { /* private browsing */ }
+    if (window.folio && folioShown) {
       window.folio.guard(3500);
       let hasDraft = false;
       try { hasDraft = !!localStorage.getItem('has-draft'); } catch { /* private browsing */ }

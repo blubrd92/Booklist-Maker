@@ -861,8 +861,10 @@
     </main>
   </div>
 
-  <!-- Folio: animated cat mascot companion -->
-  <div id="folio-container" class="folio-container">
+  <!-- Folio: animated cat mascot companion. Ships with .folio-hidden so
+       first paint never flashes the cat before folio.js's initToggle
+       runs — initToggle REMOVES the class for visitors who opted in. -->
+  <div id="folio-container" class="folio-container folio-hidden">
     <button id="folio-toggle" class="folio-toggle" aria-label="Toggle Folio assistant" title="Toggle Folio">
       <i class="fa-solid fa-cat"></i>
     </button>

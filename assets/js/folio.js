@@ -55,6 +55,7 @@
         'draft-restored': "Welcome back! Ready to keep working on your list?",
         'file-loaded':    "Ooh, let's see what we're working with.",
         'wake-up':        "I'm awake! I'm awake!",
+        'toggled-on':     "Hi! I'm Folio. Need a paw with that list?",
       },
       ambient: [
         "Hey! What are we making today?",
@@ -666,14 +667,26 @@
     // (absent key fails the === 'false' check). He's opt-in — only a
     // visitor who has explicitly toggled him on (key === 'false') sees
     // him on load. Don't "fix" this to default-shown.
+    //
+    // The markup ships the container WITH .folio-hidden so the cat
+    // never flashes on first paint while waiting for this code to run
+    // (it used to render visible, then vanish at DOMContentLoaded).
+    // We therefore REMOVE the class for opted-in visitors instead of
+    // adding it for everyone else.
     const shown = localStorage.getItem('folio-hidden') === 'false';
-    if (!shown) folioContainer.classList.add('folio-hidden');
+    if (shown) folioContainer.classList.remove('folio-hidden');
 
     folioToggle.addEventListener('click', function(e) {
       e.stopPropagation();
       folioContainer.classList.toggle('folio-hidden');
       const isHidden = folioContainer.classList.contains('folio-hidden');
       localStorage.setItem('folio-hidden', isHidden);
+      // Turning Folio ON is his entrance — greet, same guard pattern
+      // as the page-load greeting so cascading hooks can't stomp it.
+      if (!isHidden) {
+        guard(3500);
+        celebrate({ state: 'greeting', event: 'toggled-on', reactionDelay: 0 });
+      }
     });
   }
 
