@@ -423,7 +423,8 @@
         customCoverData: CONFIG.PLACEHOLDER_COVER_URL,
         cover_ids: [],
         currentCoverIndex: 0,
-        includeInCollage: false // Blank books don't count toward collage
+        includeInCollage: false, // Blank books don't count toward collage
+        featureInCollage: false  // Showcase-layout double-size flag
       };
     },
 

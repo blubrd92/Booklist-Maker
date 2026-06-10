@@ -309,7 +309,7 @@
         },
         {
           target: '#front-cover-uploader',
-          text: "And here's Tilted. It gives the cover a more dynamic, eye-catching feel. There are other layouts to try too, like Staggered and Masonry. Experiment with them later to find your favorite!",
+          text: "And here's Tilted. It gives the cover a more dynamic, eye-catching feel. There are other layouts to try too, like Staggered, Masonry, and Showcase, which lets you feature your top picks at double size. Experiment with them later to find your favorite!",
           state: 'excited',
           prepare: function() {
             scrollPreviewTo('print-page-1');

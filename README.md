@@ -12,7 +12,7 @@ Live at **[booklister.org](https://booklister.org)**.
 - **Quick Add**: paste a tab-separated list of titles, authors, and call numbers from Google Sheets / Excel / Numbers, or enter books one at a time with title-case correction and "Last, First" → "First Last" name flipping
 - **Per-book editing**: title, author, description, cover (carousel of alternate editions or upload your own), call number
 - **AI-drafted descriptions** via the magic-wand button on each book
-- **Cover collage**: auto-generated front cover from 12, 16, or 20 starred books, in four layouts (Classic, Masonry, Staggered, Tilted) with a customizable title bar
+- **Cover collage**: auto-generated front cover from 12, 16, or 20 starred books, in five layouts (Classic, Masonry, Staggered, Tilted, Showcase) with a customizable title bar; the Showcase layout lets you feature chosen titles at double size
 - **Typography**: 30 font choices with per-element font, size, weight, italic, color, line-spacing, and alignment controls
 - **QR code**: generated from any URL, or replaced with a custom uploaded image
 - **Custom branding**: upload a library logo to appear on the back cover

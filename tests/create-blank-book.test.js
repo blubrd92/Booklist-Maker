@@ -25,6 +25,7 @@ describe('BookUtils.createBlankBook - structure', () => {
     expect(book).toHaveProperty('cover_ids');
     expect(book).toHaveProperty('currentCoverIndex');
     expect(book).toHaveProperty('includeInCollage');
+    expect(book).toHaveProperty('featureInCollage');
   });
 
   it('has isBlank set to true', () => {
@@ -35,6 +36,11 @@ describe('BookUtils.createBlankBook - structure', () => {
   it('has includeInCollage set to false', () => {
     const book = globalThis.BookUtils.createBlankBook();
     expect(book.includeInCollage).toBe(false);
+  });
+
+  it('has featureInCollage set to false (Showcase layout double-size flag)', () => {
+    const book = globalThis.BookUtils.createBlankBook();
+    expect(book.featureInCollage).toBe(false);
   });
 
   it('has cover_ids as an empty array', () => {
