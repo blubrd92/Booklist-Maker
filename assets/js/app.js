@@ -5447,15 +5447,18 @@ const BooklistApp = (function() {
       return;
     }
 
+    // Each valid entry keeps its index into parsed.rows so the
+    // partial-success path below can trim exactly the added rows out
+    // of the textarea via BookUtils.removeQuickAddRows.
     const valid = [];
     let skipped = 0;
-    for (const row of parsed.rows) {
+    parsed.rows.forEach(function(row, idx) {
       if (row.title && row.author) {
-        valid.push(row);
+        valid.push({ row: row, idx: idx });
       } else {
         skipped++;
       }
-    }
+    });
 
     if (valid.length === 0) {
       setError('No valid rows. Each row needs a Title and an Author, separated by tabs.');
@@ -5480,7 +5483,7 @@ const BooklistApp = (function() {
     const batchStamp = Date.now();
 
     for (let i = 0; i < toAdd; i++) {
-      const row = valid[i];
+      const row = valid[i].row;
       const title = useTitleCase ? BookUtils.toTitleCase(row.title) : row.title;
       const author = BookUtils.flipAuthorName(row.author);
       const callNumber = row.callNumber || CONFIG.PLACEHOLDERS.callNumber;
@@ -5517,7 +5520,7 @@ const BooklistApp = (function() {
     // Build the outcome message.
     const headerNote = parsed.headerSkipped ? ' Header row skipped.' : '';
     const truncNote = parsed.truncated
-      ? ' First ' + parsed.truncatedAt + ' rows only — paste the rest again to add more.'
+      ? ' Only the first ' + parsed.truncatedAt + ' rows were processed this time.'
       : '';
 
     if (overflow === 0 && skipped === 0) {
@@ -5528,13 +5531,19 @@ const BooklistApp = (function() {
         'success'
       );
     } else {
-      // Partial: stay open, clear textarea so the user doesn't accidentally
-      // re-add, info notification with the breakdown.
-      textarea.value = '';
+      // Partial: stay open and trim ONLY the added rows out of the
+      // textarea. What remains is exactly what still needs attention —
+      // overflow rows that didn't fit, rows skipped for a missing
+      // Title/Author (fixable in place), and anything past the
+      // truncation cap — so the user can adjust and resubmit without
+      // re-pasting, and can't accidentally re-add what already went in.
+      const addedIdx = new Set(valid.slice(0, toAdd).map(function(v) { return v.idx; }));
+      textarea.value = BookUtils.removeQuickAddRows(textarea.value, addedIdx, parsed.headerSkipped);
       let msg = 'Added ' + toAdd + ' title' + (toAdd === 1 ? '' : 's') + '.';
       if (overflow > 0) msg += ' ' + overflow + ' didn’t fit (no more empty slots).';
       if (skipped > 0) msg += ' ' + skipped + ' skipped (missing Title or Author).';
       msg += headerNote + truncNote;
+      msg += ' The rows that weren’t added are still in the box.';
       showNotification(msg, 'info');
     }
   }

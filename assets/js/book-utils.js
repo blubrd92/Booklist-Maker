@@ -359,6 +359,46 @@
     },
 
     /**
+     * Rebuild a Quick Add spreadsheet paste with some parsed rows
+     * removed. Used by the Spreadsheet tab's partial-success path:
+     * rows that were added to the booklist are trimmed out of the
+     * textarea, leaving only the rows that still need attention
+     * (overflow rows that didn't fit, rows skipped for a missing
+     * Title/Author, and anything past the truncation cap) so the
+     * user can fix and resubmit without re-pasting.
+     *
+     * `rowIndices` are indices into parseQuickAddTsv(rawText).rows —
+     * i.e. data-row indices AFTER blank-line filtering and AFTER the
+     * header row (when headerSkipped is true). The header line, when
+     * present, is preserved in the rebuilt text.
+     *
+     * Index alignment with parseQuickAddTsv is guaranteed because both
+     * functions drop exactly the same lines: the parser filters on
+     * `line.trim().length > 0` after replacing NBSP (U+00A0) with
+     * regular spaces, and String.prototype.trim already treats NBSP as
+     * whitespace, so filtering the raw text here yields the same line
+     * set. Original line text (including NBSPs and extra cells) is
+     * preserved verbatim for the kept rows.
+     *
+     * @param {string} rawText - the original textarea content
+     * @param {Set<number>|number[]} rowIndices - parsed-row indices to remove
+     * @param {boolean} headerSkipped - parseQuickAddTsv(rawText).headerSkipped
+     * @returns {string} the rebuilt paste (kept lines joined with \n)
+     */
+    removeQuickAddRows: function(rawText, rowIndices, headerSkipped) {
+      if (typeof rawText !== 'string') return '';
+      const remove = (rowIndices instanceof Set) ? rowIndices : new Set(rowIndices || []);
+      const lines = rawText.split(/\r?\n/).filter(function(l) { return l.trim().length > 0; });
+      const dataStart = headerSkipped ? 1 : 0;
+      const kept = [];
+      for (let i = 0; i < lines.length; i++) {
+        if (i >= dataStart && remove.has(i - dataStart)) continue;
+        kept.push(lines[i]);
+      }
+      return kept.join('\n');
+    },
+
+    /**
      * Create a blank book object with placeholder fields.
      * Used for empty slots in a new booklist or after deletion.
      * @returns {Object} A blank book object

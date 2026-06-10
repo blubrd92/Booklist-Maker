@@ -942,6 +942,72 @@ describe('BookUtils.parseQuickAddTsv', () => {
   });
 });
 
+describe('BookUtils.removeQuickAddRows', () => {
+  const remove = (text, indices, headerSkipped) =>
+    BookUtils.removeQuickAddRows(text, indices, headerSkipped);
+
+  it('removes the given parsed-row indices and keeps the rest', () => {
+    const text = 'Mort\tPratchett\nGuards\tPratchett\nJingo\tPratchett';
+    expect(remove(text, [0, 2], false)).toBe('Guards\tPratchett');
+  });
+
+  it('accepts a Set as well as an array of indices', () => {
+    const text = 'A\tB\nC\tD';
+    expect(remove(text, new Set([1]), false)).toBe('A\tB');
+  });
+
+  it('preserves the header line and treats indices as data-relative when headerSkipped', () => {
+    const text = 'Title\tAuthor\nMort\tPratchett\nGuards\tPratchett';
+    // Index 0 = "Mort" (the first DATA row), not the header.
+    expect(remove(text, [0], true)).toBe('Title\tAuthor\nGuards\tPratchett');
+  });
+
+  it('removing no rows keeps every line; removing all data rows leaves only the header', () => {
+    const text = 'Title\tAuthor\nMort\tPratchett';
+    expect(remove(text, [], true)).toBe(text);
+    expect(remove(text, [0], true)).toBe('Title\tAuthor');
+    expect(remove('Mort\tPratchett', [0], false)).toBe('');
+  });
+
+  it('index alignment matches parseQuickAddTsv across blank and NBSP-only lines', () => {
+    // A whitespace-only line and an NBSP-only line are both dropped by
+    // the parser before rows are numbered. removeQuickAddRows must drop
+    // the same lines so index N means the same row in both functions.
+    const text = 'Mort\tPratchett\n   \n\u00A0\u00A0\nGuards\tPratchett\nJingo\tPratchett';
+    const parsed = BookUtils.parseQuickAddTsv(text);
+    expect(parsed.rows.map((r) => r.title)).toEqual(['Mort', 'Guards', 'Jingo']);
+    expect(remove(text, [1], parsed.headerSkipped)).toBe('Mort\tPratchett\nJingo\tPratchett');
+  });
+
+  it('handles CRLF line endings', () => {
+    const text = 'A\tB\r\nC\tD\r\nE\tF';
+    expect(remove(text, [1], false)).toBe('A\tB\nE\tF');
+  });
+
+  it('preserves kept lines verbatim (extra cells, internal NBSP)', () => {
+    const keptLine = 'Guards\tPratchett\tPR 8\textra\tcells';
+    const text = 'Mort\tPratchett\n' + keptLine;
+    expect(remove(text, [0], false)).toBe(keptLine);
+  });
+
+  it('keeps lines past a truncation cap (indices only cover processed rows)', () => {
+    // Simulates maxRows: 2 — only parsed rows 0-1 exist; line 3 was
+    // never processed and must survive untouched.
+    const text = 'A\tB\nC\tD\nE\tF';
+    expect(remove(text, [0, 1], false)).toBe('E\tF');
+  });
+
+  it('returns empty string for non-string input', () => {
+    expect(remove(null, [0], false)).toBe('');
+    expect(remove(undefined, [], false)).toBe('');
+    expect(remove(42, [0], false)).toBe('');
+  });
+
+  it('tolerates a missing/undefined indices argument', () => {
+    expect(remove('A\tB', undefined, false)).toBe('A\tB');
+  });
+});
+
 describe('BookUtils.isDraftStateEffectivelyEmpty', () => {
   // A minimal "empty" state matching what serializeState would write
   // for a fresh page load: 15 blank-placeholder books, no extras, no
