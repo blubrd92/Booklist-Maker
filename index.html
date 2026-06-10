@@ -436,35 +436,38 @@
               </div>
               <div class="layout-option" data-layout="staggered" title="Staggered: brick pattern, fills edge-to-edge">
                 <svg viewBox="0 0 40 50" style="overflow: hidden;">
-                  <!-- Staggered: coordinates derived from drawLayoutStaggered's
-                       real geometry (12 covers, classic title position, stretch
-                       on, canvas scaled 3000x4800 -> 40x50): 0.75-aspect covers,
-                       ~4 per row bleeding off both edges, alternate rows shifted
-                       by half a cover, full-width title bar after row 1. -->
+                  <!-- Staggered: structure matches drawLayoutStaggered's real
+                       geometry at default settings (12 covers, classic title
+                       position, stretch on): wide 0.75-aspect covers, ~4 per
+                       row bleeding off both edges, alternate rows shifted by
+                       half a cover, full-width title bar after row 1. Gutters
+                       are exaggerated (real 6pt gaps scale to ~0.7 units and
+                       the brick pattern reads as a solid mass) — same
+                       legibility license the other tiles take. -->
                   <!-- Row 1 (flush top, no offset) -->
-                  <rect x="-1.9" y="0" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="9.2" y="0" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="20.3" y="0" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="31.5" y="0" width="10.5" height="10.9" rx="0.5"/>
+                  <rect x="-1.5" y="0" width="9.6" height="10" rx="0.5"/>
+                  <rect x="9.6" y="0" width="9.6" height="10" rx="0.5"/>
+                  <rect x="20.7" y="0" width="9.6" height="10" rx="0.5"/>
+                  <rect x="31.8" y="0" width="9.6" height="10" rx="0.5"/>
                   <!-- Title bar (classic position, edge-to-edge like the real bar) -->
-                  <rect x="0" y="11.6" width="40" height="4" rx="0.5"/>
+                  <rect x="0" y="11.5" width="40" height="4" rx="0.5"/>
                   <!-- Row 2 (offset by half a cover) -->
-                  <rect x="-7.5" y="16.3" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="3.6" y="16.3" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="14.8" y="16.3" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="25.9" y="16.3" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="37" y="16.3" width="10.5" height="10.9" rx="0.5"/>
+                  <rect x="-7.1" y="17" width="9.6" height="10" rx="0.5"/>
+                  <rect x="4.1" y="17" width="9.6" height="10" rx="0.5"/>
+                  <rect x="15.2" y="17" width="9.6" height="10" rx="0.5"/>
+                  <rect x="26.3" y="17" width="9.6" height="10" rx="0.5"/>
+                  <rect x="37.4" y="17" width="9.6" height="10" rx="0.5"/>
                   <!-- Row 3 (no offset) -->
-                  <rect x="-1.9" y="27.7" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="9.2" y="27.7" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="20.3" y="27.7" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="31.5" y="27.7" width="10.5" height="10.9" rx="0.5"/>
+                  <rect x="-1.5" y="28.5" width="9.6" height="10" rx="0.5"/>
+                  <rect x="9.6" y="28.5" width="9.6" height="10" rx="0.5"/>
+                  <rect x="20.7" y="28.5" width="9.6" height="10" rx="0.5"/>
+                  <rect x="31.8" y="28.5" width="9.6" height="10" rx="0.5"/>
                   <!-- Row 4 (offset, flush bottom) -->
-                  <rect x="-7.5" y="39.1" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="3.6" y="39.1" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="14.8" y="39.1" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="25.9" y="39.1" width="10.5" height="10.9" rx="0.5"/>
-                  <rect x="37" y="39.1" width="10.5" height="10.9" rx="0.5"/>
+                  <rect x="-7.1" y="40" width="9.6" height="10" rx="0.5"/>
+                  <rect x="4.1" y="40" width="9.6" height="10" rx="0.5"/>
+                  <rect x="15.2" y="40" width="9.6" height="10" rx="0.5"/>
+                  <rect x="26.3" y="40" width="9.6" height="10" rx="0.5"/>
+                  <rect x="37.4" y="40" width="9.6" height="10" rx="0.5"/>
                 </svg>
                 <span class="layout-option-label">Staggered</span>
               </div>
