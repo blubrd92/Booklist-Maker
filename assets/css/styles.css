@@ -1674,28 +1674,6 @@ input[type="color"]:hover {
   outline-offset: 2px;
 }
 
-/* Showcase button (double-size flag for the Showcase collage layout).
-   Rendered only on starred books while the Showcase layout is selected. */
-.showcase-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #ccc;
-  font-size: 0.95rem;
-  padding: 1px 0;
-  transition: color 0.2s, transform 0.2s;
-}
-.showcase-button:hover {
-  transform: scale(1.15);
-}
-.showcase-button.active {
-  color: #8e44ad;
-}
-.showcase-button:focus {
-  outline: 2px solid #8e44ad;
-  outline-offset: 2px;
-}
-
 /* Item Details */
 /* RESTORED: Original cover uploader (no background) */
 .cover-uploader {
