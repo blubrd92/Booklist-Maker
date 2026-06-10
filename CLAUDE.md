@@ -612,7 +612,7 @@ The following values have constants in `CONFIG` — always use the constant, nev
 
 | Value | Use Instead | Why |
 |-------|-------------|-----|
-| `12` (min covers for collage) | `CONFIG.MIN_COVERS_FOR_COLLAGE` | Currently hardcoded as `12` in ~11 places in app.js layout functions. These are tech debt — do not add more. |
+| `12` (min covers for collage) | `CONFIG.MIN_COVERS_FOR_COLLAGE` | The collage-count comparisons in the layout functions now use the constant. Don't reintroduce raw `12`s for this meaning. (Raw `16`s remain by design — there's no constant for the middle count — and grid-math literals like "4 per row" are not cover counts.) |
 | `20` (max covers for collage) | `CONFIG.MAX_COVERS_FOR_COLLAGE` | Same issue — use the constant. |
 | `15` (total book slots) | `CONFIG.TOTAL_SLOTS` | |
 | `5` (slots per inside panel) | `CONFIG.SLOTS_PER_INSIDE_PANEL` | |
@@ -625,7 +625,7 @@ The following values have constants in `CONFIG` — always use the constant, nev
 
 These patterns exist in the codebase but should not be replicated:
 
-1. **Hardcoded `12` in layout functions** — Several layout functions in app.js use raw `12` instead of `CONFIG.MIN_COVERS_FOR_COLLAGE`. If you touch these functions, replace with the constant.
+1. **Hardcoded collage counts in layout functions** — cleaned up: the `coverCount`/`totalImages`/`imageCount` comparisons in the Classic/Bookshelf/Staggered/Masonry/Tilted layout functions use `CONFIG.MIN_COVERS_FOR_COLLAGE` / `CONFIG.MAX_COVERS_FOR_COLLAGE`. Raw `16` literals remain (no constant exists for the middle count), and grid-geometry numbers (rows/columns per group) are intentionally literal. Don't add new raw `12`/`20` cover-count comparisons.
 2. **Inline `placehold.co` checks** — The pattern `.includes('placehold.co')` appears in both `book-utils.js` and `app.js`. Prefer using `BookUtils.hasValidCover(book)` when checking book objects.
 3. **Folio state timeout pattern** — The pattern `setTimeout(() => folio.setState('excited', ...), 300); setTimeout(() => folio.setState('idle'), 4000);` is copy-pasted ~10 times in app.js. If adding a new folio reaction, follow the existing pattern but be aware this is a duplication hotspot.
 4. **`MAX_EXTRA_COVERS` no longer exists.** It used to be a local `const = 8` in app.js. The replacement is the `getMaxExtraCovers()` helper, which returns `getCollageCoverCount() - CONFIG.MIN_COVERS_FOR_COLLAGE` (so 0 / 4 / 8 depending on the active mode). If you need this value elsewhere, call the helper.

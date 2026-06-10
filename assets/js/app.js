@@ -86,16 +86,24 @@ const BooklistApp = (function() {
   const _imageCache = new Map();    // refId → dataURL (in-memory fast cache)
   let _idb = null;                  // IndexedDB database handle
 
+  let _idbOpenPromise = null;       // In-flight open, shared by concurrent callers
+
   function _openImageDB() {
     if (_idb) return Promise.resolve(_idb);
-    return new Promise((resolve, reject) => {
+    // Share one in-flight open between concurrent first callers —
+    // startup fires several (tour recovery, draft read, image stores)
+    // before the first one resolves, and each used to issue its own
+    // indexedDB.open. Reset on failure so a later call can retry.
+    if (_idbOpenPromise) return _idbOpenPromise;
+    _idbOpenPromise = new Promise((resolve, reject) => {
       const req = indexedDB.open('booklist-undo-images', 1);
       req.onupgradeneeded = () => {
         req.result.createObjectStore('images');
       };
       req.onsuccess = () => { _idb = req.result; resolve(_idb); };
-      req.onerror = () => reject(req.error);
+      req.onerror = () => { _idbOpenPromise = null; reject(req.error); };
     });
+    return _idbOpenPromise;
   }
 
   function _storeImageIDB(refId, dataUrl) {
@@ -3149,8 +3157,8 @@ const BooklistApp = (function() {
     
     // 12 covers = 3×4, 16 covers = 4×4, 20 covers = 4×5
     const coverCount = images.length;
-    const numCols = coverCount <= 12 ? 3 : 4;
-    const numRows = coverCount <= 12 ? 4 : (coverCount <= 16 ? 4 : 5);
+    const numCols = coverCount <= CONFIG.MIN_COVERS_FOR_COLLAGE ? 3 : 4;
+    const numRows = coverCount <= CONFIG.MIN_COVERS_FOR_COLLAGE ? 4 : (coverCount <= 16 ? 4 : 5);
 
     // Determine row distribution based on position
     let rowsAbove, rowsBelow;
@@ -3337,8 +3345,8 @@ const BooklistApp = (function() {
     
     // 12 covers = 3×4, 16 covers = 4×4, 20 covers = 4×5
     const coverCount = images.length;
-    const numCols = coverCount <= 12 ? 3 : 4;
-    const numRows = coverCount <= 12 ? 4 : (coverCount <= 16 ? 4 : 5);
+    const numCols = coverCount <= CONFIG.MIN_COVERS_FOR_COLLAGE ? 3 : 4;
+    const numRows = coverCount <= CONFIG.MIN_COVERS_FOR_COLLAGE ? 4 : (coverCount <= 16 ? 4 : 5);
 
     // Determine row distribution
     let rowsAbove, rowsBelow;
@@ -3510,7 +3518,7 @@ const BooklistApp = (function() {
     // 16-count uses 5 rows (like 20) so the rows are denser and the
     // visual reads more like the higher-count mode the user wanted.
     const coverCount = images.length;
-    const numRows = coverCount <= 12 ? 4 : 5;
+    const numRows = coverCount <= CONFIG.MIN_COVERS_FOR_COLLAGE ? 4 : 5;
     
     // Determine row distribution
     let rowsAbove, rowsBelow;
@@ -3914,7 +3922,7 @@ const BooklistApp = (function() {
     // own 3×4 patterns. The outer `% totalImages` wrap at the bottom
     // is a defensive safety net.
     const totalImages = images.length;
-    const useRegularSequential = (totalImages === 20 || totalImages === 16)
+    const useRegularSequential = (totalImages === CONFIG.MAX_COVERS_FOR_COLLAGE || totalImages === 16)
       && position !== 'center'
       && offsetDirection === 'horizontal';
 
@@ -3930,11 +3938,11 @@ const BooklistApp = (function() {
       // need the offset (5 books per row is enough variety for the
       // visible row count in Tilted).
       if (useRegularSequential) {
-        const booksPerRow = totalImages === 20 ? 5 : 4;
+        const booksPerRow = totalImages === CONFIG.MAX_COVERS_FOR_COLLAGE ? 5 : 4;
         const rowGroup = (row % 4) * booksPerRow;
         const colOffset = totalImages === 16 ? row % 3 : 0;
         idx = rowGroup + ((col + colOffset) % booksPerRow);
-      } else if (totalImages <= 12) {
+      } else if (totalImages <= CONFIG.MIN_COVERS_FOR_COLLAGE) {
         // 12-count: 3 row groups of 4 horizontal, or 4 col groups of
         // 3 vertical.
         if (offsetDirection === 'horizontal') {
@@ -4238,7 +4246,7 @@ const BooklistApp = (function() {
     
     // Column count based on cover count: 5 for 12, 6 for 16 or 20
     const imageCount = images.length;
-    const numCols = imageCount <= 12 ? 5 : 6;
+    const numCols = imageCount <= CONFIG.MIN_COVERS_FOR_COLLAGE ? 5 : 6;
     console.log('[Masonry] Using numCols =', numCols, 'for', imageCount, 'covers');
     
     // Calculate column width - gutters only BETWEEN columns, not at edges
@@ -7979,8 +7987,11 @@ const BooklistApp = (function() {
   function updateUndoRedoButtons() {
     const btnUndo = document.getElementById('btn-undo');
     const btnRedo = document.getElementById('btn-redo');
-    if (btnUndo) btnUndo.disabled = _undoStack.length === 0;
-    if (btnRedo) btnRedo.disabled = _redoStack.length === 0;
+    // During the tour, undo()/redo() are no-ops (guarded on _tourActive),
+    // so show the buttons as disabled instead of clickable-but-dead.
+    // exitTourMode calls this again after clearing the flag.
+    if (btnUndo) btnUndo.disabled = _tourActive || _undoStack.length === 0;
+    if (btnRedo) btnRedo.disabled = _tourActive || _redoStack.length === 0;
   }
 
   /**

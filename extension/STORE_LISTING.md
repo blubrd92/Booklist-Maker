@@ -70,6 +70,22 @@ Initial release. See store listing page for the feature description.
 
 ---
 
+## Notes to Reviewer (Firefox AMO)
+
+AMO's upload form asks "Is there anything our reviewers should bear in mind when reviewing this add-on?" and, per Mozilla's source-code submission policy, requires build instructions whenever a submission contains minified / machine-generated code. Paste the block below into that field on every Firefox upload (it also answers the source-code question, so no separate source package is needed):
+
+> All first-party code in this add-on (background.js, content.js, popup/popup.js, popup/popup.html) is hand-written, unminified, unbundled JavaScript — the files in this package are the source; there is no build, transpilation, or bundling step.
+>
+> The only minified file is the unmodified third-party webextension-polyfill at vendor/browser-polyfill.min.js (MPL 2.0), taken verbatim from the official `dist/browser-polyfill.min.js` artifact published by Mozilla (https://github.com/mozilla/webextension-polyfill / npm package `webextension-polyfill`). Per the third-party library exemption, no source submission should be required for it.
+>
+> The full source is public at https://github.com/blubrd92/Booklist-Maker (the `extension/` directory). The store zip is produced by `node extension/build-zips.mjs` from that directory; the script only copies the files verbatim into the zip — for the Firefox build it performs no transformation at all (the Chromium variant merely deletes the `background.scripts` manifest key, which Edge rejects).
+>
+> To test: visit any public BiblioCommons library catalog — e.g. https://marinet.bibliocommons.com — no account needed. Open any title record (URL contains `/v2/record/`) or curated list (`/v2/list/`) and click the toolbar icon. Capturing copies TSV rows to the clipboard for pasting into https://booklister.org (Quick Add → Multiple titles tab).
+
+**Before first use, pin the polyfill version in the text above**: check which webextension-polyfill version is vendored (compare `extension/vendor/browser-polyfill.min.js` against the official `dist/browser-polyfill.min.js` from the matching npm release, e.g. `npm pack webextension-polyfill@0.12.0` — the files should be byte-identical) and add "version X.Y.Z" after "webextension-polyfill" in the second paragraph. Re-verify whenever the vendored file is updated.
+
+---
+
 ## Build + upload steps
 
 The repo doesn't live on the developer's local machine; the developer edits on GitHub and asks Claude to produce the store-ready zips. Process:
@@ -90,7 +106,7 @@ The repo doesn't live on the developer's local machine; the developer edits on G
    - **Microsoft Edge Add-ons** → Partner Center → Booklister Helper → Update → New package → upload `*-chromium.zip` (same file as Chrome).
    - **Firefox Add-ons (AMO)** → Developer Hub → Booklister Helper → Upload new version → upload `*-firefox.zip`.
 
-6. **Developer** pastes the matching release-notes block into each store's "What's new" field.
+6. **Developer** pastes the matching release-notes block into each store's "What's new" field. On AMO, also paste the "Notes to Reviewer (Firefox AMO)" block (above) into the "Notes to Reviewer" field — it answers the source-code / build-process question Mozilla asks about minified files.
 
 (The "Quick reference" callout at the top of this file is the authoritative reminder for the build + delivery handoff between Developer and Claude.)
 
@@ -109,7 +125,7 @@ The repo doesn't live on the developer's local machine; the developer edits on G
 ## Per-store gotchas to remember
 
 - **Chrome Web Store**: $5 one-time developer fee already paid on this account. Accepts the Chromium zip. Review typically 1-3 days.
-- **Firefox Add-ons (AMO)**: free. Requires both `background.service_worker` and `background.scripts`; the Firefox zip carries both. Review typically <24 hours.
+- **Firefox Add-ons (AMO)**: free. Requires both `background.service_worker` and `background.scripts`; the Firefox zip carries both. Asks a "Notes to Reviewer" question about build processes / source code on every upload — paste the dedicated block above (the vendored minified polyfill is what triggers the question). Review typically <24 hours.
 - **Microsoft Edge Add-ons**: free. Rejects `background.scripts` in MV3 with the exact error `The background.scripts field cannot be used with manifest version 3`. The Chromium zip strips that field. Review typically 24-72 hours.
 
 ---
