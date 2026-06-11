@@ -2989,3 +2989,286 @@ body.has-custom-qr #generate-qr-button:disabled {
   background: var(--border-light);
   color: var(--text-color);
 }
+
+/* =========================================================================
+   MOBILE RESPONSIVE (desktop-down overrides)
+   Desktop keeps its full styling above 768px; everything below applies
+   only to small screens. Strategy: the sidebar + preview row becomes a
+   vertical stack, the header and footer wrap instead of overflowing,
+   and interactive controls (buttons, native selects, custom font
+   dropdowns, tabs) are enlarged to a minimum 44x44px touch target.
+
+   Strictly cosmetic: the print page (.page, .panel, .list-item) and all
+   canvas/PDF rendering dimensions are untouched — the 11in x 8.5in
+   preview stays full-size and is panned via .main-content's existing
+   overflow scrolling and the zoom controls (whose fit math reads
+   .main-content's live width, so Fit/Fit-Width work on phones as-is).
+   Controls that float over the preview (.list-item-controls, the
+   hover-revealed delete buttons) are hidden in print mode, so resizing
+   them here cannot leak into the PDF export.
+   ========================================================================= */
+@media (max-width: 768px) {
+  /* dvh tracks the real visible height on mobile browsers where the URL
+     bar collapses; browsers without dvh support keep the base 100vh. */
+  body { height: 100dvh; }
+
+  /* --- Header: wrap to a second row instead of overflowing --- */
+  .app-header {
+    height: auto;
+    min-height: 52px;
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    gap: 6px 10px;
+  }
+  .header-credit { display: none; }
+  .app-header .logo {
+    font-size: 1rem;
+    padding-right: 8px;
+  }
+  .header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-left: auto;
+    row-gap: 6px;
+  }
+
+  /* --- Main layout: sidebar stacks above the preview --- */
+  .app-container {
+    flex-direction: column;
+    height: auto; /* body's flex column + flex: 1 own the height now */
+  }
+  .sidebar {
+    width: 100%;
+    max-height: 48vh;
+    max-height: 48dvh;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    transition: max-height var(--transition-normal);
+  }
+  /* The hamburger toggle still adds/removes .collapsed; on mobile the
+     sidebar collapses vertically instead of sliding to width 0. */
+  .sidebar.collapsed {
+    width: 100%;
+    max-height: 0;
+    margin-left: 0;
+    border-bottom: none;
+  }
+
+  .main-content { padding: 12px 10px; }
+
+  /* --- Toolbar: stack the list name above the hint --- */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .toolbar-list-name { width: 100%; }
+  .list-name-input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  .toolbar-hint { font-size: 0.8rem; }
+
+  /* --- Touch targets: 44x44px minimum --- */
+  .btn,
+  .btn-header,
+  .btn-header-primary,
+  .header-actions #library-admin-link { min-height: 44px; }
+  .header-actions #auth-signout-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  #tour-button {
+    width: 44px;
+    height: 44px;
+  }
+  .panel-toggle-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .tab-btn { min-height: 44px; }
+  .quick-add-tab-btn { min-height: 44px; }
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+  .color-palette-trigger {
+    width: 44px;
+    height: 44px;
+  }
+  input[type="color"] {
+    width: 44px;
+    height: 44px;
+  }
+  .pagination-button {
+    width: 44px;
+    height: 44px;
+  }
+  .add-to-list-button { min-height: 44px; }
+  .carousel-button { min-height: 44px; }
+  .modal-close {
+    width: 44px;
+    height: 44px;
+  }
+  .quick-add-paste-btn { min-height: 44px; }
+  .zoom-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .zoom-label { height: 44px; }
+  .custom-font-dropdown-trigger { min-height: 44px; }
+  .custom-font-dropdown-option { padding: 12px 10px; }
+  .collage-cover-count-option span {
+    display: inline-flex;
+    align-items: center;
+    padding: 12px 16px;
+  }
+  .advanced-search-toggle summary,
+  .advanced-settings summary,
+  .quick-add-help-details summary { padding: 12px 0; }
+  .checkbox-row input[type="checkbox"],
+  .quick-add-checkbox-label input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+  .checkbox-row label { padding: 8px 0; }
+  .color-palette-row {
+    grid-template-columns: repeat(5, 32px);
+    gap: 8px;
+  }
+  .color-palette-swatch {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Form fields: comfortable touch height, and >=16px font so iOS
+     Safari doesn't auto-zoom the page when a field gains focus. The
+     extra selectors re-state 16px where a base rule with higher
+     specificity would otherwise win. */
+  input[type="text"],
+  input[type="number"],
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .quick-add-field input[type="text"],
+  .quick-add-multi-textarea,
+  .modal-search-form .search-row input[type="text"],
+  .modal-search-form .advanced-fields-grid input,
+  #cover-header-text-group #cover-simple-mode textarea { font-size: 16px; }
+  /* The item-number input lives in the floating per-book controls over
+     the preview (hidden in print mode), not in a form — keep it compact
+     so the controls column doesn't balloon. */
+  .list-item-controls .item-number {
+    min-height: 0;
+    font-size: 1.1rem;
+  }
+
+  /* Floating per-book controls: looser spacing + bigger glyphs for
+     touch. Absolutely positioned beside the page and display: none'd in
+     print mode, so this never affects the PDF. */
+  .list-item-controls {
+    height: auto;
+    gap: 12px;
+    padding: 10px 8px;
+  }
+  .drag-handle,
+  .delete-button { font-size: 1.6rem; }
+  .magic-button,
+  .star-button {
+    font-size: 1.3rem;
+    padding: 4px 0;
+  }
+
+  /* Hover-revealed overlay delete buttons (tap acts as hover on touch
+     browsers): slightly larger hit area. Hidden in print mode. */
+  .branding-delete-btn,
+  .cover-delete-btn,
+  .qr-delete-btn,
+  .qr-generated-delete-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+  .extra-cover-slot .remove-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+  }
+
+  /* Search result cards: fixed heights can't absorb the taller touch
+     buttons, so let the cards grow. */
+  #results-container .book-card {
+    height: auto;
+    min-height: 372px;
+  }
+  .modal-cover-result.book-card {
+    height: auto;
+    min-height: 332px;
+  }
+
+  /* --- Modals: use (nearly) the full screen --- */
+  .modal-content {
+    width: calc(100% - 16px);
+    max-height: 92vh;
+    max-height: 92dvh;
+  }
+  .modal-body { padding: 16px; }
+  .modal-footer {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* --- Footer: wrap the nav links instead of clipping --- */
+  .site-footer {
+    height: auto;
+    min-height: 32px;
+    padding: 6px 10px;
+  }
+  .site-footer-nav {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 8px;
+    font-size: 0.85rem;
+  }
+  .site-footer-nav a { padding: 4px 2px; }
+
+  /* Clear the (possibly wrapped) footer. */
+  .zoom-controls {
+    right: 8px;
+    bottom: 84px;
+  }
+
+  /* Notifications can wrap to two lines on narrow screens. */
+  #notification-area {
+    height: auto;
+    min-height: 52px;
+    padding: 10px 16px;
+  }
+}
+
+/* Very narrow phones: tighten the header buttons, single-column
+   advanced search fields, and drop the instructional toolbar hint to
+   give the preview more room. */
+@media (max-width: 520px) {
+  .btn-header {
+    min-width: 0;
+    padding: 8px 8px;
+    font-size: 0.8rem;
+  }
+  .btn-header-primary {
+    min-width: 0;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+  .advanced-fields-grid { grid-template-columns: 1fr; }
+  .toolbar-hint { display: none; }
+  #tab-search { padding: 12px; }
+  .quick-add-tabs { padding: 0 10px; }
+}
