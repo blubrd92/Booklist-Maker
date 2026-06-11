@@ -1855,3 +1855,16 @@ body:has(.sidebar.collapsed) .folio-container {
     border-right: 8px solid transparent;
     border-top: 8px solid white;
   }
+/* =============================================================================
+   MOBILE (matches the stacked-layout breakpoint in styles.css)
+   The sidebar spans the full width on small screens, so the desktop
+   left: 340px anchor would park Folio at the right edge; and the site
+   footer can wrap taller than its desktop 32px. Appended last so these
+   positional overrides win without disturbing the cascade above.
+   ============================================================================= */
+@media (max-width: 768px) {
+  .folio-container {
+    left: 8px;
+    bottom: 84px; /* clear the wrapped footer, align with the zoom bar */
+  }
+}

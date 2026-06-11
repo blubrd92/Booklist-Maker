@@ -823,19 +823,22 @@
         </div>
       </div>
 
-      <!-- Zoom & Undo/Redo Controls -->
-      <div class="zoom-controls" id="zoom-controls" style="flex-direction: column; align-items: stretch; gap: 0;">
+      <!-- Zoom & Undo/Redo Controls. Laid out via the .zoom-row classes
+           (vertical panel on desktop, horizontal bar on mobile) — keep
+           the styling in styles.css, not inline, so the responsive
+           overrides work without !important. -->
+      <div class="zoom-controls" id="zoom-controls">
         <!-- Row 1: Undo / Redo -->
-        <div id="undo-controls" style="display: flex; justify-content: center; gap: 2px; padding: 4px 4px 2px;">
-          <button id="btn-undo" class="zoom-btn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled style="width: auto; padding: 0 8px; font-size: 12px; gap: 4px; display: inline-flex; align-items: center;">
+        <div id="undo-controls" class="zoom-row zoom-row-undo">
+          <button id="btn-undo" class="zoom-btn zoom-btn-wide" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
             <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Undo
           </button>
-          <button id="btn-redo" class="zoom-btn" title="Redo (Ctrl+Y)" aria-label="Redo" disabled style="width: auto; padding: 0 8px; font-size: 12px; gap: 4px; display: inline-flex; align-items: center;">
+          <button id="btn-redo" class="zoom-btn zoom-btn-wide" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>
             <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Redo
           </button>
         </div>
         <!-- Row 2: Fit controls -->
-        <div style="border-top: 1px solid var(--border-color); display: flex; justify-content: center; gap: 2px; padding: 2px 4px;">
+        <div class="zoom-row zoom-row-fit">
           <button id="btn-zoom-fit" class="zoom-btn" title="Fit All" aria-label="Fit all pages to screen">
             <i class="fa-solid fa-expand" aria-hidden="true"></i>
           </button>
@@ -847,7 +850,7 @@
           </button>
         </div>
         <!-- Row 3: Zoom level -->
-        <div style="border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; gap: 2px; padding: 2px 4px 4px;">
+        <div class="zoom-row zoom-row-level">
           <button id="btn-zoom-out" class="zoom-btn" title="Zoom Out" aria-label="Zoom out">
             <i class="fa-solid fa-minus" aria-hidden="true"></i>
           </button>

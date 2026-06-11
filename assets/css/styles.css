@@ -2934,14 +2934,37 @@ body.has-custom-qr #generate-qr-button:disabled {
   bottom: 48px; /* 32px footer + 16px gap */
   right: 16px;
   display: flex;
-  align-items: center;
-  gap: 2px;
+  flex-direction: column;
+  align-items: stretch;
   background: white;
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
   z-index: 10;
-  padding: 4px;
+}
+
+/* Rows inside the panel (undo/redo, fit buttons, zoom level). Vertical
+   stack with divider lines on desktop; the mobile media query re-flows
+   the same rows into one horizontal bar. */
+.zoom-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px 4px;
+}
+.zoom-row-undo { padding: 4px 4px 2px; }
+.zoom-row-level { padding: 2px 4px 4px; }
+.zoom-row + .zoom-row { border-top: 1px solid var(--border-color); }
+
+/* Text-bearing variant (Undo / Redo) of the square .zoom-btn. */
+.zoom-btn-wide {
+  width: auto;
+  padding: 0 8px;
+  font-size: 12px;
+  gap: 4px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .zoom-btn {
@@ -3017,7 +3040,10 @@ body.has-custom-qr #generate-qr-button:disabled {
     height: auto;
     min-height: 52px;
     flex-wrap: wrap;
-    padding: 6px 10px;
+    /* Side safe-area insets keep buttons clear of notches in landscape
+       (viewport-fit=cover). */
+    padding: 6px calc(10px + env(safe-area-inset-right, 0px))
+             6px calc(10px + env(safe-area-inset-left, 0px));
     gap: 6px 10px;
   }
   .header-credit { display: none; }
@@ -3225,11 +3251,14 @@ body.has-custom-qr #generate-qr-button:disabled {
     gap: 8px;
   }
 
-  /* --- Footer: wrap the nav links instead of clipping --- */
+  /* --- Footer: wrap the nav links instead of clipping. The bottom
+     safe-area inset keeps the links clear of the iPhone home indicator
+     now that index.html declares viewport-fit=cover. --- */
   .site-footer {
     height: auto;
     min-height: 32px;
     padding: 6px 10px;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   }
   .site-footer-nav {
     flex-wrap: wrap;
@@ -3239,11 +3268,29 @@ body.has-custom-qr #generate-qr-button:disabled {
   }
   .site-footer-nav a { padding: 4px 2px; }
 
-  /* Clear the (possibly wrapped) footer. */
+  /* Zoom/undo panel: one horizontal bar instead of a 3-row block so it
+     covers far less of the preview. Auto-fit at startup plus the
+     Fit-Width button cover phone needs, so the desktop-oriented
+     Fit-All / Fit-Height buttons are dropped to keep the bar narrow.
+     Positioned to clear the (possibly wrapped) footer. */
   .zoom-controls {
     right: 8px;
     bottom: 84px;
+    flex-direction: row;
+    align-items: stretch;
   }
+  .zoom-row { padding: 4px 3px; }
+  .zoom-row + .zoom-row {
+    border-top: none;
+    border-left: 1px solid var(--border-color);
+  }
+  #btn-zoom-fit,
+  #btn-zoom-fit-height { display: none; }
+  .zoom-label {
+    min-width: 44px;
+    height: auto;
+  }
+  .zoom-btn-wide { padding: 0 6px; }
 
   /* Notifications can wrap to two lines on narrow screens. */
   #notification-area {
@@ -3271,4 +3318,20 @@ body.has-custom-qr #generate-qr-button:disabled {
   .toolbar-hint { display: none; }
   #tab-search { padding: 12px; }
   .quick-add-tabs { padding: 0 10px; }
+}
+
+/* Touch devices (any width): the hover-gated overlay controls rely on
+   tap-as-hover emulation, which works but is undiscoverable. Keep them
+   visible whenever they're applicable instead. Print mode's
+   display: none !important rules still win, so none of these can leak
+   into the PDF export. */
+@media (hover: none) {
+  #branding-uploader.has-image .branding-delete-btn,
+  #front-cover-uploader.has-image .cover-delete-btn,
+  .qr-code-uploader.has-custom-upload .qr-delete-btn,
+  .qr-code-uploader.has-generated-qr:not(.has-custom-upload) .qr-generated-delete-btn,
+  .extra-cover-slot.has-cover .remove-btn {
+    display: flex;
+  }
+  .extra-cover-slot.draggable-extra .extra-drag-handle { opacity: 1; }
 }

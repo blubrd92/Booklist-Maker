@@ -8605,6 +8605,32 @@ const BooklistApp = (function() {
     }
   }
 
+  // On phone-sized layouts (matching the stacked-layout breakpoint in
+  // styles.css) the 11in-wide preview would load at 100% zoom showing
+  // only its top-left corner, so fit it to the screen width once at
+  // startup. Re-fits on viewport changes (orientation flips, mobile
+  // browser chrome collapsing) only while the zoom is still exactly the
+  // value the auto-fit chose — once the user zooms manually (including
+  // the tour's resetZoom), their choice wins until reload. View-only:
+  // never touches state, and exportPdf already forces zoom to 1 for
+  // the html2canvas capture regardless.
+  function initMobileAutoFit() {
+    const MOBILE_LAYOUT_QUERY = '(max-width: 768px)';
+    if (!window.matchMedia || !window.matchMedia(MOBILE_LAYOUT_QUERY).matches) return;
+    fitToWidth();
+    let autoZoom = currentZoom;
+    let resizeTimer = null;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function() {
+        if (!window.matchMedia(MOBILE_LAYOUT_QUERY).matches) return;
+        if (Math.abs(currentZoom - autoZoom) > 0.001) return;
+        fitToWidth();
+        autoZoom = currentZoom;
+      }, 150);
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Public API / Initialization
   // ---------------------------------------------------------------------------
@@ -8807,6 +8833,7 @@ const BooklistApp = (function() {
     // Initialize zoom and undo/redo controls
     initZoomControls();
     initUndoRedoControls();
+    initMobileAutoFit();
 
     // Set default cover mode (simple)
     toggleCoverMode(false);
