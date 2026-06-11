@@ -2967,6 +2967,42 @@ body.has-custom-qr #generate-qr-button:disabled {
   align-items: center;
 }
 
+/* Mobile-only expander button — desktop always shows the full panel.
+   The mobile media query reveals it and collapses the rows behind it. */
+.zoom-controls-toggle { display: none; }
+
+/* --- BOOK EDIT SHEET (mobile tap-to-edit modal) --- */
+.book-edit-description {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 110px;
+  padding: 9px 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: white;
+  color: var(--text-color);
+  resize: vertical;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.book-edit-description:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
+}
+.book-edit-hint {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+.book-edit-hint code {
+  background: var(--bg-color);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
 .zoom-btn {
   width: 36px;
   height: 36px;
@@ -3185,6 +3221,7 @@ body.has-custom-qr #generate-qr-button:disabled {
   }
   .quick-add-field input[type="text"],
   .quick-add-multi-textarea,
+  .book-edit-description,
   .modal-search-form .search-row input[type="text"],
   .modal-search-form .advanced-fields-grid input,
   #cover-header-text-group #cover-simple-mode textarea { font-size: 16px; }
@@ -3278,6 +3315,8 @@ body.has-custom-qr #generate-qr-button:disabled {
     bottom: 84px;
     flex-direction: row;
     align-items: stretch;
+    max-width: calc(100vw - 16px);
+    overflow-x: auto;
   }
   .zoom-row { padding: 4px 3px; }
   .zoom-row + .zoom-row {
@@ -3291,6 +3330,29 @@ body.has-custom-qr #generate-qr-button:disabled {
     height: auto;
   }
   .zoom-btn-wide { padding: 0 6px; }
+  /* Collapsed-by-default expander: phones see a single button until
+     tapped, so the panel doesn't cover the preview. Scoped to this
+     media query so the .collapsed class shipped in the HTML has no
+     effect on desktop. */
+  .zoom-controls-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+  .zoom-controls:not(.collapsed) .zoom-controls-toggle {
+    border-left: 1px solid var(--border-color);
+    color: var(--primary-color);
+  }
+  .zoom-controls.collapsed .zoom-row { display: none; }
 
   /* Notifications can wrap to two lines on narrow screens. */
   #notification-area {

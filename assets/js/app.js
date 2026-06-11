@@ -2312,6 +2312,22 @@ const BooklistApp = (function() {
     detailsDiv.appendChild(titleField);
     detailsDiv.appendChild(authorField);
     detailsDiv.appendChild(descriptionField);
+
+    // Phone-sized layouts: the preview is auto-fit far below 100% zoom,
+    // making the in-place contenteditable fields impractical to tap and
+    // edit, so route taps to the book edit sheet instead. pointerdown's
+    // preventDefault suppresses the focus (and the on-screen keyboard);
+    // the click then opens the sheet. Desktop and the guided tour keep
+    // the direct-editing behavior.
+    detailsDiv.addEventListener('pointerdown', function(e) {
+      if (_tourActive || !isMobileLayout()) return;
+      e.preventDefault();
+    });
+    detailsDiv.addEventListener('click', function(e) {
+      if (_tourActive || !isMobileLayout()) return;
+      e.preventDefault();
+      openBookEditSheet(bookItem);
+    });
     
     // Setup placeholders
     const titleOriginalColor = getComputedStyle(titleField).color;
@@ -5556,6 +5572,124 @@ const BooklistApp = (function() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Book Edit Sheet (phone-sized layouts)
+  //
+  // On small screens the preview is auto-fit far below 100% zoom, which
+  // makes the in-place contenteditable fields impractical to tap and
+  // edit. Tapping a book's text block (wired in createListItemDetails)
+  // opens this modal with full-size inputs for the same three fields.
+  // Saving mirrors the in-place editors' write paths: one pre-mutation
+  // undo snapshot, direct mutation of the book object, re-render,
+  // debounced autosave. Only fields the user actually changed are
+  // written, so opening and saving without edits is a no-op (and a
+  // blank book stays blank).
+  // ---------------------------------------------------------------------------
+  let _bookBeingEdited = null;
+  let _bookEditOriginals = null;
+
+  // Sheet-facing values for a book: placeholder sentinels become empty
+  // inputs, and the author line is built exactly like the in-place
+  // author field so the user edits what they see in the preview.
+  function _bookEditPrefill(bookItem) {
+    const title = bookItem.title === CONFIG.PLACEHOLDERS.title ? '' : bookItem.title;
+    let authorLine;
+    if (bookItem.authorDisplay !== null && bookItem.authorDisplay !== undefined) {
+      authorLine = bookItem.authorDisplay;
+    } else {
+      authorLine = bookItem.author.startsWith('[Enter')
+        ? `${bookItem.author} - ${bookItem.callNumber}`
+        : `By ${bookItem.author} - ${bookItem.callNumber}`;
+    }
+    if (authorLine === CONFIG.PLACEHOLDERS.authorWithCall) authorLine = '';
+    const description = bookItem.description === CONFIG.PLACEHOLDERS.description ? '' : bookItem.description;
+    return { title, authorLine, description };
+  }
+
+  function openBookEditSheet(bookItem) {
+    const modal = document.getElementById('book-edit-modal');
+    const titleInput = document.getElementById('book-edit-title');
+    const authorInput = document.getElementById('book-edit-author');
+    const descInput = document.getElementById('book-edit-description');
+    if (!modal || !titleInput || !authorInput || !descInput) return;
+
+    _bookBeingEdited = bookItem;
+    _bookEditOriginals = _bookEditPrefill(bookItem);
+    titleInput.value = _bookEditOriginals.title;
+    authorInput.value = _bookEditOriginals.authorLine;
+    descInput.value = _bookEditOriginals.description;
+
+    modal.style.display = 'flex';
+    // Focus on next tick so the modal is visible first (some browsers
+    // refuse focus on display:none → flex transitions in the same tick).
+    setTimeout(function() { titleInput.focus(); }, 0);
+  }
+
+  function closeBookEditSheet() {
+    const modal = document.getElementById('book-edit-modal');
+    if (modal) modal.style.display = 'none';
+    _bookBeingEdited = null;
+    _bookEditOriginals = null;
+  }
+
+  function saveBookEditSheet() {
+    const book = _bookBeingEdited;
+    const originals = _bookEditOriginals;
+    const titleInput = document.getElementById('book-edit-title');
+    const authorInput = document.getElementById('book-edit-author');
+    const descInput = document.getElementById('book-edit-description');
+    if (!book || !originals || !titleInput || !authorInput || !descInput) {
+      closeBookEditSheet();
+      return;
+    }
+
+    const title = titleInput.value;
+    const authorLine = authorInput.value;
+    const description = descInput.value;
+    const changed = title !== originals.title ||
+      authorLine !== originals.authorLine ||
+      description !== originals.description;
+    if (!changed) {
+      closeBookEditSheet();
+      return;
+    }
+
+    pushUndo('edit-book-sheet'); // snapshots the pre-mutation state
+    if (title !== originals.title) {
+      book.title = title;
+      if (book.isBlank && title.trim() !== '') book.isBlank = false;
+    }
+    if (authorLine !== originals.authorLine) book.authorDisplay = authorLine;
+    if (description !== originals.description) book.description = description;
+
+    renderBooklist();
+    debouncedSave();
+    closeBookEditSheet();
+  }
+
+  function bindBookEditSheetEvents() {
+    const modal = document.getElementById('book-edit-modal');
+    const closeBtn = document.getElementById('book-edit-close-btn');
+    const cancelBtn = document.getElementById('book-edit-cancel-btn');
+    const saveBtn = document.getElementById('book-edit-save-btn');
+
+    if (closeBtn) closeBtn.addEventListener('click', closeBookEditSheet);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeBookEditSheet);
+    if (saveBtn) saveBtn.addEventListener('click', saveBookEditSheet);
+
+    // Click-outside to dismiss (mousedown-tracked, like the other modals).
+    attachOverlayClickClose(modal, closeBookEditSheet);
+
+    // Escape closes the modal.
+    document.addEventListener('keydown', function(e) {
+      if (!modal || modal.style.display === 'none') return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeBookEditSheet();
+      }
+    });
+  }
+
   function bindQuickAddEvents() {
     const openBtn = document.getElementById('quickAddBtn');
     const closeBtn = document.getElementById('quick-add-close-btn');
@@ -8603,27 +8737,44 @@ const BooklistApp = (function() {
         applyZoom();
       }, { passive: false });
     }
+
+    // Mobile-only expander (hidden by CSS on desktop). The panel ships
+    // collapsed on phones so it doesn't cover the preview; this button
+    // toggles the rows in and out.
+    const zoomToggle = document.getElementById('zoom-controls-toggle');
+    const zoomPanel = document.getElementById('zoom-controls');
+    if (zoomToggle && zoomPanel) {
+      zoomToggle.addEventListener('click', function() {
+        const collapsed = zoomPanel.classList.toggle('collapsed');
+        zoomToggle.setAttribute('aria-expanded', String(!collapsed));
+      });
+    }
   }
 
-  // On phone-sized layouts (matching the stacked-layout breakpoint in
-  // styles.css) the 11in-wide preview would load at 100% zoom showing
-  // only its top-left corner, so fit it to the screen width once at
-  // startup. Re-fits on viewport changes (orientation flips, mobile
-  // browser chrome collapsing) only while the zoom is still exactly the
-  // value the auto-fit chose — once the user zooms manually (including
-  // the tour's resetZoom), their choice wins until reload. View-only:
-  // never touches state, and exportPdf already forces zoom to 1 for
-  // the html2canvas capture regardless.
+  // Single source of truth for "phone-sized layout" — matches the
+  // stacked-layout breakpoint in styles.css. Gates the auto-fit zoom
+  // and the tap-to-edit book sheet.
+  function isMobileLayout() {
+    return !!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+  }
+
+  // On phone-sized layouts the 11in-wide preview would load at 100%
+  // zoom showing only its top-left corner, so fit it to the screen
+  // width once at startup. Re-fits on viewport changes (orientation
+  // flips, mobile browser chrome collapsing) only while the zoom is
+  // still exactly the value the auto-fit chose — once the user zooms
+  // manually (including the tour's resetZoom), their choice wins until
+  // reload. View-only: never touches state, and exportPdf already
+  // forces zoom to 1 for the html2canvas capture regardless.
   function initMobileAutoFit() {
-    const MOBILE_LAYOUT_QUERY = '(max-width: 768px)';
-    if (!window.matchMedia || !window.matchMedia(MOBILE_LAYOUT_QUERY).matches) return;
+    if (!isMobileLayout()) return;
     fitToWidth();
     let autoZoom = currentZoom;
     let resizeTimer = null;
     window.addEventListener('resize', function() {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(function() {
-        if (!window.matchMedia(MOBILE_LAYOUT_QUERY).matches) return;
+        if (!isMobileLayout()) return;
         if (Math.abs(currentZoom - autoZoom) > 0.001) return;
         fitToWidth();
         autoZoom = currentZoom;
@@ -8818,6 +8969,7 @@ const BooklistApp = (function() {
     bindEvents();
     bindExtraCoversEvents();
     bindQuickAddEvents();
+    bindBookEditSheetEvents();
     setupQrPlaceholder();
     initializeBooklist();
     applyStyles();
