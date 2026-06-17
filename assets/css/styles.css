@@ -2957,16 +2957,6 @@ body.has-custom-qr #generate-qr-button:disabled {
 .zoom-row-level { padding: 2px 4px 4px; }
 .zoom-row + .zoom-row { border-top: 1px solid var(--border-color); }
 
-/* Text-bearing variant (Undo / Redo) of the square .zoom-btn. */
-.zoom-btn-wide {
-  width: auto;
-  padding: 0 8px;
-  font-size: 12px;
-  gap: 4px;
-  display: inline-flex;
-  align-items: center;
-}
-
 /* Mobile-only expander button — desktop always shows the full panel.
    The mobile media query reveals it and collapses the rows behind it. */
 .zoom-controls-toggle { display: none; }
@@ -3025,6 +3015,20 @@ body.has-custom-qr #generate-qr-button:disabled {
 .zoom-btn:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* Text-bearing variant (Undo / Redo) of the square .zoom-btn. Must come
+   AFTER .zoom-btn: both have specificity (0,1,0), so source order
+   decides, and .zoom-btn's fixed width: 36px would otherwise win and
+   clip the "Undo" / "Redo" labels. (The old inline styles dodged this
+   because inline always beats a class rule.) */
+.zoom-btn-wide {
+  width: auto;
+  padding: 0 8px;
+  font-size: 12px;
+  gap: 4px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .zoom-label {
