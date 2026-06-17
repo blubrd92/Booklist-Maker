@@ -36,17 +36,20 @@ body:has(.sidebar.collapsed) .folio-container {
 }
 
 /* The toggle now lives in the header's .header-actions, immediately
-   before the "?" tour button — not in the preview corner. Styled as a
-   ghost circle on the dark header bar, sized to match #tour-button, so
-   the two help affordances read as a pair. The [aria-pressed] state
-   (synced in folio.js) fills the button while Folio is shown. */
+   before the "?" tour button — not in the preview corner. Sized to
+   match #tour-button so the two help affordances read as a pair.
+   Off (Folio hidden): a purple circle with a white cat, matching the
+   "?" button. On ([aria-pressed="true"], synced in folio.js): the
+   inverse — a white circle with a purple cat — a clear toggled-on
+   signal. Hover stays within each state's palette so it never mimics
+   the opposite state. */
 .folio-toggle {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.85);
+  border: none;
+  background: var(--primary-color, #5c6bc0);
+  color: #fff;
   font-size: 14px;
   cursor: pointer;
   display: flex;
@@ -54,18 +57,20 @@ body:has(.sidebar.collapsed) .folio-container {
   justify-content: center;
   flex-shrink: 0;
   align-self: center;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .folio-toggle:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
+  background: var(--primary-hover, #3f51b5);
 }
 
 .folio-toggle[aria-pressed="true"] {
-  background: var(--primary-color, #5c6bc0);
-  border-color: var(--primary-color, #5c6bc0);
-  color: #fff;
+  background: #fff;
+  color: var(--primary-color, #5c6bc0);
+}
+
+.folio-toggle[aria-pressed="true"]:hover {
+  background: #f0f0f0;
 }
 
 /* Hidden state: scene fades, toggle stays fixed in place */
