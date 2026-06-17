@@ -2374,22 +2374,28 @@ const BooklistApp = (function() {
     '#d53f8c',   // Vibrant Pink
   ];
 
-  // A color input counts as "in use" unless it's hidden for a reason
-  // other than living in an inactive settings tab. The settings controls
-  // are split across separate tab panels (Text Styling / Front Cover /
-  // Back Cover); only the active one is rendered (the rest are
-  // display:none), but the colors inside the inactive tabs are still part
-  // of the booklist. So we look past a hidden .tab-content panel while
-  // still excluding a control hidden by its own feature toggle (e.g. the
-  // second gradient color when the gradient is off). Walking ancestors is
-  // necessary because offsetParent/getComputedStyle on the input itself
-  // can't tell those two cases apart.
-  function _colorInputInUse(input) {
-    for (let el = input; el && el !== document.body; el = el.parentElement) {
-      if (el.classList && el.classList.contains('tab-content')) continue;
-      if (window.getComputedStyle(el).display === 'none') return false;
+  // A control counts as "in use" unless it's hidden for a reason other
+  // than living in an inactive settings tab. The settings controls are
+  // split across separate tab panels (Text Styling / Front Cover / Back
+  // Cover); only the active one is rendered (the rest are display:none),
+  // but the colors/fonts inside the inactive tabs are still part of the
+  // booklist. So we look past a hidden .tab-content panel while still
+  // excluding a control hidden by its own feature toggle (e.g. the
+  // second gradient color when the gradient is off, or the advanced-mode
+  // cover line fonts when advanced mode is off). Walking ancestors is
+  // necessary because offsetParent/getComputedStyle on the control
+  // itself can't tell those two cases apart. Shared by the color
+  // palette's "used colors" and the font dropdown's "used fonts".
+  function _controlInUse(el) {
+    for (let node = el; node && node !== document.body; node = node.parentElement) {
+      if (node.classList && node.classList.contains('tab-content')) continue;
+      if (window.getComputedStyle(node).display === 'none') return false;
     }
     return true;
+  }
+
+  function _colorInputInUse(input) {
+    return _controlInUse(input);
   }
 
   function getUsedColors() {
@@ -7732,6 +7738,34 @@ const BooklistApp = (function() {
     });
   });
 
+  // Fonts currently chosen in OTHER in-use font fields, most-used first.
+  // The font-dropdown analog of getUsedColors: surfaces choices made
+  // elsewhere in the tool so the user can match them with one click.
+  //
+  // We scan only selects that actually became font pickers (those carry
+  // a ._customDropdown). That cleanly excludes the styling-only selects
+  // that borrow the .font-select class (title bar position, tilt offset
+  // direction, gradient direction) without re-deriving populateFontSelects'
+  // allowlist. The value check against the known FONTS labels is a second
+  // safety net so a stray non-font value can never leak in.
+  function getUsedFonts(excludeSelect) {
+    const labelByValue = {};
+    CONFIG.FONTS.forEach(f => { labelByValue[f.value] = f.label; });
+    const freq = {};
+    document.querySelectorAll('.font-select').forEach(sel => {
+      if (sel === excludeSelect) return;
+      if (!sel._customDropdown) return;
+      if (!_controlInUse(sel)) return;
+      const v = sel.value;
+      if (!(v in labelByValue)) return;
+      freq[v] = (freq[v] || 0) + 1;
+    });
+    return Object.keys(freq)
+      .sort((a, b) => freq[b] - freq[a])
+      .slice(0, 6)
+      .map(v => ({ value: v, label: labelByValue[v] }));
+  }
+
   function createCustomFontDropdown(select, options = {}) {
     const { type } = options;
     
@@ -7760,27 +7794,48 @@ const BooklistApp = (function() {
     let committedValue = select.value;
     let highlightedIndex = -1;
     
-    // Populate options
+    // Populate options. dataset.index is the rendered-option index (skips
+    // the non-selectable section labels) so it stays in lockstep with the
+    // querySelectorAll('.custom-font-dropdown-option') list the keyboard
+    // navigation walks — important now that a "Used in this booklist"
+    // group can prepend duplicate options ahead of the full list.
     function populateList() {
       list.innerHTML = '';
-      Array.from(select.options).forEach((opt, idx) => {
+      let renderIndex = 0;
+
+      function addOption(value, label, isUsed) {
         const li = document.createElement('li');
-        li.className = 'custom-font-dropdown-option';
+        li.className = 'custom-font-dropdown-option' + (isUsed ? ' is-used-font' : '');
         li.setAttribute('role', 'option');
-        li.dataset.value = opt.value;
-        li.dataset.index = idx;
-        li.textContent = opt.textContent;
-        
+        li.dataset.value = value;
+        li.dataset.index = renderIndex++;
+        li.textContent = label;
         // Style each option in its respective font
-        li.style.fontFamily = opt.value;
-        
-        if (opt.value === select.value) {
-          li.classList.add('selected');
-          li.setAttribute('aria-selected', 'true');
-        }
-        
+        li.style.fontFamily = value;
+        const isSelected = value === select.value;
+        li.classList.toggle('selected', isSelected);
+        li.setAttribute('aria-selected', isSelected ? 'true' : 'false');
         list.appendChild(li);
-      });
+      }
+
+      function addSectionLabel(text, extraClass) {
+        const li = document.createElement('li');
+        li.className = 'custom-font-dropdown-section-label' + (extraClass ? ' ' + extraClass : '');
+        li.setAttribute('role', 'presentation');
+        li.textContent = text;
+        list.appendChild(li);
+      }
+
+      // "Used in this booklist" — fonts chosen in the tool's other fields.
+      const usedFonts = getUsedFonts(select);
+      if (usedFonts.length > 0) {
+        addSectionLabel('Used in this booklist');
+        usedFonts.forEach(f => addOption(f.value, f.label, true));
+        addSectionLabel('All fonts', 'all-fonts-label');
+      }
+
+      // Full font list (CONFIG.FONTS, via the hidden <select>'s options).
+      Array.from(select.options).forEach(opt => addOption(opt.value, opt.textContent, false));
     }
     
     // Update trigger display
@@ -7879,19 +7934,31 @@ const BooklistApp = (function() {
     function openDropdown() {
       if (isOpen) return;
       isOpen = true;
+      // Rebuild so the "Used in this booklist" section reflects the fonts
+      // currently chosen in other fields (they may have changed since the
+      // dropdown was last built).
+      populateList();
       wrapper.classList.add('open');
       trigger.setAttribute('aria-expanded', 'true');
       openFontDropdowns.add(dropdownRef);
 
-      // Update highlighted index to current selection
-      const currentIdx = Array.from(select.options).findIndex(o => o.value === committedValue);
-      highlightedIndex = currentIdx >= 0 ? currentIdx : 0;
-      updateHighlight();
+      // Anchor the keyboard cursor on the current font in the FULL list
+      // (not its duplicate in the used section) so Enter without moving is
+      // a no-op and the selection reads in alphabetical context.
+      const items = Array.from(list.querySelectorAll('.custom-font-dropdown-option'));
+      let idx = items.findIndex(li => li.dataset.value === committedValue && !li.classList.contains('is-used-font'));
+      if (idx < 0) idx = items.findIndex(li => li.dataset.value === committedValue);
+      highlightedIndex = idx >= 0 ? idx : 0;
 
-      // Scroll selected item into view
-      const selectedLi = list.querySelector('.selected');
-      if (selectedLi) {
-        selectedLi.scrollIntoView({ block: 'nearest' });
+      if (list.querySelector('.custom-font-dropdown-option.is-used-font')) {
+        // Pin to the top so the used-fonts section is the first thing seen;
+        // mark the highlight without scrolling away from it.
+        updateHighlight(false);
+        list.scrollTop = 0;
+      } else {
+        // No used section: keep the original behavior of revealing the
+        // current font in context.
+        updateHighlight(true);
       }
     }
 
@@ -7914,15 +7981,17 @@ const BooklistApp = (function() {
       }
     }
     
-    // Update visual highlight
-    function updateHighlight() {
+    // Update visual highlight. scroll=false marks the highlight without
+    // scrolling to it — used on open when the list is intentionally
+    // pinned to the top to reveal the "Used in this booklist" section.
+    function updateHighlight(scroll = true) {
       const items = list.querySelectorAll('.custom-font-dropdown-option');
       items.forEach((li, idx) => {
         li.classList.toggle('highlighted', idx === highlightedIndex);
       });
-      
+
       // Scroll highlighted into view
-      if (highlightedIndex >= 0 && items[highlightedIndex]) {
+      if (scroll && highlightedIndex >= 0 && items[highlightedIndex]) {
         items[highlightedIndex].scrollIntoView({ block: 'nearest' });
       }
     }

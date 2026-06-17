@@ -2403,6 +2403,30 @@ body.has-custom-qr #generate-qr-button:disabled {
   background-color: var(--primary-hover);
 }
 
+/* Non-selectable group headers inside the font dropdown ("Used in this
+   booklist" / "All fonts"). Mirrors the color palette's used-colors
+   grouping so fonts chosen elsewhere in the tool surface at the top. */
+.custom-font-dropdown-section-label {
+  padding: 7px 10px 3px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  pointer-events: none;
+  user-select: none;
+}
+.custom-font-dropdown-section-label.all-fonts-label {
+  border-top: 1px solid var(--border-light);
+  margin-top: 2px;
+}
+/* Subtle tint so the used-fonts group reads as distinct from the full
+   list. Scoped past .selected / .highlighted so those states keep their
+   own backgrounds. */
+.custom-font-dropdown-option.is-used-font:not(.selected):not(.highlighted) {
+  background-color: rgba(92, 107, 192, 0.06);
+}
+
 /* Hide original select when custom dropdown is active */
 .font-select.has-custom-dropdown {
   position: absolute;
