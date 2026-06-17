@@ -436,7 +436,7 @@
         },
         {
           target: null,
-          text: "That's it! You're all set to make some great booklists. I'll be down here keeping an eye on things. Click the cat button to hide or show me anytime.",
+          text: "That's it! You're all set to make some great booklists. I'll be down here in the corner keeping an eye on things. Click the cat button up in the header to hide or show me anytime.",
           state: 'greeting',
           prepare: function() {
             const mainContent = document.querySelector('.main-content');
