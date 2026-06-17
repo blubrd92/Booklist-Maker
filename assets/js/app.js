@@ -7902,6 +7902,17 @@ const BooklistApp = (function() {
       // tour mode (guarded internally), so this is safe to call even
       // when commitSelection is invoked programmatically outside user
       // interaction.
+      // Roll the live preview back to the committed (old) font BEFORE
+      // snapshotting. Hovering or keyboard-navigating an option calls
+      // triggerPreview(), which sets select.value to the previewed font;
+      // captureStyleGroups() reads select.value directly, so without this
+      // revert the "pre-edit" snapshot would record the NEW font and undo
+      // would be a no-op. (This is the long-standing reason font undo felt
+      // unreliable — it only worked when no preview had fired.) No
+      // applyStyles() needed here: select.value is set to `value` two
+      // lines down and the change dispatch below re-applies styles.
+      select.value = committedValue;
+
       clearPreEditSnapshot();
       capturePreEditSnapshot();
 
