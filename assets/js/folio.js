@@ -675,11 +675,16 @@
     // adding it for everyone else.
     const shown = localStorage.getItem('folio-hidden') === 'false';
     if (shown) folioContainer.classList.remove('folio-hidden');
+    // Reflect the initial shown/hidden state on the header toggle so its
+    // pressed styling (filled when Folio is on) and a11y state are right
+    // from first paint.
+    folioToggle.setAttribute('aria-pressed', String(shown));
 
     folioToggle.addEventListener('click', function(e) {
       e.stopPropagation();
       folioContainer.classList.toggle('folio-hidden');
       const isHidden = folioContainer.classList.contains('folio-hidden');
+      folioToggle.setAttribute('aria-pressed', String(!isHidden));
       localStorage.setItem('folio-hidden', isHidden);
       // Turning Folio ON is his entrance — greet, same guard pattern
       // as the page-load greeting so cascading hooks can't stomp it.
