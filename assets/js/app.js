@@ -7291,7 +7291,7 @@ const BooklistApp = (function() {
     // (with the pre-edit pattern for undo and debouncedSave() on every edit).
 
     // Advanced mode: per-line inputs and style controls
-    elements.coverLines.forEach(line => {
+    elements.coverLines.forEach((line, lineIdx) => {
       // Text input — pre-edit pattern so undo captures state BEFORE typing.
       if (line.input) {
         line.input.addEventListener('focus', capturePreEditSnapshot);
@@ -7352,9 +7352,12 @@ const BooklistApp = (function() {
         });
       }
       // Bold toggle — button, pushUndo-before-mutation works correctly.
+      // Per-line, per-kind coalesce key (see bindPreChangeCapture) so one
+      // line's bold doesn't merge with another line's italic or with a
+      // font/color commit a moment earlier.
       if (line.bold) {
         line.bold.addEventListener('click', () => {
-          pushUndo('change-cover-style');
+          pushUndo('change-cover-style:line' + lineIdx + ':bold');
           line.bold.classList.toggle('active');
           debouncedSave();
           autoRegenerateCoverIfAble();
@@ -7363,7 +7366,7 @@ const BooklistApp = (function() {
       // Italic toggle — button, pushUndo-before-mutation works correctly.
       if (line.italic) {
         line.italic.addEventListener('click', () => {
-          pushUndo('change-cover-style');
+          pushUndo('change-cover-style:line' + lineIdx + ':italic');
           line.italic.classList.toggle('active');
           debouncedSave();
           autoRegenerateCoverIfAble();
@@ -7444,8 +7447,19 @@ const BooklistApp = (function() {
         if (button.classList.contains('line-bold') || button.classList.contains('line-italic')) {
           return;
         }
+        // Per-control coalesce key so toggling, say, the title's bold
+        // never merges into a different control's recent undo entry (see
+        // the coalescing note in bindPreChangeCapture). The 3 align
+        // buttons share one key per group since they're a mutually-
+        // exclusive set — one logical "alignment" control.
+        const groupKey = group.dataset.styleGroup || group.id || 'style';
+        const btnKind = button.classList.contains('bold-toggle') ? 'bold'
+          : button.classList.contains('italic-toggle') ? 'italic'
+          : button.classList.contains('align-toggle') ? 'align'
+          : 'btn';
+        const undoKey = 'change-style:' + groupKey + ':' + btnKind;
         button.addEventListener('click', (e) => {
-          pushUndo('change-style');
+          pushUndo(undoKey);
           const btn = e.currentTarget;
           if (btn.classList.contains('bold-toggle') || btn.classList.contains('italic-toggle')) {
             btn.classList.toggle('active');
@@ -8293,7 +8307,20 @@ const BooklistApp = (function() {
    */
   function bindPreChangeCapture(element, group) {
     if (!element) return;
-    const capture = () => pushUndo(group);
+    // Coalesce key specific to THIS control. pushUndo() merges
+    // consecutive snapshots that share a group within UNDO_COALESCE_MS;
+    // the intent is to fold rapid repeats of ONE control into a single
+    // undo step. But many distinct controls were passing the same coarse
+    // label (e.g. 'change-style' is shared by the title-bar position,
+    // both stretch toggles, show-shelves, tilt offset, the advanced-mode
+    // toggle — and commitPreEditSnapshot stamps the same label for every
+    // font/size/color edit). So changing two unrelated settings within a
+    // second coalesced them into one entry, and a single undo reverted
+    // both. Appending the element identity keeps same-control repeats
+    // merging while never matching a different control. Radio groups
+    // share a `name`, so they intentionally still coalesce as one unit.
+    const key = group + ':' + (element.name || element.id || '');
+    const capture = () => pushUndo(key);
 
     // Direct interactions with the input itself.
     element.addEventListener('mousedown', capture);
