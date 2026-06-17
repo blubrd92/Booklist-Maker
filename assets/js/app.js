@@ -259,6 +259,10 @@ const BooklistApp = (function() {
   const ZOOM_MIN = 0.25;
   const ZOOM_MAX = 3.0;
   const ZOOM_STEP = 0.25;
+  // Breathing room (px) left above and below a page when "Fit to Height"
+  // sizes and scrolls it. Shared by the zoom calc and the scroll anchor
+  // so the page lands symmetrically within the viewport.
+  const FIT_HEIGHT_GAP_PX = 8;
   let currentZoom = 1.0;
 
   // Search pagination state
@@ -8781,12 +8785,42 @@ const BooklistApp = (function() {
   function computeFitToHeightZoom() {
     const container = document.querySelector('.main-content');
     if (!container) return 1.0;
-    const toolbar = container.querySelector('.toolbar');
-    const toolbarH = toolbar ? toolbar.offsetHeight : 0;
-    const containerH = container.clientHeight - toolbarH;
-    // Single page height: 8.5in at 96 DPI + padding
-    const pageH = 8.5 * 96 + 40;
-    return (containerH / pageH) * 0.98;
+    // Fill the full visible height with ONE page. The List Name / hint
+    // toolbar is a scrollable sibling (not pinned), so it must not shrink
+    // the target — it simply scrolls above page 1. clientHeight is the
+    // visible window height; leave a small gap top and bottom.
+    const availH = container.clientHeight - 2 * FIT_HEIGHT_GAP_PX;
+    const pageH = 8.5 * 96; // one page at 96 DPI (1056x816 landscape)
+    return availH / pageH;
+  }
+
+  // The .page element currently occupying the most of the preview
+  // viewport — i.e. the one the user is looking at. Used to re-anchor
+  // after a Fit-to-Height rescale.
+  function getMostVisiblePage() {
+    const container = document.querySelector('.main-content');
+    if (!container) return null;
+    const pages = document.querySelectorAll('#preview-area .page');
+    if (!pages.length) return null;
+    const cRect = container.getBoundingClientRect();
+    let best = null;
+    let bestOverlap = -Infinity;
+    pages.forEach(page => {
+      const r = page.getBoundingClientRect();
+      const overlap = Math.min(r.bottom, cRect.bottom) - Math.max(r.top, cRect.top);
+      if (overlap > bestOverlap) { bestOverlap = overlap; best = page; }
+    });
+    return best;
+  }
+
+  // Scroll the container so the given page's top sits FIT_HEIGHT_GAP_PX
+  // below the viewport top. Call AFTER applyZoom so the measured rects
+  // reflect the new scale.
+  function anchorPageToTop(page) {
+    const container = document.querySelector('.main-content');
+    if (!container || !page) return;
+    const delta = page.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    container.scrollTop += delta - FIT_HEIGHT_GAP_PX;
   }
 
   function initZoomControls() {
@@ -8827,9 +8861,13 @@ const BooklistApp = (function() {
     });
     const btnFitH = document.getElementById('btn-zoom-fit-height');
     if (btnFitH) btnFitH.addEventListener('click', function() {
+      // Capture the page in view BEFORE rescaling so we can re-anchor to
+      // the same one (fits whichever page the user is looking at).
+      const targetPage = getMostVisiblePage();
       currentZoom = computeFitToHeightZoom();
       currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
       applyZoom();
+      anchorPageToTop(targetPage);
     });
 
     // Ctrl+scroll wheel zoom
