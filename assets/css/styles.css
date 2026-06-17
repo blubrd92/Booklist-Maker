@@ -3329,7 +3329,18 @@ body.has-custom-qr #generate-qr-button:disabled {
     min-width: 44px;
     height: auto;
   }
-  .zoom-btn-wide { padding: 0 6px; }
+  /* Undo / Redo carry a text label, so they must size to content — the
+     44px square from the .zoom-btn touch-target rule above clips
+     "Undo"/"Redo" to "do". width: auto restores the label; min-height
+     keeps the 44px touch target; min-width gives a comfortable hit area
+     for the shorter "Redo". */
+  .zoom-btn-wide {
+    width: auto;
+    min-width: 56px;
+    min-height: 44px;
+    height: 44px;
+    padding: 0 8px;
+  }
   /* Collapsed-by-default expander: phones see a single button until
      tapped, so the panel doesn't cover the preview. Scoped to this
      media query so the .collapsed class shipped in the HTML has no
