@@ -259,6 +259,10 @@ const BooklistApp = (function() {
   const ZOOM_MIN = 0.25;
   const ZOOM_MAX = 3.0;
   const ZOOM_STEP = 0.25;
+  // Breathing room (px) left above and below a page when "Fit to Height"
+  // sizes and scrolls it. Shared by the zoom calc and the scroll anchor
+  // so the page lands symmetrically within the viewport.
+  const FIT_HEIGHT_GAP_PX = 8;
   let currentZoom = 1.0;
 
   // Search pagination state
@@ -2312,6 +2316,22 @@ const BooklistApp = (function() {
     detailsDiv.appendChild(titleField);
     detailsDiv.appendChild(authorField);
     detailsDiv.appendChild(descriptionField);
+
+    // Phone-sized layouts: the preview is auto-fit far below 100% zoom,
+    // making the in-place contenteditable fields impractical to tap and
+    // edit, so route taps to the book edit sheet instead. pointerdown's
+    // preventDefault suppresses the focus (and the on-screen keyboard);
+    // the click then opens the sheet. Desktop and the guided tour keep
+    // the direct-editing behavior.
+    detailsDiv.addEventListener('pointerdown', function(e) {
+      if (_tourActive || !isMobileLayout()) return;
+      e.preventDefault();
+    });
+    detailsDiv.addEventListener('click', function(e) {
+      if (_tourActive || !isMobileLayout()) return;
+      e.preventDefault();
+      openBookEditSheet(bookItem);
+    });
     
     // Setup placeholders
     const titleOriginalColor = getComputedStyle(titleField).color;
@@ -2358,22 +2378,28 @@ const BooklistApp = (function() {
     '#d53f8c',   // Vibrant Pink
   ];
 
-  // A color input counts as "in use" unless it's hidden for a reason
-  // other than living in an inactive settings tab. The settings controls
-  // are split across separate tab panels (Text Styling / Front Cover /
-  // Back Cover); only the active one is rendered (the rest are
-  // display:none), but the colors inside the inactive tabs are still part
-  // of the booklist. So we look past a hidden .tab-content panel while
-  // still excluding a control hidden by its own feature toggle (e.g. the
-  // second gradient color when the gradient is off). Walking ancestors is
-  // necessary because offsetParent/getComputedStyle on the input itself
-  // can't tell those two cases apart.
-  function _colorInputInUse(input) {
-    for (let el = input; el && el !== document.body; el = el.parentElement) {
-      if (el.classList && el.classList.contains('tab-content')) continue;
-      if (window.getComputedStyle(el).display === 'none') return false;
+  // A control counts as "in use" unless it's hidden for a reason other
+  // than living in an inactive settings tab. The settings controls are
+  // split across separate tab panels (Text Styling / Front Cover / Back
+  // Cover); only the active one is rendered (the rest are display:none),
+  // but the colors/fonts inside the inactive tabs are still part of the
+  // booklist. So we look past a hidden .tab-content panel while still
+  // excluding a control hidden by its own feature toggle (e.g. the
+  // second gradient color when the gradient is off, or the advanced-mode
+  // cover line fonts when advanced mode is off). Walking ancestors is
+  // necessary because offsetParent/getComputedStyle on the control
+  // itself can't tell those two cases apart. Shared by the color
+  // palette's "used colors" and the font dropdown's "used fonts".
+  function _controlInUse(el) {
+    for (let node = el; node && node !== document.body; node = node.parentElement) {
+      if (node.classList && node.classList.contains('tab-content')) continue;
+      if (window.getComputedStyle(node).display === 'none') return false;
     }
     return true;
+  }
+
+  function _colorInputInUse(input) {
+    return _controlInUse(input);
   }
 
   function getUsedColors() {
@@ -5556,6 +5582,124 @@ const BooklistApp = (function() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Book Edit Sheet (phone-sized layouts)
+  //
+  // On small screens the preview is auto-fit far below 100% zoom, which
+  // makes the in-place contenteditable fields impractical to tap and
+  // edit. Tapping a book's text block (wired in createListItemDetails)
+  // opens this modal with full-size inputs for the same three fields.
+  // Saving mirrors the in-place editors' write paths: one pre-mutation
+  // undo snapshot, direct mutation of the book object, re-render,
+  // debounced autosave. Only fields the user actually changed are
+  // written, so opening and saving without edits is a no-op (and a
+  // blank book stays blank).
+  // ---------------------------------------------------------------------------
+  let _bookBeingEdited = null;
+  let _bookEditOriginals = null;
+
+  // Sheet-facing values for a book: placeholder sentinels become empty
+  // inputs, and the author line is built exactly like the in-place
+  // author field so the user edits what they see in the preview.
+  function _bookEditPrefill(bookItem) {
+    const title = bookItem.title === CONFIG.PLACEHOLDERS.title ? '' : bookItem.title;
+    let authorLine;
+    if (bookItem.authorDisplay !== null && bookItem.authorDisplay !== undefined) {
+      authorLine = bookItem.authorDisplay;
+    } else {
+      authorLine = bookItem.author.startsWith('[Enter')
+        ? `${bookItem.author} - ${bookItem.callNumber}`
+        : `By ${bookItem.author} - ${bookItem.callNumber}`;
+    }
+    if (authorLine === CONFIG.PLACEHOLDERS.authorWithCall) authorLine = '';
+    const description = bookItem.description === CONFIG.PLACEHOLDERS.description ? '' : bookItem.description;
+    return { title, authorLine, description };
+  }
+
+  function openBookEditSheet(bookItem) {
+    const modal = document.getElementById('book-edit-modal');
+    const titleInput = document.getElementById('book-edit-title');
+    const authorInput = document.getElementById('book-edit-author');
+    const descInput = document.getElementById('book-edit-description');
+    if (!modal || !titleInput || !authorInput || !descInput) return;
+
+    _bookBeingEdited = bookItem;
+    _bookEditOriginals = _bookEditPrefill(bookItem);
+    titleInput.value = _bookEditOriginals.title;
+    authorInput.value = _bookEditOriginals.authorLine;
+    descInput.value = _bookEditOriginals.description;
+
+    modal.style.display = 'flex';
+    // Focus on next tick so the modal is visible first (some browsers
+    // refuse focus on display:none → flex transitions in the same tick).
+    setTimeout(function() { titleInput.focus(); }, 0);
+  }
+
+  function closeBookEditSheet() {
+    const modal = document.getElementById('book-edit-modal');
+    if (modal) modal.style.display = 'none';
+    _bookBeingEdited = null;
+    _bookEditOriginals = null;
+  }
+
+  function saveBookEditSheet() {
+    const book = _bookBeingEdited;
+    const originals = _bookEditOriginals;
+    const titleInput = document.getElementById('book-edit-title');
+    const authorInput = document.getElementById('book-edit-author');
+    const descInput = document.getElementById('book-edit-description');
+    if (!book || !originals || !titleInput || !authorInput || !descInput) {
+      closeBookEditSheet();
+      return;
+    }
+
+    const title = titleInput.value;
+    const authorLine = authorInput.value;
+    const description = descInput.value;
+    const changed = title !== originals.title ||
+      authorLine !== originals.authorLine ||
+      description !== originals.description;
+    if (!changed) {
+      closeBookEditSheet();
+      return;
+    }
+
+    pushUndo('edit-book-sheet'); // snapshots the pre-mutation state
+    if (title !== originals.title) {
+      book.title = title;
+      if (book.isBlank && title.trim() !== '') book.isBlank = false;
+    }
+    if (authorLine !== originals.authorLine) book.authorDisplay = authorLine;
+    if (description !== originals.description) book.description = description;
+
+    renderBooklist();
+    debouncedSave();
+    closeBookEditSheet();
+  }
+
+  function bindBookEditSheetEvents() {
+    const modal = document.getElementById('book-edit-modal');
+    const closeBtn = document.getElementById('book-edit-close-btn');
+    const cancelBtn = document.getElementById('book-edit-cancel-btn');
+    const saveBtn = document.getElementById('book-edit-save-btn');
+
+    if (closeBtn) closeBtn.addEventListener('click', closeBookEditSheet);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeBookEditSheet);
+    if (saveBtn) saveBtn.addEventListener('click', saveBookEditSheet);
+
+    // Click-outside to dismiss (mousedown-tracked, like the other modals).
+    attachOverlayClickClose(modal, closeBookEditSheet);
+
+    // Escape closes the modal.
+    document.addEventListener('keydown', function(e) {
+      if (!modal || modal.style.display === 'none') return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeBookEditSheet();
+      }
+    });
+  }
+
   function bindQuickAddEvents() {
     const openBtn = document.getElementById('quickAddBtn');
     const closeBtn = document.getElementById('quick-add-close-btn');
@@ -7151,7 +7295,7 @@ const BooklistApp = (function() {
     // (with the pre-edit pattern for undo and debouncedSave() on every edit).
 
     // Advanced mode: per-line inputs and style controls
-    elements.coverLines.forEach(line => {
+    elements.coverLines.forEach((line, lineIdx) => {
       // Text input — pre-edit pattern so undo captures state BEFORE typing.
       if (line.input) {
         line.input.addEventListener('focus', capturePreEditSnapshot);
@@ -7212,9 +7356,12 @@ const BooklistApp = (function() {
         });
       }
       // Bold toggle — button, pushUndo-before-mutation works correctly.
+      // Per-line, per-kind coalesce key (see bindPreChangeCapture) so one
+      // line's bold doesn't merge with another line's italic or with a
+      // font/color commit a moment earlier.
       if (line.bold) {
         line.bold.addEventListener('click', () => {
-          pushUndo('change-cover-style');
+          pushUndo('change-cover-style:line' + lineIdx + ':bold');
           line.bold.classList.toggle('active');
           debouncedSave();
           autoRegenerateCoverIfAble();
@@ -7223,7 +7370,7 @@ const BooklistApp = (function() {
       // Italic toggle — button, pushUndo-before-mutation works correctly.
       if (line.italic) {
         line.italic.addEventListener('click', () => {
-          pushUndo('change-cover-style');
+          pushUndo('change-cover-style:line' + lineIdx + ':italic');
           line.italic.classList.toggle('active');
           debouncedSave();
           autoRegenerateCoverIfAble();
@@ -7304,8 +7451,19 @@ const BooklistApp = (function() {
         if (button.classList.contains('line-bold') || button.classList.contains('line-italic')) {
           return;
         }
+        // Per-control coalesce key so toggling, say, the title's bold
+        // never merges into a different control's recent undo entry (see
+        // the coalescing note in bindPreChangeCapture). The 3 align
+        // buttons share one key per group since they're a mutually-
+        // exclusive set — one logical "alignment" control.
+        const groupKey = group.dataset.styleGroup || group.id || 'style';
+        const btnKind = button.classList.contains('bold-toggle') ? 'bold'
+          : button.classList.contains('italic-toggle') ? 'italic'
+          : button.classList.contains('align-toggle') ? 'align'
+          : 'btn';
+        const undoKey = 'change-style:' + groupKey + ':' + btnKind;
         button.addEventListener('click', (e) => {
-          pushUndo('change-style');
+          pushUndo(undoKey);
           const btn = e.currentTarget;
           if (btn.classList.contains('bold-toggle') || btn.classList.contains('italic-toggle')) {
             btn.classList.toggle('active');
@@ -7598,6 +7756,34 @@ const BooklistApp = (function() {
     });
   });
 
+  // Fonts currently chosen in OTHER in-use font fields, most-used first.
+  // The font-dropdown analog of getUsedColors: surfaces choices made
+  // elsewhere in the tool so the user can match them with one click.
+  //
+  // We scan only selects that actually became font pickers (those carry
+  // a ._customDropdown). That cleanly excludes the styling-only selects
+  // that borrow the .font-select class (title bar position, tilt offset
+  // direction, gradient direction) without re-deriving populateFontSelects'
+  // allowlist. The value check against the known FONTS labels is a second
+  // safety net so a stray non-font value can never leak in.
+  function getUsedFonts(excludeSelect) {
+    const labelByValue = {};
+    CONFIG.FONTS.forEach(f => { labelByValue[f.value] = f.label; });
+    const freq = {};
+    document.querySelectorAll('.font-select').forEach(sel => {
+      if (sel === excludeSelect) return;
+      if (!sel._customDropdown) return;
+      if (!_controlInUse(sel)) return;
+      const v = sel.value;
+      if (!(v in labelByValue)) return;
+      freq[v] = (freq[v] || 0) + 1;
+    });
+    return Object.keys(freq)
+      .sort((a, b) => freq[b] - freq[a])
+      .slice(0, 6)
+      .map(v => ({ value: v, label: labelByValue[v] }));
+  }
+
   function createCustomFontDropdown(select, options = {}) {
     const { type } = options;
     
@@ -7626,27 +7812,48 @@ const BooklistApp = (function() {
     let committedValue = select.value;
     let highlightedIndex = -1;
     
-    // Populate options
+    // Populate options. dataset.index is the rendered-option index (skips
+    // the non-selectable section labels) so it stays in lockstep with the
+    // querySelectorAll('.custom-font-dropdown-option') list the keyboard
+    // navigation walks — important now that a "Used in this booklist"
+    // group can prepend duplicate options ahead of the full list.
     function populateList() {
       list.innerHTML = '';
-      Array.from(select.options).forEach((opt, idx) => {
+      let renderIndex = 0;
+
+      function addOption(value, label, isUsed) {
         const li = document.createElement('li');
-        li.className = 'custom-font-dropdown-option';
+        li.className = 'custom-font-dropdown-option' + (isUsed ? ' is-used-font' : '');
         li.setAttribute('role', 'option');
-        li.dataset.value = opt.value;
-        li.dataset.index = idx;
-        li.textContent = opt.textContent;
-        
+        li.dataset.value = value;
+        li.dataset.index = renderIndex++;
+        li.textContent = label;
         // Style each option in its respective font
-        li.style.fontFamily = opt.value;
-        
-        if (opt.value === select.value) {
-          li.classList.add('selected');
-          li.setAttribute('aria-selected', 'true');
-        }
-        
+        li.style.fontFamily = value;
+        const isSelected = value === select.value;
+        li.classList.toggle('selected', isSelected);
+        li.setAttribute('aria-selected', isSelected ? 'true' : 'false');
         list.appendChild(li);
-      });
+      }
+
+      function addSectionLabel(text, extraClass) {
+        const li = document.createElement('li');
+        li.className = 'custom-font-dropdown-section-label' + (extraClass ? ' ' + extraClass : '');
+        li.setAttribute('role', 'presentation');
+        li.textContent = text;
+        list.appendChild(li);
+      }
+
+      // "Used in this booklist" — fonts chosen in the tool's other fields.
+      const usedFonts = getUsedFonts(select);
+      if (usedFonts.length > 0) {
+        addSectionLabel('Used in this booklist');
+        usedFonts.forEach(f => addOption(f.value, f.label, true));
+        addSectionLabel('All fonts', 'all-fonts-label');
+      }
+
+      // Full font list (CONFIG.FONTS, via the hidden <select>'s options).
+      Array.from(select.options).forEach(opt => addOption(opt.value, opt.textContent, false));
     }
     
     // Update trigger display
@@ -7713,6 +7920,17 @@ const BooklistApp = (function() {
       // tour mode (guarded internally), so this is safe to call even
       // when commitSelection is invoked programmatically outside user
       // interaction.
+      // Roll the live preview back to the committed (old) font BEFORE
+      // snapshotting. Hovering or keyboard-navigating an option calls
+      // triggerPreview(), which sets select.value to the previewed font;
+      // captureStyleGroups() reads select.value directly, so without this
+      // revert the "pre-edit" snapshot would record the NEW font and undo
+      // would be a no-op. (This is the long-standing reason font undo felt
+      // unreliable — it only worked when no preview had fired.) No
+      // applyStyles() needed here: select.value is set to `value` two
+      // lines down and the change dispatch below re-applies styles.
+      select.value = committedValue;
+
       clearPreEditSnapshot();
       capturePreEditSnapshot();
 
@@ -7745,19 +7963,31 @@ const BooklistApp = (function() {
     function openDropdown() {
       if (isOpen) return;
       isOpen = true;
+      // Rebuild so the "Used in this booklist" section reflects the fonts
+      // currently chosen in other fields (they may have changed since the
+      // dropdown was last built).
+      populateList();
       wrapper.classList.add('open');
       trigger.setAttribute('aria-expanded', 'true');
       openFontDropdowns.add(dropdownRef);
 
-      // Update highlighted index to current selection
-      const currentIdx = Array.from(select.options).findIndex(o => o.value === committedValue);
-      highlightedIndex = currentIdx >= 0 ? currentIdx : 0;
-      updateHighlight();
+      // Anchor the keyboard cursor on the current font in the FULL list
+      // (not its duplicate in the used section) so Enter without moving is
+      // a no-op and the selection reads in alphabetical context.
+      const items = Array.from(list.querySelectorAll('.custom-font-dropdown-option'));
+      let idx = items.findIndex(li => li.dataset.value === committedValue && !li.classList.contains('is-used-font'));
+      if (idx < 0) idx = items.findIndex(li => li.dataset.value === committedValue);
+      highlightedIndex = idx >= 0 ? idx : 0;
 
-      // Scroll selected item into view
-      const selectedLi = list.querySelector('.selected');
-      if (selectedLi) {
-        selectedLi.scrollIntoView({ block: 'nearest' });
+      if (list.querySelector('.custom-font-dropdown-option.is-used-font')) {
+        // Pin to the top so the used-fonts section is the first thing seen;
+        // mark the highlight without scrolling away from it.
+        updateHighlight(false);
+        list.scrollTop = 0;
+      } else {
+        // No used section: keep the original behavior of revealing the
+        // current font in context.
+        updateHighlight(true);
       }
     }
 
@@ -7780,15 +8010,17 @@ const BooklistApp = (function() {
       }
     }
     
-    // Update visual highlight
-    function updateHighlight() {
+    // Update visual highlight. scroll=false marks the highlight without
+    // scrolling to it — used on open when the list is intentionally
+    // pinned to the top to reveal the "Used in this booklist" section.
+    function updateHighlight(scroll = true) {
       const items = list.querySelectorAll('.custom-font-dropdown-option');
       items.forEach((li, idx) => {
         li.classList.toggle('highlighted', idx === highlightedIndex);
       });
-      
+
       // Scroll highlighted into view
-      if (highlightedIndex >= 0 && items[highlightedIndex]) {
+      if (scroll && highlightedIndex >= 0 && items[highlightedIndex]) {
         items[highlightedIndex].scrollIntoView({ block: 'nearest' });
       }
     }
@@ -8079,7 +8311,20 @@ const BooklistApp = (function() {
    */
   function bindPreChangeCapture(element, group) {
     if (!element) return;
-    const capture = () => pushUndo(group);
+    // Coalesce key specific to THIS control. pushUndo() merges
+    // consecutive snapshots that share a group within UNDO_COALESCE_MS;
+    // the intent is to fold rapid repeats of ONE control into a single
+    // undo step. But many distinct controls were passing the same coarse
+    // label (e.g. 'change-style' is shared by the title-bar position,
+    // both stretch toggles, show-shelves, tilt offset, the advanced-mode
+    // toggle — and commitPreEditSnapshot stamps the same label for every
+    // font/size/color edit). So changing two unrelated settings within a
+    // second coalesced them into one entry, and a single undo reverted
+    // both. Appending the element identity keeps same-control repeats
+    // merging while never matching a different control. Radio groups
+    // share a `name`, so they intentionally still coalesce as one unit.
+    const key = group + ':' + (element.name || element.id || '');
+    const capture = () => pushUndo(key);
 
     // Direct interactions with the input itself.
     element.addEventListener('mousedown', capture);
@@ -8540,12 +8785,42 @@ const BooklistApp = (function() {
   function computeFitToHeightZoom() {
     const container = document.querySelector('.main-content');
     if (!container) return 1.0;
-    const toolbar = container.querySelector('.toolbar');
-    const toolbarH = toolbar ? toolbar.offsetHeight : 0;
-    const containerH = container.clientHeight - toolbarH;
-    // Single page height: 8.5in at 96 DPI + padding
-    const pageH = 8.5 * 96 + 40;
-    return (containerH / pageH) * 0.98;
+    // Fill the full visible height with ONE page. The List Name / hint
+    // toolbar is a scrollable sibling (not pinned), so it must not shrink
+    // the target — it simply scrolls above page 1. clientHeight is the
+    // visible window height; leave a small gap top and bottom.
+    const availH = container.clientHeight - 2 * FIT_HEIGHT_GAP_PX;
+    const pageH = 8.5 * 96; // one page at 96 DPI (1056x816 landscape)
+    return availH / pageH;
+  }
+
+  // The .page element currently occupying the most of the preview
+  // viewport — i.e. the one the user is looking at. Used to re-anchor
+  // after a Fit-to-Height rescale.
+  function getMostVisiblePage() {
+    const container = document.querySelector('.main-content');
+    if (!container) return null;
+    const pages = document.querySelectorAll('#preview-area .page');
+    if (!pages.length) return null;
+    const cRect = container.getBoundingClientRect();
+    let best = null;
+    let bestOverlap = -Infinity;
+    pages.forEach(page => {
+      const r = page.getBoundingClientRect();
+      const overlap = Math.min(r.bottom, cRect.bottom) - Math.max(r.top, cRect.top);
+      if (overlap > bestOverlap) { bestOverlap = overlap; best = page; }
+    });
+    return best;
+  }
+
+  // Scroll the container so the given page's top sits FIT_HEIGHT_GAP_PX
+  // below the viewport top. Call AFTER applyZoom so the measured rects
+  // reflect the new scale.
+  function anchorPageToTop(page) {
+    const container = document.querySelector('.main-content');
+    if (!container || !page) return;
+    const delta = page.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    container.scrollTop += delta - FIT_HEIGHT_GAP_PX;
   }
 
   function initZoomControls() {
@@ -8586,9 +8861,13 @@ const BooklistApp = (function() {
     });
     const btnFitH = document.getElementById('btn-zoom-fit-height');
     if (btnFitH) btnFitH.addEventListener('click', function() {
+      // Capture the page in view BEFORE rescaling so we can re-anchor to
+      // the same one (fits whichever page the user is looking at).
+      const targetPage = getMostVisiblePage();
       currentZoom = computeFitToHeightZoom();
       currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, currentZoom));
       applyZoom();
+      anchorPageToTop(targetPage);
     });
 
     // Ctrl+scroll wheel zoom
@@ -8603,6 +8882,49 @@ const BooklistApp = (function() {
         applyZoom();
       }, { passive: false });
     }
+
+    // Mobile-only expander (hidden by CSS on desktop). The panel ships
+    // collapsed on phones so it doesn't cover the preview; this button
+    // toggles the rows in and out.
+    const zoomToggle = document.getElementById('zoom-controls-toggle');
+    const zoomPanel = document.getElementById('zoom-controls');
+    if (zoomToggle && zoomPanel) {
+      zoomToggle.addEventListener('click', function() {
+        const collapsed = zoomPanel.classList.toggle('collapsed');
+        zoomToggle.setAttribute('aria-expanded', String(!collapsed));
+      });
+    }
+  }
+
+  // Single source of truth for "phone-sized layout" — matches the
+  // stacked-layout breakpoint in styles.css. Gates the auto-fit zoom
+  // and the tap-to-edit book sheet.
+  function isMobileLayout() {
+    return !!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+  }
+
+  // On phone-sized layouts the 11in-wide preview would load at 100%
+  // zoom showing only its top-left corner, so fit it to the screen
+  // width once at startup. Re-fits on viewport changes (orientation
+  // flips, mobile browser chrome collapsing) only while the zoom is
+  // still exactly the value the auto-fit chose — once the user zooms
+  // manually (including the tour's resetZoom), their choice wins until
+  // reload. View-only: never touches state, and exportPdf already
+  // forces zoom to 1 for the html2canvas capture regardless.
+  function initMobileAutoFit() {
+    if (!isMobileLayout()) return;
+    fitToWidth();
+    let autoZoom = currentZoom;
+    let resizeTimer = null;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function() {
+        if (!isMobileLayout()) return;
+        if (Math.abs(currentZoom - autoZoom) > 0.001) return;
+        fitToWidth();
+        autoZoom = currentZoom;
+      }, 150);
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -8792,6 +9114,7 @@ const BooklistApp = (function() {
     bindEvents();
     bindExtraCoversEvents();
     bindQuickAddEvents();
+    bindBookEditSheetEvents();
     setupQrPlaceholder();
     initializeBooklist();
     applyStyles();
@@ -8807,6 +9130,7 @@ const BooklistApp = (function() {
     // Initialize zoom and undo/redo controls
     initZoomControls();
     initUndoRedoControls();
+    initMobileAutoFit();
 
     // Set default cover mode (simple)
     toggleCoverMode(false);

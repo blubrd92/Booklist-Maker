@@ -435,9 +435,16 @@
           padding: 6,
         },
         {
-          target: null,
-          text: "That's it! You're all set to make some great booklists. I'll be down here keeping an eye on things. Click the cat button to hide or show me anytime.",
+          // Spotlight the relocated Folio toggle in the header so the
+          // closing line ("Click the cat button up in the header...")
+          // points at the exact control. #folio-toggle always exists and
+          // lives in the always-visible header, so the spotlight resolves
+          // cleanly; a slightly larger padding gives the small round
+          // button a comfortable halo.
+          target: '#folio-toggle',
+          text: "That's it! You're all set to make some great booklists. I'll be down here in the corner keeping an eye on things. Click the cat button up here in the header to hide or show me anytime.",
           state: 'greeting',
+          padding: 8,
           prepare: function() {
             const mainContent = document.querySelector('.main-content');
             if (mainContent) mainContent.scrollTop = 0;

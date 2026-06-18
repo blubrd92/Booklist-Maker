@@ -35,29 +35,42 @@ body:has(.sidebar.collapsed) .folio-container {
   pointer-events: auto;
 }
 
+/* The toggle now lives in the header's .header-actions, immediately
+   before the "?" tour button — not in the preview corner. Sized to
+   match #tour-button so the two help affordances read as a pair.
+   Off (Folio hidden): a purple circle with a white cat, matching the
+   "?" button. On ([aria-pressed="true"], synced in folio.js): the
+   inverse — a white circle with a purple cat — a clear toggled-on
+   signal. Hover stays within each state's palette so it never mimics
+   the opposite state. */
 .folio-toggle {
-  position: absolute;
-  bottom: 8px;
-  left: 12px;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: 2px solid var(--primary-color, #5c6bc0);
-  background: var(--sidebar-bg, #ffffff);
-  color: var(--primary-color, #5c6bc0);
-  font-size: 16px;
+  border: none;
+  background: var(--primary-color, #5c6bc0);
+  color: #fff;
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease, color 0.2s ease;
-  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.05));
-  z-index: 2;
+  flex-shrink: 0;
+  align-self: center;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .folio-toggle:hover {
-  background: var(--primary-color, #5c6bc0);
-  color: white;
+  background: var(--primary-hover, #3f51b5);
+}
+
+.folio-toggle[aria-pressed="true"] {
+  background: #fff;
+  color: var(--primary-color, #5c6bc0);
+}
+
+.folio-toggle[aria-pressed="true"]:hover {
+  background: #f0f0f0;
 }
 
 /* Hidden state: scene fades, toggle stays fixed in place */
@@ -1855,3 +1868,29 @@ body:has(.sidebar.collapsed) .folio-container {
     border-right: 8px solid transparent;
     border-top: 8px solid white;
   }
+/* =============================================================================
+   MOBILE (matches the stacked-layout breakpoint in styles.css)
+   The toggle lives in the header now, so only the cat SCENE floats in
+   the corner (and only while Folio is shown). Two overrides:
+
+   - .folio-toggle: enlarge to a 44px touch target. This lives in
+     folio.css (loaded after styles.css) so it wins over the header
+     button sizing there without needing extra specificity.
+   - .folio-container: the desktop left: 340px anchor would push the
+     summoned cat off the right edge of a phone, so pin it left: 8px.
+     Keep it lifted (bottom: 148px) so the summoned cat clears the
+     expanded zoom bar in the bottom-right (~84px offset + ~54px bar
+     height + gap) on the chance both are open at once.
+   Appended last so these overrides win without disturbing the cascade.
+   ============================================================================= */
+@media (max-width: 768px) {
+  .folio-toggle {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+  }
+  .folio-container {
+    left: 8px;
+    bottom: 148px;
+  }
+}

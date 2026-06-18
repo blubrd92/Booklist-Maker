@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPCEtLSBEb2N1bWVudCBib2R5IC0tPgogIDxyZWN0IHg9IjQiIHk9IjIiIHdpZHRoPSIyNCIgaGVpZ2h0PSIyOCIgcng9IjIiIGZpbGw9IiNmZmYiIHN0cm9rZT0iIzVjNmJjMCIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPCEtLSBUb3Agcm93IG9mIGJvb2sgY292ZXJzIC0tPgogIDxyZWN0IHg9IjciIHk9IjYuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiM1YzZiYzAiLz4KICA8cmVjdCB4PSIxMy41IiB5PSI2LjUiIHdpZHRoPSI1IiBoZWlnaHQ9IjYiIHJ4PSIxIiBmaWxsPSIjNWM2YmMwIi8+CiAgPHJlY3QgeD0iMjAiIHk9IjYuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiM1YzZiYzAiLz4KICA8IS0tIEhvcml6b250YWwgYmFyIGJldHdlZW4gcm93cyAtIGFjY2VudCAtLT4KICA8cmVjdCB4PSI3IiB5PSIxNC41IiB3aWR0aD0iMTgiIGhlaWdodD0iMyIgcng9IjEiIGZpbGw9IiNkMzJmMmYiLz4KICA8IS0tIEJvdHRvbSByb3cgb2YgYm9vayBjb3ZlcnMgLS0+CiAgPHJlY3QgeD0iNyIgeT0iMTkuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiM1YzZiYzAiLz4KICA8cmVjdCB4PSIxMy41IiB5PSIxOS41IiB3aWR0aD0iNSIgaGVpZ2h0PSI2IiByeD0iMSIgZmlsbD0iIzVjNmJjMCIvPgogIDxyZWN0IHg9IjIwIiB5PSIxOS41IiB3aWR0aD0iNSIgaGVpZ2h0PSI2IiByeD0iMSIgZmlsbD0iIzVjNmJjMCIvPgo8L3N2Zz4K">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#37474f">
   <meta name="description" content="Booklister is a free browser tool for making printable booklists for library displays. Auto-pulls book info, generates cover collages, and exports a print-ready bifold PDF.">
   <link rel="canonical" href="https://booklister.org/">
   <meta property="og:type" content="website">
@@ -96,6 +97,14 @@
     </div>
 
     <div class="header-actions">
+      <!-- Folio toggle. Lives here (next to the "?" tour button) rather
+           than floating in the preview corner so the two help/assistant
+           affordances are grouped and the mascot button never overlaps
+           the zoom controls. It still toggles #folio-container (the cat
+           scene stays anchored in the corner); folio.js wires it by ID. -->
+      <button id="folio-toggle" class="folio-toggle" aria-label="Toggle Folio assistant" aria-pressed="false" title="Toggle Folio assistant">
+        <i class="fa-solid fa-cat" aria-hidden="true"></i>
+      </button>
       <button id="tour-button" title="Take a guided tour" aria-label="Open guided tour">?</button>
       <button id="reset-blank-button" class="btn btn-header btn-header-ghost" title="Reset to Blank" aria-label="Reset to blank booklist">
         <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Reset
@@ -733,6 +742,39 @@
       </div>
     </div>
 
+    <!-- Book Edit Sheet (phone-sized layouts only). On small screens the
+         preview is auto-fit far below 100% zoom, so the in-place
+         contenteditable fields are too small to tap and edit. app.js
+         routes taps on a book's text block here instead — full-size
+         inputs for the same three fields. Never opened on desktop. -->
+    <div id="book-edit-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content modal-content-narrow">
+        <div class="modal-header">
+          <h3>Edit Title</h3>
+          <button type="button" class="modal-close" id="book-edit-close-btn" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="quick-add-field">
+            <label for="book-edit-title">Title</label>
+            <input type="text" id="book-edit-title" autocomplete="off" spellcheck="true">
+          </div>
+          <div class="quick-add-field">
+            <label for="book-edit-author">Author line</label>
+            <input type="text" id="book-edit-author" autocomplete="off" spellcheck="true">
+            <p class="book-edit-hint">Shown under the title, e.g. <code>By Jane Doe - FIC DOE</code></p>
+          </div>
+          <div class="quick-add-field">
+            <label for="book-edit-description">Description</label>
+            <textarea id="book-edit-description" class="book-edit-description" rows="5" spellcheck="true"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" id="book-edit-cancel-btn">Cancel</button>
+          <button type="button" class="btn btn-primary" id="book-edit-save-btn">Save</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Extra Cover Search Modal -->
     <div id="extra-cover-search-modal" class="modal-overlay" style="display: none;">
       <div class="modal-content">
@@ -822,19 +864,22 @@
         </div>
       </div>
 
-      <!-- Zoom & Undo/Redo Controls -->
-      <div class="zoom-controls" id="zoom-controls" style="flex-direction: column; align-items: stretch; gap: 0;">
+      <!-- Zoom & Undo/Redo Controls. Laid out via the .zoom-row classes
+           (vertical panel on desktop, horizontal bar on mobile) — keep
+           the styling in styles.css, not inline, so the responsive
+           overrides work without !important. -->
+      <div class="zoom-controls collapsed" id="zoom-controls">
         <!-- Row 1: Undo / Redo -->
-        <div id="undo-controls" style="display: flex; justify-content: center; gap: 2px; padding: 4px 4px 2px;">
-          <button id="btn-undo" class="zoom-btn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled style="width: auto; padding: 0 8px; font-size: 12px; gap: 4px; display: inline-flex; align-items: center;">
+        <div id="undo-controls" class="zoom-row zoom-row-undo">
+          <button id="btn-undo" class="zoom-btn zoom-btn-wide" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
             <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Undo
           </button>
-          <button id="btn-redo" class="zoom-btn" title="Redo (Ctrl+Y)" aria-label="Redo" disabled style="width: auto; padding: 0 8px; font-size: 12px; gap: 4px; display: inline-flex; align-items: center;">
+          <button id="btn-redo" class="zoom-btn zoom-btn-wide" title="Redo (Ctrl+Y)" aria-label="Redo" disabled>
             <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Redo
           </button>
         </div>
         <!-- Row 2: Fit controls -->
-        <div style="border-top: 1px solid var(--border-color); display: flex; justify-content: center; gap: 2px; padding: 2px 4px;">
+        <div class="zoom-row zoom-row-fit">
           <button id="btn-zoom-fit" class="zoom-btn" title="Fit All" aria-label="Fit all pages to screen">
             <i class="fa-solid fa-expand" aria-hidden="true"></i>
           </button>
@@ -846,7 +891,7 @@
           </button>
         </div>
         <!-- Row 3: Zoom level -->
-        <div style="border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; gap: 2px; padding: 2px 4px 4px;">
+        <div class="zoom-row zoom-row-level">
           <button id="btn-zoom-out" class="zoom-btn" title="Zoom Out" aria-label="Zoom out">
             <i class="fa-solid fa-minus" aria-hidden="true"></i>
           </button>
@@ -857,17 +902,26 @@
             <i class="fa-solid fa-plus" aria-hidden="true"></i>
           </button>
         </div>
+        <!-- Mobile-only expander. The panel ships with .collapsed, which
+             only has effect inside the mobile media query: phones see
+             just this button until tapped, so the panel doesn't cover
+             the preview. Desktop CSS hides the button and always shows
+             the rows above. Last child so it keeps the corner position
+             in both states. -->
+        <button id="zoom-controls-toggle" class="zoom-controls-toggle" title="Zoom &amp; undo controls" aria-label="Show zoom and undo controls" aria-expanded="false">
+          <i class="fa-solid fa-magnifying-glass-plus" aria-hidden="true"></i>
+        </button>
       </div>
     </main>
   </div>
 
   <!-- Folio: animated cat mascot companion. Ships with .folio-hidden so
        first paint never flashes the cat before folio.js's initToggle
-       runs — initToggle REMOVES the class for visitors who opted in. -->
+       runs — initToggle REMOVES the class for visitors who opted in.
+       The toggle button now lives in the header (.header-actions, next
+       to the "?" tour button); this container holds only the scene,
+       which stays anchored in the corner and fades in/out on toggle. -->
   <div id="folio-container" class="folio-container folio-hidden">
-    <button id="folio-toggle" class="folio-toggle" aria-label="Toggle Folio assistant" title="Toggle Folio">
-      <i class="fa-solid fa-cat"></i>
-    </button>
     <div class="scene" id="folio-scene">
       <div class="speech-bubble" id="speechBubble"></div>
       <svg class="idle" id="folio" width="760" height="466" viewBox="-130 0 760 466" xmlns="http://www.w3.org/2000/svg">
