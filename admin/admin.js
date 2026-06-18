@@ -1330,7 +1330,9 @@ async function loadMemberships(libraryId) {
         removeBtn.className = 'admin-row-btn admin-row-btn-danger';
         removeBtn.type = 'button';
         removeBtn.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i> Remove';
-        removeBtn.addEventListener('click', () => openRemoveStaffModal(row, libraryId));
+        // Removing the sole admin drops the library to zero admins — same
+        // soft guard as Demote/Move, surfaced in the modal's warning line.
+        removeBtn.addEventListener('click', () => openRemoveStaffModal(row, libraryId, isAdminRow && adminCount === 1));
         actionsWrap.appendChild(removeBtn);
       }
 
@@ -1554,7 +1556,7 @@ async function handleAddMembership(evt) {
 
 let removingStaff = null; // { uid, libraryId, label }
 
-function openRemoveStaffModal(row, libraryId) {
+function openRemoveStaffModal(row, libraryId, isLastAdmin) {
   // Defense in depth: the row-render code already gates the Remove
   // button on canRemove, so this branch shouldn't fire for unauthorized
   // users — but check again here so a programmatic call can't bypass it.
@@ -1577,6 +1579,9 @@ function openRemoveStaffModal(row, libraryId) {
   document.getElementById('admin-remove-staff-name').textContent =
     (row.data.email || row.uid) + (isAdminRow ? ' (library admin)' : '');
   document.getElementById('admin-remove-staff-confirm-target').textContent = confirmTarget;
+  // Surface the last-admin warning only when removing the library's sole
+  // admin. Set on every open so reused modal state can't leak across rows.
+  document.getElementById('admin-remove-staff-last-admin').hidden = !isLastAdmin;
   const input = document.getElementById('admin-remove-staff-confirm-input');
   input.value = '';
   document.getElementById('admin-remove-staff-confirm-btn').disabled = true;
