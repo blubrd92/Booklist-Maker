@@ -1278,7 +1278,13 @@ async function loadMemberships(libraryId) {
           demoteBtn.type = 'button';
           demoteBtn.innerHTML = '<i class="fa-solid fa-user-minus" aria-hidden="true"></i> Demote';
           demoteBtn.title = 'Demote this library admin back to staff';
-          demoteBtn.addEventListener('click', () => demoteToStaff(row.uid, libraryId));
+          // adminCount is in scope (computed above for the heading). Demote
+          // only renders on admin rows, so adminCount === 1 means this is
+          // the library's last admin and demoting leaves it with none.
+          demoteBtn.addEventListener('click', () => demoteToStaff(row.uid, libraryId, {
+            label: row.data.email || row.uid,
+            isLastAdmin: adminCount === 1,
+          }));
           actionsWrap.appendChild(demoteBtn);
         }
       }
@@ -1299,7 +1305,9 @@ async function loadMemberships(libraryId) {
           moveBtn.title = 'No other libraries to move this user to';
         } else {
           moveBtn.title = 'Move this user to a different library (demotes to staff)';
-          moveBtn.addEventListener('click', () => openMoveStaffModal(row, libraryId));
+          // A move always demotes, so moving the sole admin away strips the
+          // current library of its last admin — flag it for the confirm.
+          moveBtn.addEventListener('click', () => openMoveStaffModal(row, libraryId, isAdminRow && adminCount === 1));
         }
         actionsWrap.appendChild(moveBtn);
       }
@@ -1638,8 +1646,21 @@ async function promoteToAdmin(uid, libraryId) {
   }
 }
 
-// Demote a library admin back to staff. Super-admin only.
-async function demoteToStaff(uid, libraryId) {
+// Demote a library admin back to staff. Super-admin only. Gated behind a
+// lightweight confirm() rather than the type-to-confirm modal that
+// Delete/Remove use, because a demote is reversible (you can re-promote).
+// The message escalates when this is the library's only admin: nothing
+// enforces a minimum, so demoting the last one silently drops the library
+// to zero admins (it only raises the soft "no library admins" badge).
+async function demoteToStaff(uid, libraryId, opts = {}) {
+  const label = opts.label || 'this user';
+  let message = 'Demote ' + label + ' back to staff?';
+  if (opts.isLastAdmin) {
+    message += '\n\nThis is the only library admin. The library will be left with '
+      + 'no admins, and only the super-admin will be able to manage its staff.';
+  }
+  if (!window.confirm(message)) return;
+
   const errorEl = document.getElementById('admin-memberships-error');
   errorEl.hidden = true;
   try {
@@ -1666,14 +1687,15 @@ async function demoteToStaff(uid, libraryId) {
 // place we keep the existing Auth UID and credentials.
 // ---------------------------------------------------------------------------
 
-let movingStaff = null; // { uid, fromLibraryId, email }
+let movingStaff = null; // { uid, fromLibraryId, email, isLastAdmin }
 
-function openMoveStaffModal(row, fromLibraryId) {
+function openMoveStaffModal(row, fromLibraryId, isLastAdmin) {
   if (currentUserRole !== 'super-admin') return;
   movingStaff = {
     uid: row.uid,
     fromLibraryId,
     email: row.data.email || null,
+    isLastAdmin: !!isLastAdmin,
   };
 
   const nameEl = document.getElementById('admin-move-staff-name');
@@ -1730,6 +1752,23 @@ async function handleMoveStaffConfirm() {
     errorEl.hidden = false;
     return;
   }
+
+  // Lightweight confirmation. The picker above chose where; this names the
+  // consequence (the silent demote to staff in the destination) and warns
+  // when the move strips the current library of its last admin. Cancelling
+  // leaves the modal open so the super-admin can adjust or back out.
+  const targetLib = librariesCache.find((l) => l.id === newLibraryId);
+  const targetName = targetLib ? (targetLib.data.displayName || targetLib.id) : newLibraryId;
+  const label = movingStaff.email || movingStaff.uid;
+  let message = 'Move ' + label + ' to ' + targetName
+    + '? They will be demoted to staff in the new library.';
+  if (movingStaff.isLastAdmin) {
+    const fromLib = librariesCache.find((l) => l.id === movingStaff.fromLibraryId);
+    const fromName = fromLib ? (fromLib.data.displayName || fromLib.id) : movingStaff.fromLibraryId;
+    message += '\n\n' + fromName + ' will be left with no library admins, and only '
+      + 'the super-admin will be able to manage its staff.';
+  }
+  if (!window.confirm(message)) return;
 
   confirmBtn.disabled = true;
   confirmBtn.textContent = 'Moving…';
