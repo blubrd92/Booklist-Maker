@@ -192,8 +192,8 @@
         <div id="admin-memberships-section" class="admin-modal-body admin-memberships" hidden>
           <h4 id="admin-memberships-heading">Staff with access</h4>
           <p class="admin-field-hint">
-            Enter the new staff member's email. The admin console will create a Firebase Auth
-            account for them and send a password reset email so they can set their own password.
+            Enter the new staff member's email. The admin console will create an account
+            for them and send a password reset email so they can set their own password.
             They'll then be able to sign in at this library's URL.
           </p>
 
@@ -318,11 +318,20 @@
       </div>
       <div class="admin-modal-body">
         <p>Remove <strong id="admin-remove-staff-name"></strong> from this library?</p>
-        <p class="admin-note admin-note-warning" id="admin-remove-staff-warning">
+        <!-- Two role variants, swapped by CSS on body.admin-mode-library.
+             Super-admins (default) get the full backend detail; library
+             admins get a plain-language version without the Firebase jargon
+             or the console cleanup step they can't perform anyway. -->
+        <p class="admin-note admin-note-warning admin-remove-staff-warning-super" id="admin-remove-staff-warning">
           This deletes their <code>memberships</code> document so they lose access. Their
           Firebase Auth account is NOT deleted (the admin console can't do that) — the
           email stays held by Firebase Auth. To free the email for reuse elsewhere,
           delete the user from the Firebase Auth console after removing them here.
+        </p>
+        <p class="admin-note admin-note-warning admin-remove-staff-warning-library">
+          This removes their access to this library, so they can no longer sign in here.
+          Their account itself is not deleted, so contact your Booklister administrator if
+          the email needs to be freed for use elsewhere.
         </p>
         <div class="admin-field admin-confirm-typing-field">
           <label for="admin-remove-staff-confirm-input">

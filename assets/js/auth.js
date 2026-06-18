@@ -103,9 +103,15 @@ if (auth) {
       try {
         const { signInWithEmailAndPassword } = await authModPromise;
         await signInWithEmailAndPassword(auth, email, password);
-        // Hide the modal. library-config.js will pick up the auth state
-        // change and fetch the gated config.
-        modalEl.hidden = true;
+        // Don't hide the modal here. A successful sign-in only means the
+        // credentials are valid, not that this account is authorized for
+        // this library. library-config.js fetches libraries/<id> next and
+        // dispatches either 'library-config-ready' (authorized — the
+        // listener below hides the modal) or 'library-config-failed' (not
+        // a member — showConfigError keeps the modal up with an error and
+        // the user is signed back out). Hiding optimistically here caused
+        // a flash of the hidden body and, on a second submit by an
+        // unauthorized user, a stuck blank page with no way back.
         passwordInput.value = '';
       } catch (err) {
         console.warn('[auth] sign-in failed:', err);
@@ -169,7 +175,7 @@ if (auth) {
     const code = (err && err.code) || '';
     const message = (err && err.message) || '';
     if (code === 'permission-denied' || /permission|insufficient/i.test(message)) {
-      return 'Signed in, but this account is not authorized for this library. Contact your library admin.';
+      return 'This account is not authorized for this library. Contact your library admin.';
     }
     if (code === 'not-found' || /not found|not exist/i.test(message)) {
       return 'Library configuration is missing. Contact your library admin.';

@@ -1143,6 +1143,22 @@ body.admin-mode-library #admin-library-modal .admin-modal {
   max-width: 560px;
 }
 
+/* Remove-staff warning copy differs by role. Super-admins (default) see
+   the full detail: the memberships doc, the surviving Auth account, and
+   the Firebase-console cleanup step. Library admins get a plain-language
+   version without backend jargon (they can't reach the Firebase console
+   anyway), swapped in under .admin-mode-library. Class-based display
+   toggle, not the [hidden] attribute, to avoid the UA-specificity trap. */
+.admin-remove-staff-warning-library {
+  display: none;
+}
+body.admin-mode-library .admin-remove-staff-warning-super {
+  display: none;
+}
+body.admin-mode-library .admin-remove-staff-warning-library {
+  display: block;
+}
+
 /* --- FOOTER --- */
 
 .admin-footer {

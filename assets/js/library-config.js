@@ -48,7 +48,7 @@ function dispatch(name, detail) {
   const { doc, getDoc } = await import(
     'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js'
   );
-  const { onAuthStateChanged } = await import(
+  const { onAuthStateChanged, signOut } = await import(
     'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'
   );
 
@@ -104,6 +104,27 @@ function dispatch(name, detail) {
         role: window.LIBRARY_USER_ROLE
       });
     } catch (err) {
+      // A signed-in user who isn't a member of this library gets
+      // permission-denied from the libraries/<id> read (the rules allow
+      // only members or super-admins). Don't leave them holding a session
+      // on a library they can't use: sign them out so the login modal is
+      // the only state, and so a retry is a fresh sign-in that re-fires
+      // onAuthStateChanged. Without this, re-submitting the already
+      // signed-in credentials resolves with no auth-state change, the
+      // modal hides, and nothing re-reveals it, stranding the page on a
+      // hidden body with no way back. Only permission-denied triggers the
+      // sign-out; transient errors (network, unavailable) leave a
+      // legitimately authorized user's session intact.
+      if (err && err.code === 'permission-denied') {
+        try {
+          await signOut(auth);
+        } catch (signOutErr) {
+          console.warn(
+            '[library-config] sign-out after unauthorized library access failed:',
+            signOutErr
+          );
+        }
+      }
       dispatch('library-config-failed', { error: err });
     }
   }
@@ -146,13 +167,20 @@ function dispatch(name, detail) {
   // user to sign in again.
   let firstAuthCallback = true;
   onAuthStateChanged(auth, async (user) => {
+    // Capture and clear the first-callback flag synchronously, before any
+    // await. loadGatedConfig() may sign an unauthorized user out, which
+    // re-fires this listener with user=null; if the flag were still true
+    // at that point, the re-entrant null callback would spuriously
+    // dispatch 'library-config-needs-auth' (opening a clean modal) on top
+    // of the 'library-config-failed' the sign-out path is about to send.
+    const wasFirstCallback = firstAuthCallback;
+    firstAuthCallback = false;
     if (user) {
       // Signed in — either persisted or a fresh sign-in from auth.js.
       await loadGatedConfig();
-    } else if (firstAuthCallback) {
+    } else if (wasFirstCallback) {
       // First callback with no user: prompt auth.js to open the modal.
       dispatch('library-config-needs-auth', { libraryId });
     }
-    firstAuthCallback = false;
   });
 })();
