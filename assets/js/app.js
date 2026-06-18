@@ -31,6 +31,7 @@ const BooklistApp = (function() {
   let _lastUndoGroup = null;
   let _lastUndoTime = 0;
   let _isRestoring = false;  // Guard flag to prevent side effects during undo/redo restore
+  let _undoRedoBusy = false; // Guard flag: set only while undo/redo is awaiting a collage render flush, to drop overlapping undo/redo presses during that brief window (see undo()/flushCollageRegen)
   let _tourActive = false;   // Guard flag: suppresses pushUndo and autosave during guided tour
   let _resetting = false;    // Guard flag: suppresses autosave once a reset-to-blank is in progress
   let _initialRestorePending = true; // Guard flag: suppresses autosave between init() and the async draft restore completing. init() renders a blank booklist, whose render schedules a debounced save; if the IndexedDB draft read takes longer than AUTOSAVE_DEBOUNCE_MS (cold start, open blocked by another tab), that blank save would commit first and overwrite the user's saved draft. Cleared in the restore chain's finally.
@@ -49,6 +50,7 @@ const BooklistApp = (function() {
   let _drafterOverrides = null;
 
   let _collageGenId = 0;     // Generation counter to discard stale async collage results
+  let _collageRegenPromise = null; // Resolves when the in-flight generateCoverCollage() settles (null when idle). Lets undo/redo await a render that's still catching up to the latest setting — see flushCollageRegen.
   // Pre-edit snapshot used by style inputs (color pickers, font selects, size
   // inputs, etc.) where the DOM value is mutated by the browser BEFORE the
   // change/input event fires. pushUndo captures the current DOM via
@@ -301,21 +303,46 @@ const BooklistApp = (function() {
   })();
 
   // Debounced cover regeneration to prevent lag on rapid changes
-  const debouncedCoverRegen = (() => {
-    let t;
+  // Factory for the collage-regen debouncers. Beyond the usual debounce it
+  // exposes pending()/flush() so undo/redo can tell whether the on-screen
+  // collage is still catching up to the latest setting, and force it to
+  // finish before reverting (see flushCollageRegen / undo). `t` is held at
+  // null when idle so pending() is a simple null check.
+  function makeCollageRegenDebounce(delayMs) {
+    let t = null;
+    function run() {
+      t = null;
+      if (_isRestoring || _tourActive) return; // Re-check at execution time
+      if (elements.frontCoverUploader?.classList.contains('has-image')) {
+        generateCoverCollage();
+      }
+    }
     function trigger() {
       if (_isRestoring || _tourActive) return;
       clearTimeout(t);
-      t = setTimeout(() => {
-        if (_isRestoring || _tourActive) return; // Re-check at execution time
-        if (elements.frontCoverUploader?.classList.contains('has-image')) {
-          generateCoverCollage();
-        }
-      }, 350); // Slightly longer delay for cover regeneration
+      t = setTimeout(run, delayMs);
     }
-    trigger.cancel = () => { clearTimeout(t); };
+    trigger.cancel = () => { clearTimeout(t); t = null; };
+    trigger.pending = () => t !== null;
+    // Run a queued regen now instead of waiting out the timer. Returns
+    // true if there was one pending. generateCoverCollage sets
+    // _collageRegenPromise, which the caller can then await.
+    trigger.flush = () => {
+      if (t === null) return false;
+      clearTimeout(t);
+      run();
+      return true;
+    };
     return trigger;
-  })();
+  }
+  // 350ms: the commit-path regen (a setting was changed and saved).
+  const debouncedCoverRegen = makeCollageRegenDebounce(350);
+  // 140ms: the hover/keyboard PREVIEW regen for cover fonts. Shorter so a
+  // settled-on font previews quickly, but long enough that scanning down the
+  // font list doesn't fire a full collage render per option (the old
+  // behavior — one generateCoverCollage() per mouseenter — was the source of
+  // the sluggish font hover).
+  const debouncedPreviewRegen = makeCollageRegenDebounce(140);
   
   // ---------------------------------------------------------------------------
   // DOM Element References (cached on init)
@@ -2960,7 +2987,7 @@ const BooklistApp = (function() {
         state: 'worried', event: 'covers-needed', returnAfter: 5000,
       });
       setLoading(button, false);
-      return;
+      return Promise.resolve();
     }
     
     // Use all gathered covers
@@ -2978,8 +3005,10 @@ const BooklistApp = (function() {
       coverCount: coversToDraw.length
     };
     
-    // Wait for fonts, then load images and draw
-    waitForFonts().then(() => {
+    // Wait for fonts, then load images and draw. The chain is captured and
+    // returned so callers (flushCollageRegen, undo/redo) can await the
+    // render completing; _collageRegenPromise mirrors it as the live handle.
+    const regenChain = waitForFonts().then(() => {
       return Promise.allSettled(coversToDraw.map(c => {
         if (c.domImg) return Promise.resolve(c.domImg);
         return loadImageWithFallback(c.large, c.medium);
@@ -3041,9 +3070,15 @@ const BooklistApp = (function() {
       });
     }).finally(() => {
       setLoading(button, false);
+      // Release the in-flight handle once this render settles, unless a
+      // newer generation has already replaced it (then that one owns the
+      // handle). Lets flushCollageRegen/undo tell when the collage caught up.
+      if (_collageRegenPromise === regenChain) _collageRegenPromise = null;
     });
+    _collageRegenPromise = regenChain;
+    return regenChain;
   }
-  
+
   /**
    * Draw title bar at a specific Y position
    */
@@ -7871,25 +7906,32 @@ const BooklistApp = (function() {
       select.value = fontValue;
       
       if (type === 'cover-simple' || type === 'cover-advanced') {
-        // Regenerate cover immediately for preview
+        // Debounced preview: select.value is set above and the debounced
+        // regen reads it at fire time, so the font the user pauses on wins.
+        // Replaces the old per-mouseenter generateCoverCollage() that made
+        // hovering the font list sluggish (a full collage render for every
+        // option the cursor crossed). The undo/redo flush accounts for any
+        // still-pending preview render.
         if (elements.frontCoverUploader?.classList.contains('has-image')) {
-          generateCoverCollage();
+          debouncedPreviewRegen();
         }
       } else if (type === 'book-block') {
         // Apply styles to book list
         applyStyles();
       }
-      
+
       return originalValue;
     }
     
     // Revert preview
     function revertPreview() {
       select.value = committedValue;
-      
+
       if (type === 'cover-simple' || type === 'cover-advanced') {
+        // Debounced like triggerPreview, so rapid hover-in/hover-out
+        // coalesces into a single render of the committed font.
         if (elements.frontCoverUploader?.classList.contains('has-image')) {
-          generateCoverCollage();
+          debouncedPreviewRegen();
         }
       } else if (type === 'book-block') {
         applyStyles();
@@ -7936,6 +7978,11 @@ const BooklistApp = (function() {
 
       committedValue = value;
       select.value = value;
+
+      // The committed change drives its own regen (the 'change' dispatch
+      // below for cover fonts → debouncedCoverRegen), so drop any pending
+      // hover-preview render to avoid a redundant duplicate generation.
+      debouncedPreviewRegen.cancel();
 
       // Update selected state in list
       list.querySelectorAll('.custom-font-dropdown-option').forEach(li => {
@@ -8416,6 +8463,7 @@ const BooklistApp = (function() {
     // Cancel pending async operations
     debouncedSave.cancel();
     debouncedCoverRegen.cancel();
+    debouncedPreviewRegen.cancel();
     _collageGenId++; // Invalidate any in-flight collage generation
 
     const state = JSON.parse(jsonString);
@@ -8453,7 +8501,43 @@ const BooklistApp = (function() {
     return a.replace(SAVED_AT_RE, '') === b.replace(SAVED_AT_RE, '');
   }
 
+  // True while the on-screen collage is still rendering to match the latest
+  // setting (a debounced commit-path regen is queued, or a
+  // generateCoverCollage() is mid-flight). Undo/redo use this to decide
+  // whether they must let the render finish before reverting.
+  function collageRegenPending() {
+    return _collageRegenPromise !== null || debouncedCoverRegen.pending();
+  }
+
+  // Force a queued commit-path regen to run now and resolve once the collage
+  // has caught up. Undo/redo call this when collageRegenPending() so the
+  // cover on screen reflects the change being reverted — otherwise undoing a
+  // setting whose async render is still pending looks like a no-op (the
+  // change was never visible) and the NEXT undo appears to revert two steps
+  // at once. The hover-preview debounce is intentionally NOT flushed here: a
+  // preview is transient and uncommitted, and restoreSnapshot cancels it.
+  function flushCollageRegen() {
+    debouncedCoverRegen.flush();
+    return _collageRegenPromise || Promise.resolve();
+  }
+
   function undo() {
+    if (_tourActive || _undoRedoBusy || _undoStack.length === 0) return;
+    if (collageRegenPending()) {
+      // Finish the pending render so this undo reverts a change the user can
+      // actually see, then run the real undo. Guarded so overlapping presses
+      // during the (usually brief) await can't double-pop the stack.
+      _undoRedoBusy = true;
+      flushCollageRegen().finally(() => {
+        _undoRedoBusy = false;
+        _undoNow();
+      });
+      return;
+    }
+    _undoNow();
+  }
+
+  function _undoNow() {
     if (_undoStack.length === 0 || _tourActive) return;
 
     // Compute current state once so we can skip no-op entries and
@@ -8488,6 +8572,21 @@ const BooklistApp = (function() {
   }
 
   function redo() {
+    if (_tourActive || _undoRedoBusy || _redoStack.length === 0) return;
+    if (collageRegenPending()) {
+      // Mirror undo(): let the pending collage render settle so this redo
+      // reapplies a visible change, guarded against overlapping presses.
+      _undoRedoBusy = true;
+      flushCollageRegen().finally(() => {
+        _undoRedoBusy = false;
+        _redoNow();
+      });
+      return;
+    }
+    _redoNow();
+  }
+
+  function _redoNow() {
     if (_redoStack.length === 0 || _tourActive) return;
 
     // Same de-dup dance as undo() — skip any top-of-stack redo
