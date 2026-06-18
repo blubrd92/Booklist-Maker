@@ -7940,41 +7940,28 @@ const BooklistApp = (function() {
     
     // Commit selection
     function commitSelection(value) {
-      // Capture the pre-edit snapshot BEFORE mutating the hidden select.
-      // The custom dropdown handles user clicks on its own UI (trigger
-      // button and option list), so the hidden <select> element never
-      // receives a focus event from real interaction. The pre-edit
-      // pattern attached to the hidden select in the main style-groups
-      // loop therefore never fires, and the change event below ends up
-      // in commitPreEditSnapshot with nothing to commit. Capturing here
-      // keeps the undo semantics correct for font changes.
+      // The custom dropdown handles clicks on its own UI, so the hidden
+      // <select> never gets a focus event — the focus→capturePreEditSnapshot
+      // pattern the native controls use never fires here. The snapshot is
+      // therefore managed manually, and differently per type:
+      //   - Cover fonts captured it on OPEN (see openDropdown), before any
+      //     hover preview re-rendered the collage. Re-capturing here would
+      //     record a torn state (old font setting + previewed new-font image),
+      //     so undo would revert the dropdown but not the cover. Hence the skip.
+      //   - Book fonts capture here: their preview is live DOM styling with no
+      //     serialized side effect, so reverting select.value to the committed
+      //     font (below) gives a clean pre-change snapshot. clearPreEditSnapshot
+      //     first drops any stale snapshot leaked from an earlier input.
       //
-      // clearPreEditSnapshot first discards any stale snapshot that
-      // might still be pending from a previously focused input. In
-      // normal browser flow the blur on that input would have fired
-      // already (clicking the custom dropdown transfers focus away),
-      // but this is defensive insurance: if a snapshot somehow leaks
-      // across focus transitions, we want the font change's undo
-      // entry to reflect the state immediately before the font change,
-      // not the state before some unrelated earlier edit.
-      //
-      // capturePreEditSnapshot is a no-op during state restoration and
-      // tour mode (guarded internally), so this is safe to call even
-      // when commitSelection is invoked programmatically outside user
-      // interaction.
-      // Roll the live preview back to the committed (old) font BEFORE
-      // snapshotting. Hovering or keyboard-navigating an option calls
-      // triggerPreview(), which sets select.value to the previewed font;
-      // captureStyleGroups() reads select.value directly, so without this
-      // revert the "pre-edit" snapshot would record the NEW font and undo
-      // would be a no-op. (This is the long-standing reason font undo felt
-      // unreliable — it only worked when no preview had fired.) No
-      // applyStyles() needed here: select.value is set to `value` two
-      // lines down and the change dispatch below re-applies styles.
+      // The select.value revert also matters regardless of type: triggerPreview
+      // left it on the previewed font, so reset it to committed before the real
+      // choice is re-applied two lines down (and before the change event fires).
       select.value = committedValue;
 
-      clearPreEditSnapshot();
-      capturePreEditSnapshot();
+      if (type !== 'cover-simple' && type !== 'cover-advanced') {
+        clearPreEditSnapshot();
+        capturePreEditSnapshot();
+      }
 
       committedValue = value;
       select.value = value;
@@ -8010,6 +7997,18 @@ const BooklistApp = (function() {
     function openDropdown() {
       if (isOpen) return;
       isOpen = true;
+      // Cover fonts: capture the undo snapshot NOW, before any hover preview
+      // re-renders the collage. Previews overwrite the cover image, so a
+      // snapshot taken at commit time (after previewing) would pair the OLD
+      // font with the NEW font's previewed image — a torn state where undo
+      // reverts the dropdown but leaves the cover showing the new font. This
+      // mirrors the focus→capturePreEditSnapshot the native cover controls
+      // (color, size, margins) use. Book fonts preview via applyStyles with
+      // no serialized side effect, so they keep capturing at commit time.
+      if (type === 'cover-simple' || type === 'cover-advanced') {
+        clearPreEditSnapshot();
+        capturePreEditSnapshot();
+      }
       // Rebuild so the "Used in this booklist" section reflects the fonts
       // currently chosen in other fields (they may have changed since the
       // dropdown was last built).
