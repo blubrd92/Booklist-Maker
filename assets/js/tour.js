@@ -355,7 +355,7 @@
         },
         {
           target: '#back-cover-panel',
-          text: "And on the back of page 1 is the back cover. It's where the QR code, the branding logo, and a short blurb sit.",
+          text: "This is the back cover. It shares page 1 with the front cover, and it's where the QR code, the branding logo, and a short blurb sit.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-1', { alignEnd: true });
