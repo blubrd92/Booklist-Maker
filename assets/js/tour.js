@@ -40,7 +40,7 @@
       steps: [
         {
           target: '#folio-scene',
-          text: "Welcome to Booklister! I'm Folio. Let me show you around. Don't worry if you have a booklist loaded, it'll be saved and restored when the tour ends.\n\nTip: Use your arrow keys to navigate.",
+          text: "Welcome to Booklister! I'm Folio. Let me show you around. Don't worry if you have a booklist loaded, it'll be saved and restored when the tour ends.\n\nTip: Use the left and right arrow keys to navigate.",
           state: 'greeting',
           padding: 4,
           prepare: function() {
