@@ -8913,12 +8913,26 @@ const BooklistApp = (function() {
 
   // Scroll the container so the given page's top sits FIT_HEIGHT_GAP_PX
   // below the viewport top. Call AFTER applyZoom so the measured rects
-  // reflect the new scale.
-  function anchorPageToTop(page) {
+  // reflect the new scale. smooth=true animates the scroll (used by
+  // arrow-key page navigation; Fit-to-Height uses an instant jump).
+  function anchorPageToTop(page, smooth) {
     const container = document.querySelector('.main-content');
     if (!container || !page) return;
     const delta = page.getBoundingClientRect().top - container.getBoundingClientRect().top;
-    container.scrollTop += delta - FIT_HEIGHT_GAP_PX;
+    const top = container.scrollTop + delta - FIT_HEIGHT_GAP_PX;
+    container.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' });
+  }
+
+  // Move between the stacked preview pages. dir: +1 next, -1 previous.
+  // Steps relative to whatever page is currently most in view and
+  // anchors the target's top (smooth scroll), mirroring Fit-to-Height.
+  function navigatePreviewPage(dir) {
+    const pages = Array.from(document.querySelectorAll('#preview-area .page'));
+    if (!pages.length) return;
+    let idx = pages.indexOf(getMostVisiblePage());
+    if (idx < 0) idx = 0;
+    const target = Math.max(0, Math.min(pages.length - 1, idx + dir));
+    anchorPageToTop(pages[target], true);
   }
 
   function initZoomControls() {
@@ -8992,6 +9006,43 @@ const BooklistApp = (function() {
         zoomToggle.setAttribute('aria-expanded', String(!collapsed));
       });
     }
+
+    // Clicking a zoom control should "enter" the preview region so the
+    // arrow-key page navigation below works afterward. Some browsers
+    // (Safari) don't focus a <button> on click, so focus the
+    // tabindex="-1" .main-content explicitly. preventScroll so focusing
+    // the scroll container itself doesn't nudge the view.
+    if (zoomPanel && scrollContainer) {
+      zoomPanel.addEventListener('mousedown', function() {
+        scrollContainer.focus({ preventScroll: true });
+      });
+    }
+
+    // Arrow / Page keys navigate between the stacked preview pages — but
+    // ONLY when the user is "in" the preview region: they clicked the
+    // preview or a zoom control (both live inside .main-content). Layered
+    // guards keep arrows working everywhere else:
+    //   - e.defaultPrevented: another handler already consumed the key
+    //     (e.g. a focused drag-handle reordering a book).
+    //   - modifier keys: leave zoom (Ctrl+wheel) / undo (Ctrl+Z) alone.
+    //   - _tourActive: the guided tour drives steps with arrows.
+    //   - focus must be inside .main-content AND not a text field, so
+    //     typing in the List Name input or a contenteditable book / QR
+    //     field keeps native cursor movement.
+    document.addEventListener('keydown', function(e) {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || _tourActive) return;
+      let dir;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') dir = 1;
+      else if (e.key === 'ArrowUp' || e.key === 'PageUp') dir = -1;
+      else return;
+      const mc = document.querySelector('.main-content');
+      const el = document.activeElement;
+      if (!mc || !el || !mc.contains(el)) return;
+      const tag = el.tagName;
+      if (el.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      e.preventDefault();
+      navigatePreviewPage(dir);
+    });
   }
 
   // Single source of truth for "phone-sized layout" — matches the
