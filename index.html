@@ -809,7 +809,12 @@
       </div>
     </div>
 
-    <main class="main-content" role="main">
+    <!-- tabindex="-1" makes the preview region click-focusable (not in the
+         tab order) so Arrow/Page keys can navigate between the two pages
+         once the user clicks the preview or a zoom control. Page nav is
+         gated on focus being within here AND not on a text field — see the
+         keydown handler in initZoomControls. -->
+    <main class="main-content" role="main" tabindex="-1">
       <div class="toolbar">
         <div class="toolbar-list-name">
           <label for="list-name-input">List Name:</label>

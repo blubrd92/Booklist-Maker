@@ -1425,6 +1425,12 @@ input[type="color"]:hover {
   align-items: center;
   position: relative;
 }
+/* The region is tabindex="-1" so a preview/zoom click can focus it for
+   arrow-key page navigation. It's not in the tab order, so suppress the
+   focus ring that would otherwise outline the whole preview area. */
+.main-content:focus {
+  outline: none;
+}
 
 /* Toolbar above preview */
 .toolbar {
