@@ -255,7 +255,7 @@
         },
         {
           target: '.tab-btn[aria-controls="tab-front-cover"]',
-          text: "The Front Cover tab is where you build it. Text inputs for the title, style controls for fonts and colors, the layout picker, and the cover count all live here.",
+          text: "The Front Cover tab is where you build it. The title text box, style controls for fonts and colors, the layout picker, and the cover count all live here.",
           state: 'evaluating',
           prepare: function() {
             openSidebarTab('tab-front-cover');
@@ -264,7 +264,7 @@
         },
         {
           target: '#generate-cover-button',
-          text: "This button creates the collage. You'll find it in the Front Cover tab, right under the title text inputs. You need at least 12 starred books with covers. Let me set up the cover title and styling first, then we'll look at layouts.",
+          text: "This button creates the collage. You'll find it in the Front Cover tab, right under the title text box. You need at least 12 starred books with covers. Let me set up the cover title and styling first, then we'll look at layouts.",
           state: 'excited',
           prepare: function() {
             // Keep the "not yet generated" state so back-navigation is clean
@@ -291,7 +291,7 @@
         },
         {
           target: '#cover-title-style-group',
-          text: "And the purple-to-blue gradient you just saw came from here. This is the Cover Header Style section: fonts, sizes, colors, and the background bar with optional gradient. The text inputs just above are where you type what your cover says.",
+          text: "And the purple-to-blue gradient you just saw came from here. This is the Cover Header Style section: fonts, sizes, colors, and the background bar with optional gradient. The text box just above is where you type what your cover says, one line per row.",
           state: 'excited',
           prepare: function() {
             openSidebarTab('tab-front-cover');
@@ -486,6 +486,7 @@
       stretchCovers: false, stretchBlockCovers: false,
       showQr: true, showBranding: true,
       coverAdvancedMode: false, coverTitle: '',
+      coverTextModel: 'unified',
       coverLineTexts: ['', '', ''],
       collageLayout: 'classic', showShelves: false,
       titleBarPosition: 'classic', tiltDegree: -25, tiltOffsetDirection: 'vertical',
@@ -639,19 +640,20 @@
   const TOUR_QR_BLURB = "Welcome to the Discworld, a world on the back of a giant turtle, where Pratchett will make you laugh, make you think, and break your heart. Scan the code to learn more about the author, then find the books on the shelf.";
   const TOUR_BRANDING_SRC = 'assets/img/tour-branding-folio.png';
 
-  // Advanced cover header: title lines, the purple→blue gradient bar,
-  // and stretch covers. Dispatches a change on the gradient toggle so
-  // app.js reveals the second color picker + direction row.
+  // Per-line cover header styling: title lines, the purple→blue
+  // gradient bar, and stretch covers. Sets the textarea BEFORE
+  // toggling per-line styling so the toggle's change handler computes
+  // the line labels from the new text. Dispatches a change on the
+  // gradient toggle so app.js reveals the second color picker +
+  // direction row.
   function applyTourCoverStyling() {
+    const titleInput = document.getElementById('cover-title-input');
+    if (titleInput) titleInput.value = 'Mind How You Go\nReading Terry Pratchett';
     const advToggle = document.getElementById('cover-advanced-toggle');
     if (advToggle && !advToggle.checked) {
       advToggle.checked = true;
       advToggle.dispatchEvent(new Event('change'));
     }
-    const line1 = document.getElementById('cover-line-1');
-    const line2 = document.getElementById('cover-line-2');
-    if (line1) line1.value = 'Mind How You Go';
-    if (line2) line2.value = 'Reading Terry Pratchett';
     const bgColor = document.getElementById('cover-title-bg-color');
     const gradToggle = document.getElementById('cover-title-gradient-toggle');
     const bgColor2 = document.getElementById('cover-title-bg-color2');

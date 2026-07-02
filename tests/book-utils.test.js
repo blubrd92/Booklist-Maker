@@ -1008,6 +1008,94 @@ describe('BookUtils.removeQuickAddRows', () => {
   });
 });
 
+describe('BookUtils.splitCoverLines', () => {
+  const split = (text) => BookUtils.splitCoverLines(text);
+
+  it('splits a normal multi-line string into its lines', () => {
+    expect(split('Summer Reads\nStaff Picks\n2026')).toEqual(['Summer Reads', 'Staff Picks', '2026']);
+  });
+
+  it('handles CRLF line endings', () => {
+    expect(split('Line One\r\nLine Two')).toEqual(['Line One', 'Line Two']);
+  });
+
+  it('drops blank and whitespace-only interior lines', () => {
+    expect(split('First\n\nSecond')).toEqual(['First', 'Second']);
+    expect(split('First\n   \nSecond')).toEqual(['First', 'Second']);
+  });
+
+  it('drops leading and trailing blank lines', () => {
+    expect(split('\nFirst\nSecond\n')).toEqual(['First', 'Second']);
+    expect(split('\n\nOnly\n\n\n')).toEqual(['Only']);
+  });
+
+  it('returns a single-element array for a single line', () => {
+    expect(split('Just One Line')).toEqual(['Just One Line']);
+  });
+
+  it('trims whitespace from each line', () => {
+    expect(split('  padded  \n\ttabbed\t')).toEqual(['padded', 'tabbed']);
+  });
+
+  it('returns [] for empty string', () => {
+    expect(split('')).toEqual([]);
+  });
+
+  it('returns [] for whitespace-only input', () => {
+    expect(split('   \n  \n ')).toEqual([]);
+  });
+
+  it('returns [] for null, undefined, and non-string input', () => {
+    expect(split(null)).toEqual([]);
+    expect(split(undefined)).toEqual([]);
+    expect(split(42)).toEqual([]);
+    expect(split(['a', 'b'])).toEqual([]);
+  });
+});
+
+describe('BookUtils.compactLegacyCoverLineStyles', () => {
+  // Style entries tagged so reordering is visible in assertions.
+  const s1 = { font: 'Font A', sizePt: 35 };
+  const s2 = { font: 'Font B', sizePt: 25 };
+  const s3 = { font: 'Font C', sizePt: 20 };
+  const compact = (texts, styles) => BookUtils.compactLegacyCoverLineStyles(texts, styles);
+
+  it('keeps gap-free entries in their original order', () => {
+    expect(compact(['One', 'Two', 'Three'], [s1, s2, s3])).toEqual([s1, s2, s3]);
+  });
+
+  it('shifts styles up past a blank line 1 so they follow their text', () => {
+    expect(compact(['', 'Beach Reads', '2026'], [s1, s2, s3])).toEqual([s2, s3, s1]);
+  });
+
+  it('shifts a line-3 style up past a blank line 2', () => {
+    expect(compact(['Title', '', 'Subtitle'], [s1, s2, s3])).toEqual([s1, s3, s2]);
+  });
+
+  it('treats whitespace-only text as blank', () => {
+    expect(compact(['   ', 'Only Line', '\t'], [s1, s2, s3])).toEqual([s2, s1, s3]);
+  });
+
+  it('keeps original order when all texts are blank', () => {
+    expect(compact(['', '', ''], [s1, s2, s3])).toEqual([s1, s2, s3]);
+  });
+
+  it('treats non-string and missing text entries as blank', () => {
+    expect(compact([null, 'Text', undefined], [s1, s2, s3])).toEqual([s2, s1, s3]);
+    expect(compact(['Text'], [s1, s2, s3])).toEqual([s1, s2, s3]);
+    expect(compact(undefined, [s1, s2, s3])).toEqual([s1, s2, s3]);
+  });
+
+  it('preserves the styles array length', () => {
+    expect(compact(['', 'X', ''], [s1, s2, s3])).toHaveLength(3);
+  });
+
+  it('returns non-array lineStyles unchanged', () => {
+    expect(compact(['A', 'B'], null)).toBeNull();
+    expect(compact(['A', 'B'], undefined)).toBeUndefined();
+  });
+});
+
 describe('BookUtils.isDraftStateEffectivelyEmpty', () => {
   // A minimal "empty" state matching what serializeState would write
   // for a fresh page load: 15 blank-placeholder books, no extras, no

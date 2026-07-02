@@ -375,12 +375,12 @@ const BooklistApp = (function() {
       brandingUploader: document.getElementById('branding-uploader'),
       generateCoverButton: document.getElementById('generate-cover-button'),
       
-      // Cover mode toggle
+      // Cover style-mode toggle ("Style each line separately"; id kept
+      // as cover-advanced-toggle for code compatibility)
       coverAdvancedToggle: document.getElementById('cover-advanced-toggle'),
-      coverSimpleMode: document.getElementById('cover-simple-mode'),
-      coverAdvancedMode: document.getElementById('cover-advanced-mode'),
       coverSimpleStyle: document.getElementById('cover-simple-style'),
       coverAdvancedStyle: document.getElementById('cover-advanced-style'),
+      coverLinesOverflowHint: document.getElementById('cover-lines-overflow-hint'),
       
       // Collage layout selector (in Settings)
       collageLayoutSelector: document.getElementById('collage-layout-selector'),
@@ -406,18 +406,18 @@ const BooklistApp = (function() {
       extraCoverSearchModal: document.getElementById('extra-cover-search-modal'),
       collageCoverHint: document.getElementById('collage-cover-hint'),
       
-      // Simple mode elements
+      // Cover header text (single source for both style modes)
       coverTitleInput: document.getElementById('cover-title-input'),
       coverFontSelect: document.getElementById('cover-font-select'),
       coverFontSize: document.getElementById('cover-font-size'),
       coverBoldToggle: document.getElementById('cover-bold-toggle'),
       coverItalicToggle: document.getElementById('cover-italic-toggle'),
       coverTextColor: document.getElementById('cover-text-color'),
-      
-      // Advanced mode: 3 lines with full styling (spacing only for lines 2 and 3)
+
+      // Per-line style controls for the textarea's non-empty lines
+      // (spacing only for lines 2 and 3; lines 4+ inherit line 3's style)
       coverLines: [
         {
-          input: document.getElementById('cover-line-1'),
           font: document.getElementById('line-1-font'),
           size: document.getElementById('line-1-size'),
           bold: document.getElementById('line-1-bold'),
@@ -426,7 +426,6 @@ const BooklistApp = (function() {
           spacing: null, // Line 1 has no spacing above it
         },
         {
-          input: document.getElementById('cover-line-2'),
           font: document.getElementById('line-2-font'),
           size: document.getElementById('line-2-size'),
           bold: document.getElementById('line-2-bold'),
@@ -435,7 +434,6 @@ const BooklistApp = (function() {
           spacing: document.getElementById('line-2-spacing'),
         },
         {
-          input: document.getElementById('cover-line-3'),
           font: document.getElementById('line-3-font'),
           size: document.getElementById('line-3-size'),
           bold: document.getElementById('line-3-bold'),
@@ -2709,26 +2707,28 @@ const BooklistApp = (function() {
         text,
       };
     } else {
-      // Advanced mode: per-line styling with individual spacing
-      const lines = elements.coverLines.map((line, index) => {
-        const text = (line.input?.value || '').trim();
-        if (!text) return null; // Skip empty lines
-        
-        const font = line.font?.value || "'Oswald', sans-serif";
-        const sizePt = parseInt(line.size?.value || '24', 10);
-        const isBold = line.bold?.classList.contains('active') || false;
-        const isItalic = line.italic?.classList.contains('active') || false;
-        const color = line.color?.value || '#FFFFFF';
-        
-        // Get per-line spacing (only for lines 2 and 3, index 1 and 2)
-        const spacingPt = (index > 0 && line.spacing) 
-          ? parseFloat(line.spacing.value || '10') 
+      // Per-line styling: the textarea's non-empty lines drive the
+      // output. The first 3 lines use their own style group; lines 4+
+      // reuse Line 3's controls (including its spacing value).
+      const lineTexts = BookUtils.splitCoverLines(elements.coverTitleInput?.value || '');
+      const lines = lineTexts.map((text, index) => {
+        const controls = elements.coverLines[Math.min(index, elements.coverLines.length - 1)];
+        const font = controls.font?.value || "'Oswald', sans-serif";
+        const sizePt = parseInt(controls.size?.value || '24', 10);
+        const isBold = controls.bold?.classList.contains('active') || false;
+        const isItalic = controls.italic?.classList.contains('active') || false;
+        const color = controls.color?.value || '#FFFFFF';
+
+        // Per-line spacing: line 1 has none; every later line reads its
+        // control group's spacing input.
+        const spacingPt = (index > 0 && controls.spacing)
+          ? parseFloat(controls.spacing.value || '10')
           : 0;
-        
+
         let fontStyle = '';
         if (isItalic) fontStyle += 'italic ';
         if (isBold) fontStyle += 'bold ';
-        
+
         return {
           text,
           font,
@@ -2738,8 +2738,8 @@ const BooklistApp = (function() {
           color,
           spacingPx: spacingPt * pxPerPt,
         };
-      }).filter(line => line !== null);
-      
+      });
+
       return {
         ...layoutSettings,
         isAdvancedMode: true,
@@ -4420,17 +4420,11 @@ const BooklistApp = (function() {
   }
   
   /**
-   * Toggles between simple and advanced cover text modes
+   * Toggles between shared and per-line cover header styling. The
+   * textarea is the single text source in both modes; only the style
+   * panel swaps.
    */
   function toggleCoverMode(isAdvanced) {
-    // Toggle input visibility using classes
-    if (elements.coverSimpleMode) {
-      elements.coverSimpleMode.classList.toggle('hidden', isAdvanced);
-    }
-    if (elements.coverAdvancedMode) {
-      elements.coverAdvancedMode.classList.toggle('visible', isAdvanced);
-    }
-    
     // Toggle style controls visibility using classes
     if (elements.coverSimpleStyle) {
       elements.coverSimpleStyle.classList.toggle('hidden', isAdvanced);
@@ -4438,9 +4432,49 @@ const BooklistApp = (function() {
     if (elements.coverAdvancedStyle) {
       elements.coverAdvancedStyle.classList.toggle('visible', isAdvanced);
     }
-    
+
+    // Sync the per-line group labels/visibility with the textarea's lines
+    updateCoverLineStyleGroups();
+
     // Force scroll recalculation for the Front Cover tab panel
     forceTabScrollRecalc('tab-front-cover');
+  }
+
+  /**
+   * Syncs the per-line style groups with the textarea's non-empty lines:
+   * groups for lines that don't exist are hidden (group 1 always stays
+   * so the panel isn't empty), each group's label quotes its line's
+   * text, and the overflow hint appears when lines 4+ will inherit
+   * Line 3's style.
+   */
+  function updateCoverLineStyleGroups() {
+    if (!elements.coverAdvancedStyle) return;
+    const lines = BookUtils.splitCoverLines(elements.coverTitleInput?.value || '');
+    const groups = elements.coverAdvancedStyle.querySelectorAll('.line-style-group');
+    const visibleCount = Math.max(1, Math.min(lines.length, groups.length));
+    groups.forEach((group, i) => {
+      group.hidden = !(i < visibleCount);
+      const label = group.querySelector('.line-style-label');
+      if (!label) return;
+      const text = lines[i];
+      label.textContent = `Line ${i + 1}`;
+      if (text) {
+        // Quote the line's text, truncated so long lines don't wrap the
+        // panel header. Truncate by code point (Array.from), not code
+        // unit — a .slice() could split an emoji's surrogate pair.
+        const chars = Array.from(text);
+        const snippet = chars.length > 28 ? chars.slice(0, 28).join('') + '…' : text;
+        // The snippet rides in a child span exempted from the label's
+        // text-transform: uppercase so it shows what the user typed.
+        const snippetSpan = document.createElement('span');
+        snippetSpan.className = 'line-style-label-snippet';
+        snippetSpan.textContent = `: "${snippet}"`;
+        label.appendChild(snippetSpan);
+      }
+    });
+    if (elements.coverLinesOverflowHint) {
+      elements.coverLinesOverflowHint.hidden = !(lines.length > groups.length);
+    }
   }
   
   // ---------------------------------------------------------------------------
@@ -6172,10 +6206,13 @@ const BooklistApp = (function() {
     // Get list name (used for filename)
     const listName = (elements.listNameInput?.value || '').trim();
     
-    // Capture cover text (both modes)
+    // Capture cover text. coverTitle (the textarea) is the single text
+    // source; coverLineTexts is DERIVED from it so pre-unified versions
+    // of the app can still open new files in their advanced mode.
     const isAdvancedMode = elements.coverAdvancedToggle?.checked || false;
-    const coverTitle = elements.coverTitleInput?.value || ''; // Simple mode text
-    const coverLineTexts = elements.coverLines.map(line => line.input?.value || ''); // Advanced mode texts
+    const coverTitle = elements.coverTitleInput?.value || '';
+    const coverLineTexts = BookUtils.splitCoverLines(coverTitle).slice(0, 3);
+    while (coverLineTexts.length < 3) coverLineTexts.push('');
     // Read the QR blurb from the DOM-independent mirror (_currentQrText)
     // rather than elements.qrCodeTextArea.innerText. innerText returns
     // '' on any display:none element, so when the user has Show QR Code
@@ -6210,8 +6247,11 @@ const BooklistApp = (function() {
         showQr: !!elements.toggleQrCode?.checked,
         showBranding: !!elements.toggleBranding?.checked,
         coverAdvancedMode: isAdvancedMode,
-        coverTitle, // Simple mode text (backwards compatible)
-        coverLineTexts, // Advanced mode texts
+        // Marks states whose coverTitle is the single text source, so
+        // applyState knows not to run the legacy coverLineTexts migration.
+        coverTextModel: 'unified',
+        coverTitle,
+        coverLineTexts, // Derived compat field for pre-unified versions
         collageLayout: selectedLayout,
         showShelves: !!elements.showShelvesToggle?.checked,
         titleBarPosition,
@@ -6425,25 +6465,37 @@ const BooklistApp = (function() {
     if (elements.stretchCoversToggle) elements.stretchCoversToggle.checked = !!loaded.ui?.stretchCovers;
     if (elements.stretchBlockCoversToggle) elements.stretchBlockCoversToggle.checked = !!loaded.ui?.stretchBlockCovers;
     
-    // Restore cover mode and text
+    // Restore cover text + style mode. States without the
+    // coverTextModel marker predate the unified model: in their
+    // advanced mode the line inputs (coverLineTexts) were the rendered
+    // truth, so migrate them into the textarea.
     const isAdvancedMode = !!loaded.ui?.coverAdvancedMode;
+    const legacyLines = Array.isArray(loaded.ui?.coverLineTexts) ? loaded.ui.coverLineTexts : [];
+    const isLegacyState = loaded.ui?.coverTextModel !== 'unified';
+    let coverText = loaded.ui?.coverTitle || '';
+    let migratedLineStyles = null;
+    if (isLegacyState && isAdvancedMode && legacyLines.some(t => (t || '').trim())) {
+      coverText = legacyLines.map(t => (t || '').trim()).filter(Boolean).join('\n');
+      // Joining drops any blank line inputs, shifting later texts up a
+      // slot — their saved style entries must shift with them or the
+      // migrated cover renders with the wrong line's font/size/color.
+      // Computed here, applied at the applyStyleGroups call below;
+      // `loaded` itself is never mutated (undo/redo snapshots and the
+      // load-file rollback reuse the same object).
+      const savedLineStyles = loaded.styles?.coverTitle?.lines;
+      if (Array.isArray(savedLineStyles)) {
+        migratedLineStyles = BookUtils.compactLegacyCoverLineStyles(legacyLines, savedLineStyles);
+      }
+    }
+    // Set the text BEFORE toggleCoverMode so the per-line group labels
+    // are computed from the restored text.
+    if (elements.coverTitleInput) {
+      elements.coverTitleInput.value = coverText;
+    }
     if (elements.coverAdvancedToggle) {
       elements.coverAdvancedToggle.checked = isAdvancedMode;
       toggleCoverMode(isAdvancedMode);
     }
-    
-    // Simple mode text (with backwards compatibility)
-    if (elements.coverTitleInput) {
-      elements.coverTitleInput.value = loaded.ui?.coverTitle || '';
-    }
-    
-    // Advanced mode line texts
-    const savedLineTexts = loaded.ui?.coverLineTexts || [];
-    elements.coverLines.forEach((line, i) => {
-      if (line.input) {
-        line.input.value = savedLineTexts[i] || '';
-      }
-    });
     
     // Restore collage layout selection
     const savedLayout = loaded.ui?.collageLayout || 'classic';
@@ -6555,8 +6607,12 @@ const BooklistApp = (function() {
       elements.qrCodeUploader.classList.toggle('has-generated-qr', qrGenerated);
     }
     
-    // Styles
-    applyStyleGroups(loaded.styles);
+    // Styles. When the legacy cover migration compacted line texts past
+    // blank inputs, apply the correspondingly reordered per-line styles
+    // via a shallow-patched copy (never mutate `loaded` — see above).
+    applyStyleGroups(migratedLineStyles
+      ? { ...loaded.styles, coverTitle: { ...loaded.styles.coverTitle, lines: migratedLineStyles } }
+      : loaded.styles);
     
     // Images
     applyUploaderImage(elements.frontCoverUploader, loaded.images?.frontCover || null);
@@ -7298,22 +7354,28 @@ const BooklistApp = (function() {
       });
     }
     
-    // Simple mode: textarea handler. The textarea lives in #cover-simple-mode
-    // (a separate form-group from #cover-title-style-group), so the main
-    // style-groups loop below doesn't catch it and a dedicated handler is
-    // needed.
+    // Cover header textarea handler. The textarea lives in
+    // #cover-simple-mode (a separate form-group from
+    // #cover-title-style-group), so the main style-groups loop below
+    // doesn't catch it and a dedicated handler is needed.
     if (elements.coverTitleInput) {
-      // Pre-edit snapshot pattern for the simple-mode cover title
-      // textarea. The previous plain pushUndo() path captured the
-      // post-mutation DOM state (the textarea's .value has already
-      // been updated by the browser before `input` fires), which
-      // made Ctrl+Z a no-op for the first coalesced edit and could
-      // visually manifest as undo/redo "doubling" the text. Same
-      // pattern used by the advanced-mode line inputs and qr text.
+      // Pre-edit snapshot pattern for the cover title textarea. The
+      // previous plain pushUndo() path captured the post-mutation DOM
+      // state (the textarea's .value has already been updated by the
+      // browser before `input` fires), which made Ctrl+Z a no-op for
+      // the first coalesced edit and could visually manifest as
+      // undo/redo "doubling" the text. Same pattern used by the
+      // per-line style controls and qr text.
       elements.coverTitleInput.addEventListener('focus', capturePreEditSnapshot);
       elements.coverTitleInput.addEventListener('blur', clearPreEditSnapshot);
       elements.coverTitleInput.addEventListener('input', () => {
         commitPreEditSnapshot('edit-cover-text');
+        // Keep the per-line group labels in sync while the panel is
+        // visible; no point re-rendering them while it's hidden (the
+        // toggle handler recomputes on reveal).
+        if (elements.coverAdvancedToggle?.checked) {
+          updateCoverLineStyleGroups();
+        }
         debouncedSave();
         debouncedCoverRegen();
       });
@@ -7329,18 +7391,8 @@ const BooklistApp = (function() {
     // stopped working. The main loop handles all of these elements correctly
     // (with the pre-edit pattern for undo and debouncedSave() on every edit).
 
-    // Advanced mode: per-line inputs and style controls
+    // Per-line style controls
     elements.coverLines.forEach((line, lineIdx) => {
-      // Text input — pre-edit pattern so undo captures state BEFORE typing.
-      if (line.input) {
-        line.input.addEventListener('focus', capturePreEditSnapshot);
-        line.input.addEventListener('blur', clearPreEditSnapshot);
-        line.input.addEventListener('input', () => {
-          commitPreEditSnapshot('edit-cover-text');
-          debouncedSave();
-          debouncedCoverRegen();
-        });
-      }
       // Font select — pre-edit pattern.
       if (line.font) {
         line.font.addEventListener('focus', capturePreEditSnapshot);
@@ -8771,7 +8823,6 @@ const BooklistApp = (function() {
     // Reset UI controls to defaults
     if (elements.listNameInput) elements.listNameInput.value = '';
     if (elements.coverTitleInput) elements.coverTitleInput.value = '';
-    elements.coverLines.forEach(line => { if (line.input) line.input.value = ''; });
     if (elements.stretchCoversToggle) elements.stretchCoversToggle.checked = false;
     if (elements.stretchBlockCoversToggle) elements.stretchBlockCoversToggle.checked = false;
     if (elements.coverAdvancedToggle) {
@@ -9345,7 +9396,8 @@ const BooklistApp = (function() {
     initUndoRedoControls();
     initMobileAutoFit();
 
-    // Set default cover mode (simple)
+    // Set default cover style mode (shared styling); also syncs the
+    // per-line group labels with the (empty or draft-restored) textarea
     toggleCoverMode(false);
     
     // Set initial tilted settings visibility

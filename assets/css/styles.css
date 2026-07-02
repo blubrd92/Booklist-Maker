@@ -1756,9 +1756,6 @@ input[type="color"]:hover {
   display: block;
   margin-top: 8px;
 }
-#cover-header-text-group #cover-simple-mode.hidden {
-  display: none;
-}
 #cover-header-text-group #cover-simple-mode textarea {
   width: 100%;
   padding: 10px;
@@ -1768,35 +1765,6 @@ input[type="color"]:hover {
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   font-size: 0.95rem;
-}
-
-/* Advanced mode line inputs in settings panel */
-#cover-header-text-group #cover-advanced-mode {
-  display: none;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  margin-top: 8px;
-}
-#cover-header-text-group #cover-advanced-mode.visible {
-  display: flex;
-}
-.cover-line-input {
-  width: 100%;
-  padding: 10px;
-  font-size: 0.95rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  text-align: center;
-  background: rgba(255, 255, 255, 0.95);
-  box-sizing: border-box;
-}
-.cover-line-input::placeholder {
-  color: #888;
-}
-.cover-line-input:focus {
-  border-color: var(--primary-color);
-  outline: none;
 }
 
 /* Style control visibility */
@@ -1821,6 +1789,16 @@ input[type="color"]:hover {
   margin-bottom: 10px;
   border: 1px solid var(--border-color);
 }
+/* Explicit [hidden] overrides: class/id display rules beat the UA
+   stylesheet's [hidden] { display: none } on specificity (see the
+   "Known CSS Pitfalls" section in CLAUDE.md). Groups for lines that
+   don't exist in the textarea are hidden via the hidden attribute. */
+.line-style-group[hidden] {
+  display: none;
+}
+#cover-lines-overflow-hint[hidden] {
+  display: none;
+}
 .line-style-label {
   display: block;
   font-family: inherit;
@@ -1830,6 +1808,12 @@ input[type="color"]:hover {
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+}
+/* The quoted line text inside the label shows what the user typed —
+   exempt it from the label's uppercase transform. */
+.line-style-label .line-style-label-snippet {
+  text-transform: none;
+  font-weight: 500;
 }
 .line-style-group .control-row {
   margin-bottom: 6px;

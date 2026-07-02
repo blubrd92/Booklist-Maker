@@ -399,6 +399,52 @@
     },
 
     /**
+     * Split the cover header textarea's text into its renderable lines.
+     * Splits on \r?\n, trims each line, and drops empty lines — blank
+     * lines don't consume a per-line style group and aren't rendered
+     * in per-line styling mode. Used by app.js's getCoverTitleStyles
+     * and updateCoverLineStyleGroups so the two always agree on what
+     * counts as a "line".
+     * @param {string} text - raw textarea content
+     * @returns {string[]} trimmed non-empty lines ([] for non-string/empty input)
+     */
+    splitCoverLines: function(text) {
+      if (typeof text !== 'string' || !text) return [];
+      return text.split(/\r?\n/)
+        .map(function(line) { return line.trim(); })
+        .filter(function(line) { return line.length > 0; });
+    },
+
+    /**
+     * Re-pair legacy per-line cover styles with their text after gap
+     * compaction. Pre-unified states stored cover text in three line
+     * inputs, and the old renderer kept text in input N styled by
+     * style group N even when an earlier input was blank. Migrating
+     * such a state joins the non-empty lines, which shifts each text
+     * up past the gaps — so its style entry must shift with it or the
+     * cover silently renders with a different line's font/size/color.
+     * Style entries whose text was blank are appended after the kept
+     * ones, preserving the array length so every style group still
+     * restores a valid entry. Gap-free input returns the entries in
+     * their original order.
+     * @param {Array} lineTexts - legacy ui.coverLineTexts (entries may be blank)
+     * @param {Array} lineStyles - saved styles.coverTitle.lines entries
+     * @returns {Array} lineStyles reordered to follow the compacted text;
+     *   returned unchanged when it isn't an array
+     */
+    compactLegacyCoverLineStyles: function(lineTexts, lineStyles) {
+      if (!Array.isArray(lineStyles)) return lineStyles;
+      const texts = Array.isArray(lineTexts) ? lineTexts : [];
+      const kept = [];
+      const rest = [];
+      for (let i = 0; i < lineStyles.length; i++) {
+        const t = typeof texts[i] === 'string' ? texts[i] : '';
+        (t.trim() ? kept : rest).push(i);
+      }
+      return kept.concat(rest).map(function(i) { return lineStyles[i]; });
+    },
+
+    /**
      * Create a blank book object with placeholder fields.
      * Used for empty slots in a new booklist or after deletion.
      * @returns {Object} A blank book object
