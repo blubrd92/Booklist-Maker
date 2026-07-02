@@ -144,11 +144,16 @@ describe('CONFIG value constraints', () => {
   it('NOTIFICATION_DURATION_MS is positive', () => {
     expect(globalThis.CONFIG.NOTIFICATION_DURATION_MS).toBeGreaterThan(0);
   });
+
+  it('FONT_TYPEAHEAD_RESET_MS is within a reasonable range', () => {
+    expect(globalThis.CONFIG.FONT_TYPEAHEAD_RESET_MS).toBeGreaterThan(0);
+    expect(globalThis.CONFIG.FONT_TYPEAHEAD_RESET_MS).toBeLessThan(5000);
+  });
 });
 
 describe('CONFIG.FONTS structure', () => {
-  it('has at least 20 entries', () => {
-    expect(globalThis.CONFIG.FONTS.length).toBeGreaterThanOrEqual(20);
+  it('has at least 40 entries', () => {
+    expect(globalThis.CONFIG.FONTS.length).toBeGreaterThanOrEqual(40);
   });
 
   it('every entry has a non-empty value string', () => {

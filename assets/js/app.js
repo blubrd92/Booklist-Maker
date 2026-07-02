@@ -7846,6 +7846,12 @@ const BooklistApp = (function() {
     let isOpen = false;
     let committedValue = select.value;
     let highlightedIndex = -1;
+
+    // Type-ahead state: typed characters accumulate into a buffer that
+    // resets after a pause (CONFIG.FONT_TYPEAHEAD_RESET_MS), matching
+    // native <select> behavior.
+    let typeAheadBuffer = '';
+    let typeAheadTimer = null;
     
     // Populate options. dataset.index is the rendered-option index (skips
     // the non-selectable section labels) so it stays in lockstep with the
@@ -8046,6 +8052,10 @@ const BooklistApp = (function() {
       highlightedIndex = -1;
       openFontDropdowns.delete(dropdownRef);
 
+      // Reset type-ahead so a reopened dropdown starts a fresh match.
+      clearTimeout(typeAheadTimer);
+      typeAheadBuffer = '';
+
       // Remove highlight from all options
       list.querySelectorAll('.custom-font-dropdown-option').forEach(li => {
         li.classList.remove('highlighted');
@@ -8070,7 +8080,51 @@ const BooklistApp = (function() {
         items[highlightedIndex].scrollIntoView({ block: 'nearest' });
       }
     }
-    
+
+    // Type-ahead: jump the highlight to the font whose label starts with
+    // what the user typed. Two native-select behaviors are mirrored:
+    //   - Typing a prefix ("cor") highlights the first label matching it.
+    //   - Re-pressing the same single letter cycles through all labels
+    //     starting with that letter ("c" → Calibri → Caveat → Cinzel...).
+    // Matching only considers options in the full alphabetical list (the
+    // "Used in this booklist" duplicates at the top are skipped) so the
+    // jump always lands in alphabetical context, same as the open anchor.
+    function handleTypeAhead(char) {
+      const candidates = Array.from(list.querySelectorAll('.custom-font-dropdown-option'))
+        .filter(li => !li.classList.contains('is-used-font'));
+      if (candidates.length === 0) return;
+
+      clearTimeout(typeAheadTimer);
+      typeAheadTimer = setTimeout(() => { typeAheadBuffer = ''; }, CONFIG.FONT_TYPEAHEAD_RESET_MS);
+
+      const ch = char.toLowerCase();
+      const isRepeatOfSingleChar = typeAheadBuffer.length > 0 &&
+        typeAheadBuffer === typeAheadBuffer[0].repeat(typeAheadBuffer.length) &&
+        ch === typeAheadBuffer[0];
+
+      let match = null;
+      if (isRepeatOfSingleChar) {
+        // Cycle: next option after the current highlight starting with ch.
+        const startsWith = candidates.filter(li => li.textContent.toLowerCase().startsWith(ch));
+        if (startsWith.length > 0) {
+          const pos = startsWith.findIndex(li => parseInt(li.dataset.index, 10) > highlightedIndex);
+          match = startsWith[pos >= 0 ? pos : 0];
+        }
+        // Keep the buffer as-is conceptually (it stays "all same char");
+        // appending preserves that invariant for the next press.
+        typeAheadBuffer += ch;
+      } else {
+        typeAheadBuffer += ch;
+        match = candidates.find(li => li.textContent.toLowerCase().startsWith(typeAheadBuffer)) || null;
+      }
+
+      if (match) {
+        highlightedIndex = parseInt(match.dataset.index, 10);
+        updateHighlight();
+        triggerPreview(match.dataset.value);
+      }
+    }
+
     // Event handlers
     trigger.addEventListener('click', (e) => {
       e.preventDefault();
@@ -8084,7 +8138,17 @@ const BooklistApp = (function() {
     
     trigger.addEventListener('keydown', (e) => {
       const items = list.querySelectorAll('.custom-font-dropdown-option');
-      
+
+      // Type-ahead: printable characters jump the list to the typed font.
+      // Space only participates mid-phrase (e.g. "open s..."); with an
+      // empty buffer it keeps its commit/open role in the switch below.
+      if (isOpen && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey &&
+          (e.key !== ' ' || typeAheadBuffer !== '')) {
+        e.preventDefault();
+        handleTypeAhead(e.key);
+        return;
+      }
+
       switch (e.key) {
         case 'Enter':
         case ' ':

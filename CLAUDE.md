@@ -245,7 +245,7 @@ All constants live in the `CONFIG` object:
 - **PDF export**: 600 DPI, 6.25x canvas scale (600/96), 11"x8.5" output
 - **QR code**: `QR_SIZE_PX` (900) — renders at 600 DPI equivalent, CSS constrains display to 144px
 - **APIs**: Open Library search + covers endpoints
-- **Fonts**: Array of 30 font objects `{ value, label }` (single source of truth for all dropdowns)
+- **Fonts**: Array of 45 font objects `{ value, label }` (single source of truth for all dropdowns)
 - **Timing**: `AUTOSAVE_DEBOUNCE_MS` (400), `NOTIFICATION_DURATION_MS` (3000)
 - **Placeholders**: Cover URLs, text defaults, colors
 
@@ -316,7 +316,7 @@ Uploaded images are compressed on capture to reduce `.booklist` file size:
 - **jsPDF + html2canvas** - PDF generation (6.25x canvas scale for 600 DPI print quality)
 - **QRCode.js** - QR code generation
 - **Font Awesome 6.4.0** - Icons
-- **Google Fonts** - 30 typography options (preloaded via hidden divs)
+- **Google Fonts** - 45 typography options (41 webfonts preloaded via hidden divs + 4 system fonts)
 - **Firebase SDK v10.14.1** (`gstatic.com/firebasejs`) - App, Auth, Firestore. Loaded via `import()` inside ES module files, ONLY on branded library subdomains and on the admin console. Never loaded on the public tool at booklister.org.
 
 ### External APIs
@@ -590,7 +590,7 @@ Six plain HTML pages live at the repo root alongside `index.html`:
 - **Debounced functions** for performance: `debouncedSave` (400ms), `debouncedCoverRegen` (350ms)
 - **Direct DOM manipulation** (no virtual DOM or framework)
 - **Canvas-based rendering** for precise PDF/collage output
-- **Custom font dropdowns** with live preview styling
+- **Custom font dropdowns** with live preview styling and native-select-style type-ahead (typing while the list is open jumps the highlight to the matching font; buffer resets after `CONFIG.FONT_TYPEAHEAD_RESET_MS`)
 - **Content-editable fields** with paste sanitization (`handlePastePlainText`)
 - **Two-tier save system**: IndexedDB autosave for crash recovery + `.booklist` download for explicit saves
 
