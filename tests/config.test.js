@@ -193,6 +193,134 @@ describe('CONFIG.FONTS structure', () => {
   });
 });
 
+describe('CONFIG.LOOKS structure', () => {
+  const LOOKS = () => globalThis.CONFIG.LOOKS;
+  const HEX = /^#[0-9a-fA-F]{6}$/;
+  const LAYOUTS = ['classic', 'masonry', 'staggered', 'tilted'];
+  const POSITIONS = ['top', 'classic', 'center', 'lower', 'bottom'];
+  const GRADIENT_DIRECTIONS = ['to-bottom', 'to-top', 'to-right', 'to-left'];
+
+  it('is an array with at least 9 looks', () => {
+    expect(Array.isArray(LOOKS())).toBe(true);
+    expect(LOOKS().length).toBeGreaterThanOrEqual(9);
+  });
+
+  it('LOOKS_STRIP_COUNT is a positive number no larger than the catalog', () => {
+    expect(globalThis.CONFIG.LOOKS_STRIP_COUNT).toBeGreaterThan(0);
+    expect(globalThis.CONFIG.LOOKS_STRIP_COUNT).toBeLessThanOrEqual(LOOKS().length);
+  });
+
+  it('has unique ids', () => {
+    const ids = LOOKS().map((l) => l.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('every look has non-empty id, name, description, and multi-line sampleText', () => {
+    for (const look of LOOKS()) {
+      expect(typeof look.id).toBe('string');
+      expect(look.id.length).toBeGreaterThan(0);
+      expect(typeof look.name).toBe('string');
+      expect(look.name.length).toBeGreaterThan(0);
+      expect(typeof look.description).toBe('string');
+      expect(look.description.length).toBeGreaterThan(0);
+      expect(typeof look.sampleText).toBe('string');
+      expect(look.sampleText.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it('months arrays contain only valid calendar months', () => {
+    for (const look of LOOKS()) {
+      expect(Array.isArray(look.months)).toBe(true);
+      for (const m of look.months) {
+        expect(Number.isInteger(m)).toBe(true);
+        expect(m).toBeGreaterThanOrEqual(1);
+        expect(m).toBeLessThanOrEqual(12);
+      }
+    }
+  });
+
+  it('has at least one seasonal look and at least LOOKS_STRIP_COUNT year-round looks', () => {
+    const seasonal = LOOKS().filter((l) => l.months.length > 0);
+    const yearRound = LOOKS().filter((l) => l.months.length === 0);
+    expect(seasonal.length).toBeGreaterThan(0);
+    // The strip must always be fillable even in a month with no
+    // seasonal matches.
+    expect(yearRound.length).toBeGreaterThanOrEqual(globalThis.CONFIG.LOOKS_STRIP_COUNT);
+  });
+
+  it('chip and palette are valid hex color arrays', () => {
+    for (const look of LOOKS()) {
+      expect(look.chip).toHaveLength(2);
+      look.chip.forEach((c) => expect(c).toMatch(HEX));
+      expect(look.palette.length).toBeGreaterThanOrEqual(3);
+      look.palette.forEach((c) => expect(c).toMatch(HEX));
+    }
+  });
+
+  it('ui block uses only valid layout, position, and flag values', () => {
+    for (const look of LOOKS()) {
+      expect(LAYOUTS).toContain(look.ui.collageLayout);
+      expect(POSITIONS).toContain(look.ui.titleBarPosition);
+      expect(typeof look.ui.coverAdvancedMode).toBe('boolean');
+      expect(typeof look.ui.showShelves).toBe('boolean');
+    }
+  });
+
+  it('tilted looks carry complete tilt settings; others carry none', () => {
+    for (const look of LOOKS()) {
+      if (look.ui.collageLayout === 'tilted') {
+        expect(typeof look.ui.tiltDegree).toBe('number');
+        expect(['vertical', 'horizontal']).toContain(look.ui.tiltOffsetDirection);
+        expect(look.ui.tiltCoverSizePct).toBeGreaterThanOrEqual(50);
+        expect(look.ui.tiltCoverSizePct).toBeLessThanOrEqual(100);
+      } else {
+        // Non-tilted looks must not stamp tilt prefs (applyLook only
+        // patches tilt fields for tilted layouts, but keep the data
+        // honest too).
+        expect(look.ui.tiltDegree).toBeUndefined();
+      }
+    }
+  });
+
+  it('coverTitle colors and gradient direction are valid', () => {
+    for (const look of LOOKS()) {
+      expect(look.coverTitle.bgColor).toMatch(HEX);
+      expect(look.coverTitle.bgColor2).toMatch(HEX);
+      expect(typeof look.coverTitle.bgGradient).toBe('boolean');
+      expect(GRADIENT_DIRECTIONS).toContain(look.coverTitle.bgGradientDirection);
+    }
+  });
+
+  it('every look font exists in CONFIG.FONTS', () => {
+    const fontValues = new Set(globalThis.CONFIG.FONTS.map((f) => f.value));
+    for (const look of LOOKS()) {
+      expect(fontValues.has(look.coverTitle.simple.font)).toBe(true);
+      for (const line of look.coverTitle.lines) {
+        expect(fontValues.has(line.font)).toBe(true);
+      }
+    }
+  });
+
+  it('simple and lines style entries are well-formed', () => {
+    for (const look of LOOKS()) {
+      const s = look.coverTitle.simple;
+      expect(s.sizePt).toBeGreaterThan(0);
+      expect(s.color).toMatch(HEX);
+      expect(typeof s.bold).toBe('boolean');
+      expect(typeof s.italic).toBe('boolean');
+      expect(look.coverTitle.lines).toHaveLength(3);
+      look.coverTitle.lines.forEach((line, i) => {
+        expect(line.sizePt).toBeGreaterThan(0);
+        expect(line.color).toMatch(HEX);
+        expect(typeof line.bold).toBe('boolean');
+        expect(typeof line.italic).toBe('boolean');
+        expect(line.spacingPt).toBeGreaterThanOrEqual(0);
+        if (i === 0) expect(line.spacingPt).toBe(0);
+      });
+    }
+  });
+});
+
 describe('CONFIG.PLACEHOLDERS structure', () => {
   it('has a non-empty title string', () => {
     expect(typeof globalThis.CONFIG.PLACEHOLDERS.title).toBe('string');

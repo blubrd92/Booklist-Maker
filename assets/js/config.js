@@ -146,6 +146,211 @@
       { value: "'Times New Roman', serif", label: 'Times New Roman' },
     ],
 
+    // Looks: curated cover-style presets ("stamps", not themes — applying
+    // one sets values and walks away; nothing tracks which look is active).
+    // Each look patches ONLY cover styling: styles.coverTitle fields plus
+    // the layout-related ui fields listed in its `ui` block. Book-block
+    // text styles, books, images, and the user's cover text are never
+    // touched by a look.
+    //
+    // Field notes:
+    // - months: 1-12 values during which the look is FEATURED in the
+    //   Front Cover tab's 3-chip strip. [] = year-round filler. The full
+    //   gallery always shows every look; months only affect strip order.
+    // - sampleText: shown in gallery bar previews when the user has no
+    //   cover text of their own (rung 1 of the preview ladder).
+    // - chip: [start, end] gradient for the strip chip's swatch.
+    // - palette: placeholder-cover colors for the gallery card's layout
+    //   impression (CSS blocks arranged per collageLayout).
+    // - coverTitle.simple / .lines: same shapes serializeState writes to
+    //   styles.coverTitle — fonts MUST be `value` strings that exist in
+    //   CONFIG.FONTS (enforced by tests/config.test.js). Both are always
+    //   defined so toggling "Style each line separately" after applying
+    //   lands on sensible values either way; ui.coverAdvancedMode decides
+    //   which one renders.
+    // - ui.tilt* fields: only present on tilted looks; non-tilted looks
+    //   leave the user's tilt preferences alone.
+    LOOKS_STRIP_COUNT: 3,
+    LOOKS: [
+      {
+        id: 'classic-literary',
+        name: 'Classic Literary',
+        description: 'Classic layout · shelves · cream on slate',
+        months: [],
+        sampleText: 'Staff Picks\nOur Favorite Reads',
+        chip: ['#1a202c', '#f6e9d4'],
+        palette: ['#8a6d4f', '#4f6b8a', '#7a4f52', '#5d7a5a'],
+        ui: { coverAdvancedMode: true, collageLayout: 'classic', showShelves: true, titleBarPosition: 'classic' },
+        coverTitle: {
+          bgColor: '#1a202c', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          simple: { font: "'Playfair Display', serif", sizePt: 36, color: '#f6e9d4', bold: true, italic: false },
+          lines: [
+            { font: "'Playfair Display', serif", sizePt: 40, color: '#f6e9d4', bold: true, italic: false, spacingPt: 0 },
+            { font: "'EB Garamond', serif", sizePt: 22, color: '#e2d5bb', bold: false, italic: true, spacingPt: 6 },
+            { font: "'EB Garamond', serif", sizePt: 22, color: '#e2d5bb', bold: false, italic: true, spacingPt: 6 },
+          ],
+        },
+      },
+      {
+        id: 'summer-reading',
+        name: 'Summer Reading',
+        description: 'Staggered layout · gradient bar, bottom',
+        months: [5, 6, 7, 8],
+        sampleText: 'Summer Reading\nPoolside Page-Turners',
+        chip: ['#ed8936', '#ed64a6'],
+        palette: ['#f6ad55', '#4fd1c5', '#ed64a6', '#63b3ed'],
+        ui: { coverAdvancedMode: true, collageLayout: 'staggered', showShelves: false, titleBarPosition: 'bottom' },
+        coverTitle: {
+          bgColor: '#ed8936', bgGradient: true, bgColor2: '#ed64a6', bgGradientDirection: 'to-right',
+          simple: { font: "'Pacifico', cursive", sizePt: 36, color: '#FFFFFF', bold: false, italic: false },
+          lines: [
+            { font: "'Pacifico', cursive", sizePt: 40, color: '#FFFFFF', bold: false, italic: false, spacingPt: 0 },
+            { font: "'Quicksand', sans-serif", sizePt: 20, color: '#fff7ed', bold: true, italic: false, spacingPt: 6 },
+            { font: "'Quicksand', sans-serif", sizePt: 20, color: '#fff7ed', bold: true, italic: false, spacingPt: 6 },
+          ],
+        },
+      },
+      {
+        id: 'spooky-season',
+        name: 'Spooky Season',
+        description: 'Tilted layout · orange on black',
+        months: [10],
+        sampleText: 'Spine Chillers\nHaunting Reads',
+        chip: ['#0d0d0f', '#dd6b20'],
+        palette: ['#2d2d33', '#44337a', '#1f2833', '#3c2f2f'],
+        ui: {
+          coverAdvancedMode: true, collageLayout: 'tilted', showShelves: false, titleBarPosition: 'top',
+          tiltDegree: -25, tiltOffsetDirection: 'vertical', tiltCoverSizePct: 100,
+        },
+        coverTitle: {
+          bgColor: '#0d0d0f', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          simple: { font: "'Creepster', system-ui", sizePt: 40, color: '#ff8c00', bold: false, italic: false },
+          lines: [
+            { font: "'Creepster', system-ui", sizePt: 44, color: '#ff8c00', bold: false, italic: false, spacingPt: 0 },
+            { font: "'Special Elite', monospace", sizePt: 18, color: '#a0aec0', bold: false, italic: false, spacingPt: 8 },
+            { font: "'Special Elite', monospace", sizePt: 18, color: '#a0aec0', bold: false, italic: false, spacingPt: 8 },
+          ],
+        },
+      },
+      {
+        id: 'kids-corner',
+        name: 'Kids Corner',
+        description: 'Masonry layout · primary brights',
+        months: [],
+        sampleText: 'Kids Corner\nRead With Me',
+        chip: ['#4299e1', '#ecc94b'],
+        palette: ['#f56565', '#48bb78', '#4299e1', '#ecc94b'],
+        ui: { coverAdvancedMode: true, collageLayout: 'masonry', showShelves: false, titleBarPosition: 'classic' },
+        coverTitle: {
+          bgColor: '#4299e1', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          simple: { font: "'Luckiest Guy', system-ui", sizePt: 36, color: '#FFFFFF', bold: false, italic: false },
+          lines: [
+            { font: "'Luckiest Guy', system-ui", sizePt: 40, color: '#FFFFFF', bold: false, italic: false, spacingPt: 0 },
+            { font: "'Fredoka', sans-serif", sizePt: 20, color: '#ebf8ff', bold: true, italic: false, spacingPt: 6 },
+            { font: "'Fredoka', sans-serif", sizePt: 20, color: '#ebf8ff', bold: true, italic: false, spacingPt: 6 },
+          ],
+        },
+      },
+      {
+        id: 'modern-minimal',
+        name: 'Modern Minimal',
+        description: 'Masonry layout · white bar, tracked caps',
+        months: [],
+        sampleText: 'New & Notable\nThis Month’s Titles',
+        chip: ['#f0f1f3', '#1a202c'],
+        palette: ['#a0aec0', '#718096', '#cbd5e0', '#4a5568'],
+        ui: { coverAdvancedMode: false, collageLayout: 'masonry', showShelves: false, titleBarPosition: 'classic' },
+        coverTitle: {
+          bgColor: '#FFFFFF', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          simple: { font: "'Bebas Neue', sans-serif", sizePt: 38, color: '#1a202c', bold: false, italic: false },
+          lines: [
+            { font: "'Bebas Neue', sans-serif", sizePt: 38, color: '#1a202c', bold: false, italic: false, spacingPt: 0 },
+            { font: "'Inter', sans-serif", sizePt: 16, color: '#718096', bold: false, italic: false, spacingPt: 6 },
+            { font: "'Inter', sans-serif", sizePt: 16, color: '#718096', bold: false, italic: false, spacingPt: 6 },
+          ],
+        },
+      },
+      {
+        id: 'elegant-script',
+        name: 'Elegant Script',
+        description: 'Classic layout · rosewood bar, bottom',
+        months: [],
+        sampleText: 'Evening Reads\nStories to Savor',
+        chip: ['#7a4f52', '#f7e8d3'],
+        palette: ['#b08ea2', '#d4b483', '#8ea2b0', '#c9a9a6'],
+        ui: { coverAdvancedMode: true, collageLayout: 'classic', showShelves: false, titleBarPosition: 'bottom' },
+        coverTitle: {
+          bgColor: '#7a4f52', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          simple: { font: "'Dancing Script', cursive", sizePt: 40, color: '#f7e8d3', bold: false, italic: false },
+          lines: [
+            { font: "'Dancing Script', cursive", sizePt: 44, color: '#f7e8d3', bold: false, italic: false, spacingPt: 0 },
+            { font: "'Cormorant Garamond', serif", sizePt: 20, color: '#ead9c2', bold: false, italic: true, spacingPt: 4 },
+            { font: "'Cormorant Garamond', serif", sizePt: 20, color: '#ead9c2', bold: false, italic: true, spacingPt: 4 },
+          ],
+        },
+      },
+      {
+        id: 'winter-holidays',
+        name: 'Winter Holidays',
+        description: 'Classic layout · shelves · gold on pine',
+        months: [12, 1],
+        sampleText: 'Winter Warmers\nCozy Season Reads',
+        chip: ['#1a4731', '#f6e9c9'],
+        palette: ['#22543d', '#742a2a', '#b7791f', '#2a4365'],
+        ui: { coverAdvancedMode: true, collageLayout: 'classic', showShelves: true, titleBarPosition: 'classic' },
+        coverTitle: {
+          bgColor: '#1a4731', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          simple: { font: "'Cinzel', serif", sizePt: 34, color: '#f6e9c9', bold: true, italic: false },
+          lines: [
+            { font: "'Cinzel', serif", sizePt: 38, color: '#f6e9c9', bold: true, italic: false, spacingPt: 0 },
+            { font: "'EB Garamond', serif", sizePt: 20, color: '#d9c9a3', bold: false, italic: true, spacingPt: 6 },
+            { font: "'EB Garamond', serif", sizePt: 20, color: '#d9c9a3', bold: false, italic: true, spacingPt: 6 },
+          ],
+        },
+      },
+      {
+        id: 'comic-pop',
+        name: 'Comic Pop',
+        description: 'Tilted layout · black on comic yellow',
+        months: [],
+        sampleText: 'Graphic Novels\nPow! Bam! Read!',
+        chip: ['#ffd60a', '#1a202c'],
+        palette: ['#f56565', '#4299e1', '#ffd60a', '#9f7aea'],
+        ui: {
+          coverAdvancedMode: true, collageLayout: 'tilted', showShelves: false, titleBarPosition: 'top',
+          tiltDegree: -15, tiltOffsetDirection: 'vertical', tiltCoverSizePct: 100,
+        },
+        coverTitle: {
+          bgColor: '#ffd60a', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          simple: { font: "'Bangers', system-ui", sizePt: 38, color: '#1a202c', bold: false, italic: false },
+          lines: [
+            { font: "'Bangers', system-ui", sizePt: 42, color: '#1a202c', bold: false, italic: false, spacingPt: 0 },
+            { font: "'Anton', sans-serif", sizePt: 18, color: '#1a202c', bold: false, italic: false, spacingPt: 6 },
+            { font: "'Anton', sans-serif", sizePt: 18, color: '#1a202c', bold: false, italic: false, spacingPt: 6 },
+          ],
+        },
+      },
+      {
+        id: 'scholarly',
+        name: 'Scholarly',
+        description: 'Classic layout · navy on paper, top',
+        months: [],
+        sampleText: 'History & Ideas\nNonfiction Highlights',
+        chip: ['#f7f5f0', '#1a365d'],
+        palette: ['#4a5568', '#8a6d4f', '#2a4365', '#718096'],
+        ui: { coverAdvancedMode: false, collageLayout: 'classic', showShelves: false, titleBarPosition: 'top' },
+        coverTitle: {
+          bgColor: '#f7f5f0', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          simple: { font: "'Libre Baskerville', serif", sizePt: 30, color: '#1a365d', bold: false, italic: false },
+          lines: [
+            { font: "'Libre Baskerville', serif", sizePt: 32, color: '#1a365d', bold: false, italic: false, spacingPt: 0 },
+            { font: "'Crimson Text', serif", sizePt: 18, color: '#4a5568', bold: false, italic: true, spacingPt: 5 },
+            { font: "'Crimson Text', serif", sizePt: 18, color: '#4a5568', bold: false, italic: true, spacingPt: 5 },
+          ],
+        },
+      },
+    ],
+
     // AI drafter configuration sent to the Apps Script with every
     // request. Values here override the script's defaults for
     // production calls (the script's CONFIG only applies to direct

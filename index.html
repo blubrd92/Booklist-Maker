@@ -248,6 +248,14 @@
 
       <div id="tab-front-cover" class="tab-content export-controls" role="tabpanel" aria-labelledby="front-cover-tab">
 
+        <div class="form-group" id="looks-group">
+          <label>Looks</label>
+          <!-- Chips are built by renderLooksStrip() from CONFIG.LOOKS;
+               featured order rotates by month (BookUtils.pickFeaturedLooks). -->
+          <div id="looks-strip" class="looks-strip" role="group" aria-label="Featured looks"></div>
+          <button type="button" id="browse-looks-button" class="btn btn-secondary looks-browse-btn">Browse all looks</button>
+        </div>
+
         <div class="form-group" id="cover-header-text-group">
           <label>Cover Header Text</label>
 
@@ -733,6 +741,24 @@
         <div class="modal-footer">
           <button type="button" class="btn" id="quick-add-cancel-btn">Cancel</button>
           <button type="button" class="btn btn-primary" id="quick-add-submit-btn" data-mode="multi" disabled>Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Looks Gallery Modal. Cards are built by openLooksModal() from
+         CONFIG.LOOKS; each card's title-bar strip is a real canvas render
+         (drawTitleBarAt) using the user's cover text when present, the
+         look's sampleText otherwise. -->
+    <div id="looks-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Choose a look</h3>
+          <button type="button" class="modal-close" id="looks-close-btn" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="looks-modal-sub">Restyles the cover's fonts, colors, and layout. Your text, titles, and images stay exactly as they are. Undo reverts.</p>
+          <p class="looks-preview-note" id="looks-preview-note"></p>
+          <div id="looks-grid" class="looks-grid"></div>
         </div>
       </div>
     </div>

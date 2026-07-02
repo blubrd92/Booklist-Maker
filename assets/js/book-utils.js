@@ -445,6 +445,33 @@
     },
 
     /**
+     * Pick which looks the Front Cover tab's chip strip features for a
+     * given month. Seasonal looks (whose `months` array contains the
+     * month) come first, then year-round looks (empty/absent `months`),
+     * then out-of-season looks as last-resort filler — each group in
+     * catalog order, truncated to `count`. Deterministic: same inputs,
+     * same strip. The full gallery is unaffected; this only orders the
+     * featured subset.
+     * @param {Array} looks - the CONFIG.LOOKS catalog
+     * @param {number} month - calendar month, 1-12
+     * @param {number} count - how many looks the strip shows
+     * @returns {Array} up to `count` look objects
+     */
+    pickFeaturedLooks: function(looks, month, count) {
+      if (!Array.isArray(looks) || !(count > 0)) return [];
+      const seasonal = [];
+      const yearRound = [];
+      const offSeason = [];
+      looks.forEach(function(look) {
+        const months = Array.isArray(look.months) ? look.months : [];
+        if (months.indexOf(month) !== -1) seasonal.push(look);
+        else if (months.length === 0) yearRound.push(look);
+        else offSeason.push(look);
+      });
+      return seasonal.concat(yearRound, offSeason).slice(0, count);
+    },
+
+    /**
      * Create a blank book object with placeholder fields.
      * Used for empty slots in a new booklist or after deletion.
      * @returns {Object} A blank book object

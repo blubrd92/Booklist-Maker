@@ -1096,6 +1096,52 @@ describe('BookUtils.compactLegacyCoverLineStyles', () => {
   });
 });
 
+describe('BookUtils.pickFeaturedLooks', () => {
+  const L = (id, months) => (months === undefined ? { id } : { id, months });
+  const catalog = [
+    L('october', [10]),
+    L('evergreen-1', []),
+    L('summer', [6, 7]),
+    L('evergreen-2', []),
+    L('december', [12]),
+  ];
+  const ids = (result) => result.map((l) => l.id);
+  const pick = (looks, month, count) => BookUtils.pickFeaturedLooks(looks, month, count);
+
+  it('puts in-season looks first, then year-round, in catalog order', () => {
+    expect(ids(pick(catalog, 10, 3))).toEqual(['october', 'evergreen-1', 'evergreen-2']);
+    expect(ids(pick(catalog, 6, 3))).toEqual(['summer', 'evergreen-1', 'evergreen-2']);
+  });
+
+  it('fills with year-round looks when no look is in season', () => {
+    expect(ids(pick(catalog, 3, 3))).toEqual(['evergreen-1', 'evergreen-2', 'october']);
+  });
+
+  it('uses out-of-season looks as last-resort filler', () => {
+    const small = [L('october', [10]), L('december', [12])];
+    expect(ids(pick(small, 3, 2))).toEqual(['october', 'december']);
+  });
+
+  it('truncates to count and tolerates count larger than the catalog', () => {
+    expect(pick(catalog, 10, 1)).toHaveLength(1);
+    expect(pick(catalog, 10, 99)).toHaveLength(catalog.length);
+  });
+
+  it('treats a missing months field as year-round', () => {
+    expect(ids(pick([L('october', [10]), L('no-months')], 3, 2))).toEqual(['no-months', 'october']);
+  });
+
+  it('is deterministic for the same inputs', () => {
+    expect(ids(pick(catalog, 7, 3))).toEqual(ids(pick(catalog, 7, 3)));
+  });
+
+  it('returns [] for invalid input', () => {
+    expect(pick(null, 10, 3)).toEqual([]);
+    expect(pick(catalog, 10, 0)).toEqual([]);
+    expect(pick(catalog, 10, -1)).toEqual([]);
+  });
+});
+
 describe('BookUtils.isDraftStateEffectivelyEmpty', () => {
   // A minimal "empty" state matching what serializeState would write
   // for a fresh page load: 15 blank-placeholder books, no extras, no

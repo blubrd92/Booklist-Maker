@@ -4476,7 +4476,269 @@ const BooklistApp = (function() {
       elements.coverLinesOverflowHint.hidden = !(lines.length > groups.length);
     }
   }
-  
+
+  // ---------------------------------------------------------------------------
+  // Looks (cover style presets from CONFIG.LOOKS)
+  // ---------------------------------------------------------------------------
+
+  // Shared scratch canvas for gallery bar previews, sized like the real
+  // collage canvas so drawTitleBarAt renders at production geometry.
+  // Lazily created once and reused across cards to avoid allocating a
+  // 3000px-wide canvas per card per modal open.
+  let _lookPreviewScratch = null;
+
+  /**
+   * Builds a drawTitleBarAt-compatible styles object from a look and raw
+   * cover text — the preview twin of getCoverTitleStyles, which reads the
+   * live DOM controls instead. Field shapes must stay in sync with what
+   * getCoverTitleStyles produces (simple: text/font/fontStyle/fontSizePx/
+   * color; advanced: lines[] of text/font/fontStyle/sizePx/color/spacingPx).
+   */
+  function buildLookTitleStyles(look, rawText) {
+    const pxPerPt = CONFIG.PDF_DPI / 72;
+    const ct = look.coverTitle;
+    const layout = {
+      bgColor: ct.bgColor,
+      bgGradient: !!ct.bgGradient,
+      bgColor2: ct.bgColor2 || '#333333',
+      bgGradientDirection: ct.bgGradientDirection || 'to-bottom',
+      outerMarginPx: 0,
+      padXPx: 0,
+      padYPx: 10 * pxPerPt,
+      bgSideMarginPx: 0,
+    };
+    const lineTexts = BookUtils.splitCoverLines(rawText);
+    if (!look.ui.coverAdvancedMode) {
+      const s = ct.simple;
+      return {
+        ...layout,
+        isAdvancedMode: false,
+        text: lineTexts.join('\n'),
+        font: s.font,
+        fontStyle: (s.italic ? 'italic ' : '') + (s.bold ? 'bold ' : ''),
+        fontSizePx: s.sizePt * pxPerPt,
+        color: s.color,
+      };
+    }
+    return {
+      ...layout,
+      isAdvancedMode: true,
+      lines: lineTexts.map((text, i) => {
+        const entry = ct.lines[Math.min(i, ct.lines.length - 1)];
+        return {
+          text,
+          font: entry.font,
+          fontStyle: (entry.italic ? 'italic ' : '') + (entry.bold ? 'bold ' : ''),
+          sizePx: entry.sizePt * pxPerPt,
+          color: entry.color,
+          spacingPx: (i > 0 ? entry.spacingPt : 0) * pxPerPt,
+        };
+      }),
+    };
+  }
+
+  /**
+   * Renders a look's title bar with the given text through the real
+   * drawTitleBarAt pipeline and returns a small canvas for a gallery
+   * card. Returns null when there's nothing to draw. Very tall bars
+   * (many pasted lines) are cropped rather than shrunk so the card
+   * stays card-sized.
+   */
+  function renderLookBarCanvas(look, rawText) {
+    const renderW = 5 * CONFIG.PDF_DPI; // same width the collage renders at
+    if (!_lookPreviewScratch) {
+      _lookPreviewScratch = document.createElement('canvas');
+      _lookPreviewScratch.width = renderW;
+      _lookPreviewScratch.height = 2000;
+    }
+    const ctx = _lookPreviewScratch.getContext('2d');
+    ctx.clearRect(0, 0, _lookPreviewScratch.width, _lookPreviewScratch.height);
+    const styles = buildLookTitleStyles(look, rawText);
+    const { bgH } = drawTitleBarAt(ctx, styles, renderW, 0);
+    if (!bgH) return null;
+    const cropH = Math.min(bgH, _lookPreviewScratch.height);
+    const out = document.createElement('canvas');
+    const outW = 640;
+    out.width = outW;
+    out.height = Math.max(1, Math.round(cropH * outW / renderW));
+    out.getContext('2d').drawImage(_lookPreviewScratch, 0, 0, renderW, cropH, 0, 0, out.width, out.height);
+    return out;
+  }
+
+  /**
+   * Applies a look: patches ONLY the cover-styling slice of the current
+   * serialized state and reapplies it through applyState, the same
+   * restore path files, drafts, and undo already exercise. One undo
+   * entry; the user's text, books, and images ride through untouched.
+   */
+  function applyLook(look) {
+    // The tour swaps in scripted sample state; a look applied mid-tour
+    // would be lost on exit (and pushUndo is a no-op during the tour).
+    if (_tourActive) return;
+    pushUndo('apply-look');
+
+    const st = serializeState();
+    st.ui.coverAdvancedMode = !!look.ui.coverAdvancedMode;
+    st.ui.collageLayout = look.ui.collageLayout;
+    st.ui.showShelves = !!look.ui.showShelves;
+    st.ui.titleBarPosition = look.ui.titleBarPosition;
+    // Tilt prefs are only stamped by looks that actually use the tilted
+    // layout; other looks leave the user's tilt settings alone.
+    if (look.ui.collageLayout === 'tilted') {
+      st.ui.tiltDegree = look.ui.tiltDegree;
+      st.ui.tiltOffsetDirection = look.ui.tiltOffsetDirection;
+      st.ui.tiltCoverSizePct = look.ui.tiltCoverSizePct;
+    }
+    st.styles.coverTitle = {
+      ...st.styles.coverTitle, // margins/padding are user knobs, not look territory
+      bgColor: look.coverTitle.bgColor,
+      bgGradient: !!look.coverTitle.bgGradient,
+      bgColor2: look.coverTitle.bgColor2,
+      bgGradientDirection: look.coverTitle.bgGradientDirection,
+      simple: { ...look.coverTitle.simple },
+      lines: look.coverTitle.lines.map(l => ({ ...l })),
+    };
+
+    applyState(st, { silent: true });
+    debouncedSave();
+    const hasCover = elements.frontCoverUploader?.classList.contains('has-image');
+    autoRegenerateCoverIfAble();
+    showNotification(
+      hasCover
+        ? `${look.name} applied.`
+        : `${look.name} applied. You'll see it when you create your cover.`,
+      'success'
+    );
+  }
+
+  /** Rebuilds the Front Cover tab's 3-chip featured strip. */
+  function renderLooksStrip() {
+    const strip = document.getElementById('looks-strip');
+    if (!strip || !Array.isArray(CONFIG.LOOKS)) return;
+    const featured = BookUtils.pickFeaturedLooks(
+      CONFIG.LOOKS, new Date().getMonth() + 1, CONFIG.LOOKS_STRIP_COUNT
+    );
+    strip.innerHTML = '';
+    featured.forEach(look => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'looks-chip';
+      btn.title = `Apply ${look.name}`;
+      const art = document.createElement('span');
+      art.className = 'looks-chip-art';
+      art.style.background = `linear-gradient(120deg, ${look.chip[0]} 55%, ${look.chip[1]} 55%)`;
+      const name = document.createElement('span');
+      name.className = 'looks-chip-name';
+      name.textContent = look.name;
+      btn.append(art, name);
+      btn.addEventListener('click', () => applyLook(look));
+      strip.appendChild(btn);
+    });
+  }
+
+  /** Builds one gallery card: layout impression + real bar render + meta. */
+  function buildLookCard(look, barText) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'look-card';
+    card.setAttribute('aria-label', `Apply the ${look.name} look`);
+
+    const art = document.createElement('div');
+    art.className = `look-card-art look-art-${look.ui.collageLayout}`;
+    art.style.background = look.chip[0];
+    const blocks = document.createElement('div');
+    blocks.className = 'look-card-blocks';
+    // Masonry's impression uses a denser 5x3 grid; the others 4x3.
+    const blockCount = look.ui.collageLayout === 'masonry' ? 15 : 12;
+    for (let i = 0; i < blockCount; i++) {
+      const s = document.createElement('span');
+      s.style.background = look.palette[i % look.palette.length];
+      blocks.appendChild(s);
+    }
+    art.appendChild(blocks);
+
+    const barWrap = document.createElement('div');
+    barWrap.className = 'look-card-bar';
+    const pos = look.ui.titleBarPosition;
+    if (pos === 'top') barWrap.style.top = '0';
+    else if (pos === 'bottom') barWrap.style.bottom = '0';
+    else barWrap.style.top = '34%';
+    const barCanvas = renderLookBarCanvas(look, barText);
+    if (barCanvas) barWrap.appendChild(barCanvas);
+    art.appendChild(barWrap);
+    card.appendChild(art);
+
+    if (Array.isArray(look.months) && look.months.length > 0) {
+      const tag = document.createElement('span');
+      tag.className = 'look-card-tag';
+      tag.textContent = 'Seasonal';
+      card.appendChild(tag);
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'look-card-meta';
+    const nm = document.createElement('span');
+    nm.className = 'look-card-name';
+    nm.textContent = look.name;
+    const ds = document.createElement('span');
+    ds.className = 'look-card-desc';
+    ds.textContent = look.description;
+    meta.append(nm, ds);
+    card.appendChild(meta);
+
+    card.addEventListener('click', () => {
+      applyLook(look);
+      closeLooksModal();
+    });
+    return card;
+  }
+
+  function openLooksModal() {
+    const modal = document.getElementById('looks-modal');
+    const grid = document.getElementById('looks-grid');
+    const note = document.getElementById('looks-preview-note');
+    if (!modal || !grid || !Array.isArray(CONFIG.LOOKS)) return;
+
+    // Rung 2 of the preview ladder: the moment the user has any cover
+    // text, every card's bar renders THEIR words in the look's styling.
+    // With no text yet (rung 1), each card falls back to its sampleText.
+    const userRaw = elements.coverTitleInput?.value || '';
+    const hasUserText = BookUtils.splitCoverLines(userRaw).length > 0;
+    if (note) {
+      note.textContent = hasUserText
+        ? 'Previews show your own cover text in each look.'
+        : 'Previews show sample text. Type your cover header text first to see your own words in each look.';
+    }
+
+    grid.innerHTML = '';
+    CONFIG.LOOKS.forEach(look => {
+      grid.appendChild(buildLookCard(look, hasUserText ? userRaw : look.sampleText));
+    });
+    modal.style.display = 'flex';
+  }
+
+  function closeLooksModal() {
+    const modal = document.getElementById('looks-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function initLooks() {
+    renderLooksStrip();
+    const browseBtn = document.getElementById('browse-looks-button');
+    const modal = document.getElementById('looks-modal');
+    const closeBtn = document.getElementById('looks-close-btn');
+    if (browseBtn) browseBtn.addEventListener('click', openLooksModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeLooksModal);
+    attachOverlayClickClose(modal, closeLooksModal);
+    document.addEventListener('keydown', function(e) {
+      if (!modal || modal.style.display === 'none') return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeLooksModal();
+      }
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Collage cover count (12 / 16 / 20) + Extra Collage Covers
   // ---------------------------------------------------------------------------
@@ -9399,9 +9661,12 @@ const BooklistApp = (function() {
     // Set default cover style mode (shared styling); also syncs the
     // per-line group labels with the (empty or draft-restored) textarea
     toggleCoverMode(false);
-    
+
     // Set initial tilted settings visibility
     updateTiltedSettingsVisibility();
+
+    // Looks strip + gallery modal (cover style presets)
+    initLooks();
 
     // Color palette popovers on the primary color pickers
     setupColorPopovers();
