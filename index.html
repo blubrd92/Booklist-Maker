@@ -250,6 +250,7 @@
 
         <div class="form-group" id="looks-group">
           <label>Looks</label>
+          <div class="field-hint">One-click styles for your cover.</div>
           <!-- Chips are built by renderLooksStrip() from CONFIG.LOOKS;
                featured order rotates by month (BookUtils.pickFeaturedLooks). -->
           <div id="looks-strip" class="looks-strip" role="group" aria-label="Featured looks"></div>
@@ -267,7 +268,8 @@
           <!-- Single text source for both style modes -->
           <div id="cover-simple-mode">
             <label for="cover-title-input" class="sr-only">Cover title text</label>
-            <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title..."></textarea>
+            <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title...&#10;Press Enter to add a line"></textarea>
+            <div class="field-hint">Each line becomes its own line on the cover.</div>
           </div>
 
           <!-- User-facing label is "Create Cover"; the element ID
@@ -756,7 +758,7 @@
           <button type="button" class="modal-close" id="looks-close-btn" aria-label="Close modal">&times;</button>
         </div>
         <div class="modal-body">
-          <p class="looks-modal-sub">Restyles the cover's fonts, colors, and layout. Your text, titles, and images stay exactly as they are. Undo reverts.</p>
+          <p class="looks-modal-sub">A look styles your cover in one click: fonts, colors, and layout. Your text, titles, and images stay exactly as they are. Undo reverts.</p>
           <p class="looks-preview-note" id="looks-preview-note"></p>
           <div id="looks-grid" class="looks-grid"></div>
         </div>

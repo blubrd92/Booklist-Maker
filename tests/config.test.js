@@ -253,12 +253,10 @@ describe('CONFIG.LOOKS structure', () => {
     expect(yearRound.length).toBeGreaterThanOrEqual(globalThis.CONFIG.LOOKS_STRIP_COUNT);
   });
 
-  it('chip and palette are valid hex color arrays', () => {
+  it('chip is a valid hex color pair', () => {
     for (const look of LOOKS()) {
       expect(look.chip).toHaveLength(2);
       look.chip.forEach((c) => expect(c).toMatch(HEX));
-      expect(look.palette.length).toBeGreaterThanOrEqual(3);
-      look.palette.forEach((c) => expect(c).toMatch(HEX));
     }
   });
 

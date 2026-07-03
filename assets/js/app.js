@@ -4509,7 +4509,10 @@ const BooklistApp = (function() {
       bgGradient: !!ct.bgGradient,
       bgColor2: ct.bgColor2 || '#333333',
       bgGradientDirection: ct.bgGradientDirection || 'to-bottom',
-      outerMarginPx: 0,
+      // Production-default bar geometry (the values index.html's margin
+      // and padding controls ship with) so a preview cover matches what
+      // applying the look and clicking Create Cover produces.
+      outerMarginPx: 10 * pxPerPt,
       padXPx: 0,
       padYPx: 10 * pxPerPt,
       bgSideMarginPx: 0,
@@ -4546,29 +4549,94 @@ const BooklistApp = (function() {
     };
   }
 
+  // Sample cover images for the gallery's preview renders: muted solid
+  // "book covers" generated once and cached as data-URL Images. The
+  // layout draw functions read naturalWidth/naturalHeight, so these
+  // must be real Image elements, not canvases. One shared set for all
+  // looks keeps the cards comparable side by side.
+  let _lookSampleCoversPromise = null;
+
+  function getLookSampleCoverImages() {
+    if (_lookSampleCoversPromise) return _lookSampleCoversPromise;
+    const colors = [
+      '#8a6d4f', '#4f6b8a', '#7a4f52', '#5d7a5a',
+      '#6b5b7a', '#a08060', '#54707a', '#7a6a54',
+      '#4a5568', '#8a5d6b', '#5d7a72', '#70597a',
+    ];
+    _lookSampleCoversPromise = Promise.all(colors.map(color => {
+      const c = document.createElement('canvas');
+      c.width = 150;
+      c.height = 225;
+      const cctx = c.getContext('2d');
+      cctx.fillStyle = color;
+      cctx.fillRect(0, 0, c.width, c.height);
+      // Lighter inset panel so the placeholder reads as a generic
+      // cover, not a paint chip.
+      cctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+      cctx.fillRect(15, 22, c.width - 30, Math.round(c.height * 0.42));
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = c.toDataURL('image/png');
+      });
+    }));
+    return _lookSampleCoversPromise;
+  }
+
   /**
-   * Renders a look's title bar with the given text through the real
-   * drawTitleBarAt pipeline and returns a small canvas for a gallery
-   * card. Returns null when there's nothing to draw. Very tall bars
-   * (many pasted lines) are cropped rather than shrunk so the card
-   * stays card-sized. `scratch` is a full-collage-width work canvas
-   * owned by openLooksModal — created per modal open and shared across
-   * the cards, then released with that scope (a ~24 MB backing store
-   * shouldn't outlive the modal build).
+   * Renders a look as a complete miniature cover: the REAL layout draw
+   * functions run at full collage size on `scratch` with the sample
+   * covers and the look's styling, and the result is downscaled to a
+   * portrait card thumbnail — what the card shows IS the tool's output
+   * for this look. `scratch` is a full 3000x4800 work canvas owned by
+   * the modal build that requested the render (its ~57 MB backing
+   * store must not outlive the build).
    */
-  function renderLookBarCanvas(look, rawText, scratch) {
-    const renderW = scratch.width;
+  function renderLookCoverCanvas(look, rawText, images, scratch) {
     const ctx = scratch.getContext('2d');
-    ctx.clearRect(0, 0, scratch.width, scratch.height);
+    // save/restore guards the shared scratch against any transform or
+    // style state a layout function leaves behind (the production path
+    // uses a fresh canvas per render and never notices).
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, scratch.width, scratch.height);
     const styles = buildLookTitleStyles(look, rawText);
-    const { bgH } = drawTitleBarAt(ctx, styles, renderW, 0);
-    if (!bgH) return null;
-    const cropH = Math.min(bgH, scratch.height);
+    const options = {
+      titleBarPosition: look.ui.titleBarPosition,
+      tiltDegree: look.ui.tiltDegree ?? -25,
+      tiltOffsetDirection: look.ui.tiltOffsetDirection || 'vertical',
+      tiltCoverSize: (look.ui.tiltCoverSizePct ?? 100) / 100,
+      coverCount: images.length,
+    };
+    switch (look.ui.collageLayout) {
+      case 'masonry':
+        drawLayoutMasonry(ctx, scratch, images, styles, options);
+        break;
+      case 'staggered':
+        drawLayoutStaggered(ctx, scratch, images, styles, false, options);
+        break;
+      case 'tilted':
+        drawLayoutTilted(ctx, scratch, images, styles, false, options);
+        break;
+      default:
+        if (look.ui.showShelves) {
+          drawLayoutBookshelf(ctx, scratch, images, styles, false, options);
+        } else {
+          drawLayoutClassic(ctx, scratch, images, styles, false, options);
+        }
+    }
+    ctx.restore();
+
     const out = document.createElement('canvas');
-    const outW = 640;
-    out.width = outW;
-    out.height = Math.max(1, Math.round(cropH * outW / renderW));
-    out.getContext('2d').drawImage(scratch, 0, 0, renderW, cropH, 0, 0, out.width, out.height);
+    out.width = 180;
+    out.height = Math.round(out.width * scratch.height / scratch.width);
+    const octx = out.getContext('2d');
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = 'high';
+    octx.drawImage(scratch, 0, 0, scratch.width, scratch.height, 0, 0, out.width, out.height);
     return out;
   }
 
@@ -4652,62 +4720,52 @@ const BooklistApp = (function() {
     });
   }
 
-  /** Builds one gallery card: layout impression + real bar render + meta. */
-  function buildLookCard(look, barText, scratch) {
+  /**
+   * Builds one gallery card shell: meta immediately, art filled in
+   * later by openLooksModal's progressive pass (so opening the modal
+   * never waits on 9 full-size cover renders). Returns { card, art }.
+   */
+  function buildLookCard(look) {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'look-card';
     card.setAttribute('aria-label', `Apply the ${look.name} look`);
 
     const art = document.createElement('div');
-    art.className = `look-card-art look-art-${look.ui.collageLayout}`;
-    art.style.background = look.chip[0];
-    const blocks = document.createElement('div');
-    blocks.className = 'look-card-blocks';
-    // Masonry's impression uses a denser 5x3 grid; the others 4x3.
-    const blockCount = look.ui.collageLayout === 'masonry' ? 15 : 12;
-    for (let i = 0; i < blockCount; i++) {
-      const s = document.createElement('span');
-      s.style.background = look.palette[i % look.palette.length];
-      blocks.appendChild(s);
-    }
-    art.appendChild(blocks);
-
-    const barWrap = document.createElement('div');
-    barWrap.className = 'look-card-bar';
-    const pos = look.ui.titleBarPosition;
-    if (pos === 'top') barWrap.style.top = '0';
-    else if (pos === 'bottom') barWrap.style.bottom = '0';
-    else barWrap.style.top = '34%';
-    const barCanvas = renderLookBarCanvas(look, barText, scratch);
-    if (barCanvas) barWrap.appendChild(barCanvas);
-    art.appendChild(barWrap);
+    art.className = 'look-card-art';
     card.appendChild(art);
-
-    if (Array.isArray(look.months) && look.months.length > 0) {
-      const tag = document.createElement('span');
-      tag.className = 'look-card-tag';
-      tag.textContent = 'Seasonal';
-      card.appendChild(tag);
-    }
 
     const meta = document.createElement('div');
     meta.className = 'look-card-meta';
     const nm = document.createElement('span');
     nm.className = 'look-card-name';
     nm.textContent = look.name;
+    meta.appendChild(nm);
+    // Seasonal tag lives in the meta row, not over the art — a
+    // top-positioned title bar would collide with an overlay badge.
+    if (Array.isArray(look.months) && look.months.length > 0) {
+      const tag = document.createElement('span');
+      tag.className = 'look-card-tag';
+      tag.textContent = 'Seasonal';
+      nm.appendChild(tag);
+    }
     const ds = document.createElement('span');
     ds.className = 'look-card-desc';
     ds.textContent = look.description;
-    meta.append(nm, ds);
+    meta.appendChild(ds);
     card.appendChild(meta);
 
     card.addEventListener('click', () => {
       applyLook(look);
       closeLooksModal();
     });
-    return card;
+    return { card, art };
   }
+
+  // Monotonic id for gallery builds. The progressive card fill checks
+  // it between frames so closing (or reopening) the modal cancels a
+  // stale build instead of appending renders into a dead grid.
+  let _looksBuildSeq = 0;
 
   function openLooksModal() {
     const modal = document.getElementById('looks-modal');
@@ -4716,31 +4774,52 @@ const BooklistApp = (function() {
     if (!modal || !grid || !Array.isArray(CONFIG.LOOKS)) return;
 
     // Rung 2 of the preview ladder: the moment the user has any cover
-    // text, every card's bar renders THEIR words in the look's styling.
-    // With no text yet (rung 1), each card falls back to its sampleText.
+    // text, every preview cover carries THEIR words in the look's
+    // styling. With no text yet (rung 1), each card uses its sampleText.
     const userRaw = elements.coverTitleInput?.value || '';
     const hasUserText = BookUtils.splitCoverLines(userRaw).length > 0;
     if (note) {
       note.textContent = hasUserText
-        ? 'Previews show your own cover text in each look.'
-        : 'Previews show sample text. Type your cover header text first to see your own words in each look.';
+        ? 'Previews show your own cover text on a sample cover.'
+        : 'Previews use sample covers and sample titles. Type your cover header text first to see your own words on them.';
     }
 
-    // Work canvas for the bar renders: full collage width so the bars
-    // draw at production geometry, scoped to this build so its large
-    // backing store is reclaimable as soon as the cards are built.
-    const scratch = document.createElement('canvas');
-    scratch.width = CONFIG.COLLAGE_WIDTH_IN * CONFIG.PDF_DPI;
-    scratch.height = 2000;
-
     grid.innerHTML = '';
+    const pending = [];
     CONFIG.LOOKS.forEach(look => {
-      grid.appendChild(buildLookCard(look, hasUserText ? userRaw : look.sampleText, scratch));
+      const { card, art } = buildLookCard(look);
+      grid.appendChild(card);
+      pending.push({ look, art, barText: hasUserText ? userRaw : look.sampleText });
     });
     modal.style.display = 'flex';
+
+    const buildId = ++_looksBuildSeq;
+    // Fonts are loaded at startup, so waitForFonts is a fast no-op
+    // guard here — but it's the same precondition generateCoverCollage
+    // renders under, and the preview must not draw with fallback fonts.
+    Promise.all([getLookSampleCoverImages(), waitForFonts()]).then(([images]) => {
+      if (buildId !== _looksBuildSeq) return;
+      // Full-size work canvas shared by this build's renders and
+      // released with this closure when the fill completes or is
+      // cancelled — its backing store must not outlive the build.
+      const scratch = document.createElement('canvas');
+      scratch.width = CONFIG.COLLAGE_WIDTH_IN * CONFIG.PDF_DPI;
+      scratch.height = CONFIG.COLLAGE_HEIGHT_IN * CONFIG.PDF_DPI;
+      const fill = (i) => {
+        if (buildId !== _looksBuildSeq || i >= pending.length) return;
+        const item = pending[i];
+        item.art.appendChild(renderLookCoverCanvas(item.look, item.barText, images, scratch));
+        requestAnimationFrame(() => fill(i + 1));
+      };
+      fill(0);
+    }).catch(() => {
+      // Previews are best-effort: cards still show name/description and
+      // still apply on click even if sample-image generation failed.
+    });
   }
 
   function closeLooksModal() {
+    _looksBuildSeq++; // cancel any in-flight progressive fill
     const modal = document.getElementById('looks-modal');
     if (modal) modal.style.display = 'none';
   }

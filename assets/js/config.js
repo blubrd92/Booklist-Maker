@@ -28,7 +28,7 @@
     COLLAGE_COVER_COUNTS: [12, 16, 20],
     // Collage canvas geometry in inches (rendered at PDF_DPI, so
     // 5x8in = 3000x4800px). Shared by createCollageCanvas and the
-    // Looks gallery bar previews so both render at identical width.
+    // Looks gallery preview renders so both use identical geometry.
     COLLAGE_WIDTH_IN: 5,
     COLLAGE_HEIGHT_IN: 8,
     COLLAGE_GRID_COLS: 3,
@@ -162,11 +162,9 @@
     // - months: 1-12 values during which the look is FEATURED in the
     //   Front Cover tab's 3-chip strip. [] = year-round filler. The full
     //   gallery always shows every look; months only affect strip order.
-    // - sampleText: shown in gallery bar previews when the user has no
-    //   cover text of their own (rung 1 of the preview ladder).
+    // - sampleText: shown on gallery preview covers when the user has
+    //   no cover text of their own (rung 1 of the preview ladder).
     // - chip: [start, end] gradient for the strip chip's swatch.
-    // - palette: placeholder-cover colors for the gallery card's layout
-    //   impression (CSS blocks arranged per collageLayout).
     // - coverTitle.simple / .lines: same field shapes serializeState
     //   writes to styles.coverTitle — fonts MUST be `value` strings that
     //   exist in CONFIG.FONTS (enforced by tests/config.test.js). Both
@@ -188,7 +186,6 @@
         months: [],
         sampleText: 'Staff Picks\nOur Favorite Reads',
         chip: ['#1a202c', '#f6e9d4'],
-        palette: ['#8a6d4f', '#4f6b8a', '#7a4f52', '#5d7a5a'],
         ui: { coverAdvancedMode: true, collageLayout: 'classic', showShelves: true, titleBarPosition: 'classic' },
         coverTitle: {
           bgColor: '#1a202c', bgGradient: false,
@@ -206,7 +203,6 @@
         months: [5, 6, 7, 8],
         sampleText: 'Summer Reading\nPoolside Page-Turners',
         chip: ['#ed8936', '#ed64a6'],
-        palette: ['#f6ad55', '#4fd1c5', '#ed64a6', '#63b3ed'],
         ui: { coverAdvancedMode: true, collageLayout: 'staggered', showShelves: false, titleBarPosition: 'bottom' },
         coverTitle: {
           bgColor: '#ed8936', bgGradient: true, bgColor2: '#ed64a6', bgGradientDirection: 'to-right',
@@ -224,7 +220,6 @@
         months: [10],
         sampleText: 'Spine Chillers\nHaunting Reads',
         chip: ['#0d0d0f', '#dd6b20'],
-        palette: ['#2d2d33', '#44337a', '#1f2833', '#3c2f2f'],
         ui: {
           coverAdvancedMode: true, collageLayout: 'tilted', showShelves: false, titleBarPosition: 'top',
           tiltDegree: -25, tiltOffsetDirection: 'vertical', tiltCoverSizePct: 100,
@@ -245,7 +240,6 @@
         months: [],
         sampleText: 'Kids Corner\nRead With Me',
         chip: ['#4299e1', '#ecc94b'],
-        palette: ['#f56565', '#48bb78', '#4299e1', '#ecc94b'],
         ui: { coverAdvancedMode: true, collageLayout: 'masonry', showShelves: false, titleBarPosition: 'classic' },
         coverTitle: {
           bgColor: '#4299e1', bgGradient: false,
@@ -263,7 +257,6 @@
         months: [],
         sampleText: 'New & Notable\nThis Month’s Titles',
         chip: ['#f0f1f3', '#1a202c'],
-        palette: ['#a0aec0', '#718096', '#cbd5e0', '#4a5568'],
         ui: { coverAdvancedMode: false, collageLayout: 'masonry', showShelves: false, titleBarPosition: 'classic' },
         coverTitle: {
           bgColor: '#FFFFFF', bgGradient: false,
@@ -281,7 +274,6 @@
         months: [],
         sampleText: 'Evening Reads\nStories to Savor',
         chip: ['#7a4f52', '#f7e8d3'],
-        palette: ['#b08ea2', '#d4b483', '#8ea2b0', '#c9a9a6'],
         ui: { coverAdvancedMode: true, collageLayout: 'classic', showShelves: false, titleBarPosition: 'bottom' },
         coverTitle: {
           bgColor: '#7a4f52', bgGradient: false,
@@ -299,7 +291,6 @@
         months: [12, 1],
         sampleText: 'Winter Warmers\nCozy Season Reads',
         chip: ['#1a4731', '#f6e9c9'],
-        palette: ['#22543d', '#742a2a', '#b7791f', '#2a4365'],
         ui: { coverAdvancedMode: true, collageLayout: 'classic', showShelves: true, titleBarPosition: 'classic' },
         coverTitle: {
           bgColor: '#1a4731', bgGradient: false,
@@ -317,7 +308,6 @@
         months: [],
         sampleText: 'Graphic Novels\nPow! Bam! Read!',
         chip: ['#ffd60a', '#1a202c'],
-        palette: ['#f56565', '#4299e1', '#ffd60a', '#9f7aea'],
         ui: {
           coverAdvancedMode: true, collageLayout: 'tilted', showShelves: false, titleBarPosition: 'top',
           tiltDegree: -15, tiltOffsetDirection: 'vertical', tiltCoverSizePct: 100,
@@ -338,7 +328,6 @@
         months: [],
         sampleText: 'History & Ideas\nNonfiction Highlights',
         chip: ['#f7f5f0', '#1a365d'],
-        palette: ['#4a5568', '#8a6d4f', '#2a4365', '#718096'],
         ui: { coverAdvancedMode: false, collageLayout: 'classic', showShelves: false, titleBarPosition: 'top' },
         coverTitle: {
           bgColor: '#f7f5f0', bgGradient: false,

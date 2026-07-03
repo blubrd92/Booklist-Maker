@@ -1816,6 +1816,15 @@ input[type="color"]:hover {
   font-weight: 500;
 }
 
+/* Small muted guidance line under a control (cover text hint, looks
+   strip hint). Kept generic for reuse across sidebar fields. */
+.field-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin: 4px 0 8px;
+}
+
 /* ============================================================
    LOOKS (cover style presets): Front Cover tab strip + gallery
    ============================================================ */
@@ -1901,45 +1910,18 @@ input[type="color"]:hover {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px var(--primary-light), var(--shadow-md);
 }
+/* Card art is a real miniature cover render (canvas) at the collage's
+   5:8 portrait aspect; the aspect-ratio on the container reserves the
+   space while the progressive fill is still drawing. */
 .look-card-art {
-  position: relative;
-  height: 118px;
+  aspect-ratio: 5 / 8;
+  background: var(--border-light);
   overflow: hidden;
 }
-.look-card-blocks {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 3px;
-  padding: 6px;
-}
-.look-card-blocks span {
-  border-radius: 2px;
-  opacity: 0.92;
-}
-/* Layout impressions: light CSS gestures at each collage layout. The
-   title-bar canvas is the accurate part of the card; these just signal
-   grid vs columns vs offset vs rotation. */
-.look-art-masonry .look-card-blocks {
-  grid-template-columns: repeat(5, 1fr);
-}
-.look-art-staggered .look-card-blocks span:nth-child(even) {
-  transform: translateY(7px);
-}
-.look-art-tilted .look-card-blocks span {
-  transform: rotate(-7deg) scale(1.18);
-}
-.look-card-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-}
-.look-card-bar canvas {
+.look-card-art canvas {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
 }
 .look-card-meta {
   padding: 8px 10px 10px;
@@ -1957,17 +1939,17 @@ input[type="color"]:hover {
   margin-top: 1px;
 }
 .look-card-tag {
-  position: absolute;
-  top: 6px;
-  right: 6px;
+  display: inline-block;
+  vertical-align: 1px;
+  margin-left: 6px;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--text-light);
+  background: var(--primary-light);
+  color: var(--primary-hover);
   border-radius: var(--radius-sm);
-  padding: 2px 5px;
+  padding: 1px 5px;
 }
 .line-style-group .control-row {
   margin-bottom: 6px;
