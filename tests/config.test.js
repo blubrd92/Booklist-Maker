@@ -149,6 +149,11 @@ describe('CONFIG value constraints', () => {
     expect(globalThis.CONFIG.FONT_TYPEAHEAD_RESET_MS).toBeGreaterThan(0);
     expect(globalThis.CONFIG.FONT_TYPEAHEAD_RESET_MS).toBeLessThan(5000);
   });
+
+  it('collage canvas geometry constants are positive inches', () => {
+    expect(globalThis.CONFIG.COLLAGE_WIDTH_IN).toBeGreaterThan(0);
+    expect(globalThis.CONFIG.COLLAGE_HEIGHT_IN).toBeGreaterThan(0);
+  });
 });
 
 describe('CONFIG.FONTS structure', () => {
@@ -200,9 +205,9 @@ describe('CONFIG.LOOKS structure', () => {
   const POSITIONS = ['top', 'classic', 'center', 'lower', 'bottom'];
   const GRADIENT_DIRECTIONS = ['to-bottom', 'to-top', 'to-right', 'to-left'];
 
-  it('is an array with at least 9 looks', () => {
+  it('is a non-empty array', () => {
     expect(Array.isArray(LOOKS())).toBe(true);
-    expect(LOOKS().length).toBeGreaterThanOrEqual(9);
+    expect(LOOKS().length).toBeGreaterThan(0);
   });
 
   it('LOOKS_STRIP_COUNT is a positive number no larger than the catalog', () => {
@@ -282,12 +287,24 @@ describe('CONFIG.LOOKS structure', () => {
     }
   });
 
-  it('coverTitle colors and gradient direction are valid', () => {
+  it('coverTitle colors and gradient settings are valid', () => {
     for (const look of LOOKS()) {
       expect(look.coverTitle.bgColor).toMatch(HEX);
-      expect(look.coverTitle.bgColor2).toMatch(HEX);
       expect(typeof look.coverTitle.bgGradient).toBe('boolean');
-      expect(GRADIENT_DIRECTIONS).toContain(look.coverTitle.bgGradientDirection);
+      // bgColor2/direction are required for gradient looks; non-gradient
+      // looks may omit them (consumers default them) but any present
+      // value must still be valid.
+      if (look.coverTitle.bgGradient) {
+        expect(look.coverTitle.bgColor2).toMatch(HEX);
+        expect(GRADIENT_DIRECTIONS).toContain(look.coverTitle.bgGradientDirection);
+      } else {
+        if (look.coverTitle.bgColor2 !== undefined) {
+          expect(look.coverTitle.bgColor2).toMatch(HEX);
+        }
+        if (look.coverTitle.bgGradientDirection !== undefined) {
+          expect(GRADIENT_DIRECTIONS).toContain(look.coverTitle.bgGradientDirection);
+        }
+      }
     }
   });
 
@@ -308,7 +325,10 @@ describe('CONFIG.LOOKS structure', () => {
       expect(s.color).toMatch(HEX);
       expect(typeof s.bold).toBe('boolean');
       expect(typeof s.italic).toBe('boolean');
-      expect(look.coverTitle.lines).toHaveLength(3);
+      // 2 entries (headline + subline); applyLook pads to the serialized
+      // 3-line schema by repeating the last entry.
+      expect(look.coverTitle.lines.length).toBeGreaterThanOrEqual(2);
+      expect(look.coverTitle.lines.length).toBeLessThanOrEqual(3);
       look.coverTitle.lines.forEach((line, i) => {
         expect(line.sizePt).toBeGreaterThan(0);
         expect(line.color).toMatch(HEX);

@@ -445,6 +445,20 @@
     },
 
     /**
+     * Canvas font-shorthand style prefix for bold/italic flags. Order
+     * matters to ctx.font ('italic bold 40px ...'), and the trailing
+     * space is intentional — callers prepend the result directly to
+     * the size. Shared by getCoverTitleStyles and buildLookTitleStyles
+     * in app.js so the two can't drift.
+     * @param {boolean} bold
+     * @param {boolean} italic
+     * @returns {string} '', 'bold ', 'italic ', or 'italic bold '
+     */
+    buildCanvasFontStyle: function(bold, italic) {
+      return (italic ? 'italic ' : '') + (bold ? 'bold ' : '');
+    },
+
+    /**
      * Pick which looks the Front Cover tab's chip strip features for a
      * given month. Seasonal looks (whose `months` array contains the
      * month) come first, then year-round looks (empty/absent `months`),

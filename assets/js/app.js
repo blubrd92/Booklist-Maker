@@ -548,6 +548,23 @@ const BooklistApp = (function() {
   }
 
   /**
+   * Wire Escape-to-close for a modal overlay shown via inline
+   * style.display. Companion to attachOverlayClickClose — the two
+   * halves of the modal-dismiss pattern live here so a fix to either
+   * reaches every modal instead of one hand-rolled copy.
+   */
+  function attachEscapeClose(overlayEl, onClose) {
+    if (!overlayEl) return;
+    document.addEventListener('keydown', (e) => {
+      if (overlayEl.style.display === 'none') return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    });
+  }
+
+  /**
    * Strips any HTML/inline styles from a contenteditable element,
    * preserving line breaks. Call this on 'input' events as a safety net.
    */
@@ -2648,8 +2665,8 @@ const BooklistApp = (function() {
    */
   function createCollageCanvas() {
     const canvas = document.createElement('canvas');
-    canvas.width = 5 * CONFIG.PDF_DPI;
-    canvas.height = 8 * CONFIG.PDF_DPI;
+    canvas.width = CONFIG.COLLAGE_WIDTH_IN * CONFIG.PDF_DPI;
+    canvas.height = CONFIG.COLLAGE_HEIGHT_IN * CONFIG.PDF_DPI;
     
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = true;
@@ -2691,11 +2708,9 @@ const BooklistApp = (function() {
       const isBold = elements.coverBoldToggle?.classList.contains('active') || false;
       const isItalic = elements.coverItalicToggle?.classList.contains('active') || false;
       const color = elements.coverTextColor?.value || '#FFFFFF';
-      
-      let fontStyle = '';
-      if (isItalic) fontStyle += 'italic ';
-      if (isBold) fontStyle += 'bold ';
-      
+
+      const fontStyle = BookUtils.buildCanvasFontStyle(isBold, isItalic);
+
       // Return in old format for compatibility with simple mode
       return {
         ...layoutSettings,
@@ -2725,9 +2740,7 @@ const BooklistApp = (function() {
           ? parseFloat(controls.spacing.value || '10')
           : 0;
 
-        let fontStyle = '';
-        if (isItalic) fontStyle += 'italic ';
-        if (isBold) fontStyle += 'bold ';
+        const fontStyle = BookUtils.buildCanvasFontStyle(isBold, isItalic);
 
         return {
           text,
@@ -4481,12 +4494,6 @@ const BooklistApp = (function() {
   // Looks (cover style presets from CONFIG.LOOKS)
   // ---------------------------------------------------------------------------
 
-  // Shared scratch canvas for gallery bar previews, sized like the real
-  // collage canvas so drawTitleBarAt renders at production geometry.
-  // Lazily created once and reused across cards to avoid allocating a
-  // 3000px-wide canvas per card per modal open.
-  let _lookPreviewScratch = null;
-
   /**
    * Builds a drawTitleBarAt-compatible styles object from a look and raw
    * cover text — the preview twin of getCoverTitleStyles, which reads the
@@ -4507,15 +4514,17 @@ const BooklistApp = (function() {
       padYPx: 10 * pxPerPt,
       bgSideMarginPx: 0,
     };
-    const lineTexts = BookUtils.splitCoverLines(rawText);
     if (!look.ui.coverAdvancedMode) {
       const s = ct.simple;
       return {
         ...layout,
         isAdvancedMode: false,
-        text: lineTexts.join('\n'),
+        // Raw trimmed text, not joined splitCoverLines output — simple
+        // mode preserves blank interior lines as gaps at render time,
+        // and the preview should match what applying produces.
+        text: String(rawText || '').trim(),
         font: s.font,
-        fontStyle: (s.italic ? 'italic ' : '') + (s.bold ? 'bold ' : ''),
+        fontStyle: BookUtils.buildCanvasFontStyle(s.bold, s.italic),
         fontSizePx: s.sizePt * pxPerPt,
         color: s.color,
       };
@@ -4523,12 +4532,12 @@ const BooklistApp = (function() {
     return {
       ...layout,
       isAdvancedMode: true,
-      lines: lineTexts.map((text, i) => {
+      lines: BookUtils.splitCoverLines(rawText).map((text, i) => {
         const entry = ct.lines[Math.min(i, ct.lines.length - 1)];
         return {
           text,
           font: entry.font,
-          fontStyle: (entry.italic ? 'italic ' : '') + (entry.bold ? 'bold ' : ''),
+          fontStyle: BookUtils.buildCanvasFontStyle(entry.bold, entry.italic),
           sizePx: entry.sizePt * pxPerPt,
           color: entry.color,
           spacingPx: (i > 0 ? entry.spacingPt : 0) * pxPerPt,
@@ -4542,26 +4551,24 @@ const BooklistApp = (function() {
    * drawTitleBarAt pipeline and returns a small canvas for a gallery
    * card. Returns null when there's nothing to draw. Very tall bars
    * (many pasted lines) are cropped rather than shrunk so the card
-   * stays card-sized.
+   * stays card-sized. `scratch` is a full-collage-width work canvas
+   * owned by openLooksModal — created per modal open and shared across
+   * the cards, then released with that scope (a ~24 MB backing store
+   * shouldn't outlive the modal build).
    */
-  function renderLookBarCanvas(look, rawText) {
-    const renderW = 5 * CONFIG.PDF_DPI; // same width the collage renders at
-    if (!_lookPreviewScratch) {
-      _lookPreviewScratch = document.createElement('canvas');
-      _lookPreviewScratch.width = renderW;
-      _lookPreviewScratch.height = 2000;
-    }
-    const ctx = _lookPreviewScratch.getContext('2d');
-    ctx.clearRect(0, 0, _lookPreviewScratch.width, _lookPreviewScratch.height);
+  function renderLookBarCanvas(look, rawText, scratch) {
+    const renderW = scratch.width;
+    const ctx = scratch.getContext('2d');
+    ctx.clearRect(0, 0, scratch.width, scratch.height);
     const styles = buildLookTitleStyles(look, rawText);
     const { bgH } = drawTitleBarAt(ctx, styles, renderW, 0);
     if (!bgH) return null;
-    const cropH = Math.min(bgH, _lookPreviewScratch.height);
+    const cropH = Math.min(bgH, scratch.height);
     const out = document.createElement('canvas');
     const outW = 640;
     out.width = outW;
     out.height = Math.max(1, Math.round(cropH * outW / renderW));
-    out.getContext('2d').drawImage(_lookPreviewScratch, 0, 0, renderW, cropH, 0, 0, out.width, out.height);
+    out.getContext('2d').drawImage(scratch, 0, 0, renderW, cropH, 0, 0, out.width, out.height);
     return out;
   }
 
@@ -4575,7 +4582,11 @@ const BooklistApp = (function() {
     // The tour swaps in scripted sample state; a look applied mid-tour
     // would be lost on exit (and pushUndo is a no-op during the tour).
     if (_tourActive) return;
-    pushUndo('apply-look');
+    // Per-look undo group: re-stamping the SAME look inside the
+    // coalesce window merges harmlessly (idempotent), but trying look A
+    // then look B in quick succession keeps two undo steps so one
+    // Ctrl+Z gets back to A, not all the way to pre-A.
+    pushUndo('apply-look:' + look.id);
 
     const st = serializeState();
     st.ui.coverAdvancedMode = !!look.ui.coverAdvancedMode;
@@ -4589,14 +4600,19 @@ const BooklistApp = (function() {
       st.ui.tiltOffsetDirection = look.ui.tiltOffsetDirection;
       st.ui.tiltCoverSizePct = look.ui.tiltCoverSizePct;
     }
+    // Pad the look's 2-entry lines (headline + subline) to the 3-line
+    // serialized schema by repeating the last entry, so line 3's style
+    // group lands on the subline style. Non-gradient looks omit
+    // bgColor2/direction; default them like the rest of the codebase.
+    const lookLines = look.coverTitle.lines;
     st.styles.coverTitle = {
       ...st.styles.coverTitle, // margins/padding are user knobs, not look territory
       bgColor: look.coverTitle.bgColor,
       bgGradient: !!look.coverTitle.bgGradient,
-      bgColor2: look.coverTitle.bgColor2,
-      bgGradientDirection: look.coverTitle.bgGradientDirection,
+      bgColor2: look.coverTitle.bgColor2 || '#333333',
+      bgGradientDirection: look.coverTitle.bgGradientDirection || 'to-bottom',
       simple: { ...look.coverTitle.simple },
-      lines: look.coverTitle.lines.map(l => ({ ...l })),
+      lines: [0, 1, 2].map(i => ({ ...lookLines[Math.min(i, lookLines.length - 1)] })),
     };
 
     applyState(st, { silent: true });
@@ -4637,7 +4653,7 @@ const BooklistApp = (function() {
   }
 
   /** Builds one gallery card: layout impression + real bar render + meta. */
-  function buildLookCard(look, barText) {
+  function buildLookCard(look, barText, scratch) {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'look-card';
@@ -4663,7 +4679,7 @@ const BooklistApp = (function() {
     if (pos === 'top') barWrap.style.top = '0';
     else if (pos === 'bottom') barWrap.style.bottom = '0';
     else barWrap.style.top = '34%';
-    const barCanvas = renderLookBarCanvas(look, barText);
+    const barCanvas = renderLookBarCanvas(look, barText, scratch);
     if (barCanvas) barWrap.appendChild(barCanvas);
     art.appendChild(barWrap);
     card.appendChild(art);
@@ -4710,9 +4726,16 @@ const BooklistApp = (function() {
         : 'Previews show sample text. Type your cover header text first to see your own words in each look.';
     }
 
+    // Work canvas for the bar renders: full collage width so the bars
+    // draw at production geometry, scoped to this build so its large
+    // backing store is reclaimable as soon as the cards are built.
+    const scratch = document.createElement('canvas');
+    scratch.width = CONFIG.COLLAGE_WIDTH_IN * CONFIG.PDF_DPI;
+    scratch.height = 2000;
+
     grid.innerHTML = '';
     CONFIG.LOOKS.forEach(look => {
-      grid.appendChild(buildLookCard(look, hasUserText ? userRaw : look.sampleText));
+      grid.appendChild(buildLookCard(look, hasUserText ? userRaw : look.sampleText, scratch));
     });
     modal.style.display = 'flex';
   }
@@ -4730,13 +4753,7 @@ const BooklistApp = (function() {
     if (browseBtn) browseBtn.addEventListener('click', openLooksModal);
     if (closeBtn) closeBtn.addEventListener('click', closeLooksModal);
     attachOverlayClickClose(modal, closeLooksModal);
-    document.addEventListener('keydown', function(e) {
-      if (!modal || modal.style.display === 'none') return;
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        closeLooksModal();
-      }
-    });
+    attachEscapeClose(modal, closeLooksModal);
   }
 
   // ---------------------------------------------------------------------------
@@ -5505,13 +5522,7 @@ const BooklistApp = (function() {
         }
         mouseDownOnOverlay = false;
       });
-      // Escape closes the modal when it's visible (display !== 'none').
-      document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape') return;
-        if (elements.extraCoverSearchModal.style.display === 'none') return;
-        e.preventDefault();
-        closeExtraCoverSearchModal();
-      });
+      attachEscapeClose(elements.extraCoverSearchModal, closeExtraCoverSearchModal);
     }
 
     // Modal search submit
@@ -6020,15 +6031,7 @@ const BooklistApp = (function() {
 
     // Click-outside to dismiss (mousedown-tracked, like the other modals).
     attachOverlayClickClose(modal, closeBookEditSheet);
-
-    // Escape closes the modal.
-    document.addEventListener('keydown', function(e) {
-      if (!modal || modal.style.display === 'none') return;
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        closeBookEditSheet();
-      }
-    });
+    attachEscapeClose(modal, closeBookEditSheet);
   }
 
   function bindQuickAddEvents() {
@@ -6060,15 +6063,7 @@ const BooklistApp = (function() {
     // mousedown so dragging a text-selection out of an input doesn't
     // accidentally close the modal.
     attachOverlayClickClose(modal, closeQuickAddModal);
-
-    // Escape closes the modal.
-    document.addEventListener('keydown', function(e) {
-      if (!modal || modal.style.display === 'none') return;
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        closeQuickAddModal();
-      }
-    });
+    attachEscapeClose(modal, closeQuickAddModal);
 
     // Live-update submit-button enablement and clear stale errors as the
     // user edits the required fields.

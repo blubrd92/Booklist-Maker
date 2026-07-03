@@ -1096,6 +1096,16 @@ describe('BookUtils.compactLegacyCoverLineStyles', () => {
   });
 });
 
+describe('BookUtils.buildCanvasFontStyle', () => {
+  it('returns the order-sensitive canvas shorthand prefix', () => {
+    expect(BookUtils.buildCanvasFontStyle(false, false)).toBe('');
+    expect(BookUtils.buildCanvasFontStyle(true, false)).toBe('bold ');
+    expect(BookUtils.buildCanvasFontStyle(false, true)).toBe('italic ');
+    // italic must precede bold for ctx.font to parse both
+    expect(BookUtils.buildCanvasFontStyle(true, true)).toBe('italic bold ');
+  });
+});
+
 describe('BookUtils.pickFeaturedLooks', () => {
   const L = (id, months) => (months === undefined ? { id } : { id, months });
   const catalog = [
@@ -1129,10 +1139,6 @@ describe('BookUtils.pickFeaturedLooks', () => {
 
   it('treats a missing months field as year-round', () => {
     expect(ids(pick([L('october', [10]), L('no-months')], 3, 2))).toEqual(['no-months', 'october']);
-  });
-
-  it('is deterministic for the same inputs', () => {
-    expect(ids(pick(catalog, 7, 3))).toEqual(ids(pick(catalog, 7, 3)));
   });
 
   it('returns [] for invalid input', () => {

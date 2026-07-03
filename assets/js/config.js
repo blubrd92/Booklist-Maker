@@ -26,6 +26,11 @@
     MIN_COVERS_FOR_COLLAGE: 12,
     MAX_COVERS_FOR_COLLAGE: 20,
     COLLAGE_COVER_COUNTS: [12, 16, 20],
+    // Collage canvas geometry in inches (rendered at PDF_DPI, so
+    // 5x8in = 3000x4800px). Shared by createCollageCanvas and the
+    // Looks gallery bar previews so both render at identical width.
+    COLLAGE_WIDTH_IN: 5,
+    COLLAGE_HEIGHT_IN: 8,
     COLLAGE_GRID_COLS: 3,
     COLLAGE_TOP_ROW_COUNT: 3,
     COLLAGE_BOTTOM_ROWS: 3,
@@ -162,12 +167,16 @@
     // - chip: [start, end] gradient for the strip chip's swatch.
     // - palette: placeholder-cover colors for the gallery card's layout
     //   impression (CSS blocks arranged per collageLayout).
-    // - coverTitle.simple / .lines: same shapes serializeState writes to
-    //   styles.coverTitle — fonts MUST be `value` strings that exist in
-    //   CONFIG.FONTS (enforced by tests/config.test.js). Both are always
-    //   defined so toggling "Style each line separately" after applying
-    //   lands on sensible values either way; ui.coverAdvancedMode decides
-    //   which one renders.
+    // - coverTitle.simple / .lines: same field shapes serializeState
+    //   writes to styles.coverTitle — fonts MUST be `value` strings that
+    //   exist in CONFIG.FONTS (enforced by tests/config.test.js). Both
+    //   are always defined so toggling "Style each line separately"
+    //   after applying lands on sensible values either way;
+    //   ui.coverAdvancedMode decides which one renders. `lines` holds 2
+    //   entries (headline + subline); applyLook pads to the serialized
+    //   3-line schema by repeating the last entry, so lines 3+ inherit
+    //   the subline style. bgColor2/bgGradientDirection may be omitted
+    //   when bgGradient is false (consumers default them).
     // - ui.tilt* fields: only present on tilted looks; non-tilted looks
     //   leave the user's tilt preferences alone.
     LOOKS_STRIP_COUNT: 3,
@@ -182,11 +191,10 @@
         palette: ['#8a6d4f', '#4f6b8a', '#7a4f52', '#5d7a5a'],
         ui: { coverAdvancedMode: true, collageLayout: 'classic', showShelves: true, titleBarPosition: 'classic' },
         coverTitle: {
-          bgColor: '#1a202c', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          bgColor: '#1a202c', bgGradient: false,
           simple: { font: "'Playfair Display', serif", sizePt: 36, color: '#f6e9d4', bold: true, italic: false },
           lines: [
             { font: "'Playfair Display', serif", sizePt: 40, color: '#f6e9d4', bold: true, italic: false, spacingPt: 0 },
-            { font: "'EB Garamond', serif", sizePt: 22, color: '#e2d5bb', bold: false, italic: true, spacingPt: 6 },
             { font: "'EB Garamond', serif", sizePt: 22, color: '#e2d5bb', bold: false, italic: true, spacingPt: 6 },
           ],
         },
@@ -206,7 +214,6 @@
           lines: [
             { font: "'Pacifico', cursive", sizePt: 40, color: '#FFFFFF', bold: false, italic: false, spacingPt: 0 },
             { font: "'Quicksand', sans-serif", sizePt: 20, color: '#fff7ed', bold: true, italic: false, spacingPt: 6 },
-            { font: "'Quicksand', sans-serif", sizePt: 20, color: '#fff7ed', bold: true, italic: false, spacingPt: 6 },
           ],
         },
       },
@@ -223,11 +230,10 @@
           tiltDegree: -25, tiltOffsetDirection: 'vertical', tiltCoverSizePct: 100,
         },
         coverTitle: {
-          bgColor: '#0d0d0f', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          bgColor: '#0d0d0f', bgGradient: false,
           simple: { font: "'Creepster', system-ui", sizePt: 40, color: '#ff8c00', bold: false, italic: false },
           lines: [
             { font: "'Creepster', system-ui", sizePt: 44, color: '#ff8c00', bold: false, italic: false, spacingPt: 0 },
-            { font: "'Special Elite', monospace", sizePt: 18, color: '#a0aec0', bold: false, italic: false, spacingPt: 8 },
             { font: "'Special Elite', monospace", sizePt: 18, color: '#a0aec0', bold: false, italic: false, spacingPt: 8 },
           ],
         },
@@ -242,11 +248,10 @@
         palette: ['#f56565', '#48bb78', '#4299e1', '#ecc94b'],
         ui: { coverAdvancedMode: true, collageLayout: 'masonry', showShelves: false, titleBarPosition: 'classic' },
         coverTitle: {
-          bgColor: '#4299e1', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          bgColor: '#4299e1', bgGradient: false,
           simple: { font: "'Luckiest Guy', system-ui", sizePt: 36, color: '#FFFFFF', bold: false, italic: false },
           lines: [
             { font: "'Luckiest Guy', system-ui", sizePt: 40, color: '#FFFFFF', bold: false, italic: false, spacingPt: 0 },
-            { font: "'Fredoka', sans-serif", sizePt: 20, color: '#ebf8ff', bold: true, italic: false, spacingPt: 6 },
             { font: "'Fredoka', sans-serif", sizePt: 20, color: '#ebf8ff', bold: true, italic: false, spacingPt: 6 },
           ],
         },
@@ -261,11 +266,10 @@
         palette: ['#a0aec0', '#718096', '#cbd5e0', '#4a5568'],
         ui: { coverAdvancedMode: false, collageLayout: 'masonry', showShelves: false, titleBarPosition: 'classic' },
         coverTitle: {
-          bgColor: '#FFFFFF', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          bgColor: '#FFFFFF', bgGradient: false,
           simple: { font: "'Bebas Neue', sans-serif", sizePt: 38, color: '#1a202c', bold: false, italic: false },
           lines: [
             { font: "'Bebas Neue', sans-serif", sizePt: 38, color: '#1a202c', bold: false, italic: false, spacingPt: 0 },
-            { font: "'Inter', sans-serif", sizePt: 16, color: '#718096', bold: false, italic: false, spacingPt: 6 },
             { font: "'Inter', sans-serif", sizePt: 16, color: '#718096', bold: false, italic: false, spacingPt: 6 },
           ],
         },
@@ -280,11 +284,10 @@
         palette: ['#b08ea2', '#d4b483', '#8ea2b0', '#c9a9a6'],
         ui: { coverAdvancedMode: true, collageLayout: 'classic', showShelves: false, titleBarPosition: 'bottom' },
         coverTitle: {
-          bgColor: '#7a4f52', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          bgColor: '#7a4f52', bgGradient: false,
           simple: { font: "'Dancing Script', cursive", sizePt: 40, color: '#f7e8d3', bold: false, italic: false },
           lines: [
             { font: "'Dancing Script', cursive", sizePt: 44, color: '#f7e8d3', bold: false, italic: false, spacingPt: 0 },
-            { font: "'Cormorant Garamond', serif", sizePt: 20, color: '#ead9c2', bold: false, italic: true, spacingPt: 4 },
             { font: "'Cormorant Garamond', serif", sizePt: 20, color: '#ead9c2', bold: false, italic: true, spacingPt: 4 },
           ],
         },
@@ -299,11 +302,10 @@
         palette: ['#22543d', '#742a2a', '#b7791f', '#2a4365'],
         ui: { coverAdvancedMode: true, collageLayout: 'classic', showShelves: true, titleBarPosition: 'classic' },
         coverTitle: {
-          bgColor: '#1a4731', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          bgColor: '#1a4731', bgGradient: false,
           simple: { font: "'Cinzel', serif", sizePt: 34, color: '#f6e9c9', bold: true, italic: false },
           lines: [
             { font: "'Cinzel', serif", sizePt: 38, color: '#f6e9c9', bold: true, italic: false, spacingPt: 0 },
-            { font: "'EB Garamond', serif", sizePt: 20, color: '#d9c9a3', bold: false, italic: true, spacingPt: 6 },
             { font: "'EB Garamond', serif", sizePt: 20, color: '#d9c9a3', bold: false, italic: true, spacingPt: 6 },
           ],
         },
@@ -321,11 +323,10 @@
           tiltDegree: -15, tiltOffsetDirection: 'vertical', tiltCoverSizePct: 100,
         },
         coverTitle: {
-          bgColor: '#ffd60a', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          bgColor: '#ffd60a', bgGradient: false,
           simple: { font: "'Bangers', system-ui", sizePt: 38, color: '#1a202c', bold: false, italic: false },
           lines: [
             { font: "'Bangers', system-ui", sizePt: 42, color: '#1a202c', bold: false, italic: false, spacingPt: 0 },
-            { font: "'Anton', sans-serif", sizePt: 18, color: '#1a202c', bold: false, italic: false, spacingPt: 6 },
             { font: "'Anton', sans-serif", sizePt: 18, color: '#1a202c', bold: false, italic: false, spacingPt: 6 },
           ],
         },
@@ -340,11 +341,10 @@
         palette: ['#4a5568', '#8a6d4f', '#2a4365', '#718096'],
         ui: { coverAdvancedMode: false, collageLayout: 'classic', showShelves: false, titleBarPosition: 'top' },
         coverTitle: {
-          bgColor: '#f7f5f0', bgGradient: false, bgColor2: '#333333', bgGradientDirection: 'to-bottom',
+          bgColor: '#f7f5f0', bgGradient: false,
           simple: { font: "'Libre Baskerville', serif", sizePt: 30, color: '#1a365d', bold: false, italic: false },
           lines: [
             { font: "'Libre Baskerville', serif", sizePt: 32, color: '#1a365d', bold: false, italic: false, spacingPt: 0 },
-            { font: "'Crimson Text', serif", sizePt: 18, color: '#4a5568', bold: false, italic: true, spacingPt: 5 },
             { font: "'Crimson Text', serif", sizePt: 18, color: '#4a5568', bold: false, italic: true, spacingPt: 5 },
           ],
         },
