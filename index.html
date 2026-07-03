@@ -248,15 +248,6 @@
 
       <div id="tab-front-cover" class="tab-content export-controls" role="tabpanel" aria-labelledby="front-cover-tab">
 
-        <div class="form-group" id="looks-group">
-          <label>Looks</label>
-          <div class="field-hint">One-click styles for your cover.</div>
-          <!-- Chips are built by renderLooksStrip() from CONFIG.LOOKS;
-               featured order rotates by month (BookUtils.pickFeaturedLooks). -->
-          <div id="looks-strip" class="looks-strip" role="group" aria-label="Featured looks"></div>
-          <button type="button" id="browse-looks-button" class="btn btn-secondary looks-browse-btn">Browse all looks</button>
-        </div>
-
         <div class="form-group" id="cover-header-text-group">
           <label>Cover Header Text</label>
 
@@ -275,6 +266,17 @@
           <!-- User-facing label is "Create Cover"; the element ID
                remains generate-cover-button for code compatibility. -->
           <button id="generate-cover-button" class="btn btn-primary" style="margin-top: 10px; width: 100%;">Create Cover</button>
+        </div>
+
+        <!-- Placed after the text field on purpose: writing the header is
+             the natural first step; Looks restyle what's written. -->
+        <div class="form-group" id="looks-group">
+          <label>Looks</label>
+          <div class="field-hint">One-click styles for your cover.</div>
+          <!-- Chips are built by renderLooksStrip() from CONFIG.LOOKS;
+               featured order rotates by month (BookUtils.pickFeaturedLooks). -->
+          <div id="looks-strip" class="looks-strip" role="group" aria-label="Featured looks"></div>
+          <button type="button" id="browse-looks-button" class="btn btn-secondary looks-browse-btn">Browse all looks</button>
         </div>
 
         <div class="form-group" id="cover-title-style-group">
@@ -758,7 +760,7 @@
           <button type="button" class="modal-close" id="looks-close-btn" aria-label="Close modal">&times;</button>
         </div>
         <div class="modal-body">
-          <p class="looks-modal-sub">A look styles your cover in one click: fonts, colors, and layout. Your text, titles, and images stay exactly as they are. Undo reverts.</p>
+          <p class="looks-modal-sub">A look is a starting point: one click sets your cover's fonts, colors, and layout, and everything stays tweakable afterward. Your titles and images aren't touched; if the cover text is empty, the look adds sample text for you to edit. Undo reverts.</p>
           <p class="looks-preview-note" id="looks-preview-note"></p>
           <div id="looks-grid" class="looks-grid"></div>
         </div>

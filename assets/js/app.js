@@ -4657,6 +4657,14 @@ const BooklistApp = (function() {
     pushUndo('apply-look:' + look.id);
 
     const st = serializeState();
+    // Empty cover text gets the look's sample text as an editable
+    // starting point — otherwise applying on a fresh tool changes
+    // nothing visible and reads as a no-op. Pre-injection state is in
+    // the undo snapshot above, so one Ctrl+Z removes it again.
+    const injectedSampleText = BookUtils.splitCoverLines(st.ui.coverTitle).length === 0;
+    if (injectedSampleText) {
+      st.ui.coverTitle = look.sampleText;
+    }
     st.ui.coverAdvancedMode = !!look.ui.coverAdvancedMode;
     st.ui.collageLayout = look.ui.collageLayout;
     st.ui.showShelves = !!look.ui.showShelves;
@@ -4687,12 +4695,15 @@ const BooklistApp = (function() {
     debouncedSave();
     const hasCover = elements.frontCoverUploader?.classList.contains('has-image');
     autoRegenerateCoverIfAble();
-    showNotification(
-      hasCover
-        ? `${look.name} applied.`
-        : `${look.name} applied. You'll see it when you create your cover.`,
-      'success'
-    );
+    let message;
+    if (injectedSampleText) {
+      message = `${look.name} applied with sample cover text. Edit the text to make it yours.`;
+    } else if (hasCover) {
+      message = `${look.name} applied.`;
+    } else {
+      message = `${look.name} applied. You'll see it when you create your cover.`;
+    }
+    showNotification(message, 'success');
   }
 
   /** Rebuilds the Front Cover tab's 3-chip featured strip. */
