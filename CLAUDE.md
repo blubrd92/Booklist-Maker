@@ -57,6 +57,14 @@ robots.txt                      Allow-all crawl directive plus the Sitemap:
                                 indexing via its own meta noindex tag.
 firestore.rules                 Firestore security rules (deployed manually via
                                 Firebase console; this file is the source of truth)
+.claude/
+  settings.json                 Shared Claude Code config (committed): pre-approved
+                                git permissions for web sessions + the SessionStart
+                                hook registration
+  hooks/session-start.sh        SessionStart hook: npm install on Claude Code web
+                                sessions (guarded on CLAUDE_CODE_REMOTE) so lint
+                                and tests work from the first message
+  settings.local.json           Per-machine settings — gitignored, do not commit
 assets/
   css/
     styles.css                  Main UI + content page styles, CSS variables
