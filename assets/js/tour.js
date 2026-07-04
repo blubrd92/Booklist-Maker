@@ -291,7 +291,7 @@
         },
         {
           target: '#cover-title-style-group',
-          text: "And the purple-to-blue gradient you just saw came from here. This is the Cover Header Style section: fonts, sizes, colors, and the background bar with optional gradient. The text box just above is where you type what your cover says, one line per row.",
+          text: "And the purple-to-blue gradient you just saw came from here. This is the Cover Header Style section: the background bar with its optional gradient, plus a style row for each line of your header. That's why 'Mind How You Go' renders bigger than the line below it. You type your header in the text box just above, one line per row.",
           state: 'excited',
           prepare: function() {
             openSidebarTab('tab-front-cover');
@@ -485,7 +485,10 @@
     ui: {
       stretchCovers: false, stretchBlockCovers: false,
       showQr: true, showBranding: true,
-      coverAdvancedMode: false, coverTitle: '',
+      // true mirrors index.html's default-checked "Style each line
+      // separately" toggle (this state's contract is matching a fresh
+      // page's defaults).
+      coverAdvancedMode: true, coverTitle: '',
       coverTextModel: 'unified',
       coverLineTexts: ['', '', ''],
       collageLayout: 'classic', showShelves: false,

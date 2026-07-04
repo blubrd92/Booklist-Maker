@@ -200,7 +200,7 @@ Two phases. The first is the legacy IIFE stack that handles the tool itself. The
 3. `book-utils.js` → exposes `BookUtils` globally (depends on CONFIG)
 4. `app.js` → exposes `BooklistApp` IIFE. Attaches `DOMContentLoaded` listener that calls `init()`. Also attaches `window.addEventListener('library-config-ready', ...)` synchronously at IIFE top level so the listener is in place before any ES module can dispatch.
 5. `folio.js` → exposes `window.folio` API
-6. `tour.js` → exposes `window.startTour()` / `window.startTourSection()`
+6. `tour.js` → exposes `window.tour` (`window.tour.open()` opens the section picker modal)
 7. `preview-helper.js` → IIFE, no public API. On `*.pages.dev` hosts only, injects the preview mode-picker chip. On every other host the IIFE returns at line 1 — zero DOM, zero network.
 
 **Phase 3 — Deferred module scripts (execute after HTML parsing completes, in order):**
@@ -391,7 +391,7 @@ Animated SVG cat companion with state-based animations and contextual quips.
 
 ## Tour System
 
-Guided tour with 6 sections (30 steps total): Getting Started, Search & Add, Your Booklist, Covers & Collage, Customize & Style, Export & Finish.
+Guided tour with 6 sections: Getting Started, Search & Add Books, Your Booklist, Front Cover, Customize & Style, Export & Finish. (Step counts drift as steps are added; one step — the Magic button — is conditional on the AI drafter being enabled, so don't cache a total here.)
 
 - Section picker modal at start, or launch specific section
 - Spotlight overlay highlighting target elements
@@ -760,6 +760,17 @@ When editing one file, check these related files:
 ## Forward-Looking Notes
 
 These are features that aren't built yet but the current architecture is meant to accommodate. Capturing them here so future-you (or Claude) knows how the groundwork was intended to grow.
+
+### Looks relaunch (built, currently dark)
+
+Unlike everything else in this section, Looks is FULLY BUILT and shipped dark by deliberate product decision — the owner wants to revisit the feature before surfacing it, not rebuild it. Everything is live and tested behind `CONFIG.LOOKS_ENABLED: false`: the 9-look catalog, the seasonal chip strip, the gallery with real miniature-cover previews, sample-text injection, and the apply/undo machinery (see Key Functional Area 7). Relaunching is flipping the flag to `true` — nothing else is required, and the tour needs no changes either way (it never references Looks).
+
+Ideas noted for the relaunch pass:
+- Strip chips are flat gradient swatches while gallery cards are real cover renders; mini cover renders in the chips would unify the two surfaces.
+- Revisit the starting catalog with real display-calendar experience (which seasonal looks earn their slot, what's missing).
+- Per-library looks on branded instances (a "brand look" in the library's Firestore config) fit the existing data shape when wanted.
+
+If the feature is instead abandoned someday, remove: `CONFIG.LOOKS*` (config.js + tests), the Looks section in app.js, `BookUtils.pickFeaturedLooks` (+ tests), `#looks-group`/`#looks-modal` markup, and the LOOKS CSS block — the serialized state schema is untouched by Looks, so removal can't affect saved files.
 
 ### Cloud booklist storage
 
