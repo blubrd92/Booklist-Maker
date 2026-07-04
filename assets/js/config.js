@@ -177,6 +177,10 @@
     //   when bgGradient is false (consumers default them).
     // - ui.tilt* fields: only present on tilted looks; non-tilted looks
     //   leave the user's tilt preferences alone.
+    // Feature flag: false hides the Looks strip and gallery entirely
+    // (initLooks hides #looks-group and wires nothing) WITHOUT removing
+    // the code, catalog, or tests. Flip to true to surface the feature.
+    LOOKS_ENABLED: false,
     LOOKS_STRIP_COUNT: 3,
     LOOKS: [
       {

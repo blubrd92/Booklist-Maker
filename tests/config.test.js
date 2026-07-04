@@ -210,6 +210,10 @@ describe('CONFIG.LOOKS structure', () => {
     expect(LOOKS().length).toBeGreaterThan(0);
   });
 
+  it('LOOKS_ENABLED is a boolean feature flag', () => {
+    expect(typeof globalThis.CONFIG.LOOKS_ENABLED).toBe('boolean');
+  });
+
   it('LOOKS_STRIP_COUNT is a positive number no larger than the catalog', () => {
     expect(globalThis.CONFIG.LOOKS_STRIP_COUNT).toBeGreaterThan(0);
     expect(globalThis.CONFIG.LOOKS_STRIP_COUNT).toBeLessThanOrEqual(LOOKS().length);

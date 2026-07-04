@@ -1828,6 +1828,11 @@ input[type="color"]:hover {
 /* ============================================================
    LOOKS (cover style presets): Front Cover tab strip + gallery
    ============================================================ */
+/* Feature-flag hiding (CONFIG.LOOKS_ENABLED): explicit [hidden]
+   override per the documented specificity pitfall in CLAUDE.md. */
+#looks-group[hidden] {
+  display: none;
+}
 .looks-strip {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

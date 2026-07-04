@@ -4836,6 +4836,12 @@ const BooklistApp = (function() {
   }
 
   function initLooks() {
+    const group = document.getElementById('looks-group');
+    // Feature flag: the markup ships with the hidden attribute so the
+    // group can't flash before init; when disabled we simply leave it
+    // hidden and wire nothing (the modal stays display:none inert).
+    if (!CONFIG.LOOKS_ENABLED) return;
+    if (group) group.hidden = false;
     renderLooksStrip();
     const browseBtn = document.getElementById('browse-looks-button');
     const modal = document.getElementById('looks-modal');
@@ -9173,8 +9179,10 @@ const BooklistApp = (function() {
     if (elements.stretchCoversToggle) elements.stretchCoversToggle.checked = false;
     if (elements.stretchBlockCoversToggle) elements.stretchBlockCoversToggle.checked = false;
     if (elements.coverAdvancedToggle) {
-      elements.coverAdvancedToggle.checked = false;
-      toggleCoverMode(false);
+      // Per-line styling is the shipped default (checkbox is `checked`
+      // in index.html) — the tour's blank reset must match a fresh page.
+      elements.coverAdvancedToggle.checked = true;
+      toggleCoverMode(true);
     }
     setCollageCoverCountUI(CONFIG.MIN_COVERS_FOR_COLLAGE);
     setCollageCoverCount(CONFIG.MIN_COVERS_FOR_COLLAGE, true);
@@ -9743,9 +9751,11 @@ const BooklistApp = (function() {
     initUndoRedoControls();
     initMobileAutoFit();
 
-    // Set default cover style mode (shared styling); also syncs the
-    // per-line group labels with the (empty or draft-restored) textarea
-    toggleCoverMode(false);
+    // Sync the style panels to the checkbox's shipped default (checked:
+    // per-line styling); also syncs the per-line group labels with the
+    // (empty or draft-restored) textarea. Read the DOM rather than
+    // hardcoding so index.html stays the single source of the default.
+    toggleCoverMode(!!elements.coverAdvancedToggle?.checked);
 
     // Set initial tilted settings visibility
     updateTiltedSettingsVisibility();

@@ -252,7 +252,7 @@
           <label>Cover Header Text</label>
 
           <div class="control-row checkbox-row">
-            <input id="cover-advanced-toggle" type="checkbox"/>
+            <input id="cover-advanced-toggle" type="checkbox" checked/>
             <label for="cover-advanced-toggle">Style each line separately</label>
           </div>
 
@@ -260,7 +260,6 @@
           <div id="cover-simple-mode">
             <label for="cover-title-input" class="sr-only">Cover title text</label>
             <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title...&#10;Press Enter to add a line"></textarea>
-            <div class="field-hint">Each line becomes its own line on the cover.</div>
           </div>
 
           <!-- User-facing label is "Create Cover"; the element ID
@@ -269,8 +268,10 @@
         </div>
 
         <!-- Placed after the text field on purpose: writing the header is
-             the natural first step; Looks restyle what's written. -->
-        <div class="form-group" id="looks-group">
+             the natural first step; Looks restyle what's written.
+             Ships hidden: initLooks() reveals it only when
+             CONFIG.LOOKS_ENABLED is true (feature currently dark). -->
+        <div class="form-group" id="looks-group" hidden>
           <label>Looks</label>
           <div class="field-hint">One-click styles for your cover.</div>
           <!-- Chips are built by renderLooksStrip() from CONFIG.LOOKS;
