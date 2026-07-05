@@ -163,6 +163,28 @@
       color: var(--text-muted);
       padding-right: 2px;
     }
+    /* Sort row sits above the selection toolbar; borderless bottom so
+       the two toolbars read as one control block. */
+    .sort-toolbar {
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+    .sort-toolbar select {
+      flex: 1;
+      padding: 5px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .sort-toolbar select:focus-visible {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
     .selected-count {
       margin-left: auto;
       font-size: 12px;
@@ -454,6 +476,20 @@
 
     <!-- List mode: pick titles from a BiblioCommons list page -->
     <div id="capture-list" class="hidden">
+      <div class="toolbar sort-toolbar">
+        <label class="toolbar-label" for="sort-select">Sort:</label>
+        <!-- Sort is a per-capture mode (resets to List order each time
+             the popup opens; not persisted). It drives BOTH the visible
+             row order and the captured TSV order — popup.js sends the
+             selected bib IDs in this order and content.js emits rows to
+             match. Ascending only by design. -->
+        <select id="sort-select">
+          <option value="list" selected>List order</option>
+          <option value="title">Title</option>
+          <option value="author">Author (last name)</option>
+          <option value="callnumber">Call number</option>
+        </select>
+      </div>
       <div class="toolbar">
         <button id="select-all" type="button">All</button>
         <span class="first-n-group">
@@ -523,6 +559,7 @@
   </div>
 
   <script src="../vendor/browser-polyfill.min.js"></script>
+  <script src="sort.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

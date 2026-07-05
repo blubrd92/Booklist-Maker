@@ -18,8 +18,9 @@ A small browser extension that captures a title record from a BiblioCommons libr
 1. Open any BiblioCommons list page (URL contains `/v2/list/`), e.g. staff picks or themed reading lists.
 2. Click the toolbar icon. The popup opens on the **Capture** tab showing every title on the list with a checkbox, cover thumbnail, title, author, and call number.
 3. Pick the titles you want. All titles are checked by default. Use the **All / None** buttons and the **First N** selector (13, 14, or 15) for quick presets, or check/uncheck individual rows.
-4. Click **Capture N titles**. The popup closes and the extension captures the selected titles, fetching their per-branch call numbers and covers in parallel. Takes ~5-10 seconds for 13 titles.
-5. A multi-row TSV is copied to your clipboard. Paste into Booklister's Quick Add → Multiple titles tab.
+4. Optionally pick a **Sort** order: **List order** (the curator's order, the default), **Title** (ignores leading The/A/An), **Author (last name)**, or **Call number** (lettered numbers like FIC ahead of Dewey, numerically ordered). The sort drives both the rows you see and the order of the captured TSV, so the list pastes into Booklister already arranged. The First N presets pick the first N of the current sort. Sort resets to List order each time the popup opens. Note the sort uses the call number listed on the list page; the captured call number is later refined per branch and can occasionally differ.
+5. Click **Capture N titles**. The popup closes and the extension captures the selected titles, fetching their per-branch call numbers and covers in parallel. Takes ~5-10 seconds for 13 titles.
+6. A multi-row TSV is copied to your clipboard. Paste into Booklister's Quick Add → Multiple titles tab.
 
 > **Why per-title selection?** Most curated BiblioCommons lists run 20-50+ titles, but a Booklister booklist has 13-15 slots. Pre-selecting the right subset on the BiblioCommons side saves you from picking and trimming inside Booklister later.
 

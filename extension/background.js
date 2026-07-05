@@ -67,6 +67,11 @@ async function restorePersistentBadge() {
 
 browser.runtime.onStartup.addListener(() => {
   restorePersistentBadge();
+  // Re-register the menus on browser startup too, not just onInstalled.
+  // Chromium persists menus across restarts, but Firefox's non-persistent
+  // background page has been known to lose them; ensureContextMenu is
+  // idempotent (removeAll + fixed ids), so re-running it is safe on both.
+  ensureContextMenu();
 });
 browser.runtime.onInstalled.addListener(() => {
   restorePersistentBadge();

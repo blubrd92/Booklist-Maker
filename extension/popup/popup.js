@@ -21,6 +21,7 @@ const captureListBtn = document.getElementById('capture-list-btn');
 const selectAllBtn = document.getElementById('select-all');
 const firstNBtns = document.querySelectorAll('.first-n-btn');
 const selectNoneBtn = document.getElementById('select-none');
+const sortSelect = document.getElementById('sort-select');
 
 // Record-mode els
 const recordPreviewEl = document.getElementById('record-preview');
@@ -43,6 +44,12 @@ const RECORD_PATH_RE = /\/v2\/record\//;
 const LIST_PATH_RE = /\/v2\/list\//;
 
 let activeTabId = null;
+// `books` is the DISPLAY order: pageOrderBooks re-sorted per the Sort
+// dropdown. The First-N presets slice it and the capture button sends
+// bib IDs from it, so the chosen sort drives the captured TSV order,
+// not just the visible rows. Selection is a bibId Set, so it survives
+// re-sorts for free.
+let pageOrderBooks = []; // curator's order, as extracted from the page
 let books = []; // [{bibId, title, subTitle, author, callNumber, coverUrl}, ...]
 let selected = new Set(); // bibIds
 
@@ -164,6 +171,17 @@ selectNoneBtn.addEventListener('click', () => {
   updateCount();
 });
 
+// Re-order the rows per the Sort dropdown. Selection is untouched (it's
+// a bibId Set). Sort intentionally resets to List order on every popup
+// open — it's a per-capture mode, not a persisted preference.
+if (sortSelect) {
+  sortSelect.addEventListener('change', () => {
+    books = window.BooklisterHelperSort.sortBooks(pageOrderBooks, sortSelect.value);
+    renderList();
+    updateCount();
+  });
+}
+
 captureListBtn.addEventListener('click', () => {
   if (selected.size === 0 || activeTabId === null) return;
   // Fire-and-forget: the capture pipeline (per-book holdings + cover
@@ -172,9 +190,13 @@ captureListBtn.addEventListener('click', () => {
   // user's progress + completion feedback.
   // .catch() so a tab that navigated away since the popup opened doesn't
   // surface an unhandled rejection; there's no UI left to report into.
+  //
+  // The IDs are sent in the CURRENT DISPLAY order (not Set insertion
+  // order): the popup owns the order truth, and content.js emits the
+  // captured rows to match, so the Sort choice reaches the pasted list.
   browser.tabs.sendMessage(activeTabId, {
     type: 'capture-selected-bibs',
-    bibIds: Array.from(selected),
+    bibIds: books.filter((b) => selected.has(b.bibId)).map((b) => b.bibId),
   }).catch(() => {});
   window.close();
 });
@@ -194,7 +216,9 @@ async function initListMode() {
     showCaptureSubview('message');
     return;
   }
-  books = resp.bibs;
+  pageOrderBooks = resp.bibs;
+  if (sortSelect) sortSelect.value = 'list';
+  books = pageOrderBooks.slice();
   // Default selection: everything. The All / First N / None controls and
   // the per-row checkboxes let the user narrow it down.
   selected = new Set(books.map((b) => b.bibId));
@@ -234,7 +258,16 @@ async function initRecordMode() {
 
 // ── Capture pane: entry point ──
 async function initCapture() {
-  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  let tab;
+  try {
+    [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  } catch {
+    // Without this catch a query failure leaves the pane stuck on
+    // "Loading…" forever with an unhandled rejection.
+    captureMessage.textContent = 'Could not read the active tab.';
+    showCaptureSubview('message');
+    return;
+  }
   activeTabId = tab && tab.id != null ? tab.id : null;
   // tab.url is available for BiblioCommons tabs via host_permissions; it's
   // undefined for other sites, which is itself enough to route to the

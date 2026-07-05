@@ -645,13 +645,15 @@
       return { ok: false, reason: 'empty-list' };
     }
 
-    // Optional filter from the popup's selection UI. If provided, keep
-    // only the bibs the user checked, in the order they appear on the
-    // list page (we use the page-order array because the user's intent
-    // is "these N from the list" not "in the order I clicked them").
+    // Optional filter from the popup's selection UI. The popup owns the
+    // order truth: it sends bib IDs in the user's chosen Sort order, and
+    // the captured rows must follow it (filtering in page order here
+    // would silently undo the popup's Sort dropdown). The no-filter path
+    // (context-menu "Capture for Booklister") keeps the curator's page
+    // order.
     if (Array.isArray(bibIdFilter) && bibIdFilter.length > 0) {
-      const want = new Set(bibIdFilter);
-      bibs = bibs.filter((b) => want.has(b.bibId));
+      const byId = new Map(bibs.map((b) => [b.bibId, b]));
+      bibs = bibIdFilter.map((id) => byId.get(id)).filter(Boolean);
       if (bibs.length === 0) {
         showToast('No matching titles found.', 'error');
         return { ok: false, reason: 'no-matches' };

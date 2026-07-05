@@ -160,8 +160,12 @@ extension/                      Browser extension (Manifest V3) — captures boo
                                 tabs. Capture tab is context-aware: on a
                                 /v2/record/ page it shows a one-title preview +
                                 capture button; on a /v2/list/ page it renders
-                                checkbox rows with All / First N / None presets
-                                and dispatches the selection via
+                                checkbox rows with a Sort dropdown (list order /
+                                title / author / call number — drives the
+                                captured TSV order too, see the sort-control
+                                section below) and All / First N / None presets
+                                (First N slices the current sort order), then
+                                dispatches the selection, in display order, via
                                 'capture-selected-bibs'; anywhere else it shows
                                 guidance. Settings tab: preferred-branch
                                 substring, accumulate-mode toggle, clear-list
@@ -170,6 +174,10 @@ extension/                      Browser extension (Manifest V3) — captures boo
                                 accumulateMode in browser.storage.sync;
                                 accumulatedRows in browser.storage.local
                                 (covers can exceed sync's per-item 8 KB quota).
+  popup/sort.js                 Pure sort comparators for the list-capture Sort
+                                dropdown (no DOM, no browser.*; exposes
+                                window.BooklisterHelperSort). Unit-tested in
+                                tests/extension-sort.test.js.
   vendor/browser-polyfill.min.js  Vendored webextension-polyfill (MPL 2.0).
   icons/                        Toolbar + store icons (16/48/128).
   build-zips.mjs                Per-browser packager (node, `npm run
@@ -556,18 +564,12 @@ Manifest V3 browser extension ("Booklister Helper") that captures book records f
 - No write back to Booklister. The TSV-to-clipboard handoff means the main tool stays Firebase-free and unmodified by the extension. Eventually a postMessage path could be added, but it's not worth the cross-cutting complexity for v1.
 - No support for browsers other than Chromium-based + Firefox. Safari needs Xcode-based packaging; deferred until there's demonstrated demand.
 
-**Planned (v2): sort control on the list-capture popup**
+**Sort control on the list-capture popup (shipped in 1.1.0)**
 
-Not built yet; fully speced here so it can be picked up later. Adds a per-capture **Sort** control to the popup's Capture tab list view (the checkbox rows shown on a `/v2/list/` page) so staff can order a curated list before capturing it. The default and the "I don't want to reorder" choice are the same option.
+The popup's Capture tab list view has a `Sort:` dropdown (`#sort-select`) above the selection toolbar: *List order* (default; the curator's page order) · *Title* · *Author (last name)* · *Call number*. Ascending only; descending and publication-year were explicit non-goals. Resets to List order on every popup open (not persisted). The comparators live in `extension/popup/sort.js` (pure, no DOM, no `browser.*`; exposes `window.BooklisterHelperSort`; loaded before popup.js) so they're unit-testable — `tests/extension-sort.test.js` covers them.
 
-- **Sort drives the captured output order, not just the popup display.** This is the only change outside the popup. `handleListCapture(bibIdFilter)` in `content.js` currently *ignores* the order of `bibIdFilter` and emits rows in the curator's page order (`bibs.filter((b) => want.has(b.bibId))`, with a comment that intentionally chose page order). For the sort to reach the pasted Booklister list, the popup sends bib IDs in the chosen order and `handleListCapture` must emit rows **in `bibIdFilter`'s order** when a filter is present (`bibIdFilter.map((id) => byId.get(id)).filter(Boolean)`). The no-filter path (the context-menu "Capture for Booklister" → `handleCapture()` → `handleListCapture()`) stays page-order. The popup becomes the single source of order truth.
-- **Options (ascending only for v1):** *List order* (default; curator's order = no reorder) · *Title* · *Author (last name)* · *Call number*. Descending and publication-year are explicit non-goals for v1.
-- **Title:** case-insensitive, and **ignore leading articles** ("The", "A", "An") so a title files under its first significant word, the way a catalog does.
-- **Author:** sort by the **first listed author's last name** (the brief already carries only the first author, already `cleanAuthor`-normalized to "Last, First"). Use the text before the first comma as the last-name key (mirrors the single-comma heuristic Booklister uses in `flipAuthorName`). Titles with no author (the `NO_AUTHOR_PLACEHOLDER`) sort to the bottom.
-- **Call number:** sort the catalog's **listed** call number — the brief's `fallbackCallNumber` (SSR `bib.callNumber`), NOT the final holdings-API call number the capture later resolves via `pickItem`. The two can differ occasionally; firing holdings lookups for all 20-50 books just to sort would defeat the shallow-brief design, so the approximation is accepted and documented. Ordering rule (kept deliberately simple): **letter-led call numbers first, then number-led** (so fiction / `FIC` / LC group ahead of Dewey), case-insensitive; within the number group use a **numeric-aware** compare so `92` precedes `808.83` (a plain string sort gets multi-digit Dewey backwards, and Dewey is the common scheme here). Empty / missing call numbers sort to the bottom.
-- **UI:** a labeled `Sort:` **dropdown** (`<select>`) above the list — chosen over a button row because the popup is narrow and the `All / First N / None` preset row already uses the width, and because a sort is a persistent selected *mode* (a dropdown shows it at a glance) rather than the one-shot *actions* those preset buttons represent. **Resets to *List order* on every popup open** for v1 (not persisted to `browser.storage`). Selection survives a re-sort for free, since `selected` is a bib-ID `Set` (order-independent). The **First 13/14/15** presets operate on the **current sort order** (first N alphabetically, etc.), slicing the ordered list rather than the raw page list.
-- **Scope:** list-page capture only. Single-record capture and the one-at-a-time accumulate flow are unaffected.
-- **Housekeeping when built (required by the version-coupling rule):** bump `manifest.json` `version`, add a matching `STORE_LISTING.md` release-notes entry, and update `extension/README.md` to describe the sort control.
+- **Sort drives the captured TSV order, not just the display.** popup.js keeps `pageOrderBooks` (curator order) separate from `books` (display order), sends the selected bib IDs in display order, and `handleListCapture` in content.js emits rows in `bibIdFilter`'s order when a filter is present. The popup is the single source of order truth; the no-filter path (context-menu "Capture for Booklister") stays page-order. The **First 13/14/15** presets slice the current sort order; selection survives re-sorts because `selected` is a bib-ID `Set`.
+- **Title:** case-insensitive on "Title: Subtitle", ignoring a leading article (The/A/An). **Author:** text before the first comma (mirrors `flipAuthorName`'s heuristic); `NO_AUTHOR_PLACEHOLDER` rows sort last (the placeholder string is duplicated in sort.js — keep it in sync with content.js). **Call number:** sorts the LISTED call number (the brief's `fallbackCallNumber`), not the holdings-resolved one — accepted approximation so sorting never fires holdings lookups. Letter-led before number-led; within number-led, the leading integer compares numerically (92 < 808.83) and the remainder as a plain string, which is correct for Dewey decimals (.83 < .9). Empty call numbers last.
 
 ## Static Content Pages
 

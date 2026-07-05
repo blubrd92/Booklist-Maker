@@ -34,7 +34,16 @@ SemVer convention:
 
 Paste the section for the current version into each store's "What's new" / "Version notes" / "Release notes" field on upload.
 
-### 1.0.4 (current)
+### 1.1.0 (current)
+
+New: sort the list before you capture it.
+
+- On a BiblioCommons list page, the popup's Capture tab now has a Sort dropdown: List order (the default — the curator's order, unchanged), Title, Author (last name), or Call number. The captured rows come out in the order you chose, so the list pastes into Booklister already arranged.
+- Title sort ignores leading articles (The/A/An), author sort files by last name with no-author titles last, and call-number sort shelves lettered numbers (FIC, LC) ahead of Dewey with proper numeric ordering. Sort resets to List order each time the popup opens.
+- The First 13/14/15 quick-select buttons now pick the first N of the current sort order.
+- Reliability: the right-click menu items are re-registered on browser startup (they could go missing after a restart on Firefox), and the popup shows an error message instead of a stuck "Loading…" if the active tab can't be read.
+
+### 1.0.4
 
 Bug fixes from a code review. No new features.
 
