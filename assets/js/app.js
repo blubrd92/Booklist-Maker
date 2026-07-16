@@ -41,13 +41,24 @@ const BooklistApp = (function() {
   // magic button can be disabled per-book while a fetch is running.
   const _pendingDescriptions = new Set();
 
+  // The deployed Apps Script endpoint for the description drafter.
+  // POSTs go here from getAiDescription; a GET with no parameters serves
+  // the drafter's HTML test console (linked from the settings modal).
+  const DRAFTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZesofNh2i5fKGOHbN6UxfhG3kpq5MewyaPz6Q9sURFdIbo19EYxq0mKhtUhqQXJb2/exec";
+
   // Easter egg: runtime overrides for the Apps Script drafter config.
-  // Ctrl+Shift+D opens a modal to tweak MIN_CHARS, MAX_CHARS, etc.
+  // Ctrl+Alt+D opens a modal to tweak word targets, draft count, etc.
   // Stored in-memory only — resets on page refresh so test settings
   // can't accidentally persist. Sent as `configOverrides` in the
   // request payload; the script merges them with its CONFIG for that
   // request only.
   let _drafterOverrides = null;
+
+  // The drafter test console can be gated by a TEST_CONSOLE_KEY Script
+  // Property on the Apps Script side. The key is intentionally NOT in
+  // this (public) source; it lives per-browser in localStorage, entered
+  // once via the settings modal's Console key field.
+  const DRAFTER_CONSOLE_KEY_STORAGE = 'booklister.drafterConsoleKey';
 
   let _collageGenId = 0;     // Generation counter to discard stale async collage results
   let _collageRegenPromise = null; // Resolves when the in-flight generateCoverCollage() settles (null when idle). Lets undo/redo await a render that's still catching up to the latest setting — see flushCollageRegen.
@@ -907,7 +918,7 @@ const BooklistApp = (function() {
       return;
     }
 
-    const googleAppScriptUrl = "https://script.google.com/macros/s/AKfycbwZesofNh2i5fKGOHbN6UxfhG3kpq5MewyaPz6Q9sURFdIbo19EYxq0mKhtUhqQXJb2/exec";
+    const googleAppScriptUrl = DRAFTER_SCRIPT_URL;
 
     if (googleAppScriptUrl === "PASTE_YOUR_GOOGLE_APPS_SCRIPT_URL_HERE" || !googleAppScriptUrl) {
       const errorMsg = "Google Apps Script URL is not configured.";
@@ -2006,7 +2017,7 @@ const BooklistApp = (function() {
     textarea.focus();
   }
   
-  // Easter egg: Ctrl+Shift+D opens a drafter settings modal.
+  // Easter egg: Ctrl+Alt+D opens a drafter settings modal.
   // Defaults live in CONFIG.DRAFTER_DEFAULTS (config.js). Overrides
   // are sent as configOverrides in the request payload and reset on
   // page refresh (in-memory only).
@@ -2077,6 +2088,53 @@ const BooklistApp = (function() {
       body.appendChild(row);
       inputs[f.key] = input;
     });
+
+    // Test console: link to the Apps Script's HTML console (GET with no
+    // params). The console can be gated by a TEST_CONSOLE_KEY Script
+    // Property; the matching key is entered once here and kept in
+    // localStorage (never in source — this repo is public).
+    const consoleSection = document.createElement('div');
+    consoleSection.style.cssText = 'border-top: 1px solid var(--border-color); margin-top: 12px; padding-top: 10px;';
+
+    const consoleRow = document.createElement('div');
+    consoleRow.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;';
+    const consoleKeyLabel = document.createElement('label');
+    consoleKeyLabel.textContent = 'Console key';
+    consoleKeyLabel.style.cssText = 'font-size: 0.8rem; font-weight: 500; color: var(--text-color);';
+    consoleRow.appendChild(consoleKeyLabel);
+
+    const consoleKeyInput = document.createElement('input');
+    consoleKeyInput.type = 'password';
+    consoleKeyInput.autocomplete = 'off';
+    consoleKeyInput.placeholder = 'optional';
+    consoleKeyInput.value = localStorage.getItem(DRAFTER_CONSOLE_KEY_STORAGE) || '';
+    consoleKeyInput.style.cssText = 'width: 140px; padding: 4px 6px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.85rem;';
+    consoleRow.appendChild(consoleKeyInput);
+    consoleSection.appendChild(consoleRow);
+
+    const consoleLink = document.createElement('a');
+    consoleLink.target = '_blank';
+    consoleLink.rel = 'noopener';
+    consoleLink.textContent = 'Open test console ↗';
+    consoleLink.style.cssText = 'font-size: 0.8rem; font-weight: 500;';
+    const updateConsoleLink = () => {
+      const key = consoleKeyInput.value.trim();
+      consoleLink.href = key
+        ? `${DRAFTER_SCRIPT_URL}?key=${encodeURIComponent(key)}`
+        : DRAFTER_SCRIPT_URL;
+    };
+    consoleKeyInput.addEventListener('input', () => {
+      const key = consoleKeyInput.value.trim();
+      if (key) {
+        localStorage.setItem(DRAFTER_CONSOLE_KEY_STORAGE, key);
+      } else {
+        localStorage.removeItem(DRAFTER_CONSOLE_KEY_STORAGE);
+      }
+      updateConsoleLink();
+    });
+    updateConsoleLink();
+    consoleSection.appendChild(consoleLink);
+    body.appendChild(consoleSection);
 
     const actions = document.createElement('div');
     actions.style.cssText = 'display: flex; justify-content: space-between; margin-top: 14px;';
