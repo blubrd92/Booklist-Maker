@@ -1890,6 +1890,81 @@ body:has(.sidebar.collapsed) .folio-container {
     100% { transform: translateY(0) rotate(0deg); }
   }
 
+  /* --- FLATTEN ---
+     Exhausted sag for the click-spam (pestered) tier: the opposite of
+     squish's springy bounce. He deflates — body slumps wide and low,
+     head droops into the shoulders, ears flatten, eyes half-lid —
+     holds the slump for a weary beat, then slowly reinflates. Timing
+     IS the message: squish says "boop received", flatten says "I am
+     so tired of you". Re-triggering mid-animation does not restart it
+     (same-class remove+add in one frame doesn't reset the animation),
+     so sustained spam reads as him staying flattened.
+     Duration: 2s */
+  #folio.react-flatten #body {
+    animation: reactFlattenBody 2s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactFlattenBody {
+    0%   { transform: scaleY(1) scaleX(1); }
+    18%  { transform: scaleY(0.84) scaleX(1.09) translateY(2px); }
+    55%  { transform: scaleY(0.85) scaleX(1.08) translateY(2px); }
+    100% { transform: scaleY(1) scaleX(1); }
+  }
+  #folio.react-flatten #head-group {
+    animation: reactFlattenHead 2s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactFlattenHead {
+    0%   { transform: translateY(0) rotate(0deg) scaleY(1); }
+    18%  { transform: translateY(28px) rotate(-2deg) scaleY(0.96); }
+    55%  { transform: translateY(26px) rotate(-1.5deg) scaleY(0.97); }
+    100% { transform: translateY(0) rotate(0deg) scaleY(1); }
+  }
+  #folio.react-flatten .ear-left-anim {
+    animation: reactFlattenEarL 2s ease-in-out forwards !important;
+  }
+  @keyframes reactFlattenEarL {
+    0%   { transform: rotate(0deg); }
+    18%  { transform: rotate(14deg); }
+    55%  { transform: rotate(12deg); }
+    100% { transform: rotate(0deg); }
+  }
+  #folio.react-flatten .ear-right-anim {
+    animation: reactFlattenEarR 2s ease-in-out forwards !important;
+  }
+  @keyframes reactFlattenEarR {
+    0%   { transform: rotate(0deg); }
+    18%  { transform: rotate(-14deg); }
+    55%  { transform: rotate(-12deg); }
+    100% { transform: rotate(0deg); }
+  }
+  #folio.react-flatten #eyes {
+    animation: reactFlattenEyes 2s ease-in-out forwards !important;
+  }
+  @keyframes reactFlattenEyes {
+    0%   { transform: scaleY(1); }
+    15%  { transform: scaleY(0.45); }
+    60%  { transform: scaleY(0.5); }
+    100% { transform: scaleY(1); }
+  }
+  #folio.react-flatten #glasses {
+    animation: reactFlattenGlasses 2s ease-in-out forwards !important;
+    animation-delay: 0.08s !important;
+  }
+  @keyframes reactFlattenGlasses {
+    0%   { transform: translateY(0) rotate(0deg); }
+    25%  { transform: translateY(5px) rotate(0.8deg); }
+    60%  { transform: translateY(4px) rotate(0.5deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+  }
+  #folio.react-flatten #front-legs {
+    animation: reactFlattenLegs 2s ease-in-out forwards !important;
+  }
+  @keyframes reactFlattenLegs {
+    0%   { transform: scaleY(1); }
+    18%  { transform: scaleY(0.93) scaleX(1.03); }
+    55%  { transform: scaleY(0.94) scaleX(1.03); }
+    100% { transform: scaleY(1); }
+  }
+
   /* --- STRETCH (idle fidget) ---
      A seated cat stretch: gather down, arch tall, settle. Scheduled
      randomly by the fidget timer in folio.js, never event-driven.

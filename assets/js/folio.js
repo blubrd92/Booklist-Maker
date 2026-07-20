@@ -676,7 +676,10 @@
     clickTimestamps = recent;
 
     if (recent.length >= 4) {
-      // Persistent: exasperated, no physical reaction
+      // Persistent: exhausted flatten + exasperated quip. Re-triggering
+      // on every spam click keeps him slumped (same-class re-add
+      // doesn't restart the CSS animation) rather than jittering.
+      react('flatten');
       showBubble(pesteredBag.next());
     } else if (recent.length >= 2) {
       // Rapid: perk + mildly annoyed
@@ -910,6 +913,7 @@
     startle: 800,
     satisfied: 1500,
     squish: 550,
+    flatten: 2000,
     // Idle fidgets (scheduled ambient motion, see FIDGETS below).
     // Durations must match the CSS animation durations — the class is
     // removed on this timer, so a mismatch cuts the motion off early.
