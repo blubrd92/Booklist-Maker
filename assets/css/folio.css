@@ -73,15 +73,29 @@ body:has(.sidebar.collapsed) .folio-container {
   background: #f0f0f0;
 }
 
-/* Hidden state: scene fades, toggle stays fixed in place */
+/* Hidden state: scene fades, toggle stays fixed in place.
+   visibility flips after the fade so the hidden cat also leaves the
+   accessibility tree (no stale speech-bubble text for screen readers)
+   and stops being painted. */
 .folio-container.folio-hidden #folio-scene {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.25s ease;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
 }
 
 .folio-container:not(.folio-hidden) #folio-scene {
-  transition: opacity 0.3s ease 0.05s;
+  visibility: visible;
+  transition: opacity 0.3s ease 0.05s, visibility 0s;
+}
+
+/* While hidden, freeze all SVG animation work — no reason to burn
+   style/compositor cycles on an invisible cat. Triple-id specificity
+   (container > scene > svg) + !important so this outranks both the
+   state rules and the reaction rules' !important animations. */
+#folio-container.folio-hidden #folio-scene #folio,
+#folio-container.folio-hidden #folio-scene #folio * {
+  animation-play-state: paused !important;
 }
 
 /* Scene container - scales with viewport, capped so it never dominates the preview.
@@ -98,6 +112,11 @@ body:has(.sidebar.collapsed) .folio-container {
   display: block;
   width: 100%;
   height: 100%;
+  /* Petting on touch devices: horizontal finger-rubs over the cat are
+     delivered as pointermove events instead of being claimed by the
+     (nonexistent) horizontal scroll gesture. Vertical panning still
+     scrolls the page normally. */
+  touch-action: pan-y;
 }
 
 /* --- STATE-BASED ANIMATION SYSTEM --- */
@@ -1823,6 +1842,91 @@ body:has(.sidebar.collapsed) .folio-container {
     100% { transform: rotate(0deg); }
   }
 
+  /* --- STRETCH (idle fidget) ---
+     A seated cat stretch: gather down, arch tall, settle. Scheduled
+     randomly by the fidget timer in folio.js, never event-driven.
+     P1 (squash/stretch) on the body, P5 (follow-through) on head
+     and glasses, P8 (secondary) front legs rise with the arch.
+     AMPLITUDE NOTE: the scene renders at 140-280px against a 760px
+     viewBox (~0.2-0.37 scale), so translate values here must be BIG
+     to survive the downscale — the first cut used 3-4px moves and
+     was invisible on screen. Calibrate against excitedHop, not
+     against what looks right at full SVG size.
+     Duration: 1.8s */
+  #folio.react-stretch #body {
+    animation: reactStretchBody 1.8s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactStretchBody {
+    0%   { transform: scaleX(1) scaleY(1); }
+    22%  { transform: scaleX(1.05) scaleY(0.93) translateY(3px); }
+    55%  { transform: scaleX(0.96) scaleY(1.14) translateY(-10px); }
+    72%  { transform: scaleX(0.97) scaleY(1.11) translateY(-8px); }
+    100% { transform: scaleX(1) scaleY(1); }
+  }
+  #folio.react-stretch #head-group {
+    animation: reactStretchHead 1.8s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactStretchHead {
+    0%   { transform: translateY(0) rotate(0deg); }
+    22%  { transform: translateY(6px) rotate(-2deg); }
+    55%  { transform: translateY(-14px) rotate(3deg); }
+    72%  { transform: translateY(-11px) rotate(2deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+  }
+  #folio.react-stretch #front-legs {
+    animation: reactStretchLegs 1.8s ease-in-out forwards !important;
+  }
+  @keyframes reactStretchLegs {
+    0%   { transform: scaleY(1); }
+    55%  { transform: scaleY(1.1) translateY(-3px); }
+    72%  { transform: scaleY(1.08) translateY(-2px); }
+    100% { transform: scaleY(1); }
+  }
+  #folio.react-stretch #glasses {
+    animation: reactStretchGlasses 1.8s ease-in-out forwards !important;
+    animation-delay: 0.1s !important;
+  }
+  @keyframes reactStretchGlasses {
+    0%   { transform: translateY(0) rotate(0deg); }
+    28%  { transform: translateY(3px) rotate(1deg); }
+    60%  { transform: translateY(-3px) rotate(-0.8deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+  }
+
+  /* --- EAR FLICK (idle fidget) ---
+     One quick double-flick of the left ear, like shooing a fly.
+     Single-ear on purpose: real cats flick asymmetrically, and it
+     reads as involuntary rather than attentive (that's perk's job).
+     Amplitude is double perk's (±8deg) so it reads at display scale
+     on a single ear with no eye support.
+     Duration: 0.6s */
+  #folio.react-ear-flick .ear-left-anim {
+    animation: reactEarFlick 0.6s ease-out forwards !important;
+  }
+  @keyframes reactEarFlick {
+    0%   { transform: rotate(0deg); }
+    20%  { transform: rotate(-18deg); }
+    40%  { transform: rotate(3deg); }
+    60%  { transform: rotate(-11deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  /* --- TAIL SWISH (idle fidget) ---
+     One deliberate full swish. Peak matches excited's 12deg (the
+     long tail at display scale needs it) but the slow ease keeps it
+     reading as lazy rather than agitated.
+     Duration: 1.4s */
+  #folio.react-tail-swish #tail {
+    animation: reactTailSwish 1.4s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactTailSwish {
+    0%   { transform: rotate(0deg); }
+    28%  { transform: rotate(12deg); }
+    60%  { transform: rotate(-9deg); }
+    85%  { transform: rotate(4deg); }
+    100% { transform: rotate(0deg); }
+  }
+
   /* ============================================================
      SPEECH BUBBLE
      ============================================================ */
@@ -1868,6 +1972,28 @@ body:has(.sidebar.collapsed) .folio-container {
     border-right: 8px solid transparent;
     border-top: 8px solid white;
   }
+
+  /* ============================================================
+     PETTING HEART
+     Spawned by folio.js when a back-and-forth rub is detected.
+     Floats up from the cat and fades. Removed from the DOM by JS
+     after the animation ends.
+     ============================================================ */
+  .folio-heart {
+    position: absolute;
+    top: 22%;
+    font-size: 22px;
+    color: #e0708a;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    pointer-events: none;
+    z-index: 9;
+    animation: folioHeartFloat 1.3s ease-out forwards;
+  }
+  @keyframes folioHeartFloat {
+    0%   { transform: translateY(0) scale(0.4); opacity: 0; }
+    20%  { transform: translateY(-8px) scale(1); opacity: 0.9; }
+    100% { transform: translateY(-48px) scale(0.85) rotate(6deg); opacity: 0; }
+  }
 /* =============================================================================
    MOBILE (matches the stacked-layout breakpoint in styles.css)
    The toggle lives in the header now, so only the cat SCENE floats in
@@ -1892,5 +2018,37 @@ body:has(.sidebar.collapsed) .folio-container {
   .folio-container {
     left: 8px;
     bottom: 148px;
+  }
+}
+
+/* =============================================================================
+   REDUCED MOTION
+   Folio becomes a static illustration: every SVG animation (state loops
+   and micro-reactions alike) and the heart float are disabled. The
+   double-id selectors + !important outrank the reaction rules' own
+   !important animations. The speech bubble keeps working — its text is
+   content, not motion — but appears and disappears without the pop/
+   shrink animation, so the .visible/.hiding classes get explicit static
+   opacity/transform (the base rule parks it at scale(0) opacity 0 and
+   normally relies on the animation to bring it in). folio.js also skips
+   scheduling fidgets and hearts when this media query matches.
+   Appended last so these overrides win without disturbing the cascade.
+   ============================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  #folio-container #folio,
+  #folio-container #folio *,
+  #folio-container .folio-heart {
+    animation: none !important;
+    transition: none !important;
+  }
+  #folio-container .speech-bubble.visible {
+    animation: none !important;
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+  #folio-container .speech-bubble.hiding {
+    animation: none !important;
+    transform: translateX(-50%) scale(1);
+    opacity: 0;
   }
 }
