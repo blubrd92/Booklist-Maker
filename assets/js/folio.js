@@ -875,10 +875,12 @@
     yawn: 2500,
     startle: 800,
     satisfied: 1500,
-    // Idle fidgets (scheduled ambient motion, see FIDGETS below)
-    stretch: 1600,
-    'ear-flick': 500,
-    'tail-swish': 1300,
+    // Idle fidgets (scheduled ambient motion, see FIDGETS below).
+    // Durations must match the CSS animation durations — the class is
+    // removed on this timer, so a mismatch cuts the motion off early.
+    stretch: 1800,
+    'ear-flick': 600,
+    'tail-swish': 1400,
   };
 
   let reactTimer = null;

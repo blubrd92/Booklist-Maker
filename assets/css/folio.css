@@ -1847,42 +1847,49 @@ body:has(.sidebar.collapsed) .folio-container {
      randomly by the fidget timer in folio.js, never event-driven.
      P1 (squash/stretch) on the body, P5 (follow-through) on head
      and glasses, P8 (secondary) front legs rise with the arch.
-     Duration: 1.6s */
+     AMPLITUDE NOTE: the scene renders at 140-280px against a 760px
+     viewBox (~0.2-0.37 scale), so translate values here must be BIG
+     to survive the downscale — the first cut used 3-4px moves and
+     was invisible on screen. Calibrate against excitedHop, not
+     against what looks right at full SVG size.
+     Duration: 1.8s */
   #folio.react-stretch #body {
-    animation: reactStretchBody 1.6s cubic-bezier(0.37,0,0.63,1) forwards !important;
+    animation: reactStretchBody 1.8s cubic-bezier(0.37,0,0.63,1) forwards !important;
   }
   @keyframes reactStretchBody {
     0%   { transform: scaleX(1) scaleY(1); }
-    25%  { transform: scaleX(1.02) scaleY(0.965) translateY(1px); }
-    55%  { transform: scaleX(0.985) scaleY(1.06) translateY(-3px); }
-    80%  { transform: scaleX(1.005) scaleY(0.995); }
+    22%  { transform: scaleX(1.05) scaleY(0.93) translateY(3px); }
+    55%  { transform: scaleX(0.96) scaleY(1.14) translateY(-10px); }
+    72%  { transform: scaleX(0.97) scaleY(1.11) translateY(-8px); }
     100% { transform: scaleX(1) scaleY(1); }
   }
   #folio.react-stretch #head-group {
-    animation: reactStretchHead 1.6s cubic-bezier(0.37,0,0.63,1) forwards !important;
+    animation: reactStretchHead 1.8s cubic-bezier(0.37,0,0.63,1) forwards !important;
   }
   @keyframes reactStretchHead {
     0%   { transform: translateY(0) rotate(0deg); }
-    25%  { transform: translateY(2px) rotate(-1deg); }
-    55%  { transform: translateY(-4px) rotate(1.5deg); }
+    22%  { transform: translateY(6px) rotate(-2deg); }
+    55%  { transform: translateY(-14px) rotate(3deg); }
+    72%  { transform: translateY(-11px) rotate(2deg); }
     100% { transform: translateY(0) rotate(0deg); }
   }
   #folio.react-stretch #front-legs {
-    animation: reactStretchLegs 1.6s ease-in-out forwards !important;
+    animation: reactStretchLegs 1.8s ease-in-out forwards !important;
   }
   @keyframes reactStretchLegs {
     0%   { transform: scaleY(1); }
-    55%  { transform: scaleY(1.04) translateY(-1px); }
+    55%  { transform: scaleY(1.1) translateY(-3px); }
+    72%  { transform: scaleY(1.08) translateY(-2px); }
     100% { transform: scaleY(1); }
   }
   #folio.react-stretch #glasses {
-    animation: reactStretchGlasses 1.6s ease-in-out forwards !important;
+    animation: reactStretchGlasses 1.8s ease-in-out forwards !important;
     animation-delay: 0.1s !important;
   }
   @keyframes reactStretchGlasses {
     0%   { transform: translateY(0) rotate(0deg); }
-    30%  { transform: translateY(1px) rotate(0.4deg); }
-    60%  { transform: translateY(-1px) rotate(-0.3deg); }
+    28%  { transform: translateY(3px) rotate(1deg); }
+    60%  { transform: translateY(-3px) rotate(-0.8deg); }
     100% { transform: translateY(0) rotate(0deg); }
   }
 
@@ -1890,30 +1897,33 @@ body:has(.sidebar.collapsed) .folio-container {
      One quick double-flick of the left ear, like shooing a fly.
      Single-ear on purpose: real cats flick asymmetrically, and it
      reads as involuntary rather than attentive (that's perk's job).
-     Duration: 0.5s */
+     Amplitude is double perk's (±8deg) so it reads at display scale
+     on a single ear with no eye support.
+     Duration: 0.6s */
   #folio.react-ear-flick .ear-left-anim {
-    animation: reactEarFlick 0.5s ease-out forwards !important;
+    animation: reactEarFlick 0.6s ease-out forwards !important;
   }
   @keyframes reactEarFlick {
     0%   { transform: rotate(0deg); }
-    20%  { transform: rotate(-10deg); }
-    40%  { transform: rotate(2deg); }
-    60%  { transform: rotate(-6deg); }
+    20%  { transform: rotate(-18deg); }
+    40%  { transform: rotate(3deg); }
+    60%  { transform: rotate(-11deg); }
     100% { transform: rotate(0deg); }
   }
 
   /* --- TAIL SWISH (idle fidget) ---
-     One deliberate full swish, bigger than the idle sway (±5deg)
-     but calmer than excited (±12deg). P6: slow ease both ways.
-     Duration: 1.3s */
+     One deliberate full swish. Peak matches excited's 12deg (the
+     long tail at display scale needs it) but the slow ease keeps it
+     reading as lazy rather than agitated.
+     Duration: 1.4s */
   #folio.react-tail-swish #tail {
-    animation: reactTailSwish 1.3s cubic-bezier(0.37,0,0.63,1) forwards !important;
+    animation: reactTailSwish 1.4s cubic-bezier(0.37,0,0.63,1) forwards !important;
   }
   @keyframes reactTailSwish {
     0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(9deg); }
-    60%  { transform: rotate(-7deg); }
-    85%  { transform: rotate(3deg); }
+    28%  { transform: rotate(12deg); }
+    60%  { transform: rotate(-9deg); }
+    85%  { transform: rotate(4deg); }
     100% { transform: rotate(0deg); }
   }
 
