@@ -683,11 +683,13 @@
       react('perk');
       showBubble(annoyedBag.next());
     } else {
-      // Single: nod + a quip. When the context provider has something
-      // relevant to say about the actual booklist, prefer it ~60% of
-      // the time so he feels like he's been paying attention; the
-      // ambient pool covers the rest (and any context gap).
-      react('nod');
+      // Single: tactile squish (a poke deserves a physical response,
+      // not a polite nod) + a quip. When the context provider has
+      // something relevant to say about the actual booklist, prefer
+      // it ~60% of the time so he feels like he's been paying
+      // attention; the ambient pool covers the rest (and any context
+      // gap).
+      react('squish');
       const quip = (Math.random() < 0.6 ? pickContextQuip() : null)
         || pickAmbient(currentState);
       if (quip) showBubble(quip);
@@ -727,6 +729,19 @@
     "I suppose you may continue.",
   ];
   const purrBag = createShuffleBag(purrQuips);
+
+  // When a rub lands while he's mid-sentence, the bubble is cut off
+  // and he reacts to being petted mid-thought. He deliberately does
+  // NOT resume the old line afterwards — losing the train of thought
+  // is the joke, and several lines lampshade it.
+  const petInterruptQuips = [
+    "—mmh. Where was I? *purr*",
+    "I was saying something, but this is better.",
+    "—oh. Oh, that's the spot.",
+    "Hm? Lost my train of thought. *purrr*",
+    "...it'll come back to me. *purr*",
+  ];
+  const petInterruptBag = createShuffleBag(petInterruptQuips);
 
   let petLastX = null;
   let petDir = 0;
@@ -774,10 +789,14 @@
     // sequence (the document-level mousemove listener wakes a sleeping
     // cat before a rub could ever land on one).
     if (isGuarded || watchHandler || isWaking) return;
+    // Was he mid-sentence? Then the rub interrupts: the bubble is
+    // replaced immediately (a deliberate physical act outranks the
+    // pacing queue) with an interrupted-thought line.
+    const wasTalking = bubble.classList.contains('visible');
     react('satisfied');
     spawnHeart();
     setTimeout(spawnHeart, 280);
-    showBubble(purrBag.next());
+    interruptBubble(wasTalking ? petInterruptBag.next() : purrBag.next());
   }
 
   function spawnHeart() {
@@ -838,6 +857,21 @@
     showBubbleNow(text);
   }
 
+  /* Immediate bubble replacement, bypassing the MIN_VISIBLE_MS pacing
+     queue. Reserved for deliberate physical interactions (petting):
+     the pacing rule exists to collapse bursts of async EVENT quips,
+     but when the user's hand is on the cat, the interruption is the
+     point. Also drops any pending deferred bubble — the pet outranks
+     whatever was queued. */
+  function interruptBubble(text) {
+    if (!text) return;
+    if (folioIsHidden()) return;
+    clearTimeout(pendingBubbleTimer);
+    pendingBubbleTimer = null;
+    pendingBubbleText = null;
+    showBubbleNow(text);
+  }
+
   function showBubbleNow(text) {
     clearTimeout(bubbleTimer);
     bubbleStartTime = Date.now();
@@ -875,6 +909,7 @@
     yawn: 2500,
     startle: 800,
     satisfied: 1500,
+    squish: 550,
     // Idle fidgets (scheduled ambient motion, see FIDGETS below).
     // Durations must match the CSS animation durations — the class is
     // removed on this timer, so a mismatch cuts the motion off early.
