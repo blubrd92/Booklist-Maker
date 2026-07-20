@@ -42,6 +42,11 @@
   let bubbleStartTime = 0;
   let pendingBubbleTimer = null;
   let pendingBubbleText = null;
+  // One-shot follow-up: a line waiting for the CURRENT bubble to
+  // complete its full hold (used by the click-annoyance tiers so
+  // their lines breathe instead of stomping each other at the
+  // MIN_VISIBLE_MS boundary). Any newly shown bubble clears it.
+  let followUpBubbleText = null;
 
   // Bubble hold time scales with text length so short quips don't
   // linger and long ones aren't yanked away mid-read.
@@ -657,6 +662,26 @@
   ];
   const annoyedBag = createShuffleBag(annoyedQuips);
 
+  // When the last pestered-tier click happened; a pet within
+  // PESTERED_MEMORY_MS of it gets the reconciliation pool.
+  let lastPesteredAt = 0;
+
+  /* Annoyance-tier lines get READ, not stomped: if a bubble is
+     already up, the tier line waits in the follow-up slot and shows
+     after the current hold fully completes (each click's draw
+     overwrites the slot, so escalation still upgrades the waiting
+     line). Only when he's silent does it show immediately. The old
+     behavior queued a fresh line per click through the pacing defer,
+     which replaced whatever was on screen every 1.5s — including one
+     final stomp after the clicking stopped. */
+  function queueTierLine(bag) {
+    if (bubbleIsVisible()) {
+      followUpBubbleText = bag.next();
+    } else {
+      showBubble(bag.next());
+    }
+  }
+
   function clickFolio() {
     const now = Date.now();
 
@@ -683,13 +708,14 @@
       // grump mark instead.
       react('flatten');
       spawnGrump();
-      showBubble(pesteredBag.next());
+      lastPesteredAt = now;
+      queueTierLine(pesteredBag);
     } else if (recent.length >= 2) {
       // Rapid: squish again (restarted — every click must visibly
       // land; perk was too subtle here and left clicks 2-3 feeling
       // dead) + mildly annoyed quip.
       react('squish');
-      showBubble(annoyedBag.next());
+      queueTierLine(annoyedBag);
     } else {
       // Single: tactile squish (a poke deserves a physical response,
       // not a polite nod) + a quip. When the context provider has
@@ -750,6 +776,20 @@
     "...it'll come back to me. *purr*",
   ];
   const petInterruptBag = createShuffleBag(petInterruptQuips);
+
+  // Petting an ANNOYED cat works — it's the way back into his good
+  // graces (true to cats: they sulk, you make it up to them). A pet
+  // shortly after the pestered tier draws from this grudging-
+  // forgiveness pool instead of the generic purr/interrupt lines.
+  const PESTERED_MEMORY_MS = 6000;
+  const mollifiedQuips = [
+    "...fine. You're forgiven.",
+    "*grudging purr*",
+    "Hmph. ...don't stop, though.",
+    "This doesn't make us even. ...okay, it does.",
+    "Apology accepted. Barely.",
+  ];
+  const mollifiedBag = createShuffleBag(mollifiedQuips);
 
   let petLastX = null;
   let petDir = 0;
@@ -830,12 +870,20 @@
     // Was he mid-sentence? Then the rub interrupts: the bubble is
     // replaced immediately (a deliberate physical act outranks the
     // pacing queue) with an interrupted-thought line.
-    const wasTalking = bubble.classList.contains('visible');
+    const wasTalking = bubbleIsVisible();
+    const wasPestered = Date.now() - lastPesteredAt < PESTERED_MEMORY_MS;
     react('satisfied');
     lastHeartAt = Date.now();
     spawnHeart();
     setTimeout(spawnHeart, 280);
-    interruptBubble(wasTalking ? petInterruptBag.next() : purrBag.next());
+    if (wasPestered) {
+      // Reconciliation: grudging forgiveness, and the grudge is over —
+      // the next pet is a normal pet.
+      lastPesteredAt = 0;
+      interruptBubble(mollifiedBag.next());
+    } else {
+      interruptBubble(wasTalking ? petInterruptBag.next() : purrBag.next());
+    }
   }
 
   function spawnHeart() {
@@ -929,11 +977,21 @@
     clearTimeout(pendingBubbleTimer);
     pendingBubbleTimer = null;
     pendingBubbleText = null;
+    // showBubbleNow also clears any queued follow-up line — important
+    // for the pet-while-pestered reconciliation, which must not be
+    // chased by a stale "I am not a button."
     showBubbleNow(text);
+  }
+
+  function bubbleIsVisible() {
+    return bubble.classList.contains('visible');
   }
 
   function showBubbleNow(text) {
     clearTimeout(bubbleTimer);
+    // A new bubble supersedes any queued follow-up (the follow-up
+    // fires below only when the hold expires with nothing new shown).
+    followUpBubbleText = null;
     bubbleStartTime = Date.now();
     bubble.className = 'speech-bubble';
     bubble.textContent = text;
@@ -948,7 +1006,12 @@
     bubbleTimer = setTimeout(() => {
       bubble.classList.remove('visible');
       bubble.classList.add('hiding');
-      setTimeout(() => { bubble.className = 'speech-bubble'; }, 250);
+      setTimeout(() => {
+        bubble.className = 'speech-bubble';
+        const followUp = followUpBubbleText;
+        followUpBubbleText = null;
+        if (followUp && !folioIsHidden()) showBubbleNow(followUp);
+      }, 250);
     }, hold);
   }
 
