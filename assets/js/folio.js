@@ -777,7 +777,13 @@
       const now = Date.now();
       petStrokes.push(now);
       petStrokes = petStrokes.filter(t => now - t < PET_WINDOW_MS);
-      if (petStrokes.length >= PET_STROKES_NEEDED && now - lastPetAt >= PET_COOLDOWN_MS) {
+      if (now - lastPetAt < PET_COOLDOWN_MS) {
+        // Still in cooldown from the last purr quip, but the hand is
+        // still on the cat — keep the petting ALIVE (hearts + squint)
+        // without spamming new quips. This is what makes sustained
+        // rubbing feel continuous instead of one-shot.
+        continuePet(now);
+      } else if (petStrokes.length >= PET_STROKES_NEEDED) {
         lastPetAt = now;
         petStrokes = [];
         triggerPet();
@@ -787,16 +793,41 @@
     petExtent = Math.abs(dx);
   }
 
-  function triggerPet() {
-    // No petting during guarded restores, drag-watching, or the wake
-    // sequence (the document-level mousemove listener wakes a sleeping
-    // cat before a rub could ever land on one).
+  /* Sustained rubbing between purr quips: a throttled heart per
+     completed stroke and the satisfied squint refreshed once the
+     previous one has finished (activeReaction check — re-adding the
+     class while it's still on wouldn't restart the animation anyway,
+     see the flatten note in folio.css). */
+  let lastHeartAt = 0;
+
+  function continuePet(now) {
     if (isGuarded || watchHandler || isWaking) return;
+    if (now - lastHeartAt < 700) return;
+    lastHeartAt = now;
+    spawnHeart();
+    if (!activeReaction) react('satisfied');
+  }
+
+  function triggerPet() {
+    // No petting during drag-watching or the wake sequence (the
+    // document-level mousemove listener wakes a sleeping cat before a
+    // rub could ever land on one).
+    if (watchHandler || isWaking) return;
+    // A real hand on the cat ENDS the guard early. The guard exists
+    // to stop cascading app hooks from stomping a greeting — not to
+    // make him ignore being petted. The greeting he was mid-way
+    // through is exactly what the interrupt lines play against
+    // (pet-during-entrance-greeting was the classic dead spot).
+    if (isGuarded) {
+      isGuarded = false;
+      clearTimeout(guardTimer);
+    }
     // Was he mid-sentence? Then the rub interrupts: the bubble is
     // replaced immediately (a deliberate physical act outranks the
     // pacing queue) with an interrupted-thought line.
     const wasTalking = bubble.classList.contains('visible');
     react('satisfied');
+    lastHeartAt = Date.now();
     spawnHeart();
     setTimeout(spawnHeart, 280);
     interruptBubble(wasTalking ? petInterruptBag.next() : purrBag.next());

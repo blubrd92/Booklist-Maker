@@ -1844,20 +1844,22 @@ body:has(.sidebar.collapsed) .folio-container {
 
   /* --- SQUISH ---
      Tactile press-down when the cat is clicked: he compresses like a
-     stress ball and springs back with a small overshoot. Replaces the
+     stress ball and springs back with a real overshoot. Replaces the
      old nod on the single-click path (a poke deserves a physical
-     response). P1 squash on the body (bottom origin, so he squishes
-     into the shelf), head rides the compression down, glasses lag
-     behind on the rebound (P5).
+     response). The head is over half the cat visually, so it carries
+     the squash: deep drop + compression, ears SPLAY outward on
+     impact, eyes squeeze shut then pop wide on the rebound (that
+     eye beat is what sells the impact). Press lands fast (18% of
+     0.55s ≈ 100ms) because tactile feedback reads by snappiness.
      Duration: 0.55s */
   #folio.react-squish #body {
     animation: reactSquishBody 0.55s cubic-bezier(0.37,0,0.63,1) forwards !important;
   }
   @keyframes reactSquishBody {
     0%   { transform: scaleY(1) scaleX(1); }
-    25%  { transform: scaleY(0.86) scaleX(1.08) translateY(2px); }
-    60%  { transform: scaleY(1.05) scaleX(0.98) translateY(-2px); }
-    80%  { transform: scaleY(0.98) scaleX(1.01); }
+    18%  { transform: scaleY(0.82) scaleX(1.12) translateY(3px); }
+    55%  { transform: scaleY(1.07) scaleX(0.96) translateY(-3px); }
+    78%  { transform: scaleY(0.97) scaleX(1.01); }
     100% { transform: scaleY(1) scaleX(1); }
   }
   #folio.react-squish #head-group {
@@ -1865,28 +1867,56 @@ body:has(.sidebar.collapsed) .folio-container {
   }
   @keyframes reactSquishHead {
     0%   { transform: translateY(0) scaleY(1); }
-    25%  { transform: translateY(26px) scaleY(0.94); }
-    60%  { transform: translateY(-6px) scaleY(1.03); }
-    80%  { transform: translateY(2px) scaleY(0.99); }
+    18%  { transform: translateY(38px) scaleY(0.88); }
+    55%  { transform: translateY(-8px) scaleY(1.04); }
+    78%  { transform: translateY(3px) scaleY(0.99); }
     100% { transform: translateY(0) scaleY(1); }
+  }
+  #folio.react-squish .ear-left-anim {
+    animation: reactSquishEarL 0.55s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactSquishEarL {
+    0%   { transform: rotate(0deg); }
+    18%  { transform: rotate(16deg); }
+    55%  { transform: rotate(-5deg); }
+    100% { transform: rotate(0deg); }
+  }
+  #folio.react-squish .ear-right-anim {
+    animation: reactSquishEarR 0.55s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactSquishEarR {
+    0%   { transform: rotate(0deg); }
+    18%  { transform: rotate(-16deg); }
+    55%  { transform: rotate(5deg); }
+    100% { transform: rotate(0deg); }
+  }
+  #folio.react-squish #eyes {
+    animation: reactSquishEyes 0.55s ease-out forwards !important;
+  }
+  @keyframes reactSquishEyes {
+    0%   { transform: scaleY(1); }
+    18%  { transform: scaleY(0.15); }
+    50%  { transform: scaleY(1.18); }
+    75%  { transform: scaleY(1.05); }
+    100% { transform: scaleY(1); }
   }
   #folio.react-squish #front-legs {
     animation: reactSquishLegs 0.55s cubic-bezier(0.37,0,0.63,1) forwards !important;
   }
   @keyframes reactSquishLegs {
     0%   { transform: scaleY(1); }
-    25%  { transform: scaleY(0.92) scaleX(1.04); }
-    60%  { transform: scaleY(1.02); }
+    18%  { transform: scaleY(0.88) scaleX(1.06); }
+    55%  { transform: scaleY(1.03); }
     100% { transform: scaleY(1); }
   }
   #folio.react-squish #glasses {
     animation: reactSquishGlasses 0.55s ease-out forwards !important;
-    animation-delay: 0.05s !important;
+    animation-delay: 0.04s !important;
   }
   @keyframes reactSquishGlasses {
     0%   { transform: translateY(0) rotate(0deg); }
-    30%  { transform: translateY(4px) rotate(1deg); }
-    65%  { transform: translateY(-2px) rotate(-0.5deg); }
+    28%  { transform: translateY(7px) rotate(2deg); }
+    60%  { transform: translateY(-3px) rotate(-1deg); }
     100% { transform: translateY(0) rotate(0deg); }
   }
 
