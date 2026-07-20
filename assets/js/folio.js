@@ -666,6 +666,16 @@
   // PESTERED_MEMORY_MS of it gets the reconciliation pool.
   let lastPesteredAt = 0;
 
+  // When the last PHYSICAL interaction happened (pet or annoyed-tier
+  // click). Within this window a lone click stays physical — squish
+  // only, no quip. Without it, a click landing mid-purr deferred an
+  // ambient line that stomped the purr 1.5s later, and a click right
+  // after a spam burst (click counter resets in 3s) drew shelf
+  // musings like "Print is not dead" that read as him changing the
+  // subject mid-play.
+  const INTERACTION_QUIET_MS = 6000;
+  let lastPhysicalAt = 0;
+
   /* Annoyance-tier lines get READ, not stomped: if a bubble is
      already up, the tier line waits in the follow-up slot and shows
      after the current hold fully completes (each click's draw
@@ -709,12 +719,14 @@
       react('flatten');
       spawnGrump();
       lastPesteredAt = now;
+      lastPhysicalAt = now;
       queueTierLine(pesteredBag);
     } else if (recent.length >= 2) {
       // Rapid: squish again (restarted — every click must visibly
       // land; perk was too subtle here and left clicks 2-3 feeling
       // dead) + mildly annoyed quip.
       react('squish');
+      lastPhysicalAt = now;
       queueTierLine(annoyedBag);
     } else {
       // Single: tactile squish (a poke deserves a physical response,
@@ -722,11 +734,16 @@
       // something relevant to say about the actual booklist, prefer
       // it ~60% of the time so he feels like he's been paying
       // attention; the ambient pool covers the rest (and any context
-      // gap).
+      // gap). Inside an active physical session (just petted / just
+      // pestered) the click stays squish-only — no commentary; see
+      // INTERACTION_QUIET_MS. Lone clicks deliberately do NOT extend
+      // the window, so the solicit-a-comment affordance survives.
       react('squish');
-      const quip = (Math.random() < 0.6 ? pickContextQuip() : null)
-        || pickAmbient(currentState);
-      if (quip) showBubble(quip);
+      if (now - lastPhysicalAt > INTERACTION_QUIET_MS) {
+        const quip = (Math.random() < 0.6 ? pickContextQuip() : null)
+          || pickAmbient(currentState);
+        if (quip) showBubble(quip);
+      }
     }
   }
 
@@ -847,6 +864,7 @@
 
   function continuePet(now) {
     if (isGuarded || watchHandler || isWaking) return;
+    lastPhysicalAt = now;
     if (now - lastHeartAt < 700) return;
     lastHeartAt = now;
     spawnHeart();
@@ -873,6 +891,7 @@
     const wasTalking = bubbleIsVisible();
     const wasPestered = Date.now() - lastPesteredAt < PESTERED_MEMORY_MS;
     react('satisfied');
+    lastPhysicalAt = Date.now();
     lastHeartAt = Date.now();
     spawnHeart();
     setTimeout(spawnHeart, 280);

@@ -106,6 +106,13 @@ body:has(.sidebar.collapsed) .folio-container {
   cursor: pointer;
   width: clamp(140px, 16vw, 280px);
   aspect-ratio: 760 / 466;
+  /* Nothing in the scene is selectable text. Rapid clicks trigger
+     double-click selection and petting rubs drag-select, which swept
+     the heart/grump glyphs (real text nodes) and bubble text into the
+     native blue selection highlight. Descendants inherit via
+     user-select: auto. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #folio-scene svg {
