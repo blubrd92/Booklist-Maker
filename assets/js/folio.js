@@ -678,12 +678,17 @@
     if (recent.length >= 4) {
       // Persistent: exhausted flatten + exasperated quip. Re-triggering
       // on every spam click keeps him slumped (same-class re-add
-      // doesn't restart the CSS animation) rather than jittering.
+      // doesn't restart the CSS animation) rather than jittering —
+      // so each spam click gets its per-click acknowledgment from a
+      // grump mark instead.
       react('flatten');
+      spawnGrump();
       showBubble(pesteredBag.next());
     } else if (recent.length >= 2) {
-      // Rapid: perk + mildly annoyed
-      react('perk');
+      // Rapid: squish again (restarted — every click must visibly
+      // land; perk was too subtle here and left clicks 2-3 feeling
+      // dead) + mildly annoyed quip.
+      react('squish');
       showBubble(annoyedBag.next());
     } else {
       // Single: tactile squish (a poke deserves a physical response,
@@ -845,6 +850,27 @@
     setTimeout(() => heart.remove(), 1400);
   }
 
+  /* Grump mark: the pestered-tier counterpart to the petting heart.
+     One pops per spam click so every click visibly lands even while
+     he holds the flatten slump. Lightly throttled against
+     autoclickers. */
+  let lastGrumpAt = 0;
+
+  function spawnGrump() {
+    if (reducedMotion.matches || folioIsHidden()) return;
+    const now = Date.now();
+    if (now - lastGrumpAt < 180) return;
+    lastGrumpAt = now;
+    const scene = document.getElementById('folio-scene');
+    if (!scene) return;
+    const mark = document.createElement('div');
+    mark.className = 'folio-grump';
+    mark.textContent = '\u{1F4A2}';
+    mark.style.left = (30 + Math.random() * 40) + '%';
+    scene.appendChild(mark);
+    setTimeout(() => mark.remove(), 900);
+  }
+
   folioSvg.addEventListener('pointermove', handlePetMove);
   folioSvg.addEventListener('pointerleave', resetPetTracking);
   folioSvg.addEventListener('pointerdown', resetPetTracking);
@@ -962,11 +988,22 @@
     if (isGuarded) return;
 
     clearTimeout(reactTimer);
+    const wasActive = folioSvg.classList.contains('react-' + name);
     clearReaction();
 
     if (name === 'watch') {
       startWatch();
       return;
+    }
+
+    // Squish is per-click tactile feedback: when it's re-triggered
+    // mid-play, force a style flush between the class removal above
+    // and the re-add below so the animation RESTARTS — every click
+    // visibly presses him down again. All other reactions keep the
+    // same-frame no-restart behavior (flatten's stay-slumped-under-
+    // spam depends on it).
+    if (name === 'squish' && wasActive) {
+      void folioSvg.getBoundingClientRect();
     }
 
     // Startle: clear sleep droop so the CSS animation can take over

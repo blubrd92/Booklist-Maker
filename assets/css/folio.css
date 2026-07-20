@@ -2147,6 +2147,24 @@ body:has(.sidebar.collapsed) .folio-container {
     20%  { transform: translateY(-8px) scale(1); opacity: 0.9; }
     100% { transform: translateY(-48px) scale(0.85) rotate(6deg); opacity: 0; }
   }
+
+  /* Grump mark: pestered-tier counterpart to the heart. Pops with an
+     annoyed shake, drifts up, fades. One per spam click (see
+     spawnGrump in folio.js). */
+  .folio-grump {
+    position: absolute;
+    top: 10%;
+    font-size: 15px;
+    pointer-events: none;
+    z-index: 9;
+    animation: folioGrumpPop 0.85s ease-out forwards;
+  }
+  @keyframes folioGrumpPop {
+    0%   { transform: translateY(4px) scale(0.3) rotate(-8deg); opacity: 0; }
+    18%  { transform: translateY(0) scale(1.15) rotate(6deg); opacity: 1; }
+    32%  { transform: translateY(-2px) scale(1) rotate(-4deg); }
+    100% { transform: translateY(-30px) scale(0.9) rotate(0deg); opacity: 0; }
+  }
 /* =============================================================================
    MOBILE (matches the stacked-layout breakpoint in styles.css)
    The toggle lives in the header now, so only the cat SCENE floats in
@@ -2190,7 +2208,8 @@ body:has(.sidebar.collapsed) .folio-container {
 @media (prefers-reduced-motion: reduce) {
   #folio-container #folio,
   #folio-container #folio *,
-  #folio-container .folio-heart {
+  #folio-container .folio-heart,
+  #folio-container .folio-grump {
     animation: none !important;
     transition: none !important;
   }
