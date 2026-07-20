@@ -47,6 +47,13 @@
   // their lines breathe instead of stomping each other at the
   // MIN_VISIBLE_MS boundary). Any newly shown bubble clears it.
   let followUpBubbleText = null;
+  // Whether the visible bubble is a PHYSICAL-interaction line (purr,
+  // poke/pet interrupt, annoyed, pestered, mollified) vs a standard
+  // line (ambient, context, triggered event quips, greetings). The
+  // interaction grammar hangs off this: physical lines interrupt
+  // standard ones instantly, never stomp each other mid-read, and
+  // can't be stomped by deferred standard quips.
+  let bubblePhysical = false;
 
   // Bubble hold time scales with text length so short quips don't
   // linger and long ones aren't yanked away mid-read.
@@ -662,6 +669,17 @@
   ];
   const annoyedBag = createShuffleBag(annoyedQuips);
 
+  // A poke that lands while he's mid-STANDARD-sentence: he breaks off
+  // and acknowledges the poke (the click sibling of petInterruptQuips).
+  const clickInterruptQuips = [
+    "—yes? I'm listening.",
+    "—hm? Oh. Hi.",
+    "I was mid-sentence, but go on.",
+    "—oof. Noted.",
+    "As I was saying— actually, what?",
+  ];
+  const clickInterruptBag = createShuffleBag(clickInterruptQuips);
+
   // When the last pestered-tier click happened; a pet within
   // PESTERED_MEMORY_MS of it gets the reconciliation pool.
   let lastPesteredAt = 0;
@@ -676,19 +694,25 @@
   const INTERACTION_QUIET_MS = 6000;
   let lastPhysicalAt = 0;
 
-  /* Annoyance-tier lines get READ, not stomped: if a bubble is
-     already up, the tier line waits in the follow-up slot and shows
-     after the current hold fully completes (each click's draw
-     overwrites the slot, so escalation still upgrades the waiting
-     line). Only when he's silent does it show immediately. The old
-     behavior queued a fresh line per click through the pacing defer,
-     which replaced whatever was on screen every 1.5s — including one
-     final stomp after the clicking stopped. */
+  // A standard line younger than this when a lone click lands gets the
+  // break-off-mid-sentence treatment; an older one (already read) is
+  // simply replaced by the next quip.
+  const CLICK_INTERRUPT_FRESH_MS = 2200;
+
+  /* Annoyance-tier routing follows the interaction grammar:
+     - Mid-STANDARD-line (ambient/context/event quip): the pokes
+       interrupt it immediately — being clicked at outranks droning on.
+     - Mid-PHYSICAL-line (an earlier annoyed/pestered/purr line): the
+       new line waits in the follow-up slot and shows after the current
+       hold fully completes (each click's draw overwrites the slot, so
+       escalation still upgrades the waiting line). His own grievances
+       never stomp each other mid-read.
+     - Silence: show immediately. */
   function queueTierLine(bag) {
-    if (bubbleIsVisible()) {
+    if (bubbleIsVisible() && bubblePhysical) {
       followUpBubbleText = bag.next();
     } else {
-      showBubble(bag.next());
+      interruptBubble(bag.next());
     }
   }
 
@@ -699,6 +723,15 @@
     if (currentState === 'sleeping') {
       wakeUp();
       return;
+    }
+
+    // Like petting, a click ENDS any guard window: the guard blocks
+    // cascading app hooks, not the user's hand. Without this, clicks
+    // during the entrance greeting had no squish (react() is guard-
+    // suppressed) and felt completely dead.
+    if (isGuarded) {
+      isGuarded = false;
+      clearTimeout(guardTimer);
     }
 
     // Track click timing
@@ -730,19 +763,28 @@
       queueTierLine(annoyedBag);
     } else {
       // Single: tactile squish (a poke deserves a physical response,
-      // not a polite nod) + a quip. When the context provider has
-      // something relevant to say about the actual booklist, prefer
-      // it ~60% of the time so he feels like he's been paying
-      // attention; the ambient pool covers the rest (and any context
-      // gap). Inside an active physical session (just petted / just
-      // pestered) the click stays squish-only — no commentary; see
-      // INTERACTION_QUIET_MS. Lone clicks deliberately do NOT extend
-      // the window, so the solicit-a-comment affordance survives.
+      // not a polite nod) + a verbal response chosen by situation:
+      // - Inside an active physical session (just petted / just
+      //   pestered), or over the tail of a physical line: squish
+      //   only, no commentary (see INTERACTION_QUIET_MS). Lone
+      //   clicks deliberately do NOT extend the window, so the
+      //   solicit-a-comment affordance survives.
+      // - Mid-FRESH-standard-line: he breaks off and acknowledges
+      //   the poke, same instant-interrupt treatment as petting.
+      // - Otherwise (silence, or a standard line he's basically
+      //   finished saying): a context quip when the provider has
+      //   something relevant (~60%), else the ambient pool.
       react('squish');
       if (now - lastPhysicalAt > INTERACTION_QUIET_MS) {
-        const quip = (Math.random() < 0.6 ? pickContextQuip() : null)
-          || pickAmbient(currentState);
-        if (quip) showBubble(quip);
+        if (bubbleIsVisible() && bubblePhysical) {
+          // tail of a purr/annoyed line past the quiet window: let it be
+        } else if (bubbleIsVisible() && now - bubbleStartTime < CLICK_INTERRUPT_FRESH_MS) {
+          interruptBubble(clickInterruptBag.next());
+        } else {
+          const quip = (Math.random() < 0.6 ? pickContextQuip() : null)
+            || pickAmbient(currentState);
+          if (quip) showBubble(quip);
+        }
       }
     }
   }
@@ -888,7 +930,10 @@
     // Was he mid-sentence? Then the rub interrupts: the bubble is
     // replaced immediately (a deliberate physical act outranks the
     // pacing queue) with an interrupted-thought line.
-    const wasTalking = bubbleIsVisible();
+    // Interrupted-thought lines only fit when he was mid-STANDARD-
+    // sentence; over a physical line (a purr tail, an annoyed line)
+    // the plain purr pool reads right.
+    const wasTalking = bubbleIsVisible() && !bubblePhysical;
     const wasPestered = Date.now() - lastPesteredAt < PESTERED_MEMORY_MS;
     react('satisfied');
     lastPhysicalAt = Date.now();
@@ -970,7 +1015,11 @@
         const next = pendingBubbleText;
         pendingBubbleText = null;
         pendingBubbleTimer = null;
-        if (next) showBubbleNow(next);
+        // A physical line may have interrupted in while this standard
+        // quip waited (via the follow-up path, which doesn't clear
+        // pendings). Standard loses: dropping a background event quip
+        // beats stomping his in-the-moment response mid-read.
+        if (next && !(bubbleIsVisible() && bubblePhysical)) showBubbleNow(next);
       }, MIN_VISIBLE_MS - elapsed);
       return;
     }
@@ -999,18 +1048,19 @@
     // showBubbleNow also clears any queued follow-up line — important
     // for the pet-while-pestered reconciliation, which must not be
     // chased by a stale "I am not a button."
-    showBubbleNow(text);
+    showBubbleNow(text, true);
   }
 
   function bubbleIsVisible() {
     return bubble.classList.contains('visible');
   }
 
-  function showBubbleNow(text) {
+  function showBubbleNow(text, isPhysical) {
     clearTimeout(bubbleTimer);
     // A new bubble supersedes any queued follow-up (the follow-up
     // fires below only when the hold expires with nothing new shown).
     followUpBubbleText = null;
+    bubblePhysical = !!isPhysical;
     bubbleStartTime = Date.now();
     bubble.className = 'speech-bubble';
     bubble.textContent = text;
@@ -1029,7 +1079,8 @@
         bubble.className = 'speech-bubble';
         const followUp = followUpBubbleText;
         followUpBubbleText = null;
-        if (followUp && !folioIsHidden()) showBubbleNow(followUp);
+        // Follow-ups are tier lines — physical by definition.
+        if (followUp && !folioIsHidden()) showBubbleNow(followUp, true);
       }, 250);
     }, hold);
   }
