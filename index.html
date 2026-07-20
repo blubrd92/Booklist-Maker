@@ -954,7 +954,10 @@
        which stays anchored in the corner and fades in/out on toggle. -->
   <div id="folio-container" class="folio-container folio-hidden">
     <div class="scene" id="folio-scene">
-      <div class="speech-bubble" id="speechBubble"></div>
+      <!-- role="status" (implicit aria-live: polite) so Folio's quips reach
+           screen readers; folio.js suppresses bubble writes while he's
+           hidden so there are never announcements from an invisible cat. -->
+      <div class="speech-bubble" id="speechBubble" role="status" aria-live="polite"></div>
       <svg class="idle" id="folio" width="760" height="466" viewBox="-130 0 760 466" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <style>

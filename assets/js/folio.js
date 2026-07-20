@@ -11,6 +11,7 @@
      window.folio.showBubble(text)
      window.folio.clickFolio()
      window.folio.currentState()
+     window.folio.setContextProvider(fn)
    ============================================================================= */
 
 (function() {
@@ -41,6 +42,23 @@
   let bubbleStartTime = 0;
   let pendingBubbleTimer = null;
   let pendingBubbleText = null;
+
+  // Bubble hold time scales with text length so short quips don't
+  // linger and long ones aren't yanked away mid-read.
+  const BUBBLE_MIN_HOLD_MS = 3200;
+  const BUBBLE_MAX_HOLD_MS = 6500;
+  const BUBBLE_MS_PER_CHAR = 55;
+
+  // Live media query: when the user prefers reduced motion, the CSS
+  // freezes all animations (see the block at the end of folio.css) and
+  // the JS skips scheduling invisible motion (fidgets, hearts).
+  const reducedMotion = window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)')
+    : { matches: false };
+
+  function folioIsHidden() {
+    return !!(folioContainer && folioContainer.classList.contains('folio-hidden'));
+  }
 
   /* ----------------------------------------------------------------
      QUIP SYSTEM
@@ -128,6 +146,11 @@
           "*nods approvingly*",
         ],
         'collage-generated':"The collage just came together perfectly!",
+        'collage-ready': [
+          "That's enough starred covers — the collage is unlocked!",
+          "Cover quota reached! Time to generate that collage.",
+          "All the stars are in. Let's see that collage!",
+        ],
         'pdf-exported':     "PDF is on its way!",
         'save-complete': [
           "Saved! Your work is safe.",
@@ -300,24 +323,36 @@
     guardTimer = setTimeout(() => { isGuarded = false; }, duration);
   }
 
-  function setState(state, event) {
-    // While guarded, only greetings get through
-    if (isGuarded && state !== 'greeting') return;
+  /* Tail z-order helpers. SVG paints in document order, so the tail is
+     physically moved in the DOM: behind the books while sleeping (it
+     curls around the body), back in front of the body when awake. */
+  function tailBehindBooks() {
+    const tail = document.getElementById('tail');
+    const booksLeft = document.getElementById('books-left');
+    if (tail && booksLeft) booksLeft.parentNode.insertBefore(tail, booksLeft);
+  }
 
+  function tailInFront() {
     const tail = document.getElementById('tail');
     const booksLeft = document.getElementById('books-left');
     const body = document.getElementById('body');
+    if (tail && body && tail.nextElementSibling === booksLeft) {
+      body.parentNode.insertBefore(tail, body);
+    }
+  }
+
+  function setState(state, event) {
+    // While guarded, only greetings get through
+    if (isGuarded && state !== 'greeting') return;
 
     // Clear sleep tail classes on any state change
     folioSvg.classList.remove('tail-droop', 'tail-sleeping');
     clearTimeout(droopTimer);
 
     if (state === 'sleeping') {
-      // Move tail behind books (SVG paints in document order)
-      booksLeft.parentNode.insertBefore(tail, booksLeft);
-    } else if (tail.nextElementSibling === booksLeft) {
-      // Tail currently behind books; move it back in front
-      body.parentNode.insertBefore(tail, body);
+      tailBehindBooks();
+    } else {
+      tailInFront();
     }
 
     // Set base state class (replaces all classes on SVG root)
@@ -346,11 +381,19 @@
     // trigger. Triggered values can be a string (single line) or an
     // array (rotating pool, shuffle-bagged).
     if (!event) return;
-    const triggered = quips[state]?.triggered[event];
-    if (!triggered) return;
-    const line = Array.isArray(triggered)
-      ? pickTriggered(state, event)
-      : triggered;
+
+    // Memory overrides: a handful of events get a personalized line
+    // (visit memory, time of day, first-ever title) before falling
+    // through to the standard triggered pools.
+    let line = buildMemoryLine(state, event);
+
+    if (!line) {
+      const triggered = quips[state]?.triggered[event];
+      if (!triggered) return;
+      line = Array.isArray(triggered)
+        ? pickTriggered(state, event)
+        : triggered;
+    }
     if (line) showBubble(line);
   }
 
@@ -440,6 +483,155 @@
   }
 
   /* ----------------------------------------------------------------
+     CONTEXT AWARENESS
+
+     app.js registers a provider via window.folio.setContextProvider()
+     that returns live facts about the booklist:
+       { bookCount, maxBooks, starredCovers, requiredCovers, listName }
+     Folio never reaches into the app's state himself — the provider
+     is the one-way window through the IIFE boundary, same spirit as
+     the window.* globals the Firebase layer uses.
+
+     Context quips fire on the click-to-pet path (the one place the
+     user explicitly solicits him), mixed with the ambient pool. Each
+     rule returns a line or null; eligible lines are picked at random.
+     ---------------------------------------------------------------- */
+  let contextProvider = null;
+
+  function setContextProvider(fn) {
+    contextProvider = (typeof fn === 'function') ? fn : null;
+  }
+
+  function getContext() {
+    if (!contextProvider) return null;
+    try { return contextProvider() || null; } catch { return null; }
+  }
+
+  const contextQuips = [
+    (ctx) => ctx.bookCount === 0
+      ? "Empty list. My favorite part — anything could go on it."
+      : null,
+    (ctx) => ctx.bookCount === 1
+      ? "One title down. A list of one is just a recommendation."
+      : null,
+    (ctx) => {
+      const left = ctx.maxBooks - ctx.bookCount;
+      return (ctx.bookCount >= 2 && left >= 1 && left <= 3)
+        ? `Only ${left} ${left === 1 ? 'slot' : 'slots'} left. Choose wisely.`
+        : null;
+    },
+    (ctx) => (ctx.bookCount > 0 && ctx.bookCount === ctx.maxBooks)
+      ? "Every slot filled. Now we're just polishing."
+      : null,
+    (ctx) => {
+      const left = ctx.requiredCovers - ctx.starredCovers;
+      return left === 1
+        ? "One more starred cover and the collage is ready."
+        : null;
+    },
+    (ctx) => {
+      const left = ctx.requiredCovers - ctx.starredCovers;
+      return (ctx.bookCount > 0 && left >= 2 && left <= 4)
+        ? `${left} more starred covers and we can make a collage.`
+        : null;
+    },
+    (ctx) => (ctx.listName && ctx.listName.length <= 30)
+      ? `"${ctx.listName}" — good theme. I'd browse that shelf.`
+      : null,
+  ];
+
+  let lastContextQuip = null;
+
+  function pickContextQuip() {
+    const ctx = getContext();
+    if (!ctx) return null;
+    const candidates = [];
+    contextQuips.forEach((rule) => {
+      try {
+        const quip = rule(ctx);
+        if (quip && quip !== lastContextQuip) candidates.push(quip);
+      } catch { /* a bad rule never breaks the cat */ }
+    });
+    if (candidates.length === 0) return null;
+    lastContextQuip = candidates[Math.floor(Math.random() * candidates.length)];
+    return lastContextQuip;
+  }
+
+  /* ----------------------------------------------------------------
+     MEMORY
+
+     Light localStorage persistence (same key convention as
+     'folio-hidden'). Tracks visit count, last-visit time, and whether
+     the first-ever title has been celebrated. Only ticks when Folio
+     is actually visible — an invisible cat doesn't collect memories.
+     ---------------------------------------------------------------- */
+  const LS_VISITS = 'folio-visits';
+  const LS_LAST_VISIT = 'folio-last-visit';
+  const LS_FIRST_BOOK = 'folio-first-book-seen';
+
+  function lsGet(key) {
+    try { return localStorage.getItem(key); } catch { return null; }
+  }
+  function lsSet(key, value) {
+    try { localStorage.setItem(key, value); } catch { /* private browsing */ }
+  }
+
+  let visitMemory = null; // recorded once per session, at first greeting
+
+  function recordVisit() {
+    if (visitMemory) return visitMemory;
+    const visits = (parseInt(lsGet(LS_VISITS), 10) || 0) + 1;
+    const lastRaw = parseInt(lsGet(LS_LAST_VISIT), 10);
+    const daysSince = lastRaw ? (Date.now() - lastRaw) / 86400000 : null;
+    lsSet(LS_VISITS, String(visits));
+    lsSet(LS_LAST_VISIT, String(Date.now()));
+    visitMemory = { visits, daysSince };
+    return visitMemory;
+  }
+
+  /* Personalized line for select events, or null to use the standard
+     pools. Greeting events get visit memory + time-of-day flavor;
+     the first-ever book added gets a one-time milestone line. */
+  function buildMemoryLine(state, event) {
+    if (folioIsHidden()) return null;
+
+    if (state === 'greeting' && (event === 'page-load' || event === 'draft-restored')) {
+      const mem = recordVisit();
+
+      if (mem.daysSince !== null && mem.daysSince >= 14) {
+        return "It's been a while! I kept the shelf warm for you.";
+      }
+      if (mem.visits === 10) return "Visit number ten. I should get you a punch card.";
+      if (mem.visits === 25) return "Twenty-five visits. You're basically staff.";
+
+      // Time-of-day flavor ~60% of the time so the standard greetings
+      // still rotate through. Afternoon uses the standard lines.
+      const hour = new Date().getHours();
+      const tod = (hour < 5) ? "Up late? The best lists happen after hours."
+        : (hour < 12) ? "Good morning! The shelf and I are ready."
+        : (hour < 17) ? null
+        : (hour < 22) ? "Evening shift? Let's make it a good one."
+        : "Up late? The best lists happen after hours.";
+      if (tod && Math.random() < 0.6) return tod;
+      return null;
+    }
+
+    if (state === 'excited' && event === 'book-added' && !lsGet(LS_FIRST_BOOK)) {
+      lsSet(LS_FIRST_BOOK, '1');
+      // Only celebrate "first title" when the list really has one title.
+      // A veteran who toggles Folio on mid-list burns the flag silently
+      // (they're clearly not new; the line would read as a mistake).
+      const ctx = getContext();
+      if (!ctx || ctx.bookCount <= 1) {
+        return "Your first title on the list! Off to a great start.";
+      }
+      return null;
+    }
+
+    return null;
+  }
+
+  /* ----------------------------------------------------------------
      CLICK INTERACTION: Playful escalation system.
      ---------------------------------------------------------------- */
   let clickTimestamps = [];
@@ -470,14 +662,7 @@
 
     // Sleeping: bypass escalation, trigger full wake sequence
     if (currentState === 'sleeping') {
-      if (isWaking) return;
-      isWaking = true;
-      react('startle');
-      setTimeout(() => setState('greeting', 'wake-up'), 800);
-      setTimeout(() => {
-        setState('idle');
-        isWaking = false;
-      }, 4000);
+      wakeUp();
       return;
     }
 
@@ -498,15 +683,118 @@
       react('perk');
       showBubble(annoyedBag.next());
     } else {
-      // Single: nod + ambient quip
+      // Single: nod + a quip. When the context provider has something
+      // relevant to say about the actual booklist, prefer it ~60% of
+      // the time so he feels like he's been paying attention; the
+      // ambient pool covers the rest (and any context gap).
       react('nod');
-      const quip = pickAmbient(currentState);
+      const quip = (Math.random() < 0.6 ? pickContextQuip() : null)
+        || pickAmbient(currentState);
       if (quip) showBubble(quip);
     }
   }
 
   // Bind click handler (replaces inline onclick on SVG)
   folioSvg.addEventListener('click', clickFolio);
+
+  /* ----------------------------------------------------------------
+     PETTING: Rub back and forth over the cat to pet him.
+
+     A "stroke" is sustained horizontal pointer travel in one
+     direction (>= PET_STROKE_MIN_PX); it's counted when the direction
+     reverses. Three counted strokes inside a 2s window — i.e. a
+     deliberate back-and-forth rub, not a pass-over — triggers the
+     satisfied slow-blink, a floating heart, and a purr quip.
+     Accumulating extent per direction (rather than per-event deltas)
+     makes slow, gentle strokes register too. Pointer events cover
+     touch: after a touchstart on the SVG the pointer is implicitly
+     captured, so finger-rubs deliver pointermove here (and the CSS
+     sets touch-action: pan-y on #folio so horizontal rubs aren't
+     swallowed by the scroll gesture handler).
+     ---------------------------------------------------------------- */
+  const PET_STROKE_MIN_PX = 15;
+  const PET_STROKES_NEEDED = 3;
+  const PET_WINDOW_MS = 2000;
+  const PET_COOLDOWN_MS = 8000;
+
+  const purrQuips = [
+    "*purrrrrr*",
+    "*leans into it*",
+    "Right behind the ear. Yes. There.",
+    "*purring intensifies*",
+    "Okay, that's the spot.",
+    "*happy rumble*",
+    "I suppose you may continue.",
+  ];
+  const purrBag = createShuffleBag(purrQuips);
+
+  let petLastX = null;
+  let petDir = 0;
+  let petExtent = 0;
+  let petStrokes = [];
+  let lastPetAt = 0;
+
+  function resetPetTracking() {
+    petLastX = null;
+    petDir = 0;
+    petExtent = 0;
+  }
+
+  function handlePetMove(e) {
+    if (folioIsHidden()) return;
+    if (petLastX === null) { petLastX = e.clientX; return; }
+    const dx = e.clientX - petLastX;
+    petLastX = e.clientX;
+    if (dx === 0) return;
+
+    const dir = dx > 0 ? 1 : -1;
+    if (dir === petDir) {
+      petExtent += Math.abs(dx);
+      return;
+    }
+
+    // Direction reversal: count the stroke that just ended (if it was
+    // a real stroke and not jitter), then start tracking the new one.
+    if (petDir !== 0 && petExtent >= PET_STROKE_MIN_PX) {
+      const now = Date.now();
+      petStrokes.push(now);
+      petStrokes = petStrokes.filter(t => now - t < PET_WINDOW_MS);
+      if (petStrokes.length >= PET_STROKES_NEEDED && now - lastPetAt >= PET_COOLDOWN_MS) {
+        lastPetAt = now;
+        petStrokes = [];
+        triggerPet();
+      }
+    }
+    petDir = dir;
+    petExtent = Math.abs(dx);
+  }
+
+  function triggerPet() {
+    // No petting during guarded restores, drag-watching, or the wake
+    // sequence (the document-level mousemove listener wakes a sleeping
+    // cat before a rub could ever land on one).
+    if (isGuarded || watchHandler || isWaking) return;
+    react('satisfied');
+    spawnHeart();
+    setTimeout(spawnHeart, 280);
+    showBubble(purrBag.next());
+  }
+
+  function spawnHeart() {
+    if (reducedMotion.matches || folioIsHidden()) return;
+    const scene = document.getElementById('folio-scene');
+    if (!scene) return;
+    const heart = document.createElement('div');
+    heart.className = 'folio-heart';
+    heart.textContent = '♥';
+    heart.style.left = (40 + Math.random() * 20) + '%';
+    scene.appendChild(heart);
+    setTimeout(() => heart.remove(), 1400);
+  }
+
+  folioSvg.addEventListener('pointermove', handlePetMove);
+  folioSvg.addEventListener('pointerleave', resetPetTracking);
+  folioSvg.addEventListener('pointerdown', resetPetTracking);
 
   /* ----------------------------------------------------------------
      SPEECH BUBBLE: Pop in, hold, shrink out.
@@ -520,6 +808,10 @@
      ---------------------------------------------------------------- */
   function showBubble(text) {
     if (!text) return;
+    // No bubbles while Folio is hidden: the scene is invisible, and a
+    // text swap would still hit the aria-live region — screen reader
+    // announcements from a cat that isn't there.
+    if (folioIsHidden()) return;
 
     const now = Date.now();
     const elapsed = bubbleStartTime ? now - bubbleStartTime : Infinity;
@@ -553,11 +845,17 @@
     bubble.textContent = text;
     void bubble.offsetWidth;
     bubble.classList.add('visible');
+    // Hold scales with reading length: short quips keep the old 3.2s,
+    // longer ones stay up long enough to actually finish reading.
+    const hold = Math.min(
+      BUBBLE_MAX_HOLD_MS,
+      Math.max(BUBBLE_MIN_HOLD_MS, 1400 + text.length * BUBBLE_MS_PER_CHAR)
+    );
     bubbleTimer = setTimeout(() => {
       bubble.classList.remove('visible');
       bubble.classList.add('hiding');
       setTimeout(() => { bubble.className = 'speech-bubble'; }, 250);
-    }, 3200);
+    }, hold);
   }
 
   /* ----------------------------------------------------------------
@@ -577,10 +875,15 @@
     yawn: 2500,
     startle: 800,
     satisfied: 1500,
+    // Idle fidgets (scheduled ambient motion, see FIDGETS below)
+    stretch: 1600,
+    'ear-flick': 500,
+    'tail-swish': 1300,
   };
 
   let reactTimer = null;
   let watchHandler = null;
+  let activeReaction = null; // name of the reaction currently playing
 
   function react(name) {
     // While guarded, suppress reactions from cascading hooks
@@ -604,18 +907,15 @@
     if (!duration) return;
 
     folioSvg.classList.add('react-' + name);
+    activeReaction = name;
 
     reactTimer = setTimeout(() => {
       folioSvg.classList.remove('react-' + name);
+      activeReaction = null;
 
       // Startle complete: tail is upright, move it in front of books
       if (name === 'startle') {
-        const tail = document.getElementById('tail');
-        const booksLeft = document.getElementById('books-left');
-        const body = document.getElementById('body');
-        if (tail.nextElementSibling === booksLeft) {
-          body.parentNode.insertBefore(tail, body);
-        }
+        tailInFront();
       }
     }, duration);
   }
@@ -625,6 +925,7 @@
       folioSvg.classList.remove('react-' + name);
     });
     folioSvg.classList.remove('react-watch');
+    activeReaction = null;
     if (watchHandler) stopWatch();
   }
 
@@ -688,9 +989,15 @@
       localStorage.setItem('folio-hidden', isHidden);
       // Turning Folio ON is his entrance — greet, same guard pattern
       // as the page-load greeting so cascading hooks can't stomp it.
+      // The inactivity clock only runs while he's visible (there's
+      // nothing to fall asleep when hidden; resetInactivity also
+      // self-gates, this just cleans up the pending timer promptly).
       if (!isHidden) {
         guard(3500);
         celebrate({ state: 'greeting', event: 'toggled-on', reactionDelay: 0 });
+        resetInactivity();
+      } else {
+        clearTimeout(inactivityTimer);
       }
     });
   }
@@ -708,19 +1015,30 @@
   let inactivityTimer = null;
   let isWaking = false;
 
+  /* Wake sequence: startle, then a groggy greeting, then settle to
+     idle. Shared by click-on-sleeping-cat and any-activity-wakes. */
+  function wakeUp() {
+    if (isWaking) return;
+    isWaking = true;
+    react('startle');
+    setTimeout(() => setState('greeting', 'wake-up'), 800);
+    setTimeout(() => {
+      setState('idle');
+      isWaking = false;
+    }, 4000);
+  }
+
   function resetInactivity() {
     clearTimeout(inactivityTimer);
 
+    // Hidden cat: no sleep clock to run, no wake to perform. (The
+    // document-level listeners stay attached, but bail here before
+    // any timer churn.)
+    if (folioIsHidden()) return;
+
     // If waking from sleep, trigger the wake sequence (once)
     if (currentState === 'sleeping') {
-      if (isWaking) return;
-      isWaking = true;
-      react('startle');
-      setTimeout(() => setState('greeting', 'wake-up'), 800);
-      setTimeout(() => {
-        setState('idle');
-        isWaking = false;
-      }, 4000);
+      wakeUp();
       return;
     }
 
@@ -738,11 +1056,7 @@
   // sleeping pose so CSS animations are visible when the user returns
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && currentState === 'sleeping') {
-      const tail = document.getElementById('tail');
-      const booksLeft = document.getElementById('books-left');
-      if (tail && booksLeft) {
-        booksLeft.parentNode.insertBefore(tail, booksLeft);
-      }
+      tailBehindBooks();
       folioSvg.className.baseVal = 'sleeping';
       folioSvg.classList.add('tail-droop', 'tail-sleeping');
     }
@@ -753,10 +1067,43 @@
   });
 
   /* ----------------------------------------------------------------
+     IDLE FIDGETS
+
+     Real cats don't loop the same breath forever. Every 14-32s of
+     idle, play one small fidget (stretch, ear flick, tail swish) from
+     a shuffle bag. Fires only when he's visible, in the idle state,
+     unguarded, not mid-reaction, not eye-tracking a drag, the tab is
+     in the foreground, and the user hasn't asked for reduced motion.
+     The timer self-reschedules forever; the guards make missed slots
+     silent no-ops.
+     ---------------------------------------------------------------- */
+  const FIDGET_MIN_DELAY_MS = 14000;
+  const FIDGET_EXTRA_DELAY_MS = 18000;
+  const fidgetBag = createShuffleBag(['stretch', 'ear-flick', 'tail-swish']);
+  let fidgetTimer = null;
+
+  function maybeFidget() {
+    if (currentState !== 'idle') return;
+    if (folioIsHidden() || document.hidden) return;
+    if (isGuarded || activeReaction || watchHandler) return;
+    if (reducedMotion.matches) return;
+    react(fidgetBag.next());
+  }
+
+  function scheduleFidget() {
+    clearTimeout(fidgetTimer);
+    fidgetTimer = setTimeout(() => {
+      maybeFidget();
+      scheduleFidget();
+    }, FIDGET_MIN_DELAY_MS + Math.random() * FIDGET_EXTRA_DELAY_MS);
+  }
+
+  /* ----------------------------------------------------------------
      INITIALIZATION
      ---------------------------------------------------------------- */
   initToggle();
   resetInactivity();
+  scheduleFidget();
 
   /* ----------------------------------------------------------------
      EXPOSE PUBLIC API
@@ -769,7 +1116,8 @@
     stopWatch: stopWatch,
     showBubble: showBubble,
     clickFolio: clickFolio,
-    currentState: function() { return currentState; }
+    currentState: function() { return currentState; },
+    setContextProvider: setContextProvider
   };
 
 })();

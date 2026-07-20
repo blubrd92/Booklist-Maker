@@ -1709,6 +1709,12 @@ const BooklistApp = (function() {
     starButton.onclick = () => {
       if (!isStarred && atLimit) return; // Can't add more if at limit
 
+      // Folio milestone: detect the star that crosses the collage
+      // threshold (checked before/after the toggle below).
+      const hadEnoughCovers = BookUtils.hasEnoughCoversForCollage(
+        myBooklist, extraCollageCovers, getCollageCoverCount()
+      );
+
       pushUndo('toggle-star');
       bookItem.includeInCollage = !bookItem.includeInCollage;
       debouncedSave();
@@ -1723,8 +1729,20 @@ const BooklistApp = (function() {
       }
       updateExtraCoversCount(); // Update the extra covers section count
 
-      // Folio: nod at the star toggle
-      if (window.folio) window.folio.react('nod');
+      // Folio: celebrate the star that unlocks the collage; plain nod
+      // for every other toggle.
+      const hasEnoughCovers = BookUtils.hasEnoughCoversForCollage(
+        myBooklist, extraCollageCovers, getCollageCoverCount()
+      );
+      if (window.folio) {
+        if (!hadEnoughCovers && hasEnoughCovers) {
+          window.folio.celebrate({
+            reaction: 'perk', state: 'excited', event: 'collage-ready',
+          });
+        } else {
+          window.folio.react('nod');
+        }
+      }
 
       // Auto-regenerate if there's already an auto-generated image and we have enough covers
       const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
@@ -9854,6 +9872,22 @@ const BooklistApp = (function() {
     recoverTourBackupIfPresent()
       .then(() => restoreDraftLocalIfPresent())
       .finally(() => { _initialRestorePending = false; });
+
+    // Folio: context provider. Gives folio.js read-only access to live
+    // booklist facts (for context-aware quips) without the IIFE layers
+    // sharing any state — folio.js pulls through this one function and
+    // never reaches into app internals.
+    if (window.folio && window.folio.setContextProvider) {
+      window.folio.setContextProvider(() => ({
+        bookCount: myBooklist.filter(b => !b.isBlank).length,
+        maxBooks: MAX_BOOKS,
+        starredCovers: BookUtils.countTotalCovers(
+          myBooklist, extraCollageCovers, getCollageCoverCount()
+        ),
+        requiredCovers: BookUtils.getRequiredCovers(getCollageCoverCount()),
+        listName: (elements.listNameInput?.value || '').trim(),
+      }));
+    }
 
     // Folio: greet based on whether a draft exists (has-draft flag is
     // sync). Only when Folio is actually shown (same localStorage
