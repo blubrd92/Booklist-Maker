@@ -753,6 +753,9 @@
       spawnGrump();
       lastPesteredAt = now;
       lastPhysicalAt = now;
+      // Fresh spam re-arms the rebuff: more clicking means the next
+      // pet gets pushed away again before forgiveness can be earned.
+      angerRebuffed = false;
       queueTierLine(pesteredBag);
     } else if (recent.length >= 2) {
       // Rapid: squish again (restarted — every click must visibly
@@ -836,11 +839,26 @@
   ];
   const petInterruptBag = createShuffleBag(petInterruptQuips);
 
-  // Petting an ANNOYED cat works — it's the way back into his good
-  // graces (true to cats: they sulk, you make it up to them). A pet
-  // shortly after the pestered tier draws from this grudging-
-  // forgiveness pool instead of the generic purr/interrupt lines.
+  // Petting an ANNOYED cat is the way back into his good graces, but
+  // ANGER OVERCOMES PETTING: while the pestered grudge is hot, the
+  // first rub is REBUFFED (his angry line stands; dismissive flick;
+  // no hearts) and only rubbing on through the sulk earns the
+  // grudging-forgiveness line. True to cats: they sulk, you make it
+  // up to them, and it takes a minute.
   const PESTERED_MEMORY_MS = 6000;
+  const REBUFF_HOLD_MS = 2500;
+  let angerRebuffed = false;
+  let lastRebuffAt = 0;
+
+  const rebuffQuips = [
+    "A rub doesn't undo all that clicking.",
+    "*pointedly ignores the hand*",
+    "Hmph. Not yet.",
+    "Oh, NOW you're nice to me.",
+    "I'm still mad. ...keep going, though.",
+  ];
+  const rebuffBag = createShuffleBag(rebuffQuips);
+
   const mollifiedQuips = [
     "...fine. You're forgiven.",
     "*grudging purr*",
@@ -888,7 +906,9 @@
         // rubbing feel continuous instead of one-shot.
         continuePet(now);
       } else if (petStrokes.length >= PET_STROKES_NEEDED) {
-        lastPetAt = now;
+        // lastPetAt is set inside triggerPet, and only for pets that
+        // land as full pets — the anger rebuff/sulk phases leave it
+        // untouched so continued rubbing keeps re-attempting.
         petStrokes = [];
         triggerPet();
       }
@@ -909,6 +929,12 @@
     lastPhysicalAt = now;
     if (now - lastHeartAt < 700) return;
     lastHeartAt = now;
+    if (now - lastPesteredAt < PESTERED_MEMORY_MS) {
+      // He's mad: rubs during the pet cooldown get the cold shoulder
+      // (a grump mark, not a heart, and no blissful squint).
+      spawnGrump();
+      return;
+    }
     spawnHeart();
     if (!activeReaction) react('satisfied');
   }
@@ -927,26 +953,66 @@
       isGuarded = false;
       clearTimeout(guardTimer);
     }
-    // Was he mid-sentence? Then the rub interrupts: the bubble is
-    // replaced immediately (a deliberate physical act outranks the
-    // pacing queue) with an interrupted-thought line.
-    // Interrupted-thought lines only fit when he was mid-STANDARD-
-    // sentence; over a physical line (a purr tail, an annoyed line)
-    // the plain purr pool reads right.
-    const wasTalking = bubbleIsVisible() && !bubblePhysical;
-    const wasPestered = Date.now() - lastPesteredAt < PESTERED_MEMORY_MS;
+    const now = Date.now();
+    lastPhysicalAt = now;
+
+    // ANGER OVERCOMES PETTING: while the grudge is hot, forgiveness
+    // must be earned. Rebuff and sulk phases do NOT set lastPetAt, so
+    // continued rubbing keeps re-attempting (each attempt needs 3
+    // fresh strokes) instead of falling into the 8s quip cooldown.
+    const angerHot = now - lastPesteredAt < PESTERED_MEMORY_MS;
+    if (angerHot) {
+      if (!angerRebuffed) {
+        // Stage 1 — rebuff: his angry line stands, the hand gets a
+        // dismissive tail swish and a grump mark (no hearts, no
+        // blissful squint), and the rebuff line waits its turn behind
+        // whatever he's currently saying.
+        angerRebuffed = true;
+        lastRebuffAt = now;
+        react('tail-swish');
+        spawnGrump();
+        queueTierLine(rebuffBag);
+        return;
+      }
+      if (now - lastRebuffAt < REBUFF_HOLD_MS) {
+        // Mid-sulk: pointedly ignoring the hand. A throttled grump
+        // mark keeps the (rebuffed) effort visible.
+        if (now - lastHeartAt >= 700) {
+          lastHeartAt = now;
+          spawnGrump();
+        }
+        return;
+      }
+      // Stage 2 — persistence pays: grudging forgiveness. The
+      // forgiveness moment is the payoff, so it MAY cut off an angry
+      // line mid-read — the emotional turn justifies the one stomp.
+      lastPesteredAt = 0;
+      angerRebuffed = false;
+      lastPetAt = now;
+      react('satisfied');
+      lastHeartAt = now;
+      spawnHeart();
+      setTimeout(spawnHeart, 280);
+      interruptBubble(mollifiedBag.next());
+      return;
+    }
+
+    // No grudge: joy is instant (squint + hearts), and the purr LINE
+    // follows the bubble grammar — it queues behind his own fresh
+    // physical line (e.g. an annoyed line from two quick clicks),
+    // breaks off a standard line with an interrupted-thought quip,
+    // and purrs plainly into silence.
+    lastPetAt = now;
     react('satisfied');
-    lastPhysicalAt = Date.now();
-    lastHeartAt = Date.now();
+    lastHeartAt = now;
     spawnHeart();
     setTimeout(spawnHeart, 280);
-    if (wasPestered) {
-      // Reconciliation: grudging forgiveness, and the grudge is over —
-      // the next pet is a normal pet.
-      lastPesteredAt = 0;
-      interruptBubble(mollifiedBag.next());
+    if (bubbleIsVisible() && bubblePhysical) {
+      followUpBubbleText = purrBag.next();
+    } else if (bubbleIsVisible()) {
+      interruptBubble(petInterruptBag.next());
     } else {
-      interruptBubble(wasTalking ? petInterruptBag.next() : purrBag.next());
+      interruptBubble(purrBag.next());
     }
   }
 
