@@ -42,6 +42,18 @@
   let bubbleStartTime = 0;
   let pendingBubbleTimer = null;
   let pendingBubbleText = null;
+  // One-shot follow-up: a line waiting for the CURRENT bubble to
+  // complete its full hold (used by the click-annoyance tiers so
+  // their lines breathe instead of stomping each other at the
+  // MIN_VISIBLE_MS boundary). Any newly shown bubble clears it.
+  let followUpBubbleText = null;
+  // Whether the visible bubble is a PHYSICAL-interaction line (purr,
+  // poke/pet interrupt, annoyed, pestered, mollified) vs a standard
+  // line (ambient, context, triggered event quips, greetings). The
+  // interaction grammar hangs off this: physical lines interrupt
+  // standard ones instantly, never stomp each other mid-read, and
+  // can't be stomped by deferred standard quips.
+  let bubblePhysical = false;
 
   // Bubble hold time scales with text length so short quips don't
   // linger and long ones aren't yanked away mid-read.
@@ -657,6 +669,53 @@
   ];
   const annoyedBag = createShuffleBag(annoyedQuips);
 
+  // A poke that lands while he's mid-STANDARD-sentence: he breaks off
+  // and acknowledges the poke (the click sibling of petInterruptQuips).
+  const clickInterruptQuips = [
+    "—yes? I'm listening.",
+    "—hm? Oh. Hi.",
+    "I was mid-sentence, but go on.",
+    "—oof. Noted.",
+    "As I was saying— actually, what?",
+  ];
+  const clickInterruptBag = createShuffleBag(clickInterruptQuips);
+
+  // When the last pestered-tier click happened; a pet within
+  // PESTERED_MEMORY_MS of it gets the reconciliation pool.
+  let lastPesteredAt = 0;
+
+  // When the last PHYSICAL interaction happened (pet or annoyed-tier
+  // click). Within this window a lone click stays physical — squish
+  // only, no quip. Without it, a click landing mid-purr deferred an
+  // ambient line that stomped the purr 1.5s later, and a click right
+  // after a spam burst (click counter resets in 3s) drew shelf
+  // musings like "Print is not dead" that read as him changing the
+  // subject mid-play.
+  const INTERACTION_QUIET_MS = 6000;
+  let lastPhysicalAt = 0;
+
+  // A standard line younger than this when a lone click lands gets the
+  // break-off-mid-sentence treatment; an older one (already read) is
+  // simply replaced by the next quip.
+  const CLICK_INTERRUPT_FRESH_MS = 2200;
+
+  /* Annoyance-tier routing follows the interaction grammar:
+     - Mid-STANDARD-line (ambient/context/event quip): the pokes
+       interrupt it immediately — being clicked at outranks droning on.
+     - Mid-PHYSICAL-line (an earlier annoyed/pestered/purr line): the
+       new line waits in the follow-up slot and shows after the current
+       hold fully completes (each click's draw overwrites the slot, so
+       escalation still upgrades the waiting line). His own grievances
+       never stomp each other mid-read.
+     - Silence: show immediately. */
+  function queueTierLine(bag) {
+    if (bubbleIsVisible() && bubblePhysical) {
+      followUpBubbleText = bag.next();
+    } else {
+      interruptBubble(bag.next());
+    }
+  }
+
   function clickFolio() {
     const now = Date.now();
 
@@ -664,6 +723,15 @@
     if (currentState === 'sleeping') {
       wakeUp();
       return;
+    }
+
+    // Like petting, a click ENDS any guard window: the guard blocks
+    // cascading app hooks, not the user's hand. Without this, clicks
+    // during the entrance greeting had no squish (react() is guard-
+    // suppressed) and felt completely dead.
+    if (isGuarded) {
+      isGuarded = false;
+      clearTimeout(guardTimer);
     }
 
     // Track click timing
@@ -676,21 +744,51 @@
     clickTimestamps = recent;
 
     if (recent.length >= 4) {
-      // Persistent: exasperated, no physical reaction
-      showBubble(pesteredBag.next());
+      // Persistent: exhausted flatten + exasperated quip. Re-triggering
+      // on every spam click keeps him slumped (same-class re-add
+      // doesn't restart the CSS animation) rather than jittering —
+      // so each spam click gets its per-click acknowledgment from a
+      // grump mark instead.
+      react('flatten');
+      spawnGrump();
+      lastPesteredAt = now;
+      lastPhysicalAt = now;
+      // Fresh spam re-arms the rebuff: more clicking means the next
+      // pet gets pushed away again before forgiveness can be earned.
+      angerRebuffed = false;
+      queueTierLine(pesteredBag);
     } else if (recent.length >= 2) {
-      // Rapid: perk + mildly annoyed
-      react('perk');
-      showBubble(annoyedBag.next());
+      // Rapid: squish again (restarted — every click must visibly
+      // land; perk was too subtle here and left clicks 2-3 feeling
+      // dead) + mildly annoyed quip.
+      react('squish');
+      lastPhysicalAt = now;
+      queueTierLine(annoyedBag);
     } else {
-      // Single: nod + a quip. When the context provider has something
-      // relevant to say about the actual booklist, prefer it ~60% of
-      // the time so he feels like he's been paying attention; the
-      // ambient pool covers the rest (and any context gap).
-      react('nod');
-      const quip = (Math.random() < 0.6 ? pickContextQuip() : null)
-        || pickAmbient(currentState);
-      if (quip) showBubble(quip);
+      // Single: tactile squish (a poke deserves a physical response,
+      // not a polite nod) + a verbal response chosen by situation:
+      // - Inside an active physical session (just petted / just
+      //   pestered), or over the tail of a physical line: squish
+      //   only, no commentary (see INTERACTION_QUIET_MS). Lone
+      //   clicks deliberately do NOT extend the window, so the
+      //   solicit-a-comment affordance survives.
+      // - Mid-FRESH-standard-line: he breaks off and acknowledges
+      //   the poke, same instant-interrupt treatment as petting.
+      // - Otherwise (silence, or a standard line he's basically
+      //   finished saying): a context quip when the provider has
+      //   something relevant (~60%), else the ambient pool.
+      react('squish');
+      if (now - lastPhysicalAt > INTERACTION_QUIET_MS) {
+        if (bubbleIsVisible() && bubblePhysical) {
+          // tail of a purr/annoyed line past the quiet window: let it be
+        } else if (bubbleIsVisible() && now - bubbleStartTime < CLICK_INTERRUPT_FRESH_MS) {
+          interruptBubble(clickInterruptBag.next());
+        } else {
+          const quip = (Math.random() < 0.6 ? pickContextQuip() : null)
+            || pickAmbient(currentState);
+          if (quip) showBubble(quip);
+        }
+      }
     }
   }
 
@@ -728,6 +826,48 @@
   ];
   const purrBag = createShuffleBag(purrQuips);
 
+  // When a rub lands while he's mid-sentence, the bubble is cut off
+  // and he reacts to being petted mid-thought. He deliberately does
+  // NOT resume the old line afterwards — losing the train of thought
+  // is the joke, and several lines lampshade it.
+  const petInterruptQuips = [
+    "—mmh. Where was I? *purr*",
+    "I was saying something, but this is better.",
+    "—oh. Oh, that's the spot.",
+    "Hm? Lost my train of thought. *purrr*",
+    "...it'll come back to me. *purr*",
+  ];
+  const petInterruptBag = createShuffleBag(petInterruptQuips);
+
+  // Petting an ANNOYED cat is the way back into his good graces, but
+  // ANGER OVERCOMES PETTING: while the pestered grudge is hot, the
+  // first rub is REBUFFED (his angry line stands; dismissive flick;
+  // no hearts) and only rubbing on through the sulk earns the
+  // grudging-forgiveness line. True to cats: they sulk, you make it
+  // up to them, and it takes a minute.
+  const PESTERED_MEMORY_MS = 6000;
+  const REBUFF_HOLD_MS = 2500;
+  let angerRebuffed = false;
+  let lastRebuffAt = 0;
+
+  const rebuffQuips = [
+    "A rub doesn't undo all that clicking.",
+    "*pointedly ignores the hand*",
+    "Hmph. Not yet.",
+    "Oh, NOW you're nice to me.",
+    "I'm still mad. ...keep going, though.",
+  ];
+  const rebuffBag = createShuffleBag(rebuffQuips);
+
+  const mollifiedQuips = [
+    "...fine. You're forgiven.",
+    "*grudging purr*",
+    "Hmph. ...don't stop, though.",
+    "This doesn't make us even. ...okay, it does.",
+    "Apology accepted. Barely.",
+  ];
+  const mollifiedBag = createShuffleBag(mollifiedQuips);
+
   let petLastX = null;
   let petDir = 0;
   let petExtent = 0;
@@ -759,8 +899,16 @@
       const now = Date.now();
       petStrokes.push(now);
       petStrokes = petStrokes.filter(t => now - t < PET_WINDOW_MS);
-      if (petStrokes.length >= PET_STROKES_NEEDED && now - lastPetAt >= PET_COOLDOWN_MS) {
-        lastPetAt = now;
+      if (now - lastPetAt < PET_COOLDOWN_MS) {
+        // Still in cooldown from the last purr quip, but the hand is
+        // still on the cat — keep the petting ALIVE (hearts + squint)
+        // without spamming new quips. This is what makes sustained
+        // rubbing feel continuous instead of one-shot.
+        continuePet(now);
+      } else if (petStrokes.length >= PET_STROKES_NEEDED) {
+        // lastPetAt is set inside triggerPet, and only for pets that
+        // land as full pets — the anger rebuff/sulk phases leave it
+        // untouched so continued rubbing keeps re-attempting.
         petStrokes = [];
         triggerPet();
       }
@@ -769,15 +917,103 @@
     petExtent = Math.abs(dx);
   }
 
-  function triggerPet() {
-    // No petting during guarded restores, drag-watching, or the wake
-    // sequence (the document-level mousemove listener wakes a sleeping
-    // cat before a rub could ever land on one).
+  /* Sustained rubbing between purr quips: a throttled heart per
+     completed stroke and the satisfied squint refreshed once the
+     previous one has finished (activeReaction check — re-adding the
+     class while it's still on wouldn't restart the animation anyway,
+     see the flatten note in folio.css). */
+  let lastHeartAt = 0;
+
+  function continuePet(now) {
     if (isGuarded || watchHandler || isWaking) return;
+    lastPhysicalAt = now;
+    if (now - lastHeartAt < 700) return;
+    lastHeartAt = now;
+    if (now - lastPesteredAt < PESTERED_MEMORY_MS) {
+      // He's mad: rubs during the pet cooldown get the cold shoulder
+      // (a grump mark, not a heart, and no blissful squint).
+      spawnGrump();
+      return;
+    }
+    spawnHeart();
+    if (!activeReaction) react('satisfied');
+  }
+
+  function triggerPet() {
+    // No petting during drag-watching or the wake sequence (the
+    // document-level mousemove listener wakes a sleeping cat before a
+    // rub could ever land on one).
+    if (watchHandler || isWaking) return;
+    // A real hand on the cat ENDS the guard early. The guard exists
+    // to stop cascading app hooks from stomping a greeting — not to
+    // make him ignore being petted. The greeting he was mid-way
+    // through is exactly what the interrupt lines play against
+    // (pet-during-entrance-greeting was the classic dead spot).
+    if (isGuarded) {
+      isGuarded = false;
+      clearTimeout(guardTimer);
+    }
+    const now = Date.now();
+    lastPhysicalAt = now;
+
+    // ANGER OVERCOMES PETTING: while the grudge is hot, forgiveness
+    // must be earned. Rebuff and sulk phases do NOT set lastPetAt, so
+    // continued rubbing keeps re-attempting (each attempt needs 3
+    // fresh strokes) instead of falling into the 8s quip cooldown.
+    const angerHot = now - lastPesteredAt < PESTERED_MEMORY_MS;
+    if (angerHot) {
+      if (!angerRebuffed) {
+        // Stage 1 — rebuff: his angry line stands, the hand gets a
+        // dismissive tail swish and a grump mark (no hearts, no
+        // blissful squint), and the rebuff line waits its turn behind
+        // whatever he's currently saying.
+        angerRebuffed = true;
+        lastRebuffAt = now;
+        react('tail-swish');
+        spawnGrump();
+        queueTierLine(rebuffBag);
+        return;
+      }
+      if (now - lastRebuffAt < REBUFF_HOLD_MS) {
+        // Mid-sulk: pointedly ignoring the hand. A throttled grump
+        // mark keeps the (rebuffed) effort visible.
+        if (now - lastHeartAt >= 700) {
+          lastHeartAt = now;
+          spawnGrump();
+        }
+        return;
+      }
+      // Stage 2 — persistence pays: grudging forgiveness. The
+      // forgiveness moment is the payoff, so it MAY cut off an angry
+      // line mid-read — the emotional turn justifies the one stomp.
+      lastPesteredAt = 0;
+      angerRebuffed = false;
+      lastPetAt = now;
+      react('satisfied');
+      lastHeartAt = now;
+      spawnHeart();
+      setTimeout(spawnHeart, 280);
+      interruptBubble(mollifiedBag.next());
+      return;
+    }
+
+    // No grudge: joy is instant (squint + hearts), and the purr LINE
+    // follows the bubble grammar — it queues behind his own fresh
+    // physical line (e.g. an annoyed line from two quick clicks),
+    // breaks off a standard line with an interrupted-thought quip,
+    // and purrs plainly into silence.
+    lastPetAt = now;
     react('satisfied');
+    lastHeartAt = now;
     spawnHeart();
     setTimeout(spawnHeart, 280);
-    showBubble(purrBag.next());
+    if (bubbleIsVisible() && bubblePhysical) {
+      followUpBubbleText = purrBag.next();
+    } else if (bubbleIsVisible()) {
+      interruptBubble(petInterruptBag.next());
+    } else {
+      interruptBubble(purrBag.next());
+    }
   }
 
   function spawnHeart() {
@@ -790,6 +1026,27 @@
     heart.style.left = (40 + Math.random() * 20) + '%';
     scene.appendChild(heart);
     setTimeout(() => heart.remove(), 1400);
+  }
+
+  /* Grump mark: the pestered-tier counterpart to the petting heart.
+     One pops per spam click so every click visibly lands even while
+     he holds the flatten slump. Lightly throttled against
+     autoclickers. */
+  let lastGrumpAt = 0;
+
+  function spawnGrump() {
+    if (reducedMotion.matches || folioIsHidden()) return;
+    const now = Date.now();
+    if (now - lastGrumpAt < 180) return;
+    lastGrumpAt = now;
+    const scene = document.getElementById('folio-scene');
+    if (!scene) return;
+    const mark = document.createElement('div');
+    mark.className = 'folio-grump';
+    mark.textContent = '\u{1F4A2}';
+    mark.style.left = (30 + Math.random() * 40) + '%';
+    scene.appendChild(mark);
+    setTimeout(() => mark.remove(), 900);
   }
 
   folioSvg.addEventListener('pointermove', handlePetMove);
@@ -824,7 +1081,11 @@
         const next = pendingBubbleText;
         pendingBubbleText = null;
         pendingBubbleTimer = null;
-        if (next) showBubbleNow(next);
+        // A physical line may have interrupted in while this standard
+        // quip waited (via the follow-up path, which doesn't clear
+        // pendings). Standard loses: dropping a background event quip
+        // beats stomping his in-the-moment response mid-read.
+        if (next && !(bubbleIsVisible() && bubblePhysical)) showBubbleNow(next);
       }, MIN_VISIBLE_MS - elapsed);
       return;
     }
@@ -838,8 +1099,34 @@
     showBubbleNow(text);
   }
 
-  function showBubbleNow(text) {
+  /* Immediate bubble replacement, bypassing the MIN_VISIBLE_MS pacing
+     queue. Reserved for deliberate physical interactions (petting):
+     the pacing rule exists to collapse bursts of async EVENT quips,
+     but when the user's hand is on the cat, the interruption is the
+     point. Also drops any pending deferred bubble — the pet outranks
+     whatever was queued. */
+  function interruptBubble(text) {
+    if (!text) return;
+    if (folioIsHidden()) return;
+    clearTimeout(pendingBubbleTimer);
+    pendingBubbleTimer = null;
+    pendingBubbleText = null;
+    // showBubbleNow also clears any queued follow-up line — important
+    // for the pet-while-pestered reconciliation, which must not be
+    // chased by a stale "I am not a button."
+    showBubbleNow(text, true);
+  }
+
+  function bubbleIsVisible() {
+    return bubble.classList.contains('visible');
+  }
+
+  function showBubbleNow(text, isPhysical) {
     clearTimeout(bubbleTimer);
+    // A new bubble supersedes any queued follow-up (the follow-up
+    // fires below only when the hold expires with nothing new shown).
+    followUpBubbleText = null;
+    bubblePhysical = !!isPhysical;
     bubbleStartTime = Date.now();
     bubble.className = 'speech-bubble';
     bubble.textContent = text;
@@ -854,7 +1141,13 @@
     bubbleTimer = setTimeout(() => {
       bubble.classList.remove('visible');
       bubble.classList.add('hiding');
-      setTimeout(() => { bubble.className = 'speech-bubble'; }, 250);
+      setTimeout(() => {
+        bubble.className = 'speech-bubble';
+        const followUp = followUpBubbleText;
+        followUpBubbleText = null;
+        // Follow-ups are tier lines — physical by definition.
+        if (followUp && !folioIsHidden()) showBubbleNow(followUp, true);
+      }, 250);
     }, hold);
   }
 
@@ -875,6 +1168,8 @@
     yawn: 2500,
     startle: 800,
     satisfied: 1500,
+    squish: 550,
+    flatten: 2000,
     // Idle fidgets (scheduled ambient motion, see FIDGETS below).
     // Durations must match the CSS animation durations — the class is
     // removed on this timer, so a mismatch cuts the motion off early.
@@ -892,11 +1187,22 @@
     if (isGuarded) return;
 
     clearTimeout(reactTimer);
+    const wasActive = folioSvg.classList.contains('react-' + name);
     clearReaction();
 
     if (name === 'watch') {
       startWatch();
       return;
+    }
+
+    // Squish is per-click tactile feedback: when it's re-triggered
+    // mid-play, force a style flush between the class removal above
+    // and the re-add below so the animation RESTARTS — every click
+    // visibly presses him down again. All other reactions keep the
+    // same-frame no-restart behavior (flatten's stay-slumped-under-
+    // spam depends on it).
+    if (name === 'squish' && wasActive) {
+      void folioSvg.getBoundingClientRect();
     }
 
     // Startle: clear sleep droop so the CSS animation can take over

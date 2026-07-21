@@ -106,6 +106,13 @@ body:has(.sidebar.collapsed) .folio-container {
   cursor: pointer;
   width: clamp(140px, 16vw, 280px);
   aspect-ratio: 760 / 466;
+  /* Nothing in the scene is selectable text. Rapid clicks trigger
+     double-click selection and petting rubs drag-select, which swept
+     the heart/grump glyphs (real text nodes) and bubble text into the
+     native blue selection highlight. Descendants inherit via
+     user-select: auto. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #folio-scene svg {
@@ -1842,6 +1849,159 @@ body:has(.sidebar.collapsed) .folio-container {
     100% { transform: rotate(0deg); }
   }
 
+  /* --- SQUISH ---
+     Tactile press-down when the cat is clicked: he compresses like a
+     stress ball and springs back with a real overshoot. Replaces the
+     old nod on the single-click path (a poke deserves a physical
+     response). The head is over half the cat visually, so it carries
+     the squash: deep drop + compression, ears SPLAY outward on
+     impact, eyes squeeze shut then pop wide on the rebound (that
+     eye beat is what sells the impact). Press lands fast (18% of
+     0.55s ≈ 100ms) because tactile feedback reads by snappiness.
+     Duration: 0.55s */
+  #folio.react-squish #body {
+    animation: reactSquishBody 0.55s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactSquishBody {
+    0%   { transform: scaleY(1) scaleX(1); }
+    18%  { transform: scaleY(0.82) scaleX(1.12) translateY(3px); }
+    55%  { transform: scaleY(1.07) scaleX(0.96) translateY(-3px); }
+    78%  { transform: scaleY(0.97) scaleX(1.01); }
+    100% { transform: scaleY(1) scaleX(1); }
+  }
+  #folio.react-squish #head-group {
+    animation: reactSquishHead 0.55s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactSquishHead {
+    0%   { transform: translateY(0) scaleY(1); }
+    18%  { transform: translateY(38px) scaleY(0.88); }
+    55%  { transform: translateY(-8px) scaleY(1.04); }
+    78%  { transform: translateY(3px) scaleY(0.99); }
+    100% { transform: translateY(0) scaleY(1); }
+  }
+  #folio.react-squish .ear-left-anim {
+    animation: reactSquishEarL 0.55s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactSquishEarL {
+    0%   { transform: rotate(0deg); }
+    18%  { transform: rotate(16deg); }
+    55%  { transform: rotate(-5deg); }
+    100% { transform: rotate(0deg); }
+  }
+  #folio.react-squish .ear-right-anim {
+    animation: reactSquishEarR 0.55s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactSquishEarR {
+    0%   { transform: rotate(0deg); }
+    18%  { transform: rotate(-16deg); }
+    55%  { transform: rotate(5deg); }
+    100% { transform: rotate(0deg); }
+  }
+  #folio.react-squish #eyes {
+    animation: reactSquishEyes 0.55s ease-out forwards !important;
+  }
+  @keyframes reactSquishEyes {
+    0%   { transform: scaleY(1); }
+    18%  { transform: scaleY(0.15); }
+    50%  { transform: scaleY(1.18); }
+    75%  { transform: scaleY(1.05); }
+    100% { transform: scaleY(1); }
+  }
+  #folio.react-squish #front-legs {
+    animation: reactSquishLegs 0.55s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactSquishLegs {
+    0%   { transform: scaleY(1); }
+    18%  { transform: scaleY(0.88) scaleX(1.06); }
+    55%  { transform: scaleY(1.03); }
+    100% { transform: scaleY(1); }
+  }
+  #folio.react-squish #glasses {
+    animation: reactSquishGlasses 0.55s ease-out forwards !important;
+    animation-delay: 0.04s !important;
+  }
+  @keyframes reactSquishGlasses {
+    0%   { transform: translateY(0) rotate(0deg); }
+    28%  { transform: translateY(7px) rotate(2deg); }
+    60%  { transform: translateY(-3px) rotate(-1deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+  }
+
+  /* --- FLATTEN ---
+     Exhausted sag for the click-spam (pestered) tier: the opposite of
+     squish's springy bounce. He deflates — body slumps wide and low,
+     head droops into the shoulders, ears flatten, eyes half-lid —
+     holds the slump for a weary beat, then slowly reinflates. Timing
+     IS the message: squish says "boop received", flatten says "I am
+     so tired of you". Re-triggering mid-animation does not restart it
+     (same-class remove+add in one frame doesn't reset the animation),
+     so sustained spam reads as him staying flattened.
+     Duration: 2s */
+  #folio.react-flatten #body {
+    animation: reactFlattenBody 2s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactFlattenBody {
+    0%   { transform: scaleY(1) scaleX(1); }
+    18%  { transform: scaleY(0.84) scaleX(1.09) translateY(2px); }
+    55%  { transform: scaleY(0.85) scaleX(1.08) translateY(2px); }
+    100% { transform: scaleY(1) scaleX(1); }
+  }
+  #folio.react-flatten #head-group {
+    animation: reactFlattenHead 2s cubic-bezier(0.37,0,0.63,1) forwards !important;
+  }
+  @keyframes reactFlattenHead {
+    0%   { transform: translateY(0) rotate(0deg) scaleY(1); }
+    18%  { transform: translateY(28px) rotate(-2deg) scaleY(0.96); }
+    55%  { transform: translateY(26px) rotate(-1.5deg) scaleY(0.97); }
+    100% { transform: translateY(0) rotate(0deg) scaleY(1); }
+  }
+  #folio.react-flatten .ear-left-anim {
+    animation: reactFlattenEarL 2s ease-in-out forwards !important;
+  }
+  @keyframes reactFlattenEarL {
+    0%   { transform: rotate(0deg); }
+    18%  { transform: rotate(14deg); }
+    55%  { transform: rotate(12deg); }
+    100% { transform: rotate(0deg); }
+  }
+  #folio.react-flatten .ear-right-anim {
+    animation: reactFlattenEarR 2s ease-in-out forwards !important;
+  }
+  @keyframes reactFlattenEarR {
+    0%   { transform: rotate(0deg); }
+    18%  { transform: rotate(-14deg); }
+    55%  { transform: rotate(-12deg); }
+    100% { transform: rotate(0deg); }
+  }
+  #folio.react-flatten #eyes {
+    animation: reactFlattenEyes 2s ease-in-out forwards !important;
+  }
+  @keyframes reactFlattenEyes {
+    0%   { transform: scaleY(1); }
+    15%  { transform: scaleY(0.45); }
+    60%  { transform: scaleY(0.5); }
+    100% { transform: scaleY(1); }
+  }
+  #folio.react-flatten #glasses {
+    animation: reactFlattenGlasses 2s ease-in-out forwards !important;
+    animation-delay: 0.08s !important;
+  }
+  @keyframes reactFlattenGlasses {
+    0%   { transform: translateY(0) rotate(0deg); }
+    25%  { transform: translateY(5px) rotate(0.8deg); }
+    60%  { transform: translateY(4px) rotate(0.5deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+  }
+  #folio.react-flatten #front-legs {
+    animation: reactFlattenLegs 2s ease-in-out forwards !important;
+  }
+  @keyframes reactFlattenLegs {
+    0%   { transform: scaleY(1); }
+    18%  { transform: scaleY(0.93) scaleX(1.03); }
+    55%  { transform: scaleY(0.94) scaleX(1.03); }
+    100% { transform: scaleY(1); }
+  }
+
   /* --- STRETCH (idle fidget) ---
      A seated cat stretch: gather down, arch tall, settle. Scheduled
      randomly by the fidget timer in folio.js, never event-driven.
@@ -1994,6 +2154,24 @@ body:has(.sidebar.collapsed) .folio-container {
     20%  { transform: translateY(-8px) scale(1); opacity: 0.9; }
     100% { transform: translateY(-48px) scale(0.85) rotate(6deg); opacity: 0; }
   }
+
+  /* Grump mark: pestered-tier counterpart to the heart. Pops with an
+     annoyed shake, drifts up, fades. One per spam click (see
+     spawnGrump in folio.js). */
+  .folio-grump {
+    position: absolute;
+    top: 10%;
+    font-size: 15px;
+    pointer-events: none;
+    z-index: 9;
+    animation: folioGrumpPop 0.85s ease-out forwards;
+  }
+  @keyframes folioGrumpPop {
+    0%   { transform: translateY(4px) scale(0.3) rotate(-8deg); opacity: 0; }
+    18%  { transform: translateY(0) scale(1.15) rotate(6deg); opacity: 1; }
+    32%  { transform: translateY(-2px) scale(1) rotate(-4deg); }
+    100% { transform: translateY(-30px) scale(0.9) rotate(0deg); opacity: 0; }
+  }
 /* =============================================================================
    MOBILE (matches the stacked-layout breakpoint in styles.css)
    The toggle lives in the header now, so only the cat SCENE floats in
@@ -2037,7 +2215,8 @@ body:has(.sidebar.collapsed) .folio-container {
 @media (prefers-reduced-motion: reduce) {
   #folio-container #folio,
   #folio-container #folio *,
-  #folio-container .folio-heart {
+  #folio-container .folio-heart,
+  #folio-container .folio-grump {
     animation: none !important;
     transition: none !important;
   }
