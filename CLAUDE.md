@@ -105,10 +105,19 @@ assets/
                                 with pre-existing drafts that still reference it.
     og-image.jpg                1200x630 social share card referenced by the
                                 og:image / twitter:image tags on all 7 pages.
-                                Not used by the app itself. Regenerate only if
-                                the brand or the value proposition changes; the
-                                source is an HTML card rendered in headless
-                                Chromium, not a hand-edited raster.
+                                Not used by the app itself. Built by rendering
+                                an HTML card in headless Chromium at 2x and
+                                downscaling. The two page images in it are real
+                                app output, not a drawn mockup: the collage from
+                                generateCoverCollage, and #front-cover-panel /
+                                #inside-left-panel screenshotted with print-mode
+                                applied so they carry the real page margins and
+                                no editor chrome. The generator is NOT committed,
+                                so regenerating means rebuilding it. Type is
+                                sized for feed rendering (platforms display this
+                                at ~360-550px wide, a 0.3-0.45x shrink): keep
+                                text at 24px minimum here, since anything smaller
+                                is illegible in an actual unfurl.
     libraries/<id>/logo.png     Per-library branding images. Each branded library's
                                 Firestore doc points at its path here.
 admin/                          Separate admin console app served at
