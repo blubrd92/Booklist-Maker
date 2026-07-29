@@ -103,6 +103,12 @@ assets/
                                 (not referenced by the admin UI or tool on public
                                 instances), kept on disk for backward compatibility
                                 with pre-existing drafts that still reference it.
+    og-image.jpg                1200x630 social share card referenced by the
+                                og:image / twitter:image tags on all 7 pages.
+                                Not used by the app itself. Regenerate only if
+                                the brand or the value proposition changes; the
+                                source is an HTML card rendered in headless
+                                Chromium, not a hand-edited raster.
     libraries/<id>/logo.png     Per-library branding images. Each branded library's
                                 Firestore doc points at its path here.
 admin/                          Separate admin console app served at
@@ -599,6 +605,8 @@ Six plain HTML pages live at the repo root alongside `index.html`:
 **Typography accent**: Content page `<h1>` uses EB Garamond serif to match the existing header-credit font, giving content pages a slightly literary feel while the tool body stays Inter.
 
 **Meta tags**: Each content page and `index.html` include `<link rel="canonical">`, Open Graph, and Twitter card tags. Canonical URLs all point at `https://booklister.org/...`.
+
+All 7 pages share ONE social share image, `assets/img/og-image.jpg` (1200x630), declared via `og:image` + the `og:image:type` / `:width` / `:height` / `:alt` companions and `twitter:image`. Because a share image is present, `twitter:card` is `summary_large_image` on every page, not `summary` — if you ever remove the image, flip that back or the unfurl reserves space for a picture that never arrives. Titles and descriptions stay per-page; only the image is shared. The image is absolute-URL referenced (crawlers do not resolve relative paths reliably), so a new page needs the full `https://booklister.org/assets/img/og-image.jpg`, not `assets/img/og-image.jpg`.
 
 ## Code Patterns
 
