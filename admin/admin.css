@@ -213,9 +213,33 @@ body {
 
 #admin-signin > .admin-signin-divider,
 #admin-signin > .admin-email-signin-form,
-#admin-signin > .admin-error {
+#admin-signin > .admin-error,
+#admin-signin > .admin-legal-note {
   width: 100%;
   max-width: 400px;
+}
+
+/* Sign-in-wrap notice at the foot of the sign-in card. Quiet but legible
+   — small-and-grey is fine, small-and-invisible defeats the purpose.
+   Scoped through #admin-signin on purpose: `.admin-section p` (0,1,1)
+   sets color and margin on every paragraph in the card and would
+   outrank a bare `.admin-legal-note` (0,1,0), silently reverting both. */
+#admin-signin .admin-legal-note {
+  margin: 24px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--admin-border);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--admin-text-light);
+}
+
+#admin-signin .admin-legal-note a {
+  color: var(--admin-primary);
+  text-decoration: underline;
+}
+
+#admin-signin .admin-legal-note a:hover {
+  color: var(--admin-primary-hover);
 }
 
 #admin-signin > .admin-email-signin-form {

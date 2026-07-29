@@ -65,6 +65,19 @@
       </form>
 
       <p id="admin-signin-error" class="admin-error" hidden></p>
+
+      <!-- Sign-in-wrap notice, covering both paths above (Google for the
+           owner, email for library admins). Absolute URLs because the
+           content pages live on the apex domain, not this subdomain, and
+           target="_blank" so reading them doesn't discard a half-typed
+           sign-in. Mirrors .auth-legal-note in the main tool's login
+           modal; deliberately a separate implementation, since admin/ and
+           assets/ share no code. -->
+      <p class="admin-legal-note">
+        By signing in, you agree to the
+        <a href="https://booklister.org/terms.html" target="_blank" rel="noopener">Terms</a>
+        and <a href="https://booklister.org/privacy.html" target="_blank" rel="noopener">Privacy policy</a>.
+      </p>
     </section>
 
     <!-- Signed in but not authorized -->
