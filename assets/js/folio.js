@@ -1121,6 +1121,25 @@
     return bubble.classList.contains('visible');
   }
 
+  /* Hard stop on all speech: drops the visible bubble and every queued
+     line (pacing defer + follow-up slot). Used when Folio is toggled
+     off — hiding him should silence him completely, and toggling back
+     on must not resurrect a sentence from the previous session. */
+  function silenceBubble() {
+    clearTimeout(bubbleTimer);
+    clearTimeout(pendingBubbleTimer);
+    pendingBubbleTimer = null;
+    pendingBubbleText = null;
+    followUpBubbleText = null;
+    bubblePhysical = false;
+    bubbleStartTime = 0;
+    bubble.className = 'speech-bubble';
+    // Also drop the text itself: the normal hide path leaves the last
+    // line in textContent (harmless while he's live), but a hidden
+    // Folio shouldn't be holding a stale sentence in a role="status".
+    bubble.textContent = '';
+  }
+
   function showBubbleNow(text, isPhysical) {
     clearTimeout(bubbleTimer);
     // A new bubble supersedes any queued follow-up (the follow-up
@@ -1306,6 +1325,11 @@
         resetInactivity();
       } else {
         clearTimeout(inactivityTimer);
+        // Hiding him ends the conversation: drop the current line and
+        // anything queued, and clear any in-flight reaction so he
+        // isn't mid-squish when summoned back.
+        silenceBubble();
+        clearReaction();
       }
     });
   }
