@@ -165,6 +165,28 @@
   color: var(--primary-hover);
 }
 
+/* Sign-in-wrap notice under the submit button. Deliberately quiet but
+   legible — small-and-grey is fine, small-and-invisible is not, since the
+   whole point is that a signing-in staff member can actually see it. */
+#auth-modal .auth-legal-note {
+  margin: 2px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-light);
+  text-align: center;
+}
+
+#auth-modal .auth-legal-note a {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+#auth-modal .auth-legal-note a:hover {
+  color: var(--primary-hover);
+}
+
 #auth-error {
   color: var(--danger-color);
   font-size: 0.85rem;

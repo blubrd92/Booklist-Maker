@@ -1111,6 +1111,17 @@
         <div id="auth-reset-confirm" role="status" aria-live="polite" hidden></div>
         <button id="auth-signin-submit" type="submit">Sign in</button>
         <button id="auth-forgot-link" type="button">Forgot password?</button>
+        <!-- Sign-in-wrap notice. Only ever rendered on gated branded
+             instances (the modal never opens on the public tool), which is
+             the one place in Booklister with an affirmative account action
+             to attach assent to. Absolute URLs because this renders on
+             library subdomains, and target="_blank" so reading the terms
+             doesn't discard a half-typed sign-in. -->
+        <p class="auth-legal-note">
+          By signing in, you agree to the
+          <a href="https://booklister.org/terms.html" target="_blank" rel="noopener">Terms</a>
+          and <a href="https://booklister.org/privacy.html" target="_blank" rel="noopener">Privacy policy</a>.
+        </p>
       </form>
     </div>
   </div>
