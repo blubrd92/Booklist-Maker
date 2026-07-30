@@ -1,0 +1,9 @@
+# Revisions to skip when running git blame: bulk reformatting that changed
+# no code. GitHub's blame view reads this file automatically.
+#
+# Enable locally with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Normalize line endings and stop whole-file diffs
+# (CRLF -> LF across ten files; line endings only, zero content change)
+1e9287a251172c988984804978b2f738d95c0d5e
