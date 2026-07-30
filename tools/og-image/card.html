@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<!--
+  Design template for assets/img/og-image.jpg, the social share card.
+  Rendered by tools/og-image/build.mjs; not served to anyone.
+
+  Three tokens are substituted at build time:
+    __FONT_FACES__   inlined @font-face blocks (Inter + EB Garamond)
+    __INSIDE_SRC__   data URL of the real #inside-left-panel capture
+    __COVER_SRC__    data URL of the real #front-cover-panel capture
+
+  Type sizing is the one constraint to respect when editing. Platforms
+  render this at roughly 360-550px wide, a 0.3-0.45x shrink, so anything
+  below 24px here is unreadable where it actually gets seen. That is why
+  the card carries only a wordmark, a headline, one support line, and the
+  URL: the unfurl already shows og:description and the domain as real
+  text beside the image, so repeating them small wastes the legible area.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+__FONT_FACES__
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #1b2429;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+
+  .card {
+    position: relative;
+    width: 1200px; height: 630px;
+    overflow: hidden;
+    background:
+      radial-gradient(120% 150% at 78% 46%, rgba(92,107,192,.30) 0%, rgba(92,107,192,0) 58%),
+      radial-gradient(90% 120% at 8% 8%, rgba(120,144,156,.16) 0%, rgba(120,144,156,0) 60%),
+      linear-gradient(158deg, #2c3a41 0%, #222d33 45%, #182025 100%);
+  }
+
+  /* faint ruled texture: the ghost of a catalog card */
+  .rules {
+    position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom, rgba(255,255,255,.030) 0 1px, rgba(255,255,255,0) 1px 42px);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 18%, #000 82%, transparent 100%);
+  }
+
+  .frame { position: absolute; inset: 26px; border: 1px solid rgba(255,255,255,.075); }
+
+  /* ---------- left column ---------- */
+  .copy {
+    position: absolute; left: 76px; top: 0; height: 630px; width: 560px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+
+  .brand { display: flex; align-items: center; gap: 15px; margin-bottom: 36px; }
+  .brand svg { display: block; }
+  .brand .name { font-size: 32px; font-weight: 700; letter-spacing: -.017em; color: #fff; }
+
+  h1 {
+    font-family: 'EB Garamond', serif; font-weight: 400;
+    font-size: 66px; line-height: 1.08; letter-spacing: -.012em;
+    color: #fff; margin-bottom: 30px;
+  }
+  h1 em { font-style: italic; color: #aab4ec; }
+
+  .sub {
+    font-size: 29px; font-weight: 500; line-height: 1.4;
+    color: rgba(255,255,255,.72); max-width: 520px;
+  }
+
+  /* Fallback for the detached-image case (screenshot, download), where
+     no platform is supplying the domain. Deliberately larger than a
+     footnote so it survives at all. */
+  .url { display: flex; align-items: center; gap: 14px; margin-top: 38px; }
+  .url .bar { width: 30px; height: 2px; background: #8e9ce0; flex: none; }
+  .url .txt { font-size: 24px; font-weight: 600; letter-spacing: .005em; color: #c3ccef; }
+
+  /* ---------- right column: the actual exported pages ---------- */
+  .stage {
+    position: absolute; right: 0; top: 0; width: 606px; height: 630px;
+    transform: translateX(-10px) scale(.925);
+    transform-origin: 50% 50%;
+  }
+
+  .sheet { position: absolute; background: #fff; }
+  .sheet img { display: block; width: 100%; height: 100%; object-fit: fill; }
+
+  /* Both sheets are the same real 5.5x8.5 panel (1056 x 1632 captured),
+     so they must stay at the same aspect or the pages stop matching. */
+  .inside {
+    left: 6px; top: 62px; width: 318px; height: 491px;
+    transform: rotate(-6.4deg);
+    box-shadow: 0 26px 50px -18px rgba(0,0,0,.5);
+  }
+  .cover {
+    left: 236px; top: 66px; width: 322px; height: 498px;
+    transform: rotate(2.4deg);
+    box-shadow:
+      0 40px 70px -18px rgba(0,0,0,.62),
+      0 12px 26px -8px rgba(0,0,0,.42),
+      0 0 0 1px rgba(255,255,255,.07);
+  }
+
+  /* a hint of paper sheen across both sheets */
+  .grain {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(112deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 34%);
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="rules"></div>
+  <div class="frame"></div>
+
+  <div class="copy">
+    <div class="brand">
+      <svg width="35" height="35" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+        <path d="M15 7.4C12.6 5.7 9.9 5.1 6.6 5.4a1.3 1.3 0 0 0-1.2 1.3v14.1c0 .8.7 1.4 1.5 1.3 3-.3 5.5.3 7.6 1.8a.9.9 0 0 0 1 0c2.1-1.5 4.6-2.1 7.6-1.8.8.1 1.5-.5 1.5-1.3V6.7a1.3 1.3 0 0 0-1.2-1.3c-3.3-.3-6 .3-8.4 2Z"
+              stroke="#8e9ce0" stroke-width="1.7" stroke-linejoin="round"/>
+        <path d="M15 7.6v16.1" stroke="#8e9ce0" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+      <span class="name">Booklister</span>
+    </div>
+
+    <h1>Print&#8209;ready booklists<br>for <em>library displays</em>.</h1>
+
+    <p class="sub">Free. No accounts.<br>Nothing leaves your browser.</p>
+
+    <div class="url">
+      <span class="bar"></span>
+      <span class="txt">booklister.org</span>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="sheet inside">
+      <img src="__INSIDE_SRC__" alt="">
+      <div class="grain"></div>
+    </div>
+    <div class="sheet cover">
+      <img src="__COVER_SRC__" alt="">
+      <div class="grain"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

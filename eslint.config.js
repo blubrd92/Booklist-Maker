@@ -155,13 +155,28 @@ export default [
     // Build tooling that runs in Node, not in a browser or extension
     // runtime. Separate block so we don't inherit the extension's
     // browser/service-worker globals.
-    files: ["extension/build-zips.mjs"],
+    //
+    // Neither of these is needed for the site to work: build-zips.mjs
+    // packages the extension for store upload, tools/og-image rebuilds
+    // the social share card. Both are run on demand.
+    files: ["extension/build-zips.mjs", "tools/**/*.mjs"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
       globals: {
         console: "readonly",
         process: "readonly",
+        Buffer: "readonly",
+        // tools/og-image/build.mjs passes callbacks to page.evaluate().
+        // Their bodies are authored here but execute in the browser, so
+        // these are legitimately defined at the point they run.
+        window: "readonly",
+        document: "readonly",
+        Image: "readonly",
+        fetch: "readonly",
+        setTimeout: "readonly",
+        // the driven page's own global, reached inside page.evaluate
+        BooklistApp: "readonly",
       },
     },
     rules: {

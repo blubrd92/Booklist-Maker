@@ -4,10 +4,11 @@
   "type": "module",
   "description": "Web-based application for creating, customizing, and exporting printable booklists",
   "scripts": {
-    "lint": "eslint assets/js/ extension/",
+    "lint": "eslint assets/js/ extension/ tools/",
     "test": "vitest run",
     "test:watch": "vitest",
-    "package:extension": "node extension/build-zips.mjs"
+    "package:extension": "node extension/build-zips.mjs",
+    "build:og": "node tools/og-image/build.mjs"
   },
   "keywords": [],
   "author": "",

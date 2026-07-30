@@ -22,12 +22,21 @@ python -m http.server 8000
 ## Development Commands
 
 ```bash
-npm run lint        # ESLint on assets/js/
+npm run lint        # ESLint on assets/js/, extension/, tools/
 npm run test        # Vitest (one-shot)
 npm run test:watch  # Vitest (watch mode)
 ```
 
 Lint and test should both pass before committing changes to JavaScript files.
+
+Two on-demand utilities exist that the site never needs. Neither runs on
+install, in CI, or at page load; the app works exactly the same having never
+run either:
+
+```bash
+npm run package:extension  # per-browser extension zips (node builtins only)
+npm run build:og           # rebuild assets/img/og-image.jpg (needs Chromium)
+```
 
 ## Architecture
 
@@ -105,19 +114,9 @@ assets/
                                 with pre-existing drafts that still reference it.
     og-image.jpg                1200x630 social share card referenced by the
                                 og:image / twitter:image tags on all 7 pages.
-                                Not used by the app itself. Built by rendering
-                                an HTML card in headless Chromium at 2x and
-                                downscaling. The two page images in it are real
-                                app output, not a drawn mockup: the collage from
-                                generateCoverCollage, and #front-cover-panel /
-                                #inside-left-panel screenshotted with print-mode
-                                applied so they carry the real page margins and
-                                no editor chrome. The generator is NOT committed,
-                                so regenerating means rebuilding it. Type is
-                                sized for feed rendering (platforms display this
-                                at ~360-550px wide, a 0.3-0.45x shrink): keep
-                                text at 24px minimum here, since anything smaller
-                                is illegible in an actual unfurl.
+                                Not used by the app itself. Regenerate with
+                                `npm run build:og` (see tools/og-image/); do not
+                                hand-edit the raster.
     libraries/<id>/logo.png     Per-library branding images. Each branded library's
                                 Firestore doc points at its path here.
 admin/                          Separate admin console app served at
@@ -203,6 +202,38 @@ extension/                      Browser extension (Manifest V3) — captures boo
   README.md                     Usage, settings, privacy posture, store links.
   STORE_LISTING.md              Store listing copy + per-version release notes
                                 (every manifest version bump needs an entry).
+tools/                          On-demand developer utilities. NOTHING here is
+                                needed for the site to work, and nothing runs on
+                                install, in CI, or at page load.
+  og-image/build.mjs            Rebuilds assets/img/og-image.jpg
+                                (`npm run build:og`). Unlike
+                                extension/build-zips.mjs this is NOT
+                                dependency-free: it drives a real browser, so it
+                                needs playwright-core + a Chromium binary, both
+                                deliberately kept OUT of package.json so a clean
+                                checkout and the SessionStart `npm install`
+                                never pay for a tool used once a year. It exits
+                                with install instructions if they're absent.
+                                Drives the actual app rather than mocking it up:
+                                applies a state through BooklistApp.applyState,
+                                calls generateCoverCollage, then screenshots
+                                #front-cover-panel and #inside-left-panel with
+                                print-mode applied, so the page images on the
+                                card carry the real margins and no editor
+                                chrome. Cover art is abstract and the titles are
+                                invented, on purpose — no fabricated jacket art
+                                for real books.
+  og-image/card.html            The card's design, as an editable template with
+                                __FONT_FACES__ / __COVER_SRC__ / __INSIDE_SRC__
+                                tokens. Edit this, not the JPEG. Respect the
+                                24px type floor documented in its header
+                                comment: platforms render the card at ~360-550px
+                                wide (a 0.3-0.45x shrink), so smaller type is
+                                illegible where it's actually seen. Header
+                                comments are stripped before substitution
+                                because they mention the token names — without
+                                that, the first match is in the comment and the
+                                real img src never gets filled.
 tests/
   setup.js                      Loads config.js + book-utils.js into jsdom via eval
   book-utils.test.js            Unit tests for all BookUtils functions
@@ -773,7 +804,8 @@ When editing one file, check these related files:
 | CSS class names or IDs | `app.js` (DOM queries), `tour.js` (spotlight targets), `styles.css` |
 | Folio states or reactions | `folio.js` (definitions), `app.js` (triggers), `tour.js` (tour narration) |
 | BooklistApp public API | `tour.js` (calls `enterTourMode`, `exitTourMode`, `applyState`, `generateCoverCollage`, `updateBackCoverVisibility`, `resetZoom`) |
-| Tour sample state (`TOUR_SAMPLE_STATE`) | `tour.js` (embedded constant), must match `serializeState()` schema in `app.js` |
+| Tour sample state (`TOUR_SAMPLE_STATE`) | `tour.js` (embedded constant), must match `serializeState()` schema in `app.js`. `tools/og-image/build.mjs` also parses this literal out of `tour.js` by name to use as its state template, so renaming the constant breaks the share-image build |
+| `#front-cover-panel` / `#inside-left-panel` / `#preview-area` IDs, or the `print-mode` class | `tools/og-image/build.mjs` screenshots those panels and toggles that class. It fails loudly rather than silently, but it does need updating |
 | `serializeState()` schema in `app.js` (saved state shape) | `applyState()` in `app.js` (must read every new field), `BookUtils.isDraftStateEffectivelyEmpty` in `book-utils.js` if the new field is user "content" (otherwise the draft-restored toast will silently suppress for drafts that contain only the new field), `tests/book-utils.test.js` (extend the `emptyState` helper + add a "returns false when X is set" case), `TOUR_SAMPLE_STATE` in `tour.js` |
 | Firestore rules (`firestore.rules`) | `admin/admin.js` (writes it depends on), `library-config.js` (reads it depends on), `app.js` (the auth state driver in the library-config-ready handler). After editing rules, **manually deploy them** via the Firebase console (there's no CLI in this project) and run the Rules Playground on the "reference" cases before clicking Publish. |
 | Library doc schema (`libraries/<id>` or `libraries-public/<id>`) | `admin/admin.js` (form + openLibraryModal + handleLibraryFormSubmit), `app.js` `applyLibraryConfig()`, `library-config.js` (if the schema has new fields the loader should handle). |
