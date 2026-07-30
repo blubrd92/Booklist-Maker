@@ -1,0 +1,34 @@
+# Line endings.
+#
+# This repo grew a mix. index.html, tour.js, folio.js, book-utils.js,
+# styles.css, folio.css, tour.css, eslint.config.js, vitest.config.js and
+# tests/setup.js were stored with CRLF; everything else used LF. Nothing
+# depends on that split, but it set a trap: any tool that rewrites a file
+# whole (a codemod, a formatter, a quick script) silently flips its
+# endings, and the commit then shows every line as changed with the real
+# edit buried somewhere inside. That happened twice in a single session.
+#
+# text=auto tells git to store text files as LF in the repository no
+# matter what the working copy uses, so a rewrite that changes endings is
+# simply not a diff any more. Windows checkouts still get CRLF locally if
+# core.autocrlf is set; nothing about editing on Windows changes.
+#
+# The commit that introduced this renormalized those ten files in one go.
+# It is listed in .git-blame-ignore-revs so `git blame` and GitHub's blame
+# view skip straight past it to the real authorship.
+* text=auto
+
+# Binary assets. text=auto already sniffs these correctly, but saying so
+# explicitly means a new contributor's misconfigured client cannot corrupt
+# a cover image or a font by "fixing" its line endings.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.zip   binary
+*.pdf   binary
