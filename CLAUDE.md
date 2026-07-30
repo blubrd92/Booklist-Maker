@@ -459,7 +459,13 @@ Animated SVG cat companion with state-based animations and contextual quips.
 
 ## Tour System
 
-Guided tour with 6 sections: Getting Started, Search & Add Books, Your Booklist, Front Cover, Customize & Style, Export & Finish. (Step counts drift as steps are added; one step — the Magic button — is conditional on the AI drafter being enabled, so don't cache a total here.)
+Guided tour with 6 sections: Getting Started, Search & Add Books, Your Booklist, Front Cover, Customize & Style, Export & Finish. (Step counts drift as steps are added, so don't cache a total here.)
+
+**Conditional steps come in matched pairs.** A step may carry a `condition()`; `showCurrentStep()` skips it when that returns false. The "Your Booklist" section uses this for a mutually exclusive pair occupying one slot, both gated on the `drafterEnabled()` helper at the top of `tour.js`: the **Magic button** step when the AI drafter is available, and a **write-the-description-yourself** step (spotlighting `.description-field`, mentioning that pasted text is stripped to plain text) when it isn't. The pair keeps the section the same length everywhere instead of the public tool coming up a step short. If you add another conditional step, prefer a pair over a bare skip, and keep the alternatives exhaustive.
+
+**Step counting is condition-aware.** `currentStepIndex` indexes the raw `steps` array, but every user-facing count goes through `isStepVisible` / `visibleStepCount` / `visibleStepOffset`. Counting the raw array both overstates the total and leaves a hole in the numbering (the public tool used to read "3 / 7" and jump straight to "5 / 7"). These helpers feed the panel's step counter, the section-picker card counts, and the full-tour total. Anything that *walks or seeks* steps still uses raw indices.
+
+**A conditional step must not be first or last in its section.** The skip logic moves one index in the direction of travel and gives up if that leaves the section, so a hidden step at either edge would strand the panel on stale content instead of advancing the section or finishing the tour. All conditional steps today sit mid-section; putting one at an edge means teaching the skip path to hand off to `nextStep()` / `prevStep()` first.
 
 - Section picker modal at start, or launch specific section
 - Spotlight overlay highlighting target elements

@@ -16,12 +16,28 @@
        title, description, icon (Font Awesome class), steps[]
 
      Each step has:
-       target   - CSS selector for spotlight (null for general/no-target)
-       text     - Folio's narration
-       state    - Folio animation state
-       prepare  - optional function to set up the view (open tabs, scroll, etc.)
-       padding  - optional extra px around spotlight (default 8)
+       target    - CSS selector for spotlight (null for general/no-target)
+       text      - Folio's narration
+       state     - Folio animation state
+       prepare   - optional function to set up the view (open tabs, scroll, etc.)
+       padding   - optional extra px around spotlight (default 8)
+       condition - optional; step is skipped when it returns false
      ---------------------------------------------------------------- */
+
+  /**
+   * Whether the AI drafter (the Magic button) is available here. False on
+   * the public tool, and on any branded instance with disableAutodrafter.
+   *
+   * The "Your Booklist" section has a matched PAIR of steps gated on this,
+   * in the same slot: the Magic button step when it's true, and a
+   * write-it-yourself step on the description field when it's false. They
+   * are mutually exclusive by construction, so the section is the same
+   * length either way rather than coming up a step short on the public
+   * tool. If you add a third state, keep the pair exhaustive.
+   */
+  function drafterEnabled() {
+    return !!(window.LIBRARY_CONFIG && !window.LIBRARY_CONFIG.disableAutodrafter);
+  }
 
   const SECTION_ORDER = [
     'getting-started',
@@ -199,12 +215,21 @@
           target: '#inside-left-panel .list-item:first-child .magic-button',
           text: "The magic wand drafts a description for you. Shift+click the wand to paste your own summary for the drafter to condense. You can always edit a draft or write your own from scratch.",
           state: 'evaluating',
-          // Only show this step when the AI drafter is enabled.
-          // On the public tool or instances with it disabled, the
-          // magic button isn't rendered and this step is skipped.
-          condition: function() {
-            return window.LIBRARY_CONFIG && !window.LIBRARY_CONFIG.disableAutodrafter;
+          // Drafter-enabled half of the pair described at drafterEnabled().
+          // The magic button isn't rendered without it, so this step would
+          // spotlight nothing.
+          condition: drafterEnabled,
+          prepare: function() {
+            scrollPreviewTo('print-page-2');
           },
+        },
+        {
+          target: '#inside-left-panel .list-item:first-child .description-field',
+          text: "The description is the blurb your patrons actually read. Click in and write your own, or paste one in from your catalog: the formatting gets stripped automatically, so pasted text always matches the rest of your list.",
+          state: 'evaluating',
+          // No-drafter half of the pair. Same slot, same subject (getting
+          // description text in), minus the AI.
+          condition: function() { return !drafterEnabled(); },
           prepare: function() {
             scrollPreviewTo('print-page-2');
           },
@@ -884,23 +909,56 @@
     }
   }
 
+  /* ----------------------------------------------------------------
+     Step counting is CONDITION-AWARE.
+
+     showCurrentStep() skips a step whose condition() is false by
+     advancing the index, but currentStepIndex still indexes the raw
+     array. Counting the raw array therefore both overstates the total
+     and leaves a visible hole in the numbering: with one step hidden,
+     the public tool used to read "3 / 7" and then jump to "5 / 7".
+
+     So every user-facing count runs through these helpers. Anything
+     that walks or seeks steps keeps using raw indices.
+     ---------------------------------------------------------------- */
+
+  function isStepVisible(step) {
+    return !step.condition || !!step.condition();
+  }
+
+  function visibleStepCount(section) {
+    return section.steps.filter(isStepVisible).length;
+  }
+
+  /** 0-based position of a raw index among its section's visible steps. */
+  function visibleStepOffset(section, rawIndex) {
+    let n = 0;
+    for (let i = 0; i < rawIndex && i < section.steps.length; i++) {
+      if (isStepVisible(section.steps[i])) n++;
+    }
+    return n;
+  }
+
   function totalSteps() {
     if (!currentSectionId) return 0;
     if (isFullTour) {
       let total = 0;
-      SECTION_ORDER.forEach(function(id) { total += SECTIONS[id].steps.length; });
+      SECTION_ORDER.forEach(function(id) { total += visibleStepCount(SECTIONS[id]); });
       return total;
     }
-    return SECTIONS[currentSectionId].steps.length;
+    return visibleStepCount(SECTIONS[currentSectionId]);
   }
 
   function globalStepIndex() {
-    if (!isFullTour) return currentStepIndex;
+    const section = SECTIONS[currentSectionId];
+    if (!section) return 0;
+    const within = visibleStepOffset(section, currentStepIndex);
+    if (!isFullTour) return within;
     let idx = 0;
     for (let i = 0; i < fullTourSectionIndex; i++) {
-      idx += SECTIONS[SECTION_ORDER[i]].steps.length;
+      idx += visibleStepCount(SECTIONS[SECTION_ORDER[i]]);
     }
-    return idx + currentStepIndex;
+    return idx + within;
   }
 
 
@@ -947,7 +1005,7 @@
     const fullBtn = document.createElement('button');
     fullBtn.className = 'tour-full-btn';
     let fullStepCount = 0;
-    SECTION_ORDER.forEach(function(id) { fullStepCount += SECTIONS[id].steps.length; });
+    SECTION_ORDER.forEach(function(id) { fullStepCount += visibleStepCount(SECTIONS[id]); });
     fullBtn.innerHTML =
       '<i class="fa-solid fa-play"></i>' +
       'Take the Full Tour' +
@@ -979,7 +1037,7 @@
           '<h3>' + section.title + '</h3>' +
           '<p>' + section.description + '</p>' +
         '</div>' +
-        '<span class="tour-section-steps">' + section.steps.length + ' steps</span>';
+        '<span class="tour-section-steps">' + visibleStepCount(section) + ' steps</span>';
       card.addEventListener('click', function() {
         closeModal();
         startSection(id);
@@ -1268,6 +1326,14 @@
     // button step when the AI drafter is disabled). Auto-skip in
     // whichever direction the user is moving. _lastStepDirection
     // is set by nextStep/prevStep; default forward.
+    //
+    // CONSTRAINT: a conditional step must not be FIRST or LAST in its
+    // section. Skipping walks the index one place in the direction of
+    // travel and gives up if that falls outside the section, so a
+    // hidden step at either end would leave the panel showing stale
+    // content instead of advancing the section or finishing the tour.
+    // Every conditional step today sits mid-section. If you need one at
+    // an edge, make this hand off to nextStep()/prevStep() first.
     if (step.condition && !step.condition()) {
       const dir = _lastStepDirection || 1;
       const nextIdx = currentStepIndex + dir;
