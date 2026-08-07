@@ -229,11 +229,18 @@ tools/                          On-demand developer utilities. NOTHING here is
                                 24px type floor documented in its header
                                 comment: platforms render the card at ~360-550px
                                 wide (a 0.3-0.45x shrink), so smaller type is
-                                illegible where it's actually seen. Header
-                                comments are stripped before substitution
-                                because they mention the token names — without
-                                that, the first match is in the comment and the
-                                real img src never gets filled.
+                                illegible where it's actually seen. Also respect
+                                the centre-safe rule: Teams and other chat
+                                clients crop to a square, keeping only x 285-915,
+                                so the front cover sheet is deliberately placed
+                                at the LEFT of the pair to land inside that
+                                window, with the inside page trailing right where
+                                cropping is free. Text loses that contest and is
+                                allowed to be cut. Header comments are stripped
+                                before substitution because they mention the
+                                token names — without that, the first match is in
+                                the comment and the real img src never gets
+                                filled.
 tests/
   setup.js                      Loads config.js + book-utils.js into jsdom via eval
   book-utils.test.js            Unit tests for all BookUtils functions
