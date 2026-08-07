@@ -669,14 +669,27 @@
   const TOUR_BRANDING_SRC = 'assets/img/tour-branding-folio.png';
 
   // Per-line cover header styling: title lines, the purple→blue
-  // gradient bar, and stretch covers. Sets the textarea BEFORE
-  // toggling per-line styling so the toggle's change handler computes
-  // the line labels from the new text. Dispatches a change on the
+  // gradient bar, and stretch covers. Dispatches a change on the
   // gradient toggle so app.js reveals the second color picker +
   // direction row.
   function applyTourCoverStyling() {
     const titleInput = document.getElementById('cover-title-input');
-    if (titleInput) titleInput.value = 'Mind How You Go\nReading Terry Pratchett';
+    if (titleInput) {
+      titleInput.value = 'Mind How You Go\nReading Terry Pratchett';
+      // Tell app.js the same way typing would. Assigning .value does not
+      // fire `input`, and that handler is what rebuilds the per-line
+      // style groups from the textarea's contents. Without this the
+      // panel keeps whatever init() left it with (Line 1 only, computed
+      // when the textarea was empty), so a two-line header shows a
+      // single style row and the step's narration describes controls
+      // that aren't on screen.
+      //
+      // This used to ride on the advanced-toggle change dispatch below,
+      // which worked only while that toggle shipped UNCHECKED. It ships
+      // checked now (index.html), so that branch is normally dead and
+      // the refresh has to come from here.
+      titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     const advToggle = document.getElementById('cover-advanced-toggle');
     if (advToggle && !advToggle.checked) {
       advToggle.checked = true;
