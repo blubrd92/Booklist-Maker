@@ -51,37 +51,19 @@
 
       <p>Your library's name and logo become the defaults, so every booklist your staff creates starts on-brand without manual setup. You get a subdomain like libraryname.booklister.org, and a designated admin at your library can add and remove staff through a simple admin console without going through me. You would need to provide a logo image for your library with a min resolution of 3000 x 900 px so that it prints at high quality. The underlying tool is identical to the public one. If the branded instance ever has an issue, your staff can fall back to booklister.org and keep working.</p>
 
-      <h2>Catalog integrations</h2>
-
-      <p>If your library wants Booklister to search its own catalog system instead of (or alongside) Open Library, that's possible but it depends on the system. If this is something you're interested in, get in touch and we can talk through what it would involve.</p>
-
       <h2>Companion browser extension</h2>
 
       <p>If your catalog runs on BiblioCommons, there's a free browser extension called <a href="extension.html">Booklister Helper</a> that captures titles straight from catalog pages into Booklister with one click. Staff browse the catalog the way they normally would, click the extension's toolbar icon, and the title, author, call number, and cover land on their clipboard ready to paste into Booklister's Quick Add. It's the fastest way to build a booklist when your library catalog is BiblioCommons-powered. The extension is free for anyone to install regardless of whether your library has a branded instance.</p>
 
       <h2>AI description drafter (the Magic button)</h2>
 
-      <p>Branded instances can optionally include an AI feature that drafts a short description for each title in your booklist. Staff click a wand icon on a title, an LLM-drafted description fills in, and staff read every draft and edit or replace it before publishing. The description field is an ordinary editable field either way, so staff can ignore the wand entirely on any title and write their own.</p>
+      <p>Staff always write their own descriptions if they want to. The description on every title is a plain text field you click into and type, and that's true on the public tool and on every branded instance. Nothing needs to be drafted by anything before you can print a booklist.</p>
 
-      <h3>Two ways the drafter can work</h3>
+      <p>On top of that, a branded instance can optionally include an AI feature that drafts a short description for a title. Staff click a wand icon, a drafted description fills the field, and it can be edited or thrown out like any other text. If your staff do use it, they need to read what comes back and verify it before the booklist goes to print. AI text can mix up two books with similar titles or state a plot point that isn't in the book, and it does that in perfectly confident prose. It's a first draft from a new volunteer: useful, never published unread. The <a href="terms.html">Terms</a> make that a condition of the feature.</p>
 
-      <p>There are two modes, and I set which one a library's instance uses. In the default mode, clicking the wand sends only the title and author, and the drafter goes looking for information about the book before it writes anything. In source-text mode, the wand instead opens a small box where staff paste a summary they already have: the publisher blurb, the summary field from your catalog record, a review, whatever your library treats as a reliable source. The drafter then only condenses what was pasted down to something that fits the booklist format. It isn't researching the title, it's shortening text a staff member chose.</p>
+      <p>There are two modes, and I set which one a library's instance uses. In the default mode, clicking the wand sends the title and author, and the drafter looks the book up before writing. In source-text mode, the wand instead opens a box where staff paste a summary they already have (a publisher blurb, the summary field from your catalog record, a review), and the drafter only condenses what was pasted. That's the mode to ask for if verification is the sticking point for your library: the staff member picked the source and has it right there, so the only thing left to check is whether the shortened version is faithful to it. On a default-mode instance, staff can also hold Shift and click the wand to get the same paste box on any individual title.</p>
 
-      <p>Source-text mode is the one to ask for if verification is the sticking point for your library. Checking a description goes much faster when the staff member already has the source in front of them, because the only question left is whether the condensed version is faithful to it, not whether the facts are real in the first place. It also sidesteps the failure mode that matters most on a printed display: fluent, confident copy about a book the model has quietly confused with another one.</p>
-
-      <p>Even on an instance running the default mode, staff can hold Shift and click the wand on any individual title to get the same paste box. That's the middle ground most libraries land on: search-based drafting for the easy titles, paste-a-summary for the ones where accuracy matters more or the model clearly doesn't know the book. Switching a library between modes is a configuration change on my end, so if you start one way and want the other, it's a note from the <a href="contact.html">contact</a> page, not a rebuild.</p>
-
-      <h3>Drafting a whole list at once</h3>
-
-      <p>There's also an "Auto-draft descriptions on add" toggle on the Search tab that runs the drafter automatically each time a title is added, so a fifteen-title list comes back with fifteen drafts waiting to be edited instead of fifteen clicks to make. I can set whether that toggle starts on or off for your library, and each staff member can flip it for themselves in their own browser. It doesn't appear on instances in source-text mode, since there's nothing to paste at the moment a title is added.</p>
-
-      <h3>Staff still read every draft</h3>
-
-      <p>In either mode the output is a first draft, not a finished description. AI text can misstate a plot, mix up two books with similar titles, or get an author detail backward while sounding perfectly assured about it. The expectation is that a staff member reads every description before the booklist gets printed, the same way you'd read a draft from a new volunteer. Source-text mode narrows what can go wrong, it doesn't remove the review step. The <a href="terms.html">Terms</a> spell this out as a condition of the feature.</p>
-
-      <p>For what it's worth on the privacy side: a wand click sends the title, the author, and (in source-text mode, or on a Shift+click) the text your staff pasted. Nothing about the booklist, the staff member, or the library goes with it. The <a href="privacy.html">Privacy</a> page has the full data flow.</p>
-
-      <h3>Availability</h3>
+      <p>There's also an "Auto-draft descriptions on add" toggle that drafts as titles are added, so a full list comes back ready to edit instead of one click at a time. I set whether it starts on or off for your library, and staff can flip it for themselves.</p>
 
       <p>Unlike the rest of Booklister, the drafter is not something I can commit to providing for free across the board. Every click costs me a small amount in LLM API charges, and that scales with usage in a way the rest of the tool doesn't. So this feature is opt-in, by request, and entirely at my discretion. I expect to enable it only for a small number of libraries. If you'd find it useful, mention it when you get in touch, but please don't count on it as part of a branded instance. I also reserve the right to turn it off for any library at any time if costs grow past what I can carry on my own. The full policy is in the <a href="terms.html">Terms</a>.</p>
 

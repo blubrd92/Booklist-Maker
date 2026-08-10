@@ -235,15 +235,6 @@ body.has-library-config .header-credit {
   margin: 36px 0 10px;
   color: var(--text-color);
 }
-/* Subheads within a content section. Without this rule h3 falls through to
-   the user agent's 1.17em/bold, which renders slightly BOLDER than the h2
-   above it and reads as a sibling rather than a child. */
-.content-article h3 {
-  font-size: 1.02rem;
-  font-weight: 600;
-  margin: 24px 0 8px;
-  color: var(--text-color);
-}
 .content-article p {
   margin: 0 0 16px;
 }
