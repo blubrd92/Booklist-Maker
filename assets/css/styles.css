@@ -229,6 +229,20 @@ body.has-library-config .header-credit {
   color: var(--text-light);
   font-style: italic;
 }
+/* Callout for a recent material change to a policy page. privacy.html
+   promises these stay visible for at least a month after the update,
+   so this is a temporary block by design — remove the markup once the
+   month is up, and leave this rule in place for the next one.
+   Scoped under .content-article deliberately: `.content-article p`
+   already sets margin at (0,1,1), which would outrank a bare class. */
+.content-article .content-update-note {
+  margin: 0 0 28px;
+  padding: 12px 16px;
+  border-left: 3px solid var(--primary-color);
+  background: rgba(92, 107, 192, 0.07);
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95rem;
+}
 .content-article h2 {
   font-size: 1.2rem;
   font-weight: 600;

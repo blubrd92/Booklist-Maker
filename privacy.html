@@ -27,6 +27,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Cloudflare Web Analytics (cookieless). Self-gates to the public
+       production host; see assets/js/analytics.js. -->
+  <script src="assets/js/analytics.js"></script>
 </head>
 <body class="content-page">
 
@@ -42,13 +46,15 @@
   <main class="content-main">
     <article class="content-article">
       <h1>Privacy</h1>
-      <p class="content-effective-date">Effective April 13, 2026. Last updated May 18, 2026.</p>
+      <p class="content-effective-date">Effective August 11, 2026. Last updated August 11, 2026.</p>
+
+      <p class="content-update-note"><strong>Recent change (August 11, 2026):</strong> booklister.org now uses Cloudflare Web Analytics, a cookieless page-view counter. It sets no cookies, doesn't identify you, and doesn't run on branded library instances at all. The <a href="#analytics">Analytics</a> section below describes exactly what it sees.</p>
 
       <p>Booklister is a free tool for making printable library booklists. It's a side project run by one person, and it collects as little about you as I could get away with while still making the tool work. This page explains what happens with your data.</p>
 
       <h2>The short version</h2>
-      <p>If you're using the public tool at <strong>booklister.org</strong>, nothing about your work leaves your browser. There are no accounts, no sign-in, and no server that stores your booklists. Your drafts live in your browser's local storage and go away when you clear site data.</p>
-      <p>If you're using a branded library instance at a subdomain like <strong>libraryname.booklister.org</strong>, you sign in with an email and password, and that sign-in information is stored in Firebase (a Google service). Your actual booklist work still stays in your browser.</p>
+      <p>If you're using the public tool at <strong>booklister.org</strong>, nothing about your work leaves your browser. There are no accounts, no sign-in, and no server that stores your booklists. Your drafts live in your browser's local storage and go away when you clear site data. The public site does count page views through a cookieless analytics service, described in the <a href="#analytics">Analytics</a> section below; it can tell me that a page was visited, not who visited it.</p>
+      <p>If you're using a branded library instance at a subdomain like <strong>libraryname.booklister.org</strong>, you sign in with an email and password, and that sign-in information is stored in Firebase (a Google service). Your actual booklist work still stays in your browser, and the analytics described below don't run on branded instances at all.</p>
       <p>If you've also installed the <a href="extension.html">Booklister Helper</a> browser extension, the extension doesn't send anything to me or to any server I control. It only runs on BiblioCommons library catalog pages, makes the same network calls the catalog page itself already makes, and writes the captured row straight to your clipboard.</p>
 
       <h2>What stays on your device</h2>
@@ -61,9 +67,35 @@
 
       <ul>
         <li><strong>Searching for titles.</strong> Typing in the search box sends your query to the <a href="https://openlibrary.org">Open Library API</a>, which returns title metadata and cover images. Open Library is an Internet Archive project, and their privacy policy governs how they handle search queries.</li>
-        <li><strong>Loading the tool itself.</strong> Booklister loads fonts, icons, and a few JavaScript libraries from public content delivery networks (Google Fonts, cdnjs, gstatic). These services will see your IP address and browser as part of delivering those files. Booklister doesn't use them for analytics or tracking.</li>
+        <li><strong>Loading the tool itself.</strong> Booklister loads fonts, icons, and a few JavaScript libraries from public content delivery networks (Google Fonts, cdnjs, gstatic). These services will see your IP address and browser as part of delivering those files. None of them are used for analytics or tracking; the one thing on the site that does count visits is described under <a href="#analytics">Analytics</a> below.</li>
         <li><strong>Drafting a description with the Magic button.</strong> Only on branded library instances that have specifically asked me to enable it (see the <a href="terms.html">Terms</a> for the gating policy). When a staff member clicks the wand icon on a title, the title and author of that title are sent to a Google Apps Script endpoint I operate, which forwards them to a third-party large-language-model service to draft a short description. If the staff member shift-clicked the wand and pasted a summary (or the instance is configured in source-text mode), the pasted text is also sent so the LLM condenses it instead of doing its own web search. The request also includes a few drafter tuning knobs (target word count, temperature, retry counts) from the tool's configuration; those values aren't tied to the staff member or the library. Nothing else about the title, the booklist, the library, or the staff member is sent. The LLM provider sees only what the Apps Script forwards.</li>
       </ul>
+
+      <h2 id="analytics">Analytics</h2>
+      <p>The public site at booklister.org uses <a href="https://www.cloudflare.com/web-analytics/">Cloudflare Web Analytics</a> to count page views. I added it because I had genuinely no idea whether anyone was using this thing, and I'd rather know that than guess. It is the only analytics on the site.</p>
+
+      <p>What it records, per page view:</p>
+      <ul>
+        <li>The page you loaded and the referring page, if any (so I can tell whether people arrive from a search engine, a library newsletter, or a link somewhere).</li>
+        <li>Your browser, operating system, and device type, at the level of "Firefox on Windows, desktop."</li>
+        <li>The country you're in. Not your city, not your address, not your IP.</li>
+        <li>How long the page took to load.</li>
+      </ul>
+
+      <p>What it does not do:</p>
+      <ul>
+        <li><strong>No cookies.</strong> It sets none, and it writes nothing to your browser's local storage.</li>
+        <li><strong>No fingerprinting and no visitor ID.</strong> It doesn't build a device fingerprint or assign you an identifier, which means it can't tell that today's visit and last week's visit came from the same person.</li>
+        <li><strong>No cross-site tracking.</strong> It has no way to see anything you do on any other website, and it isn't used to build an advertising profile.</li>
+        <li><strong>No IP address stored.</strong> Cloudflare uses your IP in the moment to work out which country the visit came from, then discards it. It isn't retained, it isn't shown to me, and I have no way to retrieve it.</li>
+        <li><strong>Nothing about your booklist.</strong> The titles you add, the text you type, the images you upload, and the files you export are not visible to the analytics and never leave your browser. That part of this policy hasn't changed.</li>
+      </ul>
+
+      <p>I see aggregate numbers only: how many views a page got, roughly where visitors were, what browsers they used. There is no screen anywhere that shows me an individual person's activity, because the data to build one is never collected.</p>
+
+      <p><strong>It doesn't run on branded library instances.</strong> The analytics script checks the domain before it loads anything, and it only runs on booklister.org. On a library subdomain like <code>libraryname.booklister.org</code> it does nothing at all, and no request to Cloudflare is ever made. Library staff sessions are not counted, not measured, and not visible to me in any form.</p>
+
+      <p><strong>If you'd rather not be counted.</strong> Most content blockers (uBlock Origin, Brave's shields, Firefox strict tracking protection) already block the analytics script, and blocking it breaks nothing: every feature of the tool works exactly the same without it. You don't need to tell me, and I have no way to know you did it.</p>
 
       <h2>What branded library instances store on Firebase</h2>
       <p>If you're signing into a branded library instance (like <code>libraryname.booklister.org</code>), here's what ends up in Firebase:</p>
@@ -74,7 +106,7 @@
         <li><strong>The library's configuration.</strong> The library's display name and the path to its logo image. This is per-library, not per-user.</li>
       </ul>
 
-      <p>I don't store anything else about you in Firebase. No booklist content, no search history, no usage analytics, no telemetry. The booklist work you do on a branded instance still stays in your browser, same as the public tool.</p>
+      <p>I don't store anything else about you in Firebase. No booklist content, no search history, no usage analytics, no telemetry. The booklist work you do on a branded instance still stays in your browser, same as the public tool. As noted under <a href="#analytics">Analytics</a>, the page-view counter on the public site is switched off entirely on branded instances, so nothing about your library's day-to-day use of the tool is measured anywhere.</p>
 
       <h2>Booklister Helper browser extension</h2>
       <p>The <a href="extension.html">Booklister Helper</a> is a separate, optional browser extension you can install from the Chrome Web Store, Firefox Add-ons, or Microsoft Edge Add-ons. It runs only on BiblioCommons library catalog pages. When you click it on a catalog page, it copies the title, author, call number, and cover image to your clipboard so you can paste them into Booklister. That is the entire extent of what it does.</p>
@@ -90,11 +122,12 @@
       <p>Google, as the operator of Firebase, has access to the underlying data the same way any cloud provider does. Their own privacy and security practices apply.</p>
 
       <h2>Cookies and tracking</h2>
-      <p>Booklister doesn't set tracking cookies, doesn't use analytics, and doesn't build a profile of your activity. Firebase Authentication sets a session cookie and stores a token in your browser's local storage so you stay signed in across page reloads on branded instances. That's the only client-side state related to you as a user. No Google Analytics, no Facebook pixel, no third-party tracking of any kind.</p>
-      <p>Booklister does not embed analytics scripts, advertising pixels, or other tracking technologies that would allow third parties to collect personally identifiable information about your activity across websites or online services over time.</p>
+      <p>Booklister doesn't set tracking cookies and doesn't build a profile of your activity. The page-view counter described under <a href="#analytics">Analytics</a> is cookieless: it stores nothing in your browser, assigns you no identifier, and can't recognize a returning visitor. Firebase Authentication sets a session cookie and stores a token in your browser's local storage so you stay signed in across page reloads on branded instances. That's the only client-side state related to you as a user. No Google Analytics, no Facebook pixel, no advertising network, and no cross-site tracking of any kind.</p>
+      <p>Booklister does not embed advertising pixels or other tracking technologies that would allow third parties to collect personally identifiable information about your activity across websites or online services over time. The one analytics script on the site is limited to counting page views on booklister.org, collects no personally identifiable information, and has no visibility into anything you do on any other website.</p>
 
       <h2>Do Not Track</h2>
-      <p>Your browser may send a Do Not Track (DNT) signal when you visit websites. Booklister doesn't do anything special in response to that signal because there's no tracking to disable. Booklister doesn't set tracking cookies, doesn't use analytics, and doesn't build a profile of your activity regardless of whether DNT is set.</p>
+      <p>Your browser may send a Do Not Track (DNT) signal when you visit websites. Booklister doesn't change its behavior in response to that signal, and I want to be straightforward about why rather than imply otherwise: the page-view counter described under <a href="#analytics">Analytics</a> runs the same way whether or not DNT is set, because Cloudflare Web Analytics doesn't read the signal.</p>
+      <p>What DNT is meant to protect against is the thing that isn't happening here. There are no tracking cookies to refuse, no identifier tying your visits together, and no profile of your activity being built, with or without the signal. If you'd still rather not be counted, a content blocker will stop the script and nothing in the tool will break; see the last paragraph of the <a href="#analytics">Analytics</a> section.</p>
 
       <h2>What you can do</h2>
       <ul>
@@ -109,11 +142,11 @@
       </ul>
 
       <h2>Changes to this page</h2>
-      <p>If I ever need to add another data-collection feature (analytics, error reporting, anything like that), I'll update this page and revise the "Effective" and "Last updated" dates at the top. Material changes get a visible note on this page for at least one month after the update.</p>
+      <p>If I add another data-collection feature (error reporting, anything like that), I'll update this page and revise the "Effective" and "Last updated" dates at the top, the same way I did when the page-view counter was added. Material changes get a visible note on this page for at least one month after the update.</p>
 
       <h2>Applicable law</h2>
       <p>Booklister is operated by a private individual in the United States. It's a small project, not an institutional service. If you're accessing it from a jurisdiction with specific data protection requirements (EU, California, and others) and you have concerns about how that applies here, email me from the <a href="contact.html">Contact</a> page and I'll do my best to address them.</p>
-      <p>Booklister is operated from California, which makes the California Consumer Privacy Act (CCPA) applicable to personal information Booklister collects. The free public tool at booklister.org collects no personal information at all: no accounts, no telemetry, no server-side storage of any kind, and nothing that could identify you. Personal information collection only happens on branded library instances, and even then it is limited to staff email addresses and Firebase user IDs. You can request access, correction, or deletion of that information by emailing me from the <a href="contact.html">Contact</a> page, and I'll respond within a reasonable timeframe.</p>
+      <p>Booklister is operated from California, which makes the California Consumer Privacy Act (CCPA) applicable to personal information Booklister collects. The free public tool at booklister.org holds no accounts and stores none of your work on any server. The only data collected there is the aggregate, cookieless page-view counting described under <a href="#analytics">Analytics</a>, which is not tied to an identifier, not tied to you, and not capable of being traced back to an individual, so there is no personal information for me to look up, correct, or delete on the public tool. Personal information collection only happens on branded library instances, and even then it is limited to staff email addresses and Firebase user IDs. You can request access, correction, or deletion of that information by emailing me from the <a href="contact.html">Contact</a> page, and I'll respond within a reasonable timeframe. Booklister does not sell or share personal information, and never has.</p>
     </article>
   </main>
 
