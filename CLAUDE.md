@@ -36,7 +36,14 @@ run either:
 ```bash
 npm run package:extension  # per-browser extension zips (node builtins only)
 npm run build:og           # rebuild assets/img/og-image.jpg (needs Chromium)
+npm run sri                # re-stamp CDN integrity hashes (node builtins only)
+npm run sri -- --check     # verify committed hashes still match the CDN
 ```
+
+**Run `npm run sri` after bumping any CDN version in an HTML file.** The
+`integrity` attribute pins the bytes, so a version bump without a re-stamp
+leaves a hash that no longer matches and the browser will refuse to load the
+resource. Both commands need network access to cdnjs.
 
 ## Architecture
 
@@ -215,6 +222,23 @@ extension/                      Browser extension (Manifest V3) — captures boo
 tools/                          On-demand developer utilities. NOTHING here is
                                 needed for the site to work, and nothing runs on
                                 install, in CI, or at page load.
+  sri/add-sri.mjs               Stamps Subresource Integrity hashes onto the
+                                cdnjs <script>/<link> tags across all 8 HTML
+                                files (`npm run sri`; `-- --check` verifies
+                                without writing and exits 1 on drift). Node
+                                builtins only. Fetches each pinned URL, hashes
+                                it with SHA-384, and rewrites the tag; safe to
+                                re-run (replaces a stale hash rather than
+                                appending). RE-RUN IT AFTER ANY CDN VERSION
+                                BUMP or the browser will refuse the resource.
+                                DELIBERATELY SKIPS fonts.googleapis.com: that
+                                CSS is generated per request (different
+                                @font-face blocks per User-Agent), so no single
+                                hash is correct and stamping it would break
+                                fonts on whichever browsers didn't match. The
+                                tag-rewriting half is exported as `applySri`
+                                and unit-tested in tests/sri.test.js; only the
+                                network fetch is untested, and it fails loudly.
   og-image/build.mjs            Rebuilds assets/img/og-image.jpg
                                 (`npm run build:og`). Unlike
                                 extension/build-zips.mjs this is NOT
@@ -840,7 +864,8 @@ When editing one file, check these related files:
 | Memberships doc schema | `admin/admin.js` (handleAddMembership, loadMemberships), `firestore.rules` `validMembershipFields()`, any new fields need to be added to the key whitelist. |
 | Admin console auth state | `admin/admin.js` `resolveUserRole()` is the single source of truth for "super-admin | library-admin | none". If you add new roles, start there. |
 | `assets/js/analytics.js` (what the beacon loads, or its host gate) | `privacy.html` — the "Analytics", "Cookies and tracking", and "Do Not Track" sections plus the CCPA paragraph describe this file's exact behavior to users, and both dates at the top need bumping. Also `privacy.html`'s branded-instance paragraph, which asserts the beacon doesn't run there. See "Constraints worth protecting" #6. |
-| Adding a new user-facing HTML page at the repo root | `sitemap.xml`, the `.site-footer-nav` block on **every** other page, and the `<script src="assets/js/analytics.js">` line in the new page's `<head>` (all 7 current pages carry it; `admin/index.html` deliberately does not) |
+| Adding a new user-facing HTML page at the repo root | `sitemap.xml`, the `.site-footer-nav` block on **every** other page, and the `<script src="assets/js/analytics.js">` line in the new page's `<head>` (all 7 current pages carry it; `admin/index.html` deliberately does not). Then run `npm run sri` so the page's cdnjs tags get integrity hashes like every other page's |
+| A CDN version in any HTML file (Sortable, jsPDF, html2canvas, QRCode, Font Awesome) | Run `npm run sri` in the same commit. The `integrity` hash pins the exact bytes, so a bumped version with a stale hash means the browser blocks the resource and the tool breaks. `npm run sri -- --check` tells you whether the committed hashes are current |
 | `extension/manifest.json` `version` | `extension/STORE_LISTING.md` "Release notes" section. Every version bump needs a matching new entry there; the stores ask for "what's new" text on each upload and STORE_LISTING.md is where that copy lives. Bumping without updating leaves you scrambling at submission time. |
 | `extension/manifest.json` `background` block | `extension/build-zips.mjs` (the per-browser packager that strips `background.scripts` from the Chromium variant). If the background shape changes, eyeball that the strip still does the right thing. The script reads the canonical manifest and emits two zips to `dist/` via `npm run package:extension`: Firefox keeps both background keys, Chromium drops `scripts`. Edge's MV3 validator rejects `background.scripts`; Firefox AMO requires it; Chrome accepts either form. |
 
