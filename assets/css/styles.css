@@ -149,6 +149,18 @@ button.is-loading::after {
   font-size: 1.2rem;
   opacity: 0.9;
 }
+/* Inline-SVG variant of the logo mark, used on the content pages so they
+   don't have to load the whole Font Awesome stylesheet for this one icon
+   (index.html still uses Font Awesome and keeps the <i> above). Sized in
+   rem to match the glyph it replaced, which also does not shrink in the
+   mobile media query. */
+.app-header .logo .logo-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  opacity: 0.9;
+  flex-shrink: 0;
+  fill: currentColor;
+}
 .header-credit {
   font-family: 'EB Garamond', serif;
   font-size: 0.8rem;
