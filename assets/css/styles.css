@@ -151,12 +151,17 @@ button.is-loading::after {
 }
 /* Inline-SVG variant of the logo mark, used on the content pages so they
    don't have to load the whole Font Awesome stylesheet for this one icon
-   (index.html still uses Font Awesome and keeps the <i> above). Sized in
-   rem to match the glyph it replaced, which also does not shrink in the
-   mobile media query. */
+   (index.html still uses Font Awesome and keeps the <i> above). It is the
+   same Font Awesome book-open path, inlined; the CC BY attribution comment
+   Font Awesome ships inside the file is kept next to it in the markup.
+   Height (not width) is pinned to the 1.2rem the <i> used, with width
+   auto, because the icon's viewBox is 576x512: that reproduces how Font
+   Awesome sizes the glyph, height = 1em and width following the aspect
+   ratio. Sized in rem, like the glyph it replaced, so it does not shrink
+   in the mobile media query either. */
 .app-header .logo .logo-icon {
-  width: 1.2rem;
   height: 1.2rem;
+  width: auto;
   opacity: 0.9;
   flex-shrink: 0;
   fill: currentColor;
