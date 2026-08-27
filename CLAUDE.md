@@ -920,6 +920,79 @@ The architecture is prepared for per-user cloud-saved booklists with library-wid
 - Per-library storage quotas
 - Cross-library sharing (currently rules are strictly within-library)
 
+### Shareable booklist links (explored August 2026, deferred)
+
+Idea: give a booklist a URL so it can be shared instead of emailed. Explored in
+depth and **deliberately not built** — the code is small, the permanent cost isn't.
+Recorded so the analysis doesn't have to be re-derived.
+
+**Measured sizes.** Rendered at the app's real dimensions and JPEG quality with
+textured synthetic cover art, so conservative by maybe 20-40%:
+
+| Artifact | Size |
+|---|---|
+| One PDF page @ 600 DPI (6600x5100, q0.92) | ~2.1 MB → a 2-page PDF is ~2-5 MB |
+| Auto-generated collage cover, as base64 in JSON | ~1.8 MB |
+| One print-res book cover (1600px), as base64 | ~176 KB |
+| Full serialized state WITH 15 embedded covers | ~4.4 MB |
+| Same state with images stripped | **~12 KB** |
+
+The decisive number is Firestore's 1 MB per-document limit. The PDF doesn't fit, a
+state-with-images doesn't fit, the collage cover alone doesn't fit. Only the
+image-stripped state fits, and it fits with ~80x headroom. So any sharing feature is
+either "store bytes somewhere that isn't Firestore" or "store the recipe and
+re-render at view time."
+
+**Three findings worth keeping if this is revisited:**
+
+1. `#print-page-1` / `#print-page-2` live inside `index.html`'s preview markup and
+   `exportPdf` screenshots those exact nodes. A share viewer must therefore be
+   `index.html` in a mode (alongside the existing `?library=` param), NOT a separate
+   page — a separate page would have to duplicate the entire preview DOM.
+2. `preview-helper.js` already reads Firestore over plain REST (no SDK, no auth), and
+   that exception is documented under "Constraints worth protecting" #1. A public
+   viewer could read a share doc the same way without loading the Firebase SDK on the
+   public domain.
+3. `exportPdf` is not in the `BooklistApp` public API (`applyState` is). Exposing it,
+   or swapping `pdf.save()` for `pdf.output('blob')`, is the only change the export
+   path itself needs.
+
+**Two variants, and the cheap one is not the obvious one:**
+
+- *Share the PDF.* Store the blob at authoring time — the librarian's browser is
+  already the renderer, so no rendering server is needed. Perfect fidelity, works on
+  any device. Needs blob storage: Firebase Storage (lifts the session-1 constraint),
+  or Cloudflare R2 (already on Cloudflare for Pages previews + Web Analytics; zero
+  egress fees, but a new operational surface).
+- *Share a mobile page.* 12 KB Firestore doc, viewer re-renders. Cheaper, no blob
+  storage, no constraint lifted, and the better fit for the QR-code-on-a-printed-
+  booklist case, which is the one use case with no existing workaround.
+
+Generating the PDF in the **viewer's** browser was considered and rejected:
+`PDF_CANVAS_SCALE` 6.25 means 6600x5100 = 33.7M pixels per page, while iOS Safari
+caps canvas area around 16.7M — roughly 2x over, and it fails by returning blank
+rather than erroring. Verify on a real device before relying on this either way.
+Separately, a text-only share doc cannot rehydrate covers with no re-fetchable
+source: extension-captured covers (base64 by design, so lists stay self-contained)
+and any uploaded book cover, front cover, or custom QR image. Open Library
+`cover_id`s and the branded-instance logo re-fetch fine.
+
+**Why deferred.** `privacy.html` promises in eight separate places that booklist
+content never leaves the browser, including the flat "no server that stores your
+booklists." Hosting shares contradicts that sentence and converts Booklister from a
+tool into a service: retention policy, orphan cleanup, a "my link broke" support
+surface, a bill that scales with other people's use, user-generated content on the
+domain, and a policy rewrite. Against that cost, a librarian wanting a colleague's
+review already has the PDF in their Downloads folder, and email handles 2-5 MB
+fine. LibraryAware, which did build this (`libraryaware.com/<orgId>/Files/Display/
+<GUID>`, server-rendered to stored PDF + image renditions), tells users in its own
+documentation to repoint share links at the catalog instead — their hosted view is a
+coworker-review surface, not a patron destination.
+
+**What would change the decision**: a library asking unprompted, describing a
+workflow email doesn't cover. If that happens, find out which of the two variants
+they mean before building — they point at different work.
+
 ### ILS / library catalog integration
 
 Per-library catalog integration to replace or supplement Open Library search, getting title + author + cover + call number + description from a library's own ILS. Splits into two cases by ILS capability:
