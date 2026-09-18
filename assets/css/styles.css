@@ -3621,13 +3621,15 @@ body.has-custom-qr #generate-qr-button:disabled {
   /* Phones see a single button until tapped, so the panel doesn't cover
      the preview. The toggle itself is defined globally now; here it is
      only grown to the 44px touch target this media query applies to
-     every other control. The 5px margin keeps the collapsed square the
-     same 54px height as the expanded bar (44 + 10 + 2px border), the
-     same matching the desktop rules make at 42px. */
+     every other control. The 4px margin matches the .zoom-row padding
+     beside it, so the toggle's box (44 + 8) is exactly as tall as a row
+     (44 + 8) and the panel measures 54px in BOTH states — the height
+     the expanded bar already had, so nothing grows to get the match.
+     The desktop rules above do the same at 42px. */
   .zoom-controls-toggle {
     width: 44px;
     height: 44px;
-    margin: 5px;
+    margin: 4px;
     font-size: 1rem;
   }
   .zoom-controls:not(.collapsed) .zoom-controls-toggle {
