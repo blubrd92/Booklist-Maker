@@ -3240,6 +3240,66 @@ body.has-custom-qr #generate-qr-button:disabled {
 }
 
 /* =========================================================================
+   NARROW-DESKTOP ZOOM PANEL (769px - 1100px)
+   A desktop window at half-screen width is still above the 768px mobile
+   breakpoint, so it used to get the full 140x128 vertical block, which
+   sits on top of the preview's QR code and can't be scrolled out of the
+   way (the panel is position: fixed).
+
+   Here the same rows reflow into a short horizontal bar and the
+   collapse toggle — previously mobile-only — becomes available, so the
+   panel can be tucked into a 44px button. Unlike the mobile layout this
+   keeps ALL SIX controls: dropping the "Undo"/"Redo" word labels does
+   more for the width than dropping Fit All / Fit Height would, so the
+   buttons stay and the words go. Measured at 960px: 305x42 with every
+   control present, against 302x46 for the mobile bar that discards two.
+
+   The panel ships with .collapsed in index.html, so this band starts
+   tucked away; the toggle expands it. Above 1100px nothing changes.
+   ========================================================================= */
+@media (min-width: 769px) and (max-width: 1100px) {
+  .zoom-controls {
+    flex-direction: row;
+    align-items: stretch;
+    max-width: calc(100vw - 32px);
+  }
+  .zoom-row { padding: 3px 2px; gap: 1px; }
+  .zoom-row + .zoom-row {
+    border-top: none;
+    border-left: 1px solid var(--border-color);
+  }
+  .zoom-btn { width: 34px; height: 34px; }
+  /* Icon-only Undo / Redo: the label span goes, the square comes back.
+     The accessible name still comes from aria-label, and the title
+     attribute still advertises Ctrl+Z / Ctrl+Y on hover. */
+  .zoom-btn-label { display: none; }
+  .zoom-btn-wide { width: 34px; padding: 0; gap: 0; }
+  .zoom-label { min-width: 46px; height: 34px; }
+
+  /* Collapse affordance. Mirrors the mobile rules; scoped here so the
+     .collapsed class shipped in the HTML takes effect in this band too. */
+  .zoom-controls-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+  .zoom-controls.collapsed .zoom-controls-toggle { width: 44px; height: 44px; }
+  .zoom-controls:not(.collapsed) .zoom-controls-toggle {
+    border-left: 1px solid var(--border-color);
+    color: var(--primary-color);
+  }
+  .zoom-controls.collapsed .zoom-row { display: none; }
+}
+
+/* =========================================================================
    MOBILE RESPONSIVE (desktop-down overrides)
    Desktop keeps its full styling above 768px; everything below applies
    only to small screens. Strategy: the sidebar + preview row becomes a
