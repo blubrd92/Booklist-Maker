@@ -15,4 +15,6 @@ cd "$CLAUDE_PROJECT_DIR"
 
 # Idempotent and cache-friendly: npm install is a fast no-op when
 # node_modules is already present in the cached container state.
-npm install --no-audit --no-fund
+# --loglevel=error keeps a cold install's package tree out of the
+# session context; SessionStart hooks pipe stdout into it.
+npm install --no-audit --no-fund --loglevel=error
