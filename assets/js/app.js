@@ -9541,15 +9541,30 @@ const BooklistApp = (function() {
       }, { passive: false });
     }
 
-    // Mobile-only expander (hidden by CSS on desktop). The panel ships
-    // collapsed on phones so it doesn't cover the preview; this button
-    // toggles the rows in and out.
+    // Expander for the floating zoom/undo panel, available at every
+    // width. The panel ships with .collapsed in index.html so phones
+    // never flash it open before this runs; wide windows have room for
+    // it, so expand there at init and leave narrow windows (and phones)
+    // tucked until the user asks. Deliberately NOT re-evaluated on
+    // resize: once the user has expressed a preference by clicking,
+    // yanking the panel open or shut under them would be worse than
+    // leaving it where they put it.
     const zoomToggle = document.getElementById('zoom-controls-toggle');
     const zoomPanel = document.getElementById('zoom-controls');
     if (zoomToggle && zoomPanel) {
-      zoomToggle.addEventListener('click', function() {
-        const collapsed = zoomPanel.classList.toggle('collapsed');
+      const setZoomPanelCollapsed = function(collapsed) {
+        zoomPanel.classList.toggle('collapsed', collapsed);
         zoomToggle.setAttribute('aria-expanded', String(!collapsed));
+        zoomToggle.setAttribute(
+          'aria-label',
+          collapsed ? 'Show zoom and undo controls' : 'Hide zoom and undo controls'
+        );
+      };
+      if (window.innerWidth > CONFIG.ZOOM_PANEL_REFLOW_MAX_PX) {
+        setZoomPanelCollapsed(false);
+      }
+      zoomToggle.addEventListener('click', function() {
+        setZoomPanelCollapsed(!zoomPanel.classList.contains('collapsed'));
       });
     }
 

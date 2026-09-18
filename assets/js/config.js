@@ -49,6 +49,15 @@
     BRANDING_WIDTH: 480,
     BRANDING_HEIGHT: 144,
 
+    // Zoom panel — the widest viewport that still gets the reflowed
+    // horizontal bar. Above this the panel keeps its vertical block and
+    // starts expanded; at or below it the panel starts collapsed into
+    // its toggle so a half-screen window isn't covered on load. MIRRORS
+    // the `max-width: 1100px` ceiling on the NARROW-DESKTOP ZOOM PANEL
+    // media query in styles.css — change both or the starting state and
+    // the layout disagree.
+    ZOOM_PANEL_REFLOW_MAX_PX: 1100,
+
     // Timing
     NOTIFICATION_DURATION_MS: 3000,
     NOTIFICATION_DURATION_SUCCESS_MS: 1500,

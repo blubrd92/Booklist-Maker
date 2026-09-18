@@ -3143,9 +3143,47 @@ body.has-custom-qr #generate-qr-button:disabled {
 .zoom-row-level { padding: 2px 4px 4px; }
 .zoom-row + .zoom-row { border-top: 1px solid var(--border-color); }
 
-/* Mobile-only expander button — desktop always shows the full panel.
-   The mobile media query reveals it and collapses the rows behind it. */
-.zoom-controls-toggle { display: none; }
+/* Collapse affordance, available at EVERY width (it used to be
+   mobile-only). The panel is position: fixed and floats over the
+   preview, so "get this out of my way" is a real need on any window the
+   user finds tight, not just a phone — and keying it to a breakpoint
+   only ever guesses, since half-screen is a fraction of whatever
+   monitor you happen to have.
+
+   The button keeps ONE size in every state. Collapsing a control must
+   not make it grow, and the collapsed square should read as the same
+   button the expanded panel ends with. Its 34px box plus the 3px margin
+   lands the collapsed panel at 42px, the same height the reflowed bar
+   has in the narrow band below. The mobile block re-sizes both to 44px
+   for the touch target and keeps them matched there too. */
+.zoom-controls-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 34px;
+  height: 34px;
+  margin: 3px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+.zoom-controls-toggle:hover { background: var(--border-light); }
+
+/* Expanded, the toggle is the panel's last row and takes the same
+   divider its siblings get (border-left instead, where the panel has
+   been reflowed into a horizontal bar). Collapsed, it is the only child
+   and stands alone. */
+.zoom-controls:not(.collapsed) .zoom-controls-toggle {
+  border-top: 1px solid var(--border-color);
+  color: var(--primary-color);
+}
+.zoom-controls.collapsed .zoom-row { display: none; }
 
 /* --- BOOK EDIT SHEET (mobile tap-to-edit modal) --- */
 .book-edit-description {
@@ -3246,16 +3284,19 @@ body.has-custom-qr #generate-qr-button:disabled {
    sits on top of the preview's QR code and can't be scrolled out of the
    way (the panel is position: fixed).
 
-   Here the same rows reflow into a short horizontal bar and the
-   collapse toggle — previously mobile-only — becomes available, so the
-   panel can be tucked into a 44px button. Unlike the mobile layout this
-   keeps ALL SIX controls: dropping the "Undo"/"Redo" word labels does
-   more for the width than dropping Fit All / Fit Height would, so the
-   buttons stay and the words go. Measured at 960px: 305x42 with every
-   control present, against 302x46 for the mobile bar that discards two.
+   Here the same rows reflow into a short horizontal bar. Unlike the
+   mobile layout this keeps ALL SIX controls: dropping the "Undo"/"Redo"
+   word labels does more for the width than dropping Fit All / Fit
+   Height would, so the buttons stay and the words go. Measured at
+   960px: 339x42 expanded with every control present, against 140x128
+   above this band.
 
-   The panel ships with .collapsed in index.html, so this band starts
-   tucked away; the toggle expands it. Above 1100px nothing changes.
+   The collapse toggle itself is NOT scoped here — it is available at
+   every width (see .zoom-controls-toggle above). This band only decides
+   the panel's shape. The starting state is set in app.js, which expands
+   the panel above this band's ceiling and leaves it tucked at or below
+   it; CONFIG.ZOOM_PANEL_REFLOW_MAX_PX mirrors the 1100 below, so change
+   the two together.
    ========================================================================= */
 @media (min-width: 769px) and (max-width: 1100px) {
   .zoom-controls {
@@ -3276,27 +3317,13 @@ body.has-custom-qr #generate-qr-button:disabled {
   .zoom-btn-wide { width: 34px; padding: 0; gap: 0; }
   .zoom-label { min-width: 46px; height: 34px; }
 
-  /* Collapse affordance. Mirrors the mobile rules; scoped here so the
-     .collapsed class shipped in the HTML takes effect in this band too. */
-  .zoom-controls-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    flex-shrink: 0;
-    border: none;
-    background: transparent;
-    color: var(--text-color);
-    font-size: 0.9rem;
-    cursor: pointer;
-    border-radius: var(--radius-sm);
-  }
-  .zoom-controls.collapsed .zoom-controls-toggle { width: 44px; height: 44px; }
+  /* Horizontal bar, so the toggle's divider moves from top to side.
+     Its size is inherited from the global rule and deliberately not
+     changed here: the collapsed square must stay the same button. */
   .zoom-controls:not(.collapsed) .zoom-controls-toggle {
+    border-top: none;
     border-left: 1px solid var(--border-color);
-    color: var(--primary-color);
   }
-  .zoom-controls.collapsed .zoom-row { display: none; }
 }
 
 /* =========================================================================
@@ -3591,29 +3618,22 @@ body.has-custom-qr #generate-qr-button:disabled {
     height: 44px;
     padding: 0 8px;
   }
-  /* Collapsed-by-default expander: phones see a single button until
-     tapped, so the panel doesn't cover the preview. Scoped to this
-     media query so the .collapsed class shipped in the HTML has no
-     effect on desktop. */
+  /* Phones see a single button until tapped, so the panel doesn't cover
+     the preview. The toggle itself is defined globally now; here it is
+     only grown to the 44px touch target this media query applies to
+     every other control. The 5px margin keeps the collapsed square the
+     same 54px height as the expanded bar (44 + 10 + 2px border), the
+     same matching the desktop rules make at 42px. */
   .zoom-controls-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: 44px;
     height: 44px;
-    flex-shrink: 0;
-    border: none;
-    background: transparent;
-    color: var(--text-color);
+    margin: 5px;
     font-size: 1rem;
-    cursor: pointer;
-    border-radius: var(--radius-sm);
   }
   .zoom-controls:not(.collapsed) .zoom-controls-toggle {
+    border-top: none;
     border-left: 1px solid var(--border-color);
-    color: var(--primary-color);
   }
-  .zoom-controls.collapsed .zoom-row { display: none; }
 
   /* Notifications can wrap to two lines on narrow screens. */
   #notification-area {

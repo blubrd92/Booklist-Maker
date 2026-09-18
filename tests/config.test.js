@@ -150,6 +150,24 @@ describe('CONFIG value constraints', () => {
     expect(globalThis.CONFIG.FONT_TYPEAHEAD_RESET_MS).toBeLessThan(5000);
   });
 
+  it('ZOOM_PANEL_REFLOW_MAX_PX matches the CSS media query it mirrors', () => {
+    // app.js uses this constant to pick the zoom panel's starting state
+    // (collapsed at or below it, expanded above). styles.css uses the
+    // same number to decide the panel's SHAPE. If they drift, a window
+    // can load with the vertical block already collapsed, or with the
+    // reflowed bar forced open. Pin them together.
+    const css = readFileSync(resolve('assets/css/styles.css'), 'utf-8');
+    const match = css.match(
+      /@media\s*\(min-width:\s*769px\)\s*and\s*\(max-width:\s*(\d+)px\)/
+    );
+    expect(match).not.toBeNull();
+    expect(Number(match[1])).toBe(globalThis.CONFIG.ZOOM_PANEL_REFLOW_MAX_PX);
+  });
+
+  it('ZOOM_PANEL_REFLOW_MAX_PX sits above the 768px mobile breakpoint', () => {
+    expect(globalThis.CONFIG.ZOOM_PANEL_REFLOW_MAX_PX).toBeGreaterThan(768);
+  });
+
   it('collage canvas geometry constants are positive inches', () => {
     expect(globalThis.CONFIG.COLLAGE_WIDTH_IN).toBeGreaterThan(0);
     expect(globalThis.CONFIG.COLLAGE_HEIGHT_IN).toBeGreaterThan(0);
