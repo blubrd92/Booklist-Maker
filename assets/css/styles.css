@@ -3143,21 +3143,27 @@ body.has-custom-qr #generate-qr-button:disabled {
 .zoom-row-level { padding: 2px 4px 4px; }
 .zoom-row + .zoom-row { border-top: 1px solid var(--border-color); }
 
-/* Collapse affordance, available at EVERY width (it used to be
-   mobile-only). The panel is position: fixed and floats over the
-   preview, so "get this out of my way" is a real need on any window the
-   user finds tight, not just a phone — and keying it to a breakpoint
-   only ever guesses, since half-screen is a fraction of whatever
-   monitor you happen to have.
+/* Collapse affordance. Shown only where the panel has been reflowed
+   into a horizontal bar (<= 1100px, see the two media queries below).
+   In its full-height "box" form the panel has room to simply sit there,
+   and a toggle would cost it a fourth row — 140x168 instead of
+   140x128 — to solve a crowding problem that form doesn't have.
 
    The button keeps ONE size in every state. Collapsing a control must
    not make it grow, and the collapsed square should read as the same
-   button the expanded panel ends with. Its 34px box plus the 3px margin
-   lands the collapsed panel at 42px, the same height the reflowed bar
-   has in the narrow band below. The mobile block re-sizes both to 44px
-   for the touch target and keeps them matched there too. */
+   button the expanded bar ends with. Its 34px box plus the 3px margin
+   lands the collapsed panel at 42px, exactly the reflowed bar's height.
+   The mobile block re-sizes both to 44px for the touch target and keeps
+   them matched there at 54px.
+
+   NOTE the transparent border-left. The expanded state needs a divider
+   against the row beside it, and box-sizing is border-box here, so a
+   border appearing only in that state would shrink the content area
+   from 34px to 33px and nudge the icon half a pixel sideways on every
+   toggle. Reserving the border in BOTH states and only changing its
+   color keeps the glyph nailed in place. */
 .zoom-controls-toggle {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   align-self: center;
@@ -3166,6 +3172,7 @@ body.has-custom-qr #generate-qr-button:disabled {
   margin: 3px;
   flex-shrink: 0;
   border: none;
+  border-left: 1px solid transparent;
   background: transparent;
   color: var(--text-color);
   font-size: 0.9rem;
@@ -3175,15 +3182,19 @@ body.has-custom-qr #generate-qr-button:disabled {
 }
 .zoom-controls-toggle:hover { background: var(--border-light); }
 
-/* Expanded, the toggle is the panel's last row and takes the same
-   divider its siblings get (border-left instead, where the panel has
-   been reflowed into a horizontal bar). Collapsed, it is the only child
-   and stands alone. */
-.zoom-controls:not(.collapsed) .zoom-controls-toggle {
-  border-top: 1px solid var(--border-color);
-  color: var(--primary-color);
+/* Bar-form widths: reveal the toggle and let the .collapsed class the
+   markup ships actually hide the rows. Above this the panel is the box
+   form, which always shows its rows — which is also what keeps a user
+   who collapsed the bar at 900px and then maximized from ending up with
+   an invisible panel and no button to bring it back. */
+@media (max-width: 1100px) {
+  .zoom-controls-toggle { display: flex; }
+  .zoom-controls:not(.collapsed) .zoom-controls-toggle {
+    border-left-color: var(--border-color);
+    color: var(--primary-color);
+  }
+  .zoom-controls.collapsed .zoom-row { display: none; }
 }
-.zoom-controls.collapsed .zoom-row { display: none; }
 
 /* --- BOOK EDIT SHEET (mobile tap-to-edit modal) --- */
 .book-edit-description {
@@ -3291,12 +3302,13 @@ body.has-custom-qr #generate-qr-button:disabled {
    960px: 339x42 expanded with every control present, against 140x128
    above this band.
 
-   The collapse toggle itself is NOT scoped here — it is available at
-   every width (see .zoom-controls-toggle above). This band only decides
-   the panel's shape. The starting state is set in app.js, which expands
-   the panel above this band's ceiling and leaves it tucked at or below
-   it; CONFIG.ZOOM_PANEL_REFLOW_MAX_PX mirrors the 1100 below, so change
-   the two together.
+   The collapse toggle is revealed by the shared <= 1100px block above,
+   which covers this band and the phone layout alike; this band only
+   decides the panel's shape and sizing. The starting state is set in
+   app.js, which expands the panel above this band's ceiling (where
+   there is no toggle to reopen it) and leaves it tucked at or below it;
+   CONFIG.ZOOM_PANEL_REFLOW_MAX_PX mirrors the 1100 below, so change the
+   two together.
    ========================================================================= */
 @media (min-width: 769px) and (max-width: 1100px) {
   .zoom-controls {
@@ -3317,13 +3329,6 @@ body.has-custom-qr #generate-qr-button:disabled {
   .zoom-btn-wide { width: 34px; padding: 0; gap: 0; }
   .zoom-label { min-width: 46px; height: 34px; }
 
-  /* Horizontal bar, so the toggle's divider moves from top to side.
-     Its size is inherited from the global rule and deliberately not
-     changed here: the collapsed square must stay the same button. */
-  .zoom-controls:not(.collapsed) .zoom-controls-toggle {
-    border-top: none;
-    border-left: 1px solid var(--border-color);
-  }
 }
 
 /* =========================================================================
@@ -3631,10 +3636,6 @@ body.has-custom-qr #generate-qr-button:disabled {
     height: 44px;
     margin: 4px;
     font-size: 1rem;
-  }
-  .zoom-controls:not(.collapsed) .zoom-controls-toggle {
-    border-top: none;
-    border-left: 1px solid var(--border-color);
   }
 
   /* Notifications can wrap to two lines on narrow screens. */

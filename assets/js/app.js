@@ -9541,14 +9541,17 @@ const BooklistApp = (function() {
       }, { passive: false });
     }
 
-    // Expander for the floating zoom/undo panel, available at every
-    // width. The panel ships with .collapsed in index.html so phones
-    // never flash it open before this runs; wide windows have room for
-    // it, so expand there at init and leave narrow windows (and phones)
-    // tucked until the user asks. Deliberately NOT re-evaluated on
-    // resize: once the user has expressed a preference by clicking,
-    // yanking the panel open or shut under them would be worse than
-    // leaving it where they put it.
+    // Expander for the floating zoom/undo panel. The toggle only exists
+    // where CSS has reflowed the panel into a horizontal bar (<= 1100px);
+    // wider windows get the full-height box form with no toggle at all.
+    //
+    // The panel ships with .collapsed in index.html so phones never
+    // flash it open before this runs, so clear that class above the
+    // ceiling — up there the rows must show, since there is no button
+    // to bring them back. Narrow windows and phones stay tucked until
+    // the user asks. Deliberately NOT re-evaluated on resize: once the
+    // user has expressed a preference by clicking, yanking the panel
+    // open or shut under them would be worse than leaving it put.
     const zoomToggle = document.getElementById('zoom-controls-toggle');
     const zoomPanel = document.getElementById('zoom-controls');
     if (zoomToggle && zoomPanel) {
