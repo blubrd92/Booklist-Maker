@@ -468,6 +468,7 @@ const BooklistApp = (function() {
       stretchBlockCoversToggle: document.getElementById('stretch-block-covers-toggle'),
       applyTitleCaseBtn: document.getElementById('apply-title-case-btn'),
       applySentenceCaseBtn: document.getElementById('apply-sentence-case-btn'),
+      applyUpperCaseBtn: document.getElementById('apply-upper-case-btn'),
       toggleQrCode: document.getElementById('toggle-qr-code'),
       toggleBranding: document.getElementById('toggle-branding'),
       
@@ -6122,6 +6123,10 @@ const BooklistApp = (function() {
   const TITLE_CASE_TRANSFORMS = {
     title: { label: 'Title Case', fn: (s) => BookUtils.toTitleCase(s) },
     sentence: { label: 'sentence case', fn: (s) => BookUtils.toSentenceCase(s) },
+    // No BookUtils wrapper for this one: String.prototype.toUpperCase is
+    // already the whole behavior, and a pass-through in book-utils.js
+    // would be a function with nothing to test.
+    upper: { label: 'UPPERCASE', fn: (s) => s.toUpperCase() },
   };
 
   /**
@@ -6176,7 +6181,7 @@ const BooklistApp = (function() {
    */
   function updateTitleCaseButtonsState() {
     const enabled = myBooklist.some(hasTransformableTitle);
-    [elements.applyTitleCaseBtn, elements.applySentenceCaseBtn].forEach((btn) => {
+    [elements.applyTitleCaseBtn, elements.applySentenceCaseBtn, elements.applyUpperCaseBtn].forEach((btn) => {
       if (btn) btn.disabled = !enabled;
     });
   }
@@ -7680,6 +7685,9 @@ const BooklistApp = (function() {
     }
     if (elements.applySentenceCaseBtn) {
       elements.applySentenceCaseBtn.addEventListener('click', () => applyTitleCaseTransform('sentence'));
+    }
+    if (elements.applyUpperCaseBtn) {
+      elements.applyUpperCaseBtn.addEventListener('click', () => applyTitleCaseTransform('upper'));
     }
     
     // Layout selector

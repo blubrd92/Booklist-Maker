@@ -1220,7 +1220,12 @@ input[type="color"]:hover {
   margin-bottom: 10px;
   border: 1px solid var(--border-color);
 }
-#title-case-group .control-row { margin-bottom: 0; }
+#title-case-group .control-row {
+  margin-bottom: 0;
+  /* stretch, not center: "Sentence case" wraps to two lines at this panel
+     width, and centering leaves the three buttons at ragged heights. */
+  align-items: stretch;
+}
 #title-case-group .control-row .btn { flex: 1; }
 #title-case-group .title-case-hint {
   margin: 8px 0 0;
