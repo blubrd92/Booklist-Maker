@@ -760,9 +760,25 @@ describe('BookUtils.toSentenceCase', () => {
       .toBe('Como agua para chocolate: novela de entregas mensuales');
   });
 
-  it('does not preserve acronyms (deliberately blunt)', () => {
-    expect(sc('SPQR: a history of ancient Rome')).toBe('Spqr: a history of ancient rome');
-    expect(sc('NASA history')).toBe('Nasa history');
+  it('preserves acronyms inside a mixed-case title', () => {
+    expect(sc('SPQR: a history of ancient Rome')).toBe('SPQR: a history of ancient rome');
+    expect(sc('NASA history')).toBe('NASA history');
+    expect(sc('the USA today')).toBe('The USA today');
+  });
+
+  it('treats a single-word all-caps title as an acronym', () => {
+    // Same rule toTitleCase applies: one all-caps word is an acronym,
+    // not shouting. Nothing in the string distinguishes SPQR from a
+    // one-word title someone typed in caps, so both are preserved.
+    expect(sc('SPQR')).toBe('SPQR');
+    expect(sc('NW')).toBe('NW');
+  });
+
+  it('flattens a shouting title even though every word looks like an acronym', () => {
+    // The exception that makes this function worth having: protecting
+    // acronyms here would return the title untouched.
+    expect(sc('LA CASA DE BERNARDA ALBA')).toBe('La casa de bernarda alba');
+    expect(sc('SPQR: A HISTORY OF ANCIENT ROME')).toBe('Spqr: a history of ancient rome');
   });
 
   it('capitalizes the first letter, not the first character', () => {

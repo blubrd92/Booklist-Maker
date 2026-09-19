@@ -244,30 +244,50 @@
     },
 
     /**
-     * Convert a string to sentence case: lowercase everything, then
-     * capitalize the first letter. Intended for Spanish and other
-     * languages that capitalize only the first word and proper nouns
-     * in titles.
+     * Convert a string to sentence case: lowercase the words, then
+     * capitalize the first letter. For Spanish and other languages that
+     * capitalize only the first word and proper nouns in titles.
      *
-     * Deliberately blunt, unlike toTitleCase:
-     *  - No acronym preservation. "SPQR: a history" becomes "Spqr: a
-     *    history". The tradeoff is that a title arriving entirely in
-     *    caps ("LA CASA DE BERNARDA ALBA") is actually fixed rather
-     *    than mistaken for a string of acronyms and passed through.
-     *  - No capital after a colon. Per RAE, a subtitle naming a
-     *    partial aspect of the title takes a colon plus lowercase
-     *    ("Garcia Marquez: historia de un deicidio"). English titles
-     *    wanting a capitalized subtitle should use Title Case instead.
-     *  - Proper nouns inside the title are lowercased and need fixing
-     *    by hand ("PEDRO PARAMO" becomes "Pedro paramo"). No
-     *    dictionary-free rule can tell a proper noun from a common
-     *    one, and the titles are editable in place.
+     * Acronyms survive, the same way they do in `toTitleCase`: an
+     * all-uppercase token of length 2+ is left alone, so
+     * `SPQR: a history of ancient Rome` keeps SPQR.
+     *
+     * The exception is a title that `isCaselessTitle` says is SHOUTING
+     * rather than merely carrying an acronym (no lowercase letter
+     * anywhere, two or more words). There every word looks like an
+     * acronym, so protecting them would mean returning the title
+     * untouched, which is the one thing this function exists to avoid.
+     * Those are flattened whole: `LA CASA DE BERNARDA ALBA` becomes
+     * `La casa de bernarda alba`. The cost is that a shouting title
+     * carrying a genuine acronym loses it, since at that point nothing
+     * in the string tells the two apart.
+     *
+     * Two things it deliberately does NOT do:
+     *  - No capital after a colon. Per RAE, a subtitle naming a partial
+     *    aspect of the title takes a colon plus lowercase
+     *    ("Garcia Marquez: historia de un deicidio"). An English title
+     *    wanting a capitalized subtitle should use Title Case.
+     *  - No proper-noun detection. Interior proper nouns are lowercased
+     *    and need fixing by hand ("PEDRO PARAMO" becomes "Pedro
+     *    paramo"). No dictionary-free rule can tell a proper noun from
+     *    a common one, and the titles are editable in place.
      * @param {string} str
      * @returns {string}
      */
     toSentenceCase: function(str) {
       if (!str) return str || '';
-      const lowered = str.toLowerCase();
+      const keepAcronyms = !BookUtils.isCaselessTitle(str);
+      const lowered = str.split(/(\s+)/).map(function(token) {
+        if (!/\S/.test(token)) return token;
+        // Same acronym test as toTitleCase, deliberately including its
+        // ASCII-only /[A-Z]/ guard, so the two functions agree on what
+        // counts as an acronym.
+        if (keepAcronyms && token.length >= 2
+            && token === token.toUpperCase() && /[A-Z]/.test(token)) {
+          return token;
+        }
+        return token.toLowerCase();
+      }).join('');
       // Capitalize the first LETTER, not the first character. Spanish
       // titles open with an inverted mark ("¿quien mato a palomino
       // molero?") and quoted ones with « or ", where uppercasing
