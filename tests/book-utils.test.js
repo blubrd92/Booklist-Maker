@@ -753,15 +753,32 @@ describe('BookUtils.toSentenceCase', () => {
     expect(sc(mangled)).toBe('El amor en los tiempos del cólera');
   });
 
-  it('leaves the word after a colon lowercase (RAE subtitle rule)', () => {
+  it('capitalizes the first word of a subtitle', () => {
+    // Deliberately NOT the RAE rule (which wants colon plus lowercase in
+    // Spanish): the same rule would lowercase every English subtitle too,
+    // and English subtitles are the common case here. A Spanish title
+    // that wants the lowercase is one keystroke away.
     expect(sc('García Márquez: Historia de un deicidio'))
-      .toBe('García márquez: historia de un deicidio');
-    expect(sc('Como agua para chocolate: Novela de entregas mensuales'))
-      .toBe('Como agua para chocolate: novela de entregas mensuales');
+      .toBe('García márquez: Historia de un deicidio');
+    expect(sc('the great gatsby: a novel')).toBe('The great gatsby: A novel');
+  });
+
+  it('also treats ? and ! as sentence breaks', () => {
+    // These end a sentence outright, so the capital is right in both
+    // languages, not just English.
+    expect(sc('what now? a manifesto')).toBe('What now? A manifesto');
+    expect(sc('stop! a guide')).toBe('Stop! A guide');
+  });
+
+  it('hands the capital past an opening mark to the next word', () => {
+    // A title or subtitle that opens with a standalone « or " must not
+    // swallow the capital.
+    expect(sc('« la ciudad y los perros')).toBe('« La ciudad y los perros');
+    expect(sc('un titulo: « la respuesta')).toBe('Un titulo: « La respuesta');
   });
 
   it('preserves acronyms inside a mixed-case title', () => {
-    expect(sc('SPQR: a history of ancient Rome')).toBe('SPQR: a history of ancient rome');
+    expect(sc('SPQR: a history of ancient Rome')).toBe('SPQR: A history of ancient rome');
     expect(sc('NASA history')).toBe('NASA history');
     expect(sc('the USA today')).toBe('The USA today');
   });
@@ -781,7 +798,7 @@ describe('BookUtils.toSentenceCase', () => {
     // The exception that makes this function worth having: protecting
     // acronyms here would return the title untouched.
     expect(sc('LA CASA DE BERNARDA ALBA')).toBe('La casa de bernarda alba');
-    expect(sc('SPQR: A HISTORY OF ANCIENT ROME')).toBe('Spqr: a history of ancient rome');
+    expect(sc('SPQR: A HISTORY OF ANCIENT ROME')).toBe('Spqr: A history of ancient rome');
   });
 
   it('capitalizes the first letter, not the first character', () => {

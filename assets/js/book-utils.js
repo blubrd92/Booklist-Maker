@@ -245,8 +245,9 @@
 
     /**
      * Convert a string to sentence case: lowercase the words, then
-     * capitalize the first letter. For Spanish and other languages that
-     * capitalize only the first word and proper nouns in titles.
+     * capitalize the first word and the first word of each subtitle. For
+     * Spanish and other languages that capitalize only the first word and
+     * proper nouns in titles.
      *
      * Acronyms survive, the same way they do in `toTitleCase`: an
      * all-uppercase token of length 2+ is left alone, so
@@ -254,30 +255,51 @@
      *
      * The exception is a title that `isCaselessTitle` says is SHOUTING
      * rather than merely carrying an acronym (no lowercase letter
-     * anywhere, two or more words). There every word looks like an
-     * acronym, so protecting them would mean returning the title
-     * untouched, which is the one thing this function exists to avoid.
-     * Those are flattened whole: `LA CASA DE BERNARDA ALBA` becomes
-     * `La casa de bernarda alba`. The cost is that a shouting title
-     * carrying a genuine acronym loses it, since at that point nothing
-     * in the string tells the two apart.
+     * anywhere). There every word looks like an acronym, so protecting
+     * them would mean returning the title untouched, which is the one
+     * thing this function exists to avoid. Those are flattened whole:
+     * `LA CASA DE BERNARDA ALBA` becomes `La casa de bernarda alba`. The
+     * cost is that a shouting title carrying a genuine acronym loses it,
+     * since at that point nothing in the string tells the two apart.
      *
-     * Two things it deliberately does NOT do:
-     *  - No capital after a colon. Per RAE, a subtitle naming a partial
-     *    aspect of the title takes a colon plus lowercase
-     *    ("Garcia Marquez: historia de un deicidio"). An English title
-     *    wanting a capitalized subtitle should use Title Case.
-     *  - No proper-noun detection. Interior proper nouns are lowercased
-     *    and need fixing by hand ("PEDRO PARAMO" becomes "Pedro
-     *    paramo"). No dictionary-free rule can tell a proper noun from
-     *    a common one, and the titles are editable in place.
+     * A word following a token that ends in `:`, `?` or `!` IS
+     * capitalized. RAE says a Spanish subtitle naming a partial aspect
+     * takes a colon plus lowercase, and this deliberately does not follow
+     * that: the same rule would lowercase every English subtitle too, and
+     * English subtitles are the common case here. A Spanish title that
+     * wants the lowercase can have it with one keystroke, which is the
+     * cheaper direction to be wrong in. `?` and `!` end a sentence
+     * outright, so capitalizing after them is right in both languages.
+     *
+     * Still no proper-noun detection: interior proper nouns are
+     * lowercased and need fixing by hand (`PEDRO PARAMO` becomes `Pedro
+     * paramo`). No dictionary-free rule can tell a proper noun from a
+     * common one, and the titles are editable in place.
      * @param {string} str
      * @returns {string}
      */
     toSentenceCase: function(str) {
       if (!str) return str || '';
       const keepAcronyms = !BookUtils.isCaselessTitle(str);
-      const lowered = str.split(/(\s+)/).map(function(token) {
+      const tokens = str.split(/(\s+)/);
+
+      // Word indices that begin a sentence: the first word, and any word
+      // after a token ending in : ? !. `pending` stays true across a
+      // token with no letters in it, so a title or subtitle opening with
+      // «, " or ¿ hands the capital to the word that follows instead of
+      // swallowing it.
+      const sentenceStarts = new Set();
+      let pending = true;
+      for (let i = 0; i < tokens.length; i++) {
+        if (!/\S/.test(tokens[i])) continue;
+        if (pending) {
+          sentenceStarts.add(i);
+          if (/\p{L}/u.test(tokens[i])) pending = false;
+        }
+        if (/[:?!]$/.test(tokens[i])) pending = true;
+      }
+
+      return tokens.map(function(token, i) {
         if (!/\S/.test(token)) return token;
         // Same acronym test as toTitleCase, deliberately including its
         // ASCII-only /[A-Z]/ guard, so the two functions agree on what
@@ -286,17 +308,14 @@
             && token === token.toUpperCase() && /[A-Z]/.test(token)) {
           return token;
         }
-        return token.toLowerCase();
+        const lowered = token.toLowerCase();
+        if (!sentenceStarts.has(i)) return lowered;
+        // Capitalize the first LETTER, not the first character: an
+        // inverted mark or an opening quote would otherwise absorb it.
+        const at = lowered.search(/\p{L}/u);
+        if (at === -1) return lowered;
+        return lowered.slice(0, at) + lowered.charAt(at).toUpperCase() + lowered.slice(at + 1);
       }).join('');
-      // Capitalize the first LETTER, not the first character. Spanish
-      // titles open with an inverted mark ("¿quien mato a palomino
-      // molero?") and quoted ones with « or ", where uppercasing
-      // index 0 would do nothing and leave the real first word lower.
-      const firstLetter = lowered.search(/\p{L}/u);
-      if (firstLetter === -1) return lowered;
-      return lowered.slice(0, firstLetter)
-        + lowered.charAt(firstLetter).toUpperCase()
-        + lowered.slice(firstLetter + 1);
     },
 
     /**
