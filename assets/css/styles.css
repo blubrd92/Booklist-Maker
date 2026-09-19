@@ -2486,6 +2486,20 @@ body.has-custom-qr #generate-qr-button:disabled {
   outline-offset: 2px;
 }
 
+/* The same ring while a button is held down, so a mouse click still gets
+   the visual acknowledgement :focus-visible withholds from it. It lasts
+   exactly as long as the press and is gone on release, which is the
+   whole point: feedback that the click landed, not a mark that outlives
+   it. Pairs with the existing `.btn:active { transform: translateY(0) }`
+   press state. */
+.btn:active,
+.btn-header:active,
+.btn-header-primary:active,
+.add-to-list-button:active {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
 /* Skip link (hidden until focused) */
 .skip-link {
   position: absolute;

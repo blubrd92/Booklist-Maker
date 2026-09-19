@@ -805,6 +805,14 @@ rings, which is the case the indicator exists for. Text inputs and
 contenteditables deliberately keep plain `:focus` in their own rules, because
 clicking into a field genuinely should show focus.
 
+A **companion `:active` rule** draws the same ring on the four button selectors
+while the button is held down, so a mouse click still gets acknowledged. It lasts
+exactly as long as the press and is gone on release. The pairing is the point:
+`:focus-visible` refuses to let the ring outlive the click, `:active` gives the
+click its feedback back. If the press turns out to read as too brief, the upgrade
+is a class added on click plus a short fade-out animation, which is more code and
+was not needed at the time.
+
 **The browser-support question is already settled, and it is worth knowing why.**
 A selector list containing a single selector the engine cannot parse invalidates
 the *entire* rule. `.tab-btn:focus-visible` has been in that list since before the
