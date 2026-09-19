@@ -6156,7 +6156,12 @@ const BooklistApp = (function() {
     // requested case bails here and never costs an undo entry.
     const pending = targets.filter((book) => transform.fn(book.title) !== book.title);
     if (pending.length === 0) {
-      showNotification('Every title is already in ' + transform.label + '.', 'info');
+      // Deliberately does NOT claim the titles are already in the
+      // requested case. They may not be: an all-caps title passes
+      // through toTitleCase untouched (every word trips its
+      // acronym-preservation branch), so "already in Title Case" would
+      // be a flat lie about titles that are plainly shouting.
+      showNotification('No titles changed.', 'info');
       return;
     }
 
