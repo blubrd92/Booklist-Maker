@@ -300,35 +300,37 @@
     },
 
     /**
-     * Whether a title carries no usable case information, i.e. it is
-     * SHOUTING rather than merely containing an acronym.
+     * Whether a title carries no usable case information at all: not a
+     * single lowercase letter anywhere, but at least one uppercase one.
      *
      * `toTitleCase` inspects one word at a time and preserves any word
-     * that is entirely uppercase, which is right for "the USA today"
-     * and useless for "EL AMOR EN LOS TIEMPOS DEL COLERA", where every
-     * word passes that test and the whole title comes back untouched.
-     * This looks at the string as a whole instead, so a caller can
-     * flatten the case first and hand `toTitleCase` something it can
-     * actually work with.
+     * that is entirely uppercase, which is right for `the USA today`
+     * and useless for `EL AMOR EN LOS TIEMPOS DEL CÓLERA`, where every
+     * word passes that test and the title comes back untouched. This
+     * looks at the string as a whole, so a caller can flatten the case
+     * before converting.
      *
-     * True requires BOTH: not a single lowercase letter anywhere, and
-     * at least two words. The two-word floor is what protects a title
-     * that genuinely is only an acronym ("SPQR", "NW", "IQ") from being
-     * flattened to "Spqr". The accepted cost is that a multi-word
-     * all-caps title carrying a real acronym ("SPQR: A HISTORY OF
-     * ANCIENT ROME") loses it, since at that point nothing in the
-     * string distinguishes the acronym from the shouting.
+     * A ONE-WORD all-caps title counts as caseless too, and that is a
+     * deliberate reversal of an earlier two-word floor that existed to
+     * protect titles like `SPQR`, `NW` and `IQ`. The floor protected
+     * those and trapped everything else: press UPPERCASE on `Beloved`
+     * and no button could turn `BELOVED` back, because one all-caps
+     * word reads as an acronym. Stuck is worse than wrong-and-fixable,
+     * single-word titles vastly outnumber acronym-only ones on a
+     * display list, and nothing happens to `SPQR` unless the user
+     * presses a button and asks for it. The acronym protection that
+     * matters is still intact, because a title with any lowercase in it
+     * is never caseless: `SPQR: a history of ancient Rome` keeps SPQR.
      *
-     * Strings with no cased letters at all (numerals, CJK) return false:
-     * there is nothing to flatten.
+     * Strings with no cased letters at all (numerals, CJK) return
+     * false: there is nothing to flatten.
      * @param {string} str
      * @returns {boolean}
      */
     isCaselessTitle: function(str) {
       if (!str || typeof str !== 'string') return false;
       if (/\p{Ll}/u.test(str)) return false;
-      if (!/\p{Lu}/u.test(str)) return false;
-      return str.trim().split(/\s+/).filter(Boolean).length >= 2;
+      return /\p{Lu}/u.test(str);
     },
 
     /**

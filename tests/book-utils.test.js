@@ -766,12 +766,15 @@ describe('BookUtils.toSentenceCase', () => {
     expect(sc('the USA today')).toBe('The USA today');
   });
 
-  it('treats a single-word all-caps title as an acronym', () => {
-    // Same rule toTitleCase applies: one all-caps word is an acronym,
-    // not shouting. Nothing in the string distinguishes SPQR from a
-    // one-word title someone typed in caps, so both are preserved.
-    expect(sc('SPQR')).toBe('SPQR');
-    expect(sc('NW')).toBe('NW');
+  it('converts a single-word all-caps title rather than trapping it', () => {
+    // A one-word all-caps title is treated as shouting, not as an
+    // acronym. Protecting it would mean no button could turn BELOVED
+    // back after an UPPERCASE press, and stuck is worse than
+    // wrong-and-fixable. SPQR pays for it; nothing happens to SPQR
+    // unless the user presses a button and asks.
+    expect(sc('BELOVED')).toBe('Beloved');
+    expect(sc('SPQR')).toBe('Spqr');
+    expect(sc('NW')).toBe('Nw');
   });
 
   it('flattens a shouting title even though every word looks like an acronym', () => {
@@ -830,10 +833,12 @@ describe('BookUtils.isCaselessTitle', () => {
     expect(caseless('PEDRO PÁRAMO')).toBe(true);
   });
 
-  it('is false for a single-word acronym title', () => {
-    expect(caseless('SPQR')).toBe(false);
-    expect(caseless('NW')).toBe(false);
-    expect(caseless('IQ')).toBe(false);
+  it('is true for a single-word all-caps title', () => {
+    // Deliberate: the earlier two-word floor protected SPQR and trapped
+    // every one-word title the user had just uppercased.
+    expect(caseless('SPQR')).toBe(true);
+    expect(caseless('BELOVED')).toBe(true);
+    expect(caseless('NW')).toBe(true);
   });
 
   it('is false when any lowercase letter is present', () => {
@@ -848,9 +853,9 @@ describe('BookUtils.isCaselessTitle', () => {
     expect(caseless('   ')).toBe(false);
   });
 
-  it('counts words by whitespace, not punctuation', () => {
+  it('does not care about word count or punctuation', () => {
     expect(caseless('THE GREAT GATSBY: A NOVEL')).toBe(true);
-    expect(caseless('X-RAY')).toBe(false);
+    expect(caseless('X-RAY')).toBe(true);
   });
 });
 describe('BookUtils.parseQuickAddTsv', () => {

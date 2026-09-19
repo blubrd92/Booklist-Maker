@@ -1227,6 +1227,11 @@ input[type="color"]:hover {
   align-items: stretch;
 }
 #title-case-group .control-row .btn { flex: 1; }
+/* These are actions, not settings, so a mouse click must not leave the
+   button ringed as though a mode were selected. The shared rule is
+   .btn:focus; narrow it to keyboard focus for this group only, so
+   tabbing still shows the ring. */
+#title-case-group .btn:focus:not(:focus-visible) { outline: none; }
 #title-case-group .title-case-hint {
   margin: 8px 0 0;
   font-size: 0.7rem;
