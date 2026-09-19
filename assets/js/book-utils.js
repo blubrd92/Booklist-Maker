@@ -280,6 +280,38 @@
     },
 
     /**
+     * Whether a title carries no usable case information, i.e. it is
+     * SHOUTING rather than merely containing an acronym.
+     *
+     * `toTitleCase` inspects one word at a time and preserves any word
+     * that is entirely uppercase, which is right for "the USA today"
+     * and useless for "EL AMOR EN LOS TIEMPOS DEL COLERA", where every
+     * word passes that test and the whole title comes back untouched.
+     * This looks at the string as a whole instead, so a caller can
+     * flatten the case first and hand `toTitleCase` something it can
+     * actually work with.
+     *
+     * True requires BOTH: not a single lowercase letter anywhere, and
+     * at least two words. The two-word floor is what protects a title
+     * that genuinely is only an acronym ("SPQR", "NW", "IQ") from being
+     * flattened to "Spqr". The accepted cost is that a multi-word
+     * all-caps title carrying a real acronym ("SPQR: A HISTORY OF
+     * ANCIENT ROME") loses it, since at that point nothing in the
+     * string distinguishes the acronym from the shouting.
+     *
+     * Strings with no cased letters at all (numerals, CJK) return false:
+     * there is nothing to flatten.
+     * @param {string} str
+     * @returns {boolean}
+     */
+    isCaselessTitle: function(str) {
+      if (!str || typeof str !== 'string') return false;
+      if (/\p{Ll}/u.test(str)) return false;
+      if (!/\p{Lu}/u.test(str)) return false;
+      return str.trim().split(/\s+/).filter(Boolean).length >= 2;
+    },
+
+    /**
      * Parse a tab-separated paste from a spreadsheet (Google Sheets,
      * Excel, Numbers, etc.) into rows of { title, author, callNumber,
      * coverUrl }. Used by the Quick Add modal's "Spreadsheet" tab.

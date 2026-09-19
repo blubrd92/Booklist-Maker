@@ -797,6 +797,46 @@ describe('BookUtils.toSentenceCase', () => {
   });
 });
 
+
+describe('BookUtils.isCaselessTitle', () => {
+  const caseless = (s) => globalThis.BookUtils.isCaselessTitle(s);
+
+  it('returns false for empty / non-string input', () => {
+    expect(caseless('')).toBe(false);
+    expect(caseless(null)).toBe(false);
+    expect(caseless(undefined)).toBe(false);
+    expect(caseless(42)).toBe(false);
+  });
+
+  it('is true for a multi-word all-caps title', () => {
+    expect(caseless('EL AMOR EN LOS TIEMPOS DEL CÓLERA')).toBe(true);
+    expect(caseless('THE GREAT GATSBY')).toBe(true);
+    expect(caseless('PEDRO PÁRAMO')).toBe(true);
+  });
+
+  it('is false for a single-word acronym title', () => {
+    expect(caseless('SPQR')).toBe(false);
+    expect(caseless('NW')).toBe(false);
+    expect(caseless('IQ')).toBe(false);
+  });
+
+  it('is false when any lowercase letter is present', () => {
+    expect(caseless('the USA today')).toBe(false);
+    expect(caseless('SPQR: a history of ancient Rome')).toBe(false);
+    expect(caseless('The Great Gatsby')).toBe(false);
+  });
+
+  it('is false when there are no cased letters at all', () => {
+    expect(caseless('1984')).toBe(false);
+    expect(caseless('2001 2010')).toBe(false);
+    expect(caseless('   ')).toBe(false);
+  });
+
+  it('counts words by whitespace, not punctuation', () => {
+    expect(caseless('THE GREAT GATSBY: A NOVEL')).toBe(true);
+    expect(caseless('X-RAY')).toBe(false);
+  });
+});
 describe('BookUtils.parseQuickAddTsv', () => {
   const parse = (text, opts) => globalThis.BookUtils.parseQuickAddTsv(text, opts);
 

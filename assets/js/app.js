@@ -6121,7 +6121,16 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
 
   const TITLE_CASE_TRANSFORMS = {
-    title: { label: 'Title Case', fn: (s) => BookUtils.toTitleCase(s) },
+    // A title that is entirely uppercase reads to toTitleCase as a run of
+    // acronyms, so it would pass through untouched — which the UPPERCASE
+    // button below makes reachable in one click. Flatten the case first in
+    // that one case so the three buttons compose in any order. This lives
+    // here rather than inside BookUtils.toTitleCase on purpose: Quick Add's
+    // add-time behavior is unchanged, and so is that function's test suite.
+    title: {
+      label: 'Title Case',
+      fn: (s) => BookUtils.toTitleCase(BookUtils.isCaselessTitle(s) ? BookUtils.toSentenceCase(s) : s),
+    },
     sentence: { label: 'sentence case', fn: (s) => BookUtils.toSentenceCase(s) },
     // No BookUtils wrapper for this one: String.prototype.toUpperCase is
     // already the whole behavior, and a pass-through in book-utils.js
