@@ -727,6 +727,76 @@ describe('BookUtils.toTitleCase', () => {
   });
 });
 
+describe('BookUtils.toSentenceCase', () => {
+  const sc = (s) => globalThis.BookUtils.toSentenceCase(s);
+
+  it('returns empty string for empty/null input', () => {
+    expect(sc('')).toBe('');
+    expect(sc(null)).toBe('');
+    expect(sc(undefined)).toBe('');
+  });
+
+  it('lowercases everything and capitalizes the first word', () => {
+    expect(sc('cien años de soledad')).toBe('Cien años de soledad');
+    expect(sc('Cien Años De Soledad')).toBe('Cien años de soledad');
+    expect(sc('el amor en los tiempos del cólera')).toBe('El amor en los tiempos del cólera');
+  });
+
+  it('fixes a title that arrives entirely in capitals', () => {
+    expect(sc('LA CASA DE BERNARDA ALBA')).toBe('La casa de bernarda alba');
+    expect(sc('THE GREAT GATSBY')).toBe('The great gatsby');
+  });
+
+  it('undoes wrongly applied Title Case on a Spanish title', () => {
+    const mangled = globalThis.BookUtils.toTitleCase('el amor en los tiempos del cólera');
+    expect(mangled).toBe('El Amor En Los Tiempos Del Cólera');
+    expect(sc(mangled)).toBe('El amor en los tiempos del cólera');
+  });
+
+  it('leaves the word after a colon lowercase (RAE subtitle rule)', () => {
+    expect(sc('García Márquez: Historia de un deicidio'))
+      .toBe('García márquez: historia de un deicidio');
+    expect(sc('Como agua para chocolate: Novela de entregas mensuales'))
+      .toBe('Como agua para chocolate: novela de entregas mensuales');
+  });
+
+  it('does not preserve acronyms (deliberately blunt)', () => {
+    expect(sc('SPQR: a history of ancient Rome')).toBe('Spqr: a history of ancient rome');
+    expect(sc('NASA history')).toBe('Nasa history');
+  });
+
+  it('capitalizes the first letter, not the first character', () => {
+    // Spanish opens questions and exclamations with an inverted mark.
+    expect(sc('¿QUIÉN MATÓ A PALOMINO MOLERO?')).toBe('¿Quién mató a palomino molero?');
+    expect(sc('¡ay, vida!')).toBe('¡Ay, vida!');
+    expect(sc('«la ciudad y los perros»')).toBe('«La ciudad y los perros»');
+    expect(sc('"the road"')).toBe('"The road"');
+  });
+
+  it('handles accented first letters', () => {
+    expect(sc('ÉRASE UNA VEZ')).toBe('Érase una vez');
+    expect(sc('ñandutí y otros cuentos')).toBe('Ñandutí y otros cuentos');
+  });
+
+  it('does not capitalize across hyphens', () => {
+    expect(sc('EL BIEN-ESTAR')).toBe('El bien-estar');
+  });
+
+  it('preserves whitespace shape', () => {
+    expect(sc('  hola  mundo  ')).toBe('  Hola  mundo  ');
+  });
+
+  it('returns input lowercased when it contains no letters', () => {
+    expect(sc('123 456')).toBe('123 456');
+    expect(sc('   ')).toBe('   ');
+  });
+
+  it('is idempotent', () => {
+    const once = sc('LA CASA DE BERNARDA ALBA');
+    expect(sc(once)).toBe(once);
+  });
+});
+
 describe('BookUtils.parseQuickAddTsv', () => {
   const parse = (text, opts) => globalThis.BookUtils.parseQuickAddTsv(text, opts);
 

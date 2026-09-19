@@ -466,6 +466,8 @@ const BooklistApp = (function() {
       // Toggles
       stretchCoversToggle: document.getElementById('stretch-covers-toggle'),
       stretchBlockCoversToggle: document.getElementById('stretch-block-covers-toggle'),
+      applyTitleCaseBtn: document.getElementById('apply-title-case-btn'),
+      applySentenceCaseBtn: document.getElementById('apply-sentence-case-btn'),
       toggleQrCode: document.getElementById('toggle-qr-code'),
       toggleBranding: document.getElementById('toggle-branding'),
       
@@ -1625,6 +1627,7 @@ const BooklistApp = (function() {
     applyStyles();
     applyBlockCoverStyle();
     updateBackCoverVisibility();
+    updateTitleCaseButtonsState();
 
     // Restore scroll position after DOM rebuild
     if (scrollContainer) scrollContainer.scrollTop = prevScrollTop;
@@ -2386,6 +2389,9 @@ const BooklistApp = (function() {
       if (bookItem.isBlank && bookItem.title !== CONFIG.PLACEHOLDERS.title) {
         bookItem.isBlank = false;
       }
+      // Typing the first title into a blank slot should make the case
+      // transforms reachable without waiting for the next full render.
+      updateTitleCaseButtonsState();
       debouncedSave();
     };
     
@@ -6097,6 +6103,85 @@ const BooklistApp = (function() {
   }
 
   // ---------------------------------------------------------------------------
+  // Title capitalization transforms (Text & Styling tab)
+  //
+  // Rewrites the titles ALREADY in the list rather than transforming them
+  // at add time. Quick Add's per-tab Title Case checkboxes are unchanged
+  // and still govern what happens on add; this is the after-the-fact fix
+  // for when a paste arrives in the wrong convention. Because one undo
+  // entry covers the whole batch, pressing the wrong button costs one
+  // Ctrl+Z, which is what makes it safe to leave the add-time default
+  // alone.
+  //
+  // Titles only. Author names are deliberately out of scope: "bell hooks"
+  // and "de la Cruz" are correct as catalogued, and the Booklister Helper
+  // extension already cleans and flips them on the way in. The front cover
+  // header text is out of scope too, since that is typed by hand.
+  // ---------------------------------------------------------------------------
+
+  const TITLE_CASE_TRANSFORMS = {
+    title: { label: 'Title Case', fn: (s) => BookUtils.toTitleCase(s) },
+    sentence: { label: 'sentence case', fn: (s) => BookUtils.toSentenceCase(s) },
+  };
+
+  /**
+   * Whether a book's title is real content worth transforming. Skips
+   * blank slots and the untouched placeholder so pressing a button on a
+   * half-filled list doesn't stamp "[enter title]" into the empty rows.
+   */
+  function hasTransformableTitle(book) {
+    if (!book || book.isBlank) return false;
+    const title = (book.title || '').trim();
+    return !!title && title !== CONFIG.PLACEHOLDERS.title;
+  }
+
+  function applyTitleCaseTransform(mode) {
+    const transform = TITLE_CASE_TRANSFORMS[mode];
+    if (!transform) return;
+
+    const targets = myBooklist.filter(hasTransformableTitle);
+    if (targets.length === 0) {
+      showNotification('No titles to convert yet.', 'info');
+      return;
+    }
+
+    // Count the titles the transform actually CHANGES, not the ones it
+    // touches, so the message reports work done rather than buttons
+    // pressed. Both transforms are idempotent, so a list already in the
+    // requested case bails here and never costs an undo entry.
+    const pending = targets.filter((book) => transform.fn(book.title) !== book.title);
+    if (pending.length === 0) {
+      showNotification('Every title is already in ' + transform.label + '.', 'info');
+      return;
+    }
+
+    // Group per mode so Title Case followed by sentence case are two
+    // separate undo steps rather than coalescing into one.
+    pushUndo('convert-title-case-' + mode);
+    pending.forEach((book) => { book.title = transform.fn(book.title); });
+
+    renderBooklist();
+    debouncedSave();
+    showNotification(
+      'Converted ' + pending.length + ' title' + (pending.length === 1 ? '' : 's')
+        + ' to ' + transform.label + '.',
+      'success'
+    );
+  }
+
+  /**
+   * Enable the transform buttons only when there's something to convert.
+   * Called from renderBooklist so it tracks adds, deletes, loads and
+   * undo/redo without needing listeners of its own.
+   */
+  function updateTitleCaseButtonsState() {
+    const enabled = myBooklist.some(hasTransformableTitle);
+    [elements.applyTitleCaseBtn, elements.applySentenceCaseBtn].forEach((btn) => {
+      if (btn) btn.disabled = !enabled;
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Book Edit Sheet (phone-sized layouts)
   //
   // On small screens the preview is auto-fit far below 100% zoom, which
@@ -7585,6 +7670,17 @@ const BooklistApp = (function() {
       applyBlockCoverStyle();
       debouncedSave();
     });
+
+    // Title capitalization transforms. No bindPreChangeCapture here:
+    // these are buttons, not inputs the browser mutates before the
+    // event fires, so applyTitleCaseTransform pushes its own undo
+    // snapshot immediately before mutating.
+    if (elements.applyTitleCaseBtn) {
+      elements.applyTitleCaseBtn.addEventListener('click', () => applyTitleCaseTransform('title'));
+    }
+    if (elements.applySentenceCaseBtn) {
+      elements.applySentenceCaseBtn.addEventListener('click', () => applyTitleCaseTransform('sentence'));
+    }
     
     // Layout selector
     if (elements.collageLayoutSelector) {

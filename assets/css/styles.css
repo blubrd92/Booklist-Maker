@@ -1204,6 +1204,31 @@ input[type="color"]:hover {
    hidden attribute stays visible. See CLAUDE.md "Known CSS Pitfalls". */
 .control-row[hidden] { display: none; }
 .control-row:last-child { margin-bottom: 0; }
+
+/* Title capitalization transforms (Text & Styling tab). The two buttons
+   share the row evenly so the pair reads as one control. The hint is
+   id-scoped per the specificity note in CLAUDE.md, so a future
+   element-scoped rule on this panel cannot silently revert it. */
+#title-case-group {
+  /* Match the card treatment the [data-style-group] boxes get, so this
+     sits in the panel's rhythm instead of reading as unstyled. Id-level
+     selector, so it outranks .form-group's own padding/border without
+     needing !important. */
+  background: var(--border-light);
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  border: 1px solid var(--border-color);
+}
+#title-case-group .control-row { margin-bottom: 0; }
+#title-case-group .control-row .btn { flex: 1; }
+#title-case-group .title-case-hint {
+  margin: 8px 0 0;
+  font-size: 0.7rem;
+  color: var(--text-light);
+  font-style: italic;
+  line-height: 1.35;
+}
 .checkbox-row { margin-top: 6px; }
 .checkbox-row input[type="checkbox"] {
   width: 16px;
