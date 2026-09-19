@@ -1227,11 +1227,6 @@ input[type="color"]:hover {
   align-items: stretch;
 }
 #title-case-group .control-row .btn { flex: 1; }
-/* These are actions, not settings, so a mouse click must not leave the
-   button ringed as though a mode were selected. The shared rule is
-   .btn:focus; narrow it to keyboard focus for this group only, so
-   tabbing still shows the ring. */
-#title-case-group .btn:focus:not(:focus-visible) { outline: none; }
 #title-case-group .title-case-hint {
   margin: 8px 0 0;
   font-size: 0.7rem;
@@ -2469,11 +2464,24 @@ body.has-custom-qr #generate-qr-button:disabled {
 }
 
 /* --- ACCESSIBILITY: Focus Indicators --- */
+/* :focus-visible, not :focus, on every button. A button is an action, and
+   a ring that persists after a mouse click reads as a selected mode
+   rather than as "this is where your keyboard is". Keyboard focus still
+   rings, which is the case the indicator exists for.
+
+   This costs no browser support: .tab-btn:focus-visible was already in
+   this selector list, and a selector list containing one selector the
+   browser cannot parse invalidates the WHOLE rule, so any engine without
+   :focus-visible has been dropping this entire block (and showing no ring
+   on any of these buttons) since that line was written.
+
+   Text inputs are deliberately NOT included: clicking into a field
+   SHOULD show focus, and those rules live elsewhere. */
 .tab-btn:focus-visible,
-.btn:focus,
-.btn-header:focus,
-.btn-header-primary:focus,
-.add-to-list-button:focus {
+.btn:focus-visible,
+.btn-header:focus-visible,
+.btn-header-primary:focus-visible,
+.add-to-list-button:focus-visible {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
