@@ -6658,6 +6658,13 @@ const BooklistApp = (function() {
   }
   
   function captureStyleGroups() {
+    // GOTCHA: each [data-style-group] box is read with querySelector, which
+    // returns the FIRST match in the group. The Title box also contains the
+    // capitalization transform (#title-case-group), whose controls are
+    // deliberately plain .btn elements. Anything added inside a style group
+    // that carries .font-select, .font-size-input, .color-picker,
+    // .bold-toggle, .italic-toggle, .line-spacing or .align-toggle will be
+    // picked up here as that group's style setting.
     const styles = {};
     
     document.querySelectorAll('.export-controls .form-group[data-style-group]').forEach(group => {

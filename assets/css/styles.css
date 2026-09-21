@@ -1205,21 +1205,51 @@ input[type="color"]:hover {
 .control-row[hidden] { display: none; }
 .control-row:last-child { margin-bottom: 0; }
 
-/* Title capitalization transforms (Text & Styling tab). The two buttons
-   share the row evenly so the pair reads as one control. The hint is
-   id-scoped per the specificity note in CLAUDE.md, so a future
-   element-scoped rule on this panel cannot silently revert it. */
+/* Title capitalization transforms, nested inside the Title style group as
+   a disclosure. Closed it is one line; open it reveals the three buttons
+   and the hint. The summary borrows the app's existing disclosure look
+   (see .advanced-settings) so it reads as something you click rather than
+   a fourth setting label. Everything here is id-scoped per the specificity
+   note in CLAUDE.md, so a future element-scoped rule on this panel cannot
+   silently revert it. */
 #title-case-group {
-  /* Match the card treatment the [data-style-group] boxes get, so this
-     sits in the panel's rhythm instead of reading as unstyled. Id-level
-     selector, so it outranks .form-group's own padding/border without
-     needing !important. */
-  background: var(--border-light);
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  margin-bottom: 10px;
-  border: 1px solid var(--border-color);
+  /* No card: the parent [data-style-group="title"] box already is one.
+     The divider is permanent rather than [open]-only, so the closed
+     summary does not sit flush against the color row above it. */
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border-color);
 }
+#title-case-group > summary {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--primary-color);
+  cursor: pointer;
+  padding: 2px 0;
+  user-select: none;
+  /* list-style: none + the ::before triangle, matching .advanced-settings.
+     Both are needed: Firefox honors list-style, WebKit needs the
+     ::-webkit-details-marker rule below. */
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#title-case-group > summary::-webkit-details-marker { display: none; }
+#title-case-group > summary::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--primary-color);
+  transition: transform var(--transition-fast);
+}
+#title-case-group[open] > summary::before { transform: rotate(180deg); }
+#title-case-group[open] > summary { margin-bottom: 8px; }
+#title-case-group > summary:hover { color: var(--primary-hover); }
+#title-case-group > summary:hover::before { border-top-color: var(--primary-hover); }
 #title-case-group .control-row {
   margin-bottom: 0;
   /* stretch, not center: "Sentence case" wraps to two lines at this panel

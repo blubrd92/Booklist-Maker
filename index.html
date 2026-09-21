@@ -208,24 +208,6 @@
 
       <div id="tab-text-styling" class="tab-content export-controls" role="tabpanel" aria-labelledby="text-styling-tab">
 
-        <!-- Case transforms for titles already in the list. Deliberately
-             plain buttons rather than a <select> + Apply: a short fixed set
-             doesn't need a picker, and a new .font-select in this panel
-             would be auto-populated with font names by
-             populateFontSelects(). -->
-        <div class="form-group" id="title-case-group">
-          <label id="title-case-label">Change Capitalization</label>
-          <div class="control-row" role="group" aria-labelledby="title-case-label">
-            <button type="button" id="apply-title-case-btn" class="btn btn-sm btn-secondary" disabled
-                    title="Rewrite every title in the list in English Title Case">Title Case</button>
-            <button type="button" id="apply-sentence-case-btn" class="btn btn-sm btn-secondary" disabled
-                    title="Rewrite every title in the list in sentence case, the convention for Spanish titles">Sentence case</button>
-            <button type="button" id="apply-upper-case-btn" class="btn btn-sm btn-secondary" disabled
-                    title="Rewrite every title in the list in all capitals">UPPERCASE</button>
-          </div>
-          <p class="title-case-hint">Changes the titles already in your list, not the ones you add later. Undo puts them back.</p>
-        </div>
-
         <div class="form-group" data-style-group="title">
           <label>Title</label>
           <div class="control-row">
@@ -238,6 +220,34 @@
             <button class="italic-toggle btn-icon" aria-label="Toggle italic" aria-pressed="false">I</button>
             <input class="color-picker" type="color" value="#000000" aria-label="Title color"/>
           </div>
+
+          <!-- Case transforms for the titles ALREADY in the list. Lives
+               inside the Title style group so it reads as an action
+               available on titles rather than a fourth setting, and so the
+               panel opens on the styling controls people come here for.
+               NOTE: these are the only controls in any [data-style-group]
+               box that are not style settings. captureStyleGroups() walks
+               these containers with querySelector for .font-select,
+               .font-size-input, .color-picker, .bold-toggle, .italic-toggle
+               and .line-spacing, taking the FIRST match in the group, so
+               nothing added here may carry those classes.
+
+               Deliberately plain buttons rather than a <select> + Apply: a
+               short fixed set doesn't need a picker, and a new .font-select
+               in this panel would be auto-populated with font names by
+               populateFontSelects(). -->
+          <details id="title-case-group">
+            <summary id="title-case-label">Change capitalization</summary>
+            <div class="control-row" role="group" aria-labelledby="title-case-label">
+              <button type="button" id="apply-title-case-btn" class="btn btn-sm btn-secondary" disabled
+                      title="Rewrite every title in the list in English Title Case">Title Case</button>
+              <button type="button" id="apply-sentence-case-btn" class="btn btn-sm btn-secondary" disabled
+                      title="Rewrite every title in the list in sentence case, the convention for Spanish titles">Sentence case</button>
+              <button type="button" id="apply-upper-case-btn" class="btn btn-sm btn-secondary" disabled
+                      title="Rewrite every title in the list in all capitals">UPPERCASE</button>
+            </div>
+            <p class="title-case-hint">Changes the titles already in your list, not the ones you add later. Undo puts them back.</p>
+          </details>
         </div>
 
         <div class="form-group" data-style-group="author">
