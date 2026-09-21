@@ -432,4 +432,22 @@ describe('BYLINE_PREFIXES', () => {
     const words = CONFIG.BYLINE_PREFIXES.map((e) => e.value);
     expect(words).toContain('By');
   });
+
+  // `opener` lets a word match mid-line as the tail of "Edited by" or
+  // "Escrito por". A word that also serves as a surname particle must not
+  // carry it, or applying a byline word deletes the author's first name.
+  it('marks opener words with a boolean, and only some of them', () => {
+    const flagged = CONFIG.BYLINE_PREFIXES.filter((e) => e.opener !== undefined);
+    flagged.forEach((e) => expect(typeof e.opener).toBe('boolean'));
+    const openers = CONFIG.BYLINE_PREFIXES.filter((e) => e.opener);
+    expect(openers.length).toBeGreaterThan(0);
+    expect(openers.length).toBeLessThan(CONFIG.BYLINE_PREFIXES.length);
+  });
+
+  it('does not flag any word that is also a common surname particle', () => {
+    const particles = ['de', 'del', 'della', 'di', 'da', 'van', 'von', 'der', 'la', 'le', 'ter'];
+    CONFIG.BYLINE_PREFIXES.filter((e) => e.opener).forEach((e) => {
+      expect(particles).not.toContain(e.value.toLowerCase());
+    });
+  });
 });

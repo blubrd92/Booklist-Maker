@@ -78,14 +78,38 @@
 
     // The byline words the app knows how to WRITE onto an author line and
     // to READ back off one. Single source of truth for three consumers:
-    // the byline buttons in the Author style box, the transform that
+    // the byline picker in the Author style box, the transform that
     // rewrites the lines, and the AI drafter's author parse in app.js.
-    // Keeping one list is the point — a word the buttons can write but the
+    // Keeping one list is the point: a word the picker can write but the
     // parse can't recognize means the drafter silently searches for
     // "Por Gabriel Garcia Marquez". Adding a language is one entry here.
+    //
+    // Values must be SINGLE words with no whitespace (enforced in
+    // tests/config.test.js). stripBylinePrefix matches a word followed by
+    // whitespace at position zero, so a compound like "Escrito por" could
+    // be written but never read back, which would reintroduce the exact
+    // drafter bug this list exists to prevent.
+    //
+    // `opener: true` additionally permits the word to be matched INSIDE
+    // the first few words of a line, as the tail of a hand-written opener
+    // ("Edited by", "Escrito por"). Default it off. A word that doubles as
+    // a surname particle MUST NOT carry it: with `opener` on Von, the line
+    // "Ludwig von Beethoven" scans as opener "Ludwig von" plus author
+    // "Beethoven", and applying a word silently deletes the first name.
+    // Getting this wrong loses data; leaving it off only means a compound
+    // opener in that language is prepended to rather than replaced, which
+    // is visible on the line and one keystroke to undo.
+    //
+    // Por serves Portuguese as well as Spanish. Languages whose byline is
+    // a suffix (Chinese uses a trailing 著) or more than one word
+    // (Vietnamese "Tác giả") cannot be expressed here at all; that is a
+    // limit of the prefix model, not an oversight.
     BYLINE_PREFIXES: [
-      { value: 'By', label: 'By' },
-      { value: 'Por', label: 'Por' },
+      { value: 'By', label: 'By', opener: true },
+      { value: 'Por', label: 'Por', opener: true },
+      { value: 'Par', label: 'Par' },
+      { value: 'Di', label: 'Di' },
+      { value: 'Ni', label: 'Ni' },
     ],
 
     // Search

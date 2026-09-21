@@ -364,6 +364,29 @@
     // while keeping the scan away from a mid-line ", edited by".
     BYLINE_OPENER_MAX_WORDS: 3,
 
+    /**
+     * The subset of byline words allowed to match INSIDE a line, as the
+     * tail of a hand-written opener. See the `opener` flag on
+     * CONFIG.BYLINE_PREFIXES: a word that doubles as a surname particle
+     * is excluded here, because matching "von" inside "Ludwig von
+     * Beethoven" would treat the first name as part of the opener and
+     * delete it.
+     * @param {Array} [prefixes] - Override list, entries {value, opener}
+     * @returns {string[]} Lowercased words, possibly empty
+     */
+    getBylineOpenerWords: function(prefixes) {
+      const list = Array.isArray(prefixes)
+        ? prefixes
+        : (typeof CONFIG !== 'undefined' && CONFIG.BYLINE_PREFIXES) || [];
+      const out = [];
+      for (let i = 0; i < list.length; i++) {
+        const entry = list[i];
+        if (!entry || typeof entry === 'string' || !entry.opener || !entry.value) continue;
+        out.push(String(entry.value).toLowerCase());
+      }
+      return out;
+    },
+
     getBylinePrefixWords: function(prefixes) {
       const list = Array.isArray(prefixes)
         ? prefixes
@@ -417,12 +440,14 @@
      * user typed, or absent because they deleted it. Two passes:
      *
      *   1. A known word at the very start, which is the common case.
-     *   2. A known word used as the tail of a hand-written opener, so
-     *      "Edited by" and "Escrito por" are replaced rather than having
-     *      a second word stacked in front of them. Only the first few
-     *      words are searched: an opener lives at the start, and scanning
-     *      the whole line would cut "Ada Lovelace, edited by Someone"
-     *      down to "Someone" and lose the author.
+     *   2. An OPENER word (the `opener: true` subset) used as the tail of
+     *      a hand-written opener, so "Edited by" and "Escrito por" are
+     *      replaced rather than having a second word stacked in front of
+     *      them. Two limits keep this from eating real names: only the
+     *      first few words are searched, so "Ada Lovelace, edited by
+     *      Someone" is not cut down to "Someone"; and only flagged words
+     *      qualify, so a surname particle in the word list (Di, Von) is
+     *      never mistaken for an opener in "Leonardo di Caprio".
      *
      * With no known word anywhere near the front, the line is treated as
      * having no byline word and the new one is prepended. That default
@@ -450,9 +475,12 @@
       if (stripped.prefix !== null) {
         rest = stripped.rest;
       } else {
-        const words = BookUtils.getBylinePrefixWords(prefixes);
+        // The opener subset, NOT every known word: a surname particle in
+        // the list (Di, Von) would otherwise read as an opener and eat
+        // the first name off "Leonardo di Caprio".
+        const words = BookUtils.getBylineOpenerWords(prefixes);
         // Walk the gaps between the first few words, looking for one of
-        // the known words used as an opener's tail.
+        // those words used as an opener's tail.
         const tokens = str.split(/(\s+)/);
         let wordsSeen = 0;
         for (let i = 0; i < tokens.length && wordsSeen < BookUtils.BYLINE_OPENER_MAX_WORDS; i++) {

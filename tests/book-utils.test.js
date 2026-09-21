@@ -1565,4 +1565,59 @@ describe('setBylinePrefix', () => {
     expect(BookUtils.setBylinePrefix('By\u00a0Ada Lovelace - 510 LOV', 'Por'))
       .toBe('Por Ada Lovelace - 510 LOV');
   });
+
+  // The opener scan is limited to the `opener: true` subset precisely so
+  // a word that doubles as a surname particle cannot eat a first name.
+  // Without the split, "Ludwig von Beethoven" scans as opener "Ludwig
+  // von" plus author "Beethoven" and the applied line loses "Ludwig".
+  describe('surname particles in the word list', () => {
+    const withParticles = [
+      { value: 'By', label: 'By', opener: true },
+      { value: 'Por', label: 'Por', opener: true },
+      { value: 'Von', label: 'Von' },
+      { value: 'Di', label: 'Di' },
+    ];
+
+    it('never treats an unflagged word as an opener', () => {
+      expect(BookUtils.setBylinePrefix('Ludwig von Beethoven - 780 BEE', 'Por', withParticles))
+        .toBe('Por Ludwig von Beethoven - 780 BEE');
+      expect(BookUtils.setBylinePrefix('Leonardo di Caprio - FIC CAP', 'Por', withParticles))
+        .toBe('Por Leonardo di Caprio - FIC CAP');
+    });
+
+    it('still replaces a compound opener built on a flagged word', () => {
+      expect(BookUtils.setBylinePrefix('Edited by Isabel Allende - FIC', 'Por', withParticles))
+        .toBe('Por Isabel Allende - FIC');
+    });
+
+    it('can still WRITE an unflagged word', () => {
+      expect(BookUtils.setBylinePrefix('By Umberto Eco - FIC ECO', 'Di', withParticles))
+        .toBe('Di Umberto Eco - FIC ECO');
+    });
+
+    // A line already starting with an unflagged word is replaced, because
+    // stripBylinePrefix checks position zero against every known word and
+    // a word at position zero cannot be a surname particle.
+    it('replaces an unflagged word sitting at the very start', () => {
+      expect(BookUtils.setBylinePrefix('Di Umberto Eco - FIC ECO', 'By', withParticles))
+        .toBe('By Umberto Eco - FIC ECO');
+    });
+  });
+});
+
+describe('getBylineOpenerWords', () => {
+  it('returns only the flagged words, lowercased', () => {
+    expect(BookUtils.getBylineOpenerWords([
+      { value: 'By', opener: true }, { value: 'Di' }, { value: 'Por', opener: true },
+    ])).toEqual(['by', 'por']);
+  });
+
+  it('is a subset of the writable words', () => {
+    const all = BookUtils.getBylinePrefixWords();
+    BookUtils.getBylineOpenerWords().forEach((w) => expect(all).toContain(w));
+  });
+
+  it('ignores plain-string entries, which carry no flag', () => {
+    expect(BookUtils.getBylineOpenerWords(['By', 'Por'])).toEqual([]);
+  });
 });
