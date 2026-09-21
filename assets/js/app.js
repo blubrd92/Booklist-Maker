@@ -466,6 +466,7 @@ const BooklistApp = (function() {
       // Toggles
       stretchCoversToggle: document.getElementById('stretch-covers-toggle'),
       stretchBlockCoversToggle: document.getElementById('stretch-block-covers-toggle'),
+      titleCaseGroup: document.getElementById('title-case-group'),
       applyTitleCaseBtn: document.getElementById('apply-title-case-btn'),
       applySentenceCaseBtn: document.getElementById('apply-sentence-case-btn'),
       applyUpperCaseBtn: document.getElementById('apply-upper-case-btn'),
@@ -6198,6 +6199,12 @@ const BooklistApp = (function() {
     [elements.applyTitleCaseBtn, elements.applySentenceCaseBtn, elements.applyUpperCaseBtn].forEach((btn) => {
       if (btn) btn.disabled = !enabled;
     });
+    // The disabled buttons are invisible while the disclosure is closed, so
+    // the summary itself is muted too. Otherwise a fresh empty list looks
+    // identical to a list that's ready to convert.
+    if (elements.titleCaseGroup) {
+      elements.titleCaseGroup.classList.toggle('is-empty', !enabled);
+    }
   }
 
   // ---------------------------------------------------------------------------

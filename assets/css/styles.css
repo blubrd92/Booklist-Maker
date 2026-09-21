@@ -1250,6 +1250,16 @@ input[type="color"]:hover {
 #title-case-group[open] > summary { margin-bottom: 8px; }
 #title-case-group > summary:hover { color: var(--primary-hover); }
 #title-case-group > summary:hover::before { border-top-color: var(--primary-hover); }
+/* Nothing to convert: mute the summary so the unavailable state is legible
+   while the disclosure is closed and the disabled buttons are out of sight.
+   The hover rules above are overridden here rather than removed, so the
+   summary does not light up under the pointer when it can do nothing.
+   The disclosure still opens: the hint inside explains what the buttons
+   are for, which is worth reading before there are titles to convert. */
+#title-case-group.is-empty > summary,
+#title-case-group.is-empty > summary:hover { color: var(--text-light); }
+#title-case-group.is-empty > summary::before,
+#title-case-group.is-empty > summary:hover::before { border-top-color: var(--text-light); }
 #title-case-group .control-row {
   margin-bottom: 0;
   /* stretch, not center: "Sentence case" wraps to two lines at this panel
