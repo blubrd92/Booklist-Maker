@@ -444,6 +444,17 @@ describe('BYLINE_PREFIXES', () => {
     expect(openers.length).toBeLessThan(CONFIG.BYLINE_PREFIXES.length);
   });
 
+  // label is display only. The transform writes `value`, and
+  // stripBylinePrefix plus the drafter's author parse both read `value`,
+  // so a label that drifted into either path would put "(Spanish)" on a
+  // printed byline.
+  it('labels lead with their own value, and values stay bare', () => {
+    CONFIG.BYLINE_PREFIXES.forEach((entry) => {
+      expect(entry.label.startsWith(entry.value)).toBe(true);
+      expect(entry.value).not.toMatch(/[()]/);
+    });
+  });
+
   it('does not flag any word that is also a common surname particle', () => {
     const particles = ['de', 'del', 'della', 'di', 'da', 'van', 'von', 'der', 'la', 'le', 'ter'];
     CONFIG.BYLINE_PREFIXES.filter((e) => e.opener).forEach((e) => {

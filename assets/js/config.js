@@ -104,13 +104,23 @@
     // a suffix (Chinese uses a trailing 著) or more than one word
     // (Vietnamese "Tác giả") cannot be expressed here at all; that is a
     // limit of the prefix model, not an oversight.
+    // `value` is the word written onto the author line and read back off
+    // it. `label` is DISPLAY ONLY, shown in the picker: it names the
+    // language so Di and Ni and Von are not opaque to someone who did not
+    // build this list. Never write `label` onto a line, and never match
+    // against it; stripBylinePrefix and the drafter parse both work from
+    // `value`. The word leads and the language follows, because the word
+    // is what is being chosen. Por is labelled for both languages it
+    // serves. Measured at 160px for the longest against 179px of usable
+    // width in the select, so nothing truncates; check that again before
+    // adding a label longer than "Por (Spanish, Portuguese)".
     BYLINE_PREFIXES: [
-      { value: 'By', label: 'By', opener: true },
-      { value: 'Por', label: 'Por', opener: true },
-      { value: 'Par', label: 'Par' },
-      { value: 'Di', label: 'Di' },
-      { value: 'Ni', label: 'Ni' },
-      { value: 'Von', label: 'Von' },
+      { value: 'By', label: 'By (English)', opener: true },
+      { value: 'Por', label: 'Por (Spanish, Portuguese)', opener: true },
+      { value: 'Par', label: 'Par (French)' },
+      { value: 'Di', label: 'Di (Italian)' },
+      { value: 'Ni', label: 'Ni (Tagalog)' },
+      { value: 'Von', label: 'Von (German)' },
     ],
 
     // Search
