@@ -266,21 +266,36 @@
           <!-- Byline word for the author lines ALREADY in the list, same
                disclosure pattern as #title-case-group in the Title box
                above. The same captureStyleGroups() caveat applies here:
-               nothing inside may carry .font-select, .font-size-input,
-               .color-picker, .bold-toggle, .italic-toggle, .line-spacing
-               or .align-toggle, because that function takes the FIRST
-               match for each inside this container.
+               nothing inside may carry .font-size-input, .color-picker,
+               .bold-toggle, .italic-toggle, .line-spacing or .align-toggle,
+               because that function takes the FIRST match for each inside
+               this container.
 
-               Button words come from CONFIG.BYLINE_PREFIXES rather than
-               being written here, so the list the buttons write and the
-               list the AI drafter's author parse recognizes cannot drift
-               apart. initBylinePrefixButtons() fills the row; the markup
-               below carries only the Remove button, which is not a word. -->
+               A picker rather than the row of buttons the Title box uses,
+               and the difference is deliberate: capitalization is a closed
+               set of three that will never grow, while the byline word set
+               is open-ended by design (one entry per language the library
+               runs displays in). A dropdown holds a dozen words as easily
+               as two; six buttons in this panel measure 38px each.
+
+               The select deliberately does NOT carry .font-select. That
+               class has TWO class-driven consumers in app.js, and this
+               select is inside a [data-style-group] box so it would hit
+               both: populateFontSelects() overwrites the options with font
+               names, and the createCustomFontDropdown() sweep near
+               initializeCustomFontDropdowns() wraps every .font-select in
+               such a box in the custom widget, hiding the native select at
+               1px wide. Nothing is lost by omitting it: the app's generic
+               `select` rule supplies the look and .font-select only adds
+               flex-grow. Options come from CONFIG.BYLINE_PREFIXES via
+               initBylinePrefixSelect(). -->
           <details id="byline-prefix-group">
             <summary id="byline-prefix-label">Change byline word</summary>
-            <div class="control-row" id="byline-prefix-buttons" role="group" aria-labelledby="byline-prefix-label">
-              <button type="button" id="remove-byline-btn" class="btn btn-sm btn-secondary" disabled
-                      title="Strip the leading word from every author line in the list">None</button>
+            <div class="control-row">
+              <select id="byline-prefix-select" disabled
+                      aria-label="Byline word to apply"></select>
+              <button type="button" id="apply-byline-prefix-btn" class="btn btn-sm btn-secondary" disabled
+                      title="Apply this byline word to every author line in the list">Apply</button>
             </div>
             <p class="byline-prefix-hint">Changes the author lines already in your list, not the ones you add later. Undo reverses it.</p>
           </details>

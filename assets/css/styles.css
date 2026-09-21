@@ -1274,15 +1274,23 @@ input[type="color"]:hover {
 #title-case-group.is-empty > summary:hover::before,
 #byline-prefix-group.is-empty > summary::before,
 #byline-prefix-group.is-empty > summary:hover::before { border-top-color: var(--text-light); }
-#title-case-group .control-row,
-#byline-prefix-group .control-row {
+#title-case-group .control-row {
   margin-bottom: 0;
   /* stretch, not center: "Sentence case" wraps to two lines at this panel
      width, and centering leaves the three buttons at ragged heights. */
   align-items: stretch;
 }
-#title-case-group .control-row .btn,
-#byline-prefix-group .control-row .btn { flex: 1; }
+/* stretch so Apply matches the select's height: the generic input rule
+   gives the select 9px of vertical padding and .btn-sm less, which left
+   the button floating 8px short beside it instead of reading as the
+   other half of one control. */
+#byline-prefix-group .control-row { margin-bottom: 0; align-items: stretch; }
+/* Title box only: three equal-width buttons sharing the row. */
+#title-case-group .control-row .btn { flex: 1; }
+/* Byline box: the picker takes the room, Apply stays its natural width so
+   it does not read as the bigger half of a two-part control. */
+#byline-prefix-group .control-row #byline-prefix-select { flex: 1 1 auto; min-width: 0; width: auto; }
+#byline-prefix-group .control-row .btn { flex: 0 0 auto; }
 #title-case-group .title-case-hint,
 #byline-prefix-group .byline-prefix-hint {
   margin: 8px 0 0;

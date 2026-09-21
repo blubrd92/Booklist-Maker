@@ -468,8 +468,8 @@ const BooklistApp = (function() {
       stretchBlockCoversToggle: document.getElementById('stretch-block-covers-toggle'),
       titleCaseGroup: document.getElementById('title-case-group'),
       bylinePrefixGroup: document.getElementById('byline-prefix-group'),
-      bylinePrefixButtons: document.getElementById('byline-prefix-buttons'),
-      removeBylineBtn: document.getElementById('remove-byline-btn'),
+      bylinePrefixSelect: document.getElementById('byline-prefix-select'),
+      applyBylinePrefixBtn: document.getElementById('apply-byline-prefix-btn'),
       applyTitleCaseBtn: document.getElementById('apply-title-case-btn'),
       applySentenceCaseBtn: document.getElementById('apply-sentence-case-btn'),
       applyUpperCaseBtn: document.getElementById('apply-upper-case-btn'),
@@ -496,13 +496,21 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   function populateFontSelects() {
     // GOTCHA: this overwrites every matched select's options with the
-    // FONTS list. The .font-select class is also reused on selects
-    // that just want the same visual styling but already have their
-    // own hardcoded options in the HTML (title bar position, tilt
-    // offset direction, gradient direction). Those MUST be added to
-    // the :not() allowlist below or their options get replaced with
-    // font names. If you add another non-font select with this class,
-    // add it here.
+    // FONTS list. The .font-select class is also reused on selects that
+    // just want the same visual styling but already have their own
+    // options (title bar position, tilt offset direction, gradient
+    // direction). Those MUST be added to the :not() allowlist below or
+    // their options get replaced with font names.
+    //
+    // This is NOT the only class-driven consumer of .font-select. The
+    // createCustomFontDropdown() sweep in initializeCustomFontDropdowns()
+    // grabs every .font-select inside a [data-style-group] box and
+    // replaces it with the custom widget, hiding the native select at 1px
+    // wide. An allowlist entry here does nothing about that one. For a
+    // non-font select inside a style-group box, the right move is to omit
+    // .font-select entirely: the generic `select` rule in styles.css
+    // already supplies the look, and the class only adds flex-grow.
+    // #byline-prefix-select is the worked example.
     const selects = document.querySelectorAll(
       '.font-select:not(#title-bar-position):not(#tilt-offset-direction):not(#cover-title-gradient-direction)'
     );
@@ -6309,39 +6317,43 @@ const BooklistApp = (function() {
   }
 
   /**
-   * Build one button per configured word, ahead of the Remove button that
-   * ships in the markup. Generated rather than hand-written so adding a
-   * language is a single CONFIG entry.
+   * Fill the word picker from CONFIG.BYLINE_PREFIXES, plus the
+   * remove-it-entirely option. Generated rather than written in the
+   * markup so adding a language is a single CONFIG entry.
+   *
+   * A picker rather than one button per word: capitalization over in the
+   * Title box is a closed set of three, but this set grows with every
+   * language the library runs displays in, and six buttons in this panel
+   * measure 38px each.
    */
-  function initBylinePrefixButtons() {
-    const row = elements.bylinePrefixButtons;
-    if (!row) return;
+  function initBylinePrefixSelect() {
+    const select = elements.bylinePrefixSelect;
+    if (!select) return;
+    select.innerHTML = '';
     const words = Array.isArray(CONFIG.BYLINE_PREFIXES) ? CONFIG.BYLINE_PREFIXES : [];
-    words.slice().reverse().forEach((entry) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-sm btn-secondary byline-prefix-btn';
-      btn.textContent = entry.label;
-      btn.disabled = true;
-      btn.title = 'Start every author line in the list with "' + entry.value + '"';
-      btn.addEventListener('click', () => applyBylinePrefixTransform(entry.value));
-      row.insertBefore(btn, row.firstChild);
+    words.forEach((entry) => {
+      const opt = document.createElement('option');
+      opt.value = entry.value;
+      opt.textContent = entry.label;
+      select.appendChild(opt);
     });
+    // Empty value is the remove case, last so the real words read first.
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = 'No byline word';
+    select.appendChild(none);
     updateBylineButtonsState();
   }
 
   /**
-   * Mirror of updateTitleCaseButtonsState: disable the buttons with
-   * nothing to change, and mute the summary so that state is legible
-   * while the disclosure is closed.
+   * Mirror of updateTitleCaseButtonsState: disable the picker and its
+   * Apply button when there is nothing to change, and mute the summary
+   * so that state is legible while the disclosure is closed.
    */
   function updateBylineButtonsState() {
     const enabled = myBooklist.some(hasTransformableByline);
-    if (elements.bylinePrefixButtons) {
-      elements.bylinePrefixButtons.querySelectorAll('button').forEach((btn) => {
-        btn.disabled = !enabled;
-      });
-    }
+    if (elements.bylinePrefixSelect) elements.bylinePrefixSelect.disabled = !enabled;
+    if (elements.applyBylinePrefixBtn) elements.applyBylinePrefixBtn.disabled = !enabled;
     if (elements.bylinePrefixGroup) {
       elements.bylinePrefixGroup.classList.toggle('is-empty', !enabled);
     }
@@ -7854,8 +7866,14 @@ const BooklistApp = (function() {
     if (elements.applySentenceCaseBtn) {
       elements.applySentenceCaseBtn.addEventListener('click', () => applyTitleCaseTransform('sentence'));
     }
-    if (elements.removeBylineBtn) {
-      elements.removeBylineBtn.addEventListener('click', () => applyBylinePrefixTransform(''));
+    if (elements.applyBylinePrefixBtn) {
+      // Apply on the button, never on the select's change event: keyboard
+      // users scroll a focused select through every option, and firing per
+      // option would run a transform and push an undo entry for each one.
+      elements.applyBylinePrefixBtn.addEventListener('click', () => {
+        if (!elements.bylinePrefixSelect) return;
+        applyBylinePrefixTransform(elements.bylinePrefixSelect.value);
+      });
     }
     if (elements.applyUpperCaseBtn) {
       elements.applyUpperCaseBtn.addEventListener('click', () => applyTitleCaseTransform('upper'));
@@ -10130,7 +10148,7 @@ const BooklistApp = (function() {
     updateTiltedSettingsVisibility();
 
     // Looks strip + gallery modal (cover style presets)
-    initBylinePrefixButtons();
+    initBylinePrefixSelect();
     initLooks();
 
     // Color palette popovers on the primary color pickers
