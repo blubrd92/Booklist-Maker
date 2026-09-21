@@ -110,6 +110,7 @@
       { value: 'Par', label: 'Par' },
       { value: 'Di', label: 'Di' },
       { value: 'Ni', label: 'Ni' },
+      { value: 'Von', label: 'Von' },
     ],
 
     // Search

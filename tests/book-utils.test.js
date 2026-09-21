@@ -1602,6 +1602,17 @@ describe('setBylinePrefix', () => {
       expect(BookUtils.setBylinePrefix('Di Umberto Eco - FIC ECO', 'By', withParticles))
         .toBe('By Umberto Eco - FIC ECO');
     });
+
+    // Di and Von both SHIP in CONFIG.BYLINE_PREFIXES, so run the two
+    // real-world names through the production list rather than only the
+    // override above. These are the lines that would have lost a first
+    // name before the opener flag existed.
+    it('protects shipped particles using the production word list', () => {
+      expect(BookUtils.setBylinePrefix('Ludwig von Beethoven - 780 BEE', 'Por'))
+        .toBe('Por Ludwig von Beethoven - 780 BEE');
+      expect(BookUtils.setBylinePrefix('Leonardo di Caprio - FIC CAP', 'Von'))
+        .toBe('Von Leonardo di Caprio - FIC CAP');
+    });
   });
 });
 
