@@ -262,6 +262,28 @@
             <button class="italic-toggle btn-icon" aria-label="Toggle italic" aria-pressed="false">I</button>
             <input class="color-picker" type="color" value="#000000" aria-label="Author color"/>
           </div>
+
+          <!-- Byline word for the author lines ALREADY in the list, same
+               disclosure pattern as #title-case-group in the Title box
+               above. The same captureStyleGroups() caveat applies here:
+               nothing inside may carry .font-select, .font-size-input,
+               .color-picker, .bold-toggle, .italic-toggle, .line-spacing
+               or .align-toggle, because that function takes the FIRST
+               match for each inside this container.
+
+               Button words come from CONFIG.BYLINE_PREFIXES rather than
+               being written here, so the list the buttons write and the
+               list the AI drafter's author parse recognizes cannot drift
+               apart. initBylinePrefixButtons() fills the row; the markup
+               below carries only the Remove button, which is not a word. -->
+          <details id="byline-prefix-group">
+            <summary id="byline-prefix-label">Change byline word</summary>
+            <div class="control-row" id="byline-prefix-buttons" role="group" aria-labelledby="byline-prefix-label">
+              <button type="button" id="remove-byline-btn" class="btn btn-sm btn-secondary" disabled
+                      title="Strip the leading word from every author line in the list">None</button>
+            </div>
+            <p class="byline-prefix-hint">Changes the author lines already in your list, not the ones you add later. Undo reverses it.</p>
+          </details>
         </div>
 
         <div class="form-group" data-style-group="desc">

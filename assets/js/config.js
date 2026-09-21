@@ -76,6 +76,18 @@
     // whole-file pastes; a typical booklist holds 12–15 books anyway.
     QUICK_ADD_MAX_PASTE_ROWS: 500,
 
+    // The byline words the app knows how to WRITE onto an author line and
+    // to READ back off one. Single source of truth for three consumers:
+    // the byline buttons in the Author style box, the transform that
+    // rewrites the lines, and the AI drafter's author parse in app.js.
+    // Keeping one list is the point — a word the buttons can write but the
+    // parse can't recognize means the drafter silently searches for
+    // "Por Gabriel Garcia Marquez". Adding a language is one entry here.
+    BYLINE_PREFIXES: [
+      { value: 'By', label: 'By' },
+      { value: 'Por', label: 'Por' },
+    ],
+
     // Search
     SEARCH_RESULTS_PER_PAGE: 20,
 

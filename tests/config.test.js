@@ -399,3 +399,37 @@ describe('Open Library URLs', () => {
     expect(globalThis.CONFIG.OPEN_LIBRARY_COVERS_URL).toMatch(/openlibrary\.org/);
   });
 });
+
+describe('BYLINE_PREFIXES', () => {
+  it('is a non-empty array of {value, label} entries', () => {
+    expect(Array.isArray(CONFIG.BYLINE_PREFIXES)).toBe(true);
+    expect(CONFIG.BYLINE_PREFIXES.length).toBeGreaterThan(0);
+    CONFIG.BYLINE_PREFIXES.forEach((entry) => {
+      expect(typeof entry.value).toBe('string');
+      expect(entry.value.trim()).not.toBe('');
+      expect(typeof entry.label).toBe('string');
+      expect(entry.label.trim()).not.toBe('');
+    });
+  });
+
+  // The word list is what the byline buttons WRITE and what the AI
+  // drafter's author parse READS. A word appearing twice, or differing
+  // only by case, would make the strip order ambiguous.
+  it('has no duplicate words, ignoring case', () => {
+    const words = CONFIG.BYLINE_PREFIXES.map((e) => e.value.toLowerCase());
+    expect(new Set(words).size).toBe(words.length);
+  });
+
+  // stripBylinePrefix requires whitespace after the word, so a word with
+  // a space inside it could never match the front of a line.
+  it('has no whitespace inside a word', () => {
+    CONFIG.BYLINE_PREFIXES.forEach((entry) => {
+      expect(entry.value).not.toMatch(/\s/);
+    });
+  });
+
+  it('still contains the historical default "By"', () => {
+    const words = CONFIG.BYLINE_PREFIXES.map((e) => e.value);
+    expect(words).toContain('By');
+  });
+});

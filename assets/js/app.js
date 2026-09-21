@@ -467,6 +467,9 @@ const BooklistApp = (function() {
       stretchCoversToggle: document.getElementById('stretch-covers-toggle'),
       stretchBlockCoversToggle: document.getElementById('stretch-block-covers-toggle'),
       titleCaseGroup: document.getElementById('title-case-group'),
+      bylinePrefixGroup: document.getElementById('byline-prefix-group'),
+      bylinePrefixButtons: document.getElementById('byline-prefix-buttons'),
+      removeBylineBtn: document.getElementById('remove-byline-btn'),
       applyTitleCaseBtn: document.getElementById('apply-title-case-btn'),
       applySentenceCaseBtn: document.getElementById('apply-sentence-case-btn'),
       applyUpperCaseBtn: document.getElementById('apply-upper-case-btn'),
@@ -1630,6 +1633,7 @@ const BooklistApp = (function() {
     applyBlockCoverStyle();
     updateBackCoverVisibility();
     updateTitleCaseButtonsState();
+    updateBylineButtonsState();
 
     // Restore scroll position after DOM rebuild
     if (scrollContainer) scrollContainer.scrollTop = prevScrollTop;
@@ -1883,11 +1887,12 @@ const BooklistApp = (function() {
     // Parse author from authorDisplay (lazy parsing for AI description)
     const displayText = (bookItem.authorDisplay || '').replace(/\u00a0/g, " ");
 
-    // Remove "By " prefix if present
-    let text = displayText;
-    if (text.match(/^By\s/i)) {
-      text = text.replace(/^By\s/i, '');
-    }
+    // Drop the leading byline word. Shares CONFIG.BYLINE_PREFIXES with
+    // the byline buttons in the Author style box, so a line those buttons
+    // rewrote to "Por Gabriel Garcia Marquez" is still parsed down to the
+    // name. Hardcoding /^By\s/ here meant the drafter searched for the
+    // Spanish word as part of the author.
+    const text = BookUtils.stripBylinePrefix(displayText).rest;
 
     // Extract author (everything before the last ' - ')
     const lastDashIndex = text.lastIndexOf(' - ');
@@ -1903,7 +1908,10 @@ const BooklistApp = (function() {
       currentAuthor = bookItem.author.replace(/\u00a0/g, " ").trim();
     }
 
-    if (currentAuthor.toLowerCase() === 'by') currentAuthor = '';
+    // A line that is nothing but the byline word leaves no author behind.
+    if (BookUtils.getBylinePrefixWords().indexOf(currentAuthor.toLowerCase()) !== -1) {
+      currentAuthor = '';
+    }
 
     if (!currentTitle || currentTitle === CONFIG.PLACEHOLDERS.title ||
         !currentAuthor || currentAuthor === CONFIG.PLACEHOLDERS.author) {
@@ -2391,9 +2399,11 @@ const BooklistApp = (function() {
       if (bookItem.isBlank && bookItem.title !== CONFIG.PLACEHOLDERS.title) {
         bookItem.isBlank = false;
       }
-      // Typing the first title into a blank slot should make the case
-      // transforms reachable without waiting for the next full render.
+      // Typing the first title into a blank slot un-blanks it, which
+      // makes BOTH transforms reachable. Refresh without waiting for the
+      // next full render.
       updateTitleCaseButtonsState();
+      updateBylineButtonsState();
       debouncedSave();
     };
     
@@ -2419,6 +2429,10 @@ const BooklistApp = (function() {
       commitPreEditSnapshot('edit-text');
       // Store the raw display text exactly as typed
       bookItem.authorDisplay = e.target.innerText;
+      // Typing over the placeholder is what makes this line transformable
+      // (hasTransformableByline skips the untouched sentinel), so the
+      // buttons have to be refreshed here and not only on a full render.
+      updateBylineButtonsState();
       debouncedSave();
     };
     
@@ -6208,6 +6222,132 @@ const BooklistApp = (function() {
   }
 
   // ---------------------------------------------------------------------------
+  // Byline word transform (Author style box)
+  //
+  // The author line is a single hand-editable string ("By Ada Lovelace -
+  // 510 LOV"), so swapping the leading word is a rewrite of content the
+  // user can already type over, not a setting. It is deliberately one-shot:
+  // books added after a press keep the default "By", which is the right
+  // trade for a workflow that pastes a whole list at once and formats it
+  // afterwards. Nothing about the chosen word is serialized.
+  //
+  // The words come from CONFIG.BYLINE_PREFIXES, which is also what
+  // getAiDescription's author parse strips. One list, so a word the
+  // buttons can write is always a word the drafter can read back.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * The author line as the user sees it. Search-added books carry
+   * authorDisplay: null and have the line derived at render time, so a
+   * transform that only read the field would silently skip them.
+   */
+  function currentAuthorLine(bookItem) {
+    if (bookItem.authorDisplay !== null && bookItem.authorDisplay !== undefined) {
+      return bookItem.authorDisplay;
+    }
+    return bookItem.author && bookItem.author.startsWith('[Enter')
+      ? `${bookItem.author} - ${bookItem.callNumber}`
+      : `By ${bookItem.author} - ${bookItem.callNumber}`;
+  }
+
+  /**
+   * Whether a book's byline is real content worth rewriting. Blank slots
+   * are skipped for two reasons: their line carries no byline word to
+   * begin with, and writing one onto them would push authorDisplay off
+   * CONFIG.PLACEHOLDERS.authorWithCall, which is the sentinel
+   * BookUtils.isDraftStateEffectivelyEmpty checks before suppressing the
+   * "Draft restored" toast on an empty draft.
+   */
+  function hasTransformableByline(book) {
+    if (!book || book.isBlank) return false;
+    const line = (currentAuthorLine(book) || '').trim();
+    return !!line && line !== CONFIG.PLACEHOLDERS.authorWithCall;
+  }
+
+  function applyBylinePrefixTransform(prefix) {
+    const want = (prefix === null || prefix === undefined) ? '' : String(prefix);
+    const label = want || 'no byline word';
+
+    const targets = myBooklist.filter(hasTransformableByline);
+    if (targets.length === 0) {
+      showNotification('No author lines to change yet.', 'info');
+      return;
+    }
+
+    // Resolve every line first so the count reports work done rather than
+    // buttons pressed. setBylinePrefix returns null both for "already
+    // correct" and for "cannot tell the opener from the name", which are
+    // the same thing from here: leave that book alone.
+    const pending = [];
+    targets.forEach((book) => {
+      const next = BookUtils.setBylinePrefix(currentAuthorLine(book), want);
+      if (next !== null) pending.push({ book, next });
+    });
+
+    if (pending.length === 0) {
+      // Non-committal on purpose. A line with a hand-written opener AND a
+      // hand-corrected name is deliberately left alone, so "already set"
+      // would be a claim this transform has not verified.
+      showNotification('No author lines changed.', 'info');
+      return;
+    }
+
+    // Grouped per word so By then Por are two undo steps, matching the
+    // case buttons.
+    pushUndo('set-byline-prefix-' + (want || 'none'));
+    pending.forEach((entry) => { entry.book.authorDisplay = entry.next; });
+
+    renderBooklist();
+    debouncedSave();
+
+    const skipped = targets.length - pending.length;
+    showNotification(
+      'Changed ' + pending.length + ' author line' + (pending.length === 1 ? '' : 's')
+        + ' to ' + label + (skipped > 0 ? '. ' + skipped + ' left alone.' : '.'),
+      'success'
+    );
+  }
+
+  /**
+   * Build one button per configured word, ahead of the Remove button that
+   * ships in the markup. Generated rather than hand-written so adding a
+   * language is a single CONFIG entry.
+   */
+  function initBylinePrefixButtons() {
+    const row = elements.bylinePrefixButtons;
+    if (!row) return;
+    const words = Array.isArray(CONFIG.BYLINE_PREFIXES) ? CONFIG.BYLINE_PREFIXES : [];
+    words.slice().reverse().forEach((entry) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-sm btn-secondary byline-prefix-btn';
+      btn.textContent = entry.label;
+      btn.disabled = true;
+      btn.title = 'Start every author line in the list with "' + entry.value + '"';
+      btn.addEventListener('click', () => applyBylinePrefixTransform(entry.value));
+      row.insertBefore(btn, row.firstChild);
+    });
+    updateBylineButtonsState();
+  }
+
+  /**
+   * Mirror of updateTitleCaseButtonsState: disable the buttons with
+   * nothing to change, and mute the summary so that state is legible
+   * while the disclosure is closed.
+   */
+  function updateBylineButtonsState() {
+    const enabled = myBooklist.some(hasTransformableByline);
+    if (elements.bylinePrefixButtons) {
+      elements.bylinePrefixButtons.querySelectorAll('button').forEach((btn) => {
+        btn.disabled = !enabled;
+      });
+    }
+    if (elements.bylinePrefixGroup) {
+      elements.bylinePrefixGroup.classList.toggle('is-empty', !enabled);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Book Edit Sheet (phone-sized layouts)
   //
   // On small screens the preview is auto-fit far below 100% zoom, which
@@ -7713,6 +7853,9 @@ const BooklistApp = (function() {
     }
     if (elements.applySentenceCaseBtn) {
       elements.applySentenceCaseBtn.addEventListener('click', () => applyTitleCaseTransform('sentence'));
+    }
+    if (elements.removeBylineBtn) {
+      elements.removeBylineBtn.addEventListener('click', () => applyBylinePrefixTransform(''));
     }
     if (elements.applyUpperCaseBtn) {
       elements.applyUpperCaseBtn.addEventListener('click', () => applyTitleCaseTransform('upper'));
@@ -9987,6 +10130,7 @@ const BooklistApp = (function() {
     updateTiltedSettingsVisibility();
 
     // Looks strip + gallery modal (cover style presets)
+    initBylinePrefixButtons();
     initLooks();
 
     // Color palette popovers on the primary color pickers

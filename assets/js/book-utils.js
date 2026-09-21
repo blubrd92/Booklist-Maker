@@ -353,6 +353,127 @@
     },
 
     /**
+     * The byline words this app knows, as a plain lowercase array.
+     * Reads CONFIG.BYLINE_PREFIXES unless given an explicit list (the
+     * tests pass one; production never does).
+     * @param {Array} [prefixes] - Override list, entries {value} or string
+     * @returns {string[]} Lowercased words, empty array if none configured
+     */
+    // How far into a line setBylinePrefix will look for an opener's
+    // trailing byline word. Three covers "Edited by" and "Escrito por"
+    // while keeping the scan away from a mid-line ", edited by".
+    BYLINE_OPENER_MAX_WORDS: 3,
+
+    getBylinePrefixWords: function(prefixes) {
+      const list = Array.isArray(prefixes)
+        ? prefixes
+        : (typeof CONFIG !== 'undefined' && CONFIG.BYLINE_PREFIXES) || [];
+      const out = [];
+      for (let i = 0; i < list.length; i++) {
+        const entry = list[i];
+        const word = typeof entry === 'string' ? entry : (entry && entry.value);
+        if (word) out.push(String(word).toLowerCase());
+      }
+      return out;
+    },
+
+    /**
+     * Split a leading byline word off an author line.
+     *
+     * Matches the word followed by at least one whitespace character.
+     * `\s` is deliberate rather than a literal space: real author lines
+     * carry U+00A0 from catalog pastes (the tour's own sample data has
+     * "By Terry Pratchett - [NBSP] Fiction Pratchett") and can hold line
+     * breaks, since the byline field permits them.
+     *
+     * @param {string} text - An author line
+     * @param {Array} [prefixes] - Override word list (tests only)
+     * @returns {{prefix: string|null, rest: string}} prefix is null when
+     *   the line does not open with a word this app knows
+     */
+    stripBylinePrefix: function(text, prefixes) {
+      const str = (text === null || text === undefined) ? '' : String(text);
+      const words = BookUtils.getBylinePrefixWords(prefixes);
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        const head = str.slice(0, word.length);
+        if (head.toLowerCase() !== word) continue;
+        const after = str.slice(word.length);
+        const gap = after.match(/^\s+/);
+        if (!gap) continue;
+        return {
+          prefix: str.slice(0, word.length + gap[0].length),
+          rest: after.slice(gap[0].length),
+        };
+      }
+      return { prefix: null, rest: str };
+    },
+
+    /**
+     * Rewrite the byline word on one author line.
+     *
+     * The line is a single hand-editable string ("By Ada Lovelace - 510
+     * LOV"), so the word at the front may be one this app wrote, one the
+     * user typed, or absent because they deleted it. Two passes:
+     *
+     *   1. A known word at the very start, which is the common case.
+     *   2. A known word used as the tail of a hand-written opener, so
+     *      "Edited by" and "Escrito por" are replaced rather than having
+     *      a second word stacked in front of them. Only the first few
+     *      words are searched: an opener lives at the start, and scanning
+     *      the whole line would cut "Ada Lovelace, edited by Someone"
+     *      down to "Someone" and lose the author.
+     *
+     * With no known word anywhere near the front, the line is treated as
+     * having no byline word and the new one is prepended. That default
+     * matters more than it looks: a book typed by hand into the grid
+     * keeps book.author as the placeholder (the byline field's input
+     * handler writes back authorDisplay only), so there is no reliable
+     * name to anchor on, and bailing instead would mean pressing the
+     * button on a hand-typed list did nothing at all. The cost is that a
+     * genuinely unfamiliar opener gets a word stacked in front of it,
+     * which is visible on the line and undone with one keystroke.
+     *
+     * @param {string} line - The current author line
+     * @param {string} newPrefix - Word to set, '' to remove the word
+     * @param {Array} [prefixes] - Override word list (tests only)
+     * @returns {string|null} The rewritten line, or null to leave as-is
+     */
+    setBylinePrefix: function(line, newPrefix, prefixes) {
+      const str = (line === null || line === undefined) ? '' : String(line);
+      if (!str.trim()) return null;
+      const want = (newPrefix === null || newPrefix === undefined) ? '' : String(newPrefix).trim();
+
+      let rest = null;
+
+      const stripped = BookUtils.stripBylinePrefix(str, prefixes);
+      if (stripped.prefix !== null) {
+        rest = stripped.rest;
+      } else {
+        const words = BookUtils.getBylinePrefixWords(prefixes);
+        // Walk the gaps between the first few words, looking for one of
+        // the known words used as an opener's tail.
+        const tokens = str.split(/(\s+)/);
+        let wordsSeen = 0;
+        for (let i = 0; i < tokens.length && wordsSeen < BookUtils.BYLINE_OPENER_MAX_WORDS; i++) {
+          if (!/\S/.test(tokens[i])) continue;
+          wordsSeen++;
+          if (words.indexOf(tokens[i].toLowerCase()) === -1) continue;
+          const after = tokens.slice(i + 1).join('');
+          if (!/^\s/.test(tokens[i + 1] || '')) continue;
+          rest = after;
+          break;
+        }
+        // No opener found: nothing in front of the name to replace.
+        if (rest === null) rest = str;
+      }
+
+      rest = rest.replace(/^\s+/, '');
+      const next = want ? want + ' ' + rest : rest;
+      return next === str ? null : next;
+    },
+
+    /**
      * Parse a tab-separated paste from a spreadsheet (Google Sheets,
      * Excel, Numbers, etc.) into rows of { title, author, callNumber,
      * coverUrl }. Used by the Quick Add modal's "Spreadsheet" tab.

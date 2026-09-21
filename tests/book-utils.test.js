@@ -1474,3 +1474,95 @@ describe('BookUtils.isDraftStateEffectivelyEmpty', () => {
     expect(BookUtils.isDraftStateEffectivelyEmpty(s)).toBe(true);
   });
 });
+
+describe('stripBylinePrefix', () => {
+  it('splits a known word off the front', () => {
+    expect(BookUtils.stripBylinePrefix('By Ada Lovelace - 510 LOV'))
+      .toEqual({ prefix: 'By ', rest: 'Ada Lovelace - 510 LOV' });
+  });
+
+  it('matches case-insensitively', () => {
+    expect(BookUtils.stripBylinePrefix('BY Ada Lovelace').prefix).toBe('BY ');
+    expect(BookUtils.stripBylinePrefix('por Ada Lovelace').prefix).toBe('por ');
+  });
+
+  // Author lines carry U+00A0 from catalog pastes and can hold line
+  // breaks, so the gap after the word is \s rather than a literal space.
+  it('accepts a non-breaking space or newline after the word', () => {
+    expect(BookUtils.stripBylinePrefix('By Ada Lovelace').rest).toBe('Ada Lovelace');
+    expect(BookUtils.stripBylinePrefix('By\nAda Lovelace').rest).toBe('Ada Lovelace');
+  });
+
+  it('returns a null prefix when the opener is not a known word', () => {
+    expect(BookUtils.stripBylinePrefix('Edited by Ada Lovelace'))
+      .toEqual({ prefix: null, rest: 'Edited by Ada Lovelace' });
+    expect(BookUtils.stripBylinePrefix('Ada Lovelace - 510 LOV').prefix).toBeNull();
+  });
+
+  // "Byron" must not read as "By" plus "ron".
+  it('requires whitespace after the word, so a name starting with one is safe', () => {
+    expect(BookUtils.stripBylinePrefix('Byron Smith - 821 BYR').prefix).toBeNull();
+  });
+
+  it('handles null and empty input', () => {
+    expect(BookUtils.stripBylinePrefix(null)).toEqual({ prefix: null, rest: '' });
+    expect(BookUtils.stripBylinePrefix('')).toEqual({ prefix: null, rest: '' });
+  });
+});
+
+describe('setBylinePrefix', () => {
+  it('replaces a known word', () => {
+    expect(BookUtils.setBylinePrefix('By Ada Lovelace - 510 LOV', 'Por'))
+      .toBe('Por Ada Lovelace - 510 LOV');
+  });
+
+  it('removes the word when the new prefix is empty', () => {
+    expect(BookUtils.setBylinePrefix('By Ada Lovelace - 510 LOV', ''))
+      .toBe('Ada Lovelace - 510 LOV');
+  });
+
+  it('prepends when the user already deleted the word', () => {
+    expect(BookUtils.setBylinePrefix('Ada Lovelace - 510 LOV', 'Por'))
+      .toBe('Por Ada Lovelace - 510 LOV');
+  });
+
+  // A hand-written opener is replaced, not stacked on top of, because
+  // its last word is one of the known byline words.
+  it('replaces a hand-written opener ending in a known word', () => {
+    expect(BookUtils.setBylinePrefix('Edited by Ada Lovelace - 510 LOV', 'Por'))
+      .toBe('Por Ada Lovelace - 510 LOV');
+    expect(BookUtils.setBylinePrefix('Escrito por Ada Lovelace', 'By'))
+      .toBe('By Ada Lovelace');
+    expect(BookUtils.setBylinePrefix('Edited by Ada Lovelace', ''))
+      .toBe('Ada Lovelace');
+  });
+
+  // The scan stops after a few words so a byline word appearing later in
+  // the line cannot cut the real author out of it.
+  it('ignores a known word that appears past the opener', () => {
+    expect(BookUtils.setBylinePrefix('Ada Lovelace, edited by Someone - 510 LOV', 'Por'))
+      .toBe('Por Ada Lovelace, edited by Someone - 510 LOV');
+  });
+
+  it('works regardless of what book.author holds, including a placeholder', () => {
+    // Books typed by hand into the grid never update book.author, which
+    // is why this function reads only the line.
+    expect(BookUtils.setBylinePrefix('Juan Rulfo - FIC RULFO', 'Por'))
+      .toBe('Por Juan Rulfo - FIC RULFO');
+  });
+
+  it('returns null when nothing would change', () => {
+    expect(BookUtils.setBylinePrefix('By Ada Lovelace', 'By')).toBeNull();
+    expect(BookUtils.setBylinePrefix('Ada Lovelace', '')).toBeNull();
+  });
+
+  it('skips empty lines', () => {
+    expect(BookUtils.setBylinePrefix('', 'Por')).toBeNull();
+    expect(BookUtils.setBylinePrefix('   ', 'Por')).toBeNull();
+  });
+
+  it('collapses the gap left behind, including a non-breaking space', () => {
+    expect(BookUtils.setBylinePrefix('By\u00a0Ada Lovelace - 510 LOV', 'Por'))
+      .toBe('Por Ada Lovelace - 510 LOV');
+  });
+});

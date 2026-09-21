@@ -1205,22 +1205,26 @@ input[type="color"]:hover {
 .control-row[hidden] { display: none; }
 .control-row:last-child { margin-bottom: 0; }
 
-/* Title capitalization transforms, nested inside the Title style group as
-   a disclosure. Closed it is one line; open it reveals the three buttons
-   and the hint. The summary borrows the app's existing disclosure look
-   (see .advanced-settings) so it reads as something you click rather than
-   a fourth setting label. Everything here is id-scoped per the specificity
-   note in CLAUDE.md, so a future element-scoped rule on this panel cannot
-   silently revert it. */
-#title-case-group {
-  /* No card: the parent [data-style-group="title"] box already is one.
+/* The two in-panel transform disclosures: title capitalization inside the
+   Title style group, and the byline word inside the Author group. Closed
+   each is one line; open it reveals its buttons and a hint. The summary
+   borrows the app's existing disclosure look (see .advanced-settings) so
+   it reads as something you click rather than another setting label.
+   Everything here is id-scoped per the specificity note in CLAUDE.md, so
+   a future element-scoped rule on this panel cannot silently revert it,
+   and the two ids share every rule so the panels cannot drift apart
+   visually. A third transform disclosure joins these selector lists. */
+#title-case-group,
+#byline-prefix-group {
+  /* No card: the parent [data-style-group] box already is one.
      The divider is permanent rather than [open]-only, so the closed
      summary does not sit flush against the color row above it. */
   margin: 8px 0 0;
   padding: 8px 0 0;
   border-top: 1px solid var(--border-color);
 }
-#title-case-group > summary {
+#title-case-group > summary,
+#byline-prefix-group > summary {
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--primary-color);
@@ -1235,8 +1239,10 @@ input[type="color"]:hover {
   align-items: center;
   gap: 8px;
 }
-#title-case-group > summary::-webkit-details-marker { display: none; }
-#title-case-group > summary::before {
+#title-case-group > summary::-webkit-details-marker,
+#byline-prefix-group > summary::-webkit-details-marker { display: none; }
+#title-case-group > summary::before,
+#byline-prefix-group > summary::before {
   content: '';
   display: inline-block;
   width: 0;
@@ -1246,10 +1252,14 @@ input[type="color"]:hover {
   border-top: 5px solid var(--primary-color);
   transition: transform var(--transition-fast);
 }
-#title-case-group[open] > summary::before { transform: rotate(180deg); }
-#title-case-group[open] > summary { margin-bottom: 8px; }
-#title-case-group > summary:hover { color: var(--primary-hover); }
-#title-case-group > summary:hover::before { border-top-color: var(--primary-hover); }
+#title-case-group[open] > summary::before,
+#byline-prefix-group[open] > summary::before { transform: rotate(180deg); }
+#title-case-group[open] > summary,
+#byline-prefix-group[open] > summary { margin-bottom: 8px; }
+#title-case-group > summary:hover,
+#byline-prefix-group > summary:hover { color: var(--primary-hover); }
+#title-case-group > summary:hover::before,
+#byline-prefix-group > summary:hover::before { border-top-color: var(--primary-hover); }
 /* Nothing to convert: mute the summary so the unavailable state is legible
    while the disclosure is closed and the disabled buttons are out of sight.
    The hover rules above are overridden here rather than removed, so the
@@ -1257,17 +1267,24 @@ input[type="color"]:hover {
    The disclosure still opens: the hint inside explains what the buttons
    are for, which is worth reading before there are titles to convert. */
 #title-case-group.is-empty > summary,
-#title-case-group.is-empty > summary:hover { color: var(--text-light); }
+#title-case-group.is-empty > summary:hover,
+#byline-prefix-group.is-empty > summary,
+#byline-prefix-group.is-empty > summary:hover { color: var(--text-light); }
 #title-case-group.is-empty > summary::before,
-#title-case-group.is-empty > summary:hover::before { border-top-color: var(--text-light); }
-#title-case-group .control-row {
+#title-case-group.is-empty > summary:hover::before,
+#byline-prefix-group.is-empty > summary::before,
+#byline-prefix-group.is-empty > summary:hover::before { border-top-color: var(--text-light); }
+#title-case-group .control-row,
+#byline-prefix-group .control-row {
   margin-bottom: 0;
   /* stretch, not center: "Sentence case" wraps to two lines at this panel
      width, and centering leaves the three buttons at ragged heights. */
   align-items: stretch;
 }
-#title-case-group .control-row .btn { flex: 1; }
-#title-case-group .title-case-hint {
+#title-case-group .control-row .btn,
+#byline-prefix-group .control-row .btn { flex: 1; }
+#title-case-group .title-case-hint,
+#byline-prefix-group .byline-prefix-hint {
   margin: 8px 0 0;
   font-size: 0.7rem;
   color: var(--text-light);
