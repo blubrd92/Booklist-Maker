@@ -38,7 +38,13 @@ npm run package:extension  # per-browser extension zips (node builtins only)
 npm run build:og           # rebuild assets/img/og-image.jpg (needs Chromium)
 npm run sri                # re-stamp CDN integrity hashes (node builtins only)
 npm run sri -- --check     # verify committed hashes still match the CDN
+npm run stamp              # re-stamp ?v= cache-busting tokens (node builtins only)
+npm run stamp -- --check   # verify committed tokens match the files
 ```
+
+**Run `npm run stamp` after editing any local stylesheet or script.** The
+`?v=` tokens are content hashes, and `tests/asset-version.test.js` fails until
+they match. Unlike `sri`, it needs no network.
 
 **Run `npm run sri` after bumping any CDN version in an HTML file.** The
 `integrity` attribute pins the bytes, so a version bump without a re-stamp
@@ -239,6 +245,14 @@ tools/                          On-demand developer utilities. NOTHING here is
                                 tag-rewriting half is exported as `applySri`
                                 and unit-tested in tests/sri.test.js; only the
                                 network fetch is untested, and it fails loudly.
+  asset-version/stamp.mjs       Writes the `?v=<content hash>` cache-busting
+                                token onto every local <link>/<script> across
+                                all 8 HTML files (`npm run stamp`; `-- --check`
+                                verifies without writing). Node builtins only.
+                                Never stamps firebase-init.js (see the
+                                cross-file dependency table). The pure rewrite
+                                (`applyAssetVersions`) and the committed-state
+                                check live in tests/asset-version.test.js.
   og-image/build.mjs            Rebuilds assets/img/og-image.jpg
                                 (`npm run build:og`). Unlike
                                 extension/build-zips.mjs this is NOT
@@ -280,6 +294,8 @@ tests/
   book-utils.test.js            Unit tests for all BookUtils functions
   config.test.js                Unit tests for CONFIG constants
   create-blank-book.test.js     Unit tests for the createBlankBook factory
+  asset-version.test.js         The ?v= stamper, plus the safety net: fails when
+                                any committed token no longer matches its file
 eslint.config.js                Four blocks: ES2022 sourceType "script" for the
                                 IIFE files, ES2022 sourceType "module" for the
                                 Firebase/admin module files, sourceType "script"
@@ -924,7 +940,7 @@ When editing one file, check these related files:
 | Admin console auth state | `admin/admin.js` `resolveUserRole()` is the single source of truth for "super-admin | library-admin | none". If you add new roles, start there. |
 | `assets/js/analytics.js` (what the beacon loads, or its host gate) | `privacy.html` — the "Analytics", "Cookies and tracking", and "Do Not Track" sections plus the CCPA paragraph describe this file's exact behavior to users, and both dates at the top need bumping. Also `privacy.html`'s branded-instance paragraph, which asserts the beacon doesn't run there. See "Constraints worth protecting" #6. |
 | Adding a new user-facing HTML page at the repo root | `sitemap.xml`, the `.site-footer-nav` block on **every** other page, and the `<script src="assets/js/analytics.js">` line in the new page's `<head>` (all 7 current pages carry it; `admin/index.html` deliberately does not). Copy the header's inline `<svg class="logo-icon">` from an existing content page rather than adding the Font Awesome stylesheet back. If the page does end up with a cdnjs tag, run `npm run sri` so it gets an integrity hash like every other page's |
-| Any local CSS or JS file that `index.html` loads (`assets/css/*.css`, `assets/js/*.js`) | The `?v=` cache-busting token on `index.html`'s `<link>` / `<script>` tags. Bump it (one find-and-replace; today's date is the convention) in the same commit, or returning visitors can get new markup with yesterday's stylesheet: that is how a new disclosure's hint once rendered at plain paragraph size until a hard refresh. **`firebase-init.js` stays unversioned**: `auth.js` and `library-config.js` import it as `'./firebase-init.js'`, and a tag URL that differed would make the browser load it as a second module and initialize Firebase twice. Scope is `index.html` only; the content pages and `admin/index.html` still load their assets bare |
+| Any local CSS or JS file an HTML page loads (`assets/css/*.css`, `assets/js/*.js`, `admin/admin.css`, `admin/admin.js`) | Run `npm run stamp` in the same commit. Every local `<link>` / `<script>` on all 8 pages carries a `?v=` token that is a hash of that file's contents (`tools/asset-version/stamp.mjs`), so browsers fetch a fresh copy after a deploy instead of pairing new markup with a stale cached asset; that is how a new disclosure's hint once rendered at plain paragraph size until a hard refresh. `tests/asset-version.test.js` recomputes every token and **fails when one no longer matches its file**, so a forgotten stamp shows up in `npm run test` (there is no CI, so only if the tests are run). A new local tag on any page is caught the same way. **`firebase-init.js` stays unversioned** (the tool's `UNVERSIONED` list): `auth.js` and `library-config.js` import it as `'./firebase-init.js'`, and a tag URL that differed would make the browser load it as a second module and initialize Firebase twice. A new page goes in the tool's `HTML_FILES` list |
 | A CDN version in any HTML file (Sortable, jsPDF, html2canvas, QRCode, Font Awesome) | Run `npm run sri` in the same commit. The `integrity` hash pins the exact bytes, so a bumped version with a stale hash means the browser blocks the resource and the tool breaks. `npm run sri -- --check` tells you whether the committed hashes are current |
 | `extension/manifest.json` `version` | `extension/STORE_LISTING.md` "Release notes" section. Every version bump needs a matching new entry there; the stores ask for "what's new" text on each upload and STORE_LISTING.md is where that copy lives. Bumping without updating leaves you scrambling at submission time. |
 | `extension/manifest.json` `background` block | `extension/build-zips.mjs` (the per-browser packager that strips `background.scripts` from the Chromium variant). If the background shape changes, eyeball that the strip still does the right thing. The script reads the canonical manifest and emits two zips to `dist/` via `npm run package:extension`: Firefox keeps both background keys, Chromium drops `scripts`. Edge's MV3 validator rejects `background.scripts`; Firefox AMO requires it; Chrome accepts either form. |

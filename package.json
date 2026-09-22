@@ -9,7 +9,8 @@
     "test:watch": "vitest",
     "package:extension": "node extension/build-zips.mjs",
     "build:og": "node tools/og-image/build.mjs",
-    "sri": "node tools/sri/add-sri.mjs"
+    "sri": "node tools/sri/add-sri.mjs",
+    "stamp": "node tools/asset-version/stamp.mjs"
   },
   "keywords": [],
   "author": "",
