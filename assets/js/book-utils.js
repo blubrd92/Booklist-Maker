@@ -674,6 +674,79 @@
     },
 
     /**
+     * Apply a case transform to the highlighted part of a multi-line
+     * string, the way the cover header's Change capitalization buttons
+     * use it. A collapsed selection (start === end) means "no highlight"
+     * and transforms the whole text.
+     *
+     * Works one line at a time so Title Case treats each cover line as
+     * its own title. For a partial line, the transform runs on the WHOLE
+     * line and only the highlighted characters are kept, so the words
+     * read in context: highlighting "of books" in "Banned of books" and
+     * pressing Title Case must not capitalize "of" as though it started
+     * the line, and Sentence case on a mid-line word must not capitalize
+     * it. That splice needs the transform to preserve length; when it
+     * does not (German ß uppercases to SS), the highlighted fragment is
+     * transformed on its own instead. A highlighted fragment written
+     * entirely in capitals is lowercased before the transform runs (see
+     * the comment inside), so the three buttons compose in any order on
+     * part of a line just as they do on whole titles.
+     *
+     * @param {string} text - the full textarea value
+     * @param {number} start - selectionStart
+     * @param {number} end - selectionEnd
+     * @param {function(string): string} fn - the case transform
+     * @returns {{text: string, start: number, end: number}} the new text
+     *   and the range to re-highlight (collapsed when nothing was
+     *   highlighted, so the next press still means "everything")
+     */
+    transformTextSelection: function(text, start, end, fn) {
+      text = typeof text === 'string' ? text : '';
+      const len = text.length;
+      let a = Math.max(0, Math.min(len, Number(start) || 0));
+      let b = Math.max(0, Math.min(len, Number(end) || 0));
+      if (b < a) { const t = a; a = b; b = t; }
+      const collapsed = a === b;
+      if (collapsed) { a = 0; b = len; }
+
+      let out = '';
+      let delta = 0;
+      let lineStart = 0;
+      text.split('\n').forEach(function(line, i) {
+        if (i > 0) out += '\n';
+        const lineEnd = lineStart + line.length;
+        const segA = Math.max(a, lineStart) - lineStart;
+        const segB = Math.min(b, lineEnd) - lineStart;
+        if (segB > segA) {
+          // A highlighted fragment with no lowercase in it is flattened
+          // first. Both case functions protect all-caps words as acronyms,
+          // so without this a word the UPPERCASE button just produced
+          // could never be turned back by the other two.
+          const fragment = line.slice(segA, segB);
+          const flat = BookUtils.isCaselessTitle(fragment) ? fragment.toLowerCase() : fragment;
+          const source = flat.length === fragment.length
+            ? line.slice(0, segA) + flat + line.slice(segB)
+            : line;
+          const whole = fn(source);
+          const piece = whole.length === line.length
+            ? whole.slice(segA, segB)
+            : fn(flat);
+          delta += piece.length - (segB - segA);
+          out += line.slice(0, segA) + piece + line.slice(segB);
+        } else {
+          out += line;
+        }
+        lineStart = lineEnd + 1;
+      });
+
+      if (collapsed) {
+        const caret = Math.min(Number(start) || 0, out.length);
+        return { text: out, start: caret, end: caret };
+      }
+      return { text: out, start: a, end: b + delta };
+    },
+
+    /**
      * Re-pair legacy per-line cover styles with their text after gap
      * compaction. Pre-unified states stored cover text in three line
      * inputs, and the old renderer kept text in input N styled by

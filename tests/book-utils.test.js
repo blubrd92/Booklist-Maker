@@ -1201,6 +1201,71 @@ describe('BookUtils.splitCoverLines', () => {
   });
 });
 
+describe('BookUtils.transformTextSelection', () => {
+  const upper = (s) => s.toUpperCase();
+  const title = (s) => BookUtils.toTitleCase(s);
+  const sentence = (s) => BookUtils.toSentenceCase(s);
+  const run = (text, a, b, fn) => BookUtils.transformTextSelection(text, a, b, fn);
+  const text = 'Banned Books Week\nread dangerously\nSeptember 21 to 27';
+
+  it('transforms everything when nothing is highlighted, keeping the caret collapsed', () => {
+    expect(run(text, 5, 5, upper)).toEqual({
+      text: 'BANNED BOOKS WEEK\nREAD DANGEROUSLY\nSEPTEMBER 21 TO 27', start: 5, end: 5,
+    });
+  });
+
+  it('transforms only a highlighted line and re-highlights it', () => {
+    expect(run(text, 0, 17, upper)).toEqual({
+      text: 'BANNED BOOKS WEEK\nread dangerously\nSeptember 21 to 27', start: 0, end: 17,
+    });
+  });
+
+  it('treats each line as its own title when a highlight spans lines', () => {
+    expect(run('the name of the wind\nthe wise man', 0, 33, title).text)
+      .toBe('The Name of the Wind\nThe Wise Man');
+  });
+
+  it('reads a mid-line highlight in the context of its whole line', () => {
+    // "of" is not the first word of the line, so Title Case keeps it low.
+    expect(run('banned of books', 7, 15, title).text).toBe('banned of Books');
+    // A mid-line word under Sentence case is not a sentence start.
+    expect(run('read dangerously now', 5, 16, sentence).text).toBe('read dangerously now');
+  });
+
+  it('turns a highlighted all-caps word back, which acronym protection would block', () => {
+    expect(run('Read DANGEROUSLY', 5, 16, sentence).text).toBe('Read dangerously');
+    expect(run('Read DANGEROUSLY', 5, 16, title).text).toBe('Read Dangerously');
+  });
+
+  it('keeps an acronym that sits outside the highlight', () => {
+    expect(run('NASA and the moon', 5, 17, title).text).toBe('NASA and the Moon');
+  });
+
+  it('touches only the highlighted characters of a partial line', () => {
+    expect(run('read dangerously', 5, 16, upper).text).toBe('read DANGEROUSLY');
+  });
+
+  it('falls back to the fragment alone when the transform changes length', () => {
+    const r = run('Straße und Weg', 0, 6, upper);
+    expect(r.text).toBe('STRASSE und Weg');
+    expect(r).toMatchObject({ start: 0, end: 7 });
+  });
+
+  it('accepts a reversed range', () => {
+    expect(run('abc def', 7, 4, upper).text).toBe('abc DEF');
+  });
+
+  it('clamps out-of-range offsets and handles empty or non-string input', () => {
+    expect(run('abc', -3, 99, upper)).toEqual({ text: 'ABC', start: 0, end: 3 });
+    expect(run('', 0, 0, upper)).toEqual({ text: '', start: 0, end: 0 });
+    expect(run(null, 0, 0, upper)).toEqual({ text: '', start: 0, end: 0 });
+  });
+
+  it('leaves blank lines alone', () => {
+    expect(run('a\n\nb', 0, 0, upper).text).toBe('A\n\nB');
+  });
+});
+
 describe('BookUtils.compactLegacyCoverLineStyles', () => {
   // Style entries tagged so reordering is visible in assertions.
   const s1 = { font: 'Font A', sizePt: 35 };

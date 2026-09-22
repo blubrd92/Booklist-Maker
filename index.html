@@ -338,6 +338,25 @@
             <textarea id="cover-title-input" rows="3" placeholder="Enter Cover Title...&#10;Press Enter to add a line"></textarea>
           </div>
 
+          <!-- Cover twin of #title-case-group in the Text & Styling tab.
+               It lives with the text it rewrites, not in the Cover Header
+               Style box below, so the style boxes stay pure settings.
+               Acts on the highlighted part of the textarea, or on every
+               line when nothing is highlighted
+               (applyCoverCaseTransform in app.js). -->
+          <details id="cover-case-group">
+            <summary id="cover-case-label">Change capitalization</summary>
+            <div class="control-row" role="group" aria-labelledby="cover-case-label">
+              <button type="button" id="apply-cover-title-case-btn" class="btn btn-sm btn-secondary" disabled
+                      title="Rewrite the highlighted cover text, or every line, in Title Case">Title Case</button>
+              <button type="button" id="apply-cover-sentence-case-btn" class="btn btn-sm btn-secondary" disabled
+                      title="Rewrite the highlighted cover text, or every line, in sentence case">Sentence case</button>
+              <button type="button" id="apply-cover-upper-case-btn" class="btn btn-sm btn-secondary" disabled
+                      title="Rewrite the highlighted cover text, or every line, in all capitals">UPPERCASE</button>
+            </div>
+            <p class="cover-case-hint">Highlight part of the text to change only that part; otherwise every line changes. Undo reverses it.</p>
+          </details>
+
           <!-- User-facing label is "Create Cover"; the element ID
                remains generate-cover-button for code compatibility. -->
           <button id="generate-cover-button" class="btn btn-primary" style="margin-top: 10px; width: 100%;">Create Cover</button>

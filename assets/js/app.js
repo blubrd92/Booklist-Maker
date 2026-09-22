@@ -473,6 +473,10 @@ const BooklistApp = (function() {
       applyTitleCaseBtn: document.getElementById('apply-title-case-btn'),
       applySentenceCaseBtn: document.getElementById('apply-sentence-case-btn'),
       applyUpperCaseBtn: document.getElementById('apply-upper-case-btn'),
+      coverCaseGroup: document.getElementById('cover-case-group'),
+      applyCoverTitleCaseBtn: document.getElementById('apply-cover-title-case-btn'),
+      applyCoverSentenceCaseBtn: document.getElementById('apply-cover-sentence-case-btn'),
+      applyCoverUpperCaseBtn: document.getElementById('apply-cover-upper-case-btn'),
       toggleQrCode: document.getElementById('toggle-qr-code'),
       toggleBranding: document.getElementById('toggle-branding'),
       
@@ -4554,6 +4558,7 @@ const BooklistApp = (function() {
 
     // Sync the per-line group labels/visibility with the textarea's lines
     updateCoverLineStyleGroups();
+    updateCoverCaseButtonsState();
 
     // Force scroll recalculation for the Front Cover tab panel
     forceTabScrollRecalc('tab-front-cover');
@@ -6140,7 +6145,8 @@ const BooklistApp = (function() {
   // Titles only. Author names are deliberately out of scope: "bell hooks"
   // and "de la Cruz" are correct as catalogued, and the Booklister Helper
   // extension already cleans and flips them on the way in. The front cover
-  // header text is out of scope too, since that is typed by hand.
+  // header has its own twin of these buttons (applyCoverCaseTransform
+  // below), which shares TITLE_CASE_TRANSFORMS but acts on the textarea.
   // ---------------------------------------------------------------------------
 
   const TITLE_CASE_TRANSFORMS = {
@@ -6226,6 +6232,76 @@ const BooklistApp = (function() {
     // identical to a list that's ready to convert.
     if (elements.titleCaseGroup) {
       elements.titleCaseGroup.classList.toggle('is-empty', !enabled);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cover header capitalization (Front Cover tab)
+  //
+  // The same three buttons as the Title box, sitting under the header
+  // textarea. They exist to invite experimenting ("what does this look
+  // like in caps?") more than to repair a paste, which is why they act on
+  // the highlighted part of the text when there is one: that gives
+  // per-line and per-word control without a disclosure in every Line
+  // style box. With nothing highlighted, every line changes.
+  //
+  // The highlight survives the press (the buttons suppress mousedown's
+  // default so the textarea keeps focus, and the changed range is
+  // re-selected), so pressing through all three on the same words costs
+  // one highlight. The range logic lives in BookUtils.transformTextSelection.
+  // ---------------------------------------------------------------------------
+
+  // Whether the textarea's current selection is still one the user meant
+  // for these buttons. A textarea keeps its selection after it loses
+  // focus, but browsers stop drawing it, so a highlight made minutes ago
+  // and forgotten would silently narrow a later press. It stays live only
+  // while focus is in the textarea or has moved from there to the buttons.
+  let _coverCaseSelectionLive = false;
+
+  function applyCoverCaseTransform(mode) {
+    const transform = TITLE_CASE_TRANSFORMS[mode];
+    const input = elements.coverTitleInput;
+    if (!transform || !input) return;
+
+    const useSelection = document.activeElement === input || _coverCaseSelectionLive;
+    const start = useSelection ? input.selectionStart : 0;
+    const end = useSelection ? input.selectionEnd : 0;
+    const result = BookUtils.transformTextSelection(input.value, start, end, transform.fn);
+    if (result.text === input.value) {
+      showNotification('No text changed.', 'info');
+      return;
+    }
+
+    // Group per mode so pressing through the three buttons gives one undo
+    // step each rather than coalescing into one.
+    pushUndo('convert-cover-case-' + mode);
+    input.value = result.text;
+    input.setSelectionRange(result.start, result.end);
+
+    // The textarea's own input handler never fires for a programmatic
+    // write, so do its work here. Its pre-edit snapshot is reset too: one
+    // captured before this press would otherwise be committed by the next
+    // keystroke, and undoing that typing would also undo this press.
+    clearPreEditSnapshot();
+    if (document.activeElement === input) capturePreEditSnapshot();
+    if (elements.coverAdvancedToggle?.checked) updateCoverLineStyleGroups();
+    updateCoverCaseButtonsState();
+    debouncedSave();
+    debouncedCoverRegen();
+  }
+
+  /**
+   * Enable the cover case buttons only when the header has text. Called
+   * from the textarea's input handler and from toggleCoverMode, which
+   * every programmatic write (applyState, looks, undo/redo, reset) runs
+   * through after setting the value.
+   */
+  function updateCoverCaseButtonsState() {
+    const enabled = BookUtils.splitCoverLines(elements.coverTitleInput?.value || '').length > 0;
+    [elements.applyCoverTitleCaseBtn, elements.applyCoverSentenceCaseBtn, elements.applyCoverUpperCaseBtn]
+      .forEach((btn) => { if (btn) btn.disabled = !enabled; });
+    if (elements.coverCaseGroup) {
+      elements.coverCaseGroup.classList.toggle('is-empty', !enabled);
     }
   }
 
@@ -8098,10 +8174,37 @@ const BooklistApp = (function() {
         if (elements.coverAdvancedToggle?.checked) {
           updateCoverLineStyleGroups();
         }
+        updateCoverCaseButtonsState();
         debouncedSave();
         debouncedCoverRegen();
       });
+      elements.coverTitleInput.addEventListener('focus', () => { _coverCaseSelectionLive = true; });
+      elements.coverTitleInput.addEventListener('blur', (e) => {
+        _coverCaseSelectionLive = !!(e.relatedTarget && elements.coverCaseGroup?.contains(e.relatedTarget));
+      });
     }
+
+    // Cover header capitalization. mousedown's default is suppressed so a
+    // mouse press leaves focus, and the visible highlight, in the
+    // textarea. Keyboard users tab onto the buttons normally; the blur
+    // handler above keeps their selection live for that hop.
+    if (elements.coverCaseGroup) {
+      elements.coverCaseGroup.addEventListener('focusout', (e) => {
+        if (e.relatedTarget !== elements.coverTitleInput
+            && !elements.coverCaseGroup.contains(e.relatedTarget)) {
+          _coverCaseSelectionLive = false;
+        }
+      });
+    }
+    [
+      [elements.applyCoverTitleCaseBtn, 'title'],
+      [elements.applyCoverSentenceCaseBtn, 'sentence'],
+      [elements.applyCoverUpperCaseBtn, 'upper'],
+    ].forEach(([btn, mode]) => {
+      if (!btn) return;
+      btn.addEventListener('mousedown', (e) => e.preventDefault());
+      btn.addEventListener('click', () => applyCoverCaseTransform(mode));
+    });
 
     // NOTE: Simple mode style controls (cover-font-select, cover-font-size,
     // cover-text-color) and the cover-bold-toggle / cover-italic-toggle
