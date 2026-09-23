@@ -30,6 +30,10 @@
 
   let currentState = 'idle';
   let bubbleTimer = null;
+  // The 250ms cleanup that runs after the shrink animation. Tracked so a
+  // line shown DURING the shrink can cancel it; untracked, it fired into
+  // the new bubble and wiped it a fraction of a second after it appeared.
+  let bubbleHideTimer = null;
   let droopTimer = null;
 
   // Bubble pacing: bubbles must be visible for at least MIN_VISIBLE_MS
@@ -1136,6 +1140,8 @@
      on must not resurrect a sentence from the previous session. */
   function silenceBubble() {
     clearTimeout(bubbleTimer);
+    clearTimeout(bubbleHideTimer);
+    bubbleHideTimer = null;
     clearTimeout(pendingBubbleTimer);
     pendingBubbleTimer = null;
     pendingBubbleText = null;
@@ -1210,6 +1216,8 @@
 
   function showBubbleNow(text, isPhysical) {
     clearTimeout(bubbleTimer);
+    clearTimeout(bubbleHideTimer);
+    bubbleHideTimer = null;
     // A new bubble supersedes any queued follow-up (the follow-up
     // fires below only when the hold expires with nothing new shown).
     followUpBubbleText = null;
@@ -1235,7 +1243,8 @@
       stopTalking();
       bubble.classList.remove('visible', 'swap');
       bubble.classList.add('hiding');
-      setTimeout(() => {
+      bubbleHideTimer = setTimeout(() => {
+        bubbleHideTimer = null;
         bubble.className = 'speech-bubble';
         const followUp = followUpBubbleText;
         followUpBubbleText = null;
@@ -1411,8 +1420,8 @@
     idle:       { amp: 1.4, period: 3.8, curl: 1.0,  puff: 1.0 },
     searching:  { amp: 1.0, period: 1.4, curl: 1.25, puff: 1.0 },
     excited:    { amp: 2.4, period: 0.8, curl: 0.9,  puff: 1.0 },
-    evaluating: { amp: 1.0, period: 5.5, curl: 1.4,  puff: 1.0 },
-    sleeping:   { amp: 0.5, period: 6.5, curl: 1.7,  puff: 1.0 },
+    evaluating: { amp: 1.0, period: 5.5, curl: 1.25, puff: 1.0 },
+    sleeping:   { amp: 0.5, period: 6.5, curl: 1.5,  puff: 1.0 },
     greeting:   { amp: 2.2, period: 1.5, curl: 1.0,  puff: 1.0 },
     worried:    { amp: 0.9, period: 0.7, curl: 0.7,  puff: 1.06 },
     // Reaction moods (see tailReact)
@@ -1553,7 +1562,7 @@
   }
 
   function tailWidthAt(k) {
-    return (19 + 7 * Math.pow(k / TAIL_SEGS, 1.8)) * (tailCur.puff + tailPuffBoost);
+    return (24 + 8 * Math.pow(k / TAIL_SEGS, 1.6)) * (tailCur.puff + tailPuffBoost);
   }
 
   // Catmull-Rom through pts as cubic Beziers, starting at pts[0].
