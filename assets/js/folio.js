@@ -1062,8 +1062,27 @@
     setTimeout(() => mark.remove(), 900);
   }
 
-  folioSvg.addEventListener('pointermove', handlePetMove);
-  folioSvg.addEventListener('pointerleave', resetPetTracking);
+  // Only the cat's own shapes take the pointer (see folio.css), so a
+  // natural rub swings past his outline at each end of the stroke, and
+  // that is exactly where the direction reversal that counts a stroke
+  // happens. Listening on the SVG alone lost those reversals and reset
+  // the count on every overshoot. Instead, moves are tracked page-wide
+  // but only while the hand was on the cat within PET_OFF_CAT_MS.
+  const PET_OFF_CAT_MS = 450;
+  let petLastOnCatAt = 0;
+
+  document.addEventListener('pointermove', function(e) {
+    if (folioIsHidden()) return;
+    const now = Date.now();
+    const onCat = e.target && e.target.closest && e.target.closest('#folio');
+    if (onCat) {
+      petLastOnCatAt = now;
+    } else if (now - petLastOnCatAt > PET_OFF_CAT_MS) {
+      if (petLastX !== null) resetPetTracking();
+      return;
+    }
+    handlePetMove(e);
+  });
   folioSvg.addEventListener('pointerdown', resetPetTracking);
 
   /* ----------------------------------------------------------------

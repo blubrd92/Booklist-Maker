@@ -1147,15 +1147,44 @@
       <svg class="idle" id="folio" width="760" height="466" viewBox="-130 0 760 466" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <style>
-            .fur-orange { fill: #F4A261; stroke: #4A3020; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
-            .fur-cream { fill: #FEFAE0; stroke: #4A3020; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
-            .stripe { fill: #D67D3E; stroke: none; }
-            .stripe-outline { stroke: #D67D3E; stroke-width: 5; stroke-linecap: round; fill: none; }
-            .nose-pink { fill: #FF9999; stroke: #4A3020; stroke-width: 3; stroke-linejoin: round; }
-            .eye-dark { fill: #3D2B1F; }
-            .outline-only { fill: none; stroke: #4A3020; stroke-width: 4; stroke-linecap: round; }
+            .fur-orange { fill: url(#furTail); stroke: #5A3A26; stroke-width: 3.5; stroke-linejoin: round; stroke-linecap: round; }
+            .fur-body { fill: url(#furBody); stroke: #5A3A26; stroke-width: 3.5; stroke-linejoin: round; stroke-linecap: round; }
+            .fur-head { fill: url(#furHead); stroke: #5A3A26; stroke-width: 3.5; stroke-linejoin: round; stroke-linecap: round; }
+            .fur-cream { fill: #FFF6E4; stroke: #5A3A26; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+            .bib-fur { fill: none; stroke: #EAD2AE; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+            .fur-line { fill: none; stroke: #5A3A26; stroke-width: 2.2; stroke-linecap: round; opacity: 0.55; }
+            .stripe { fill: #D9773A; stroke: none; }
+            .markings path { fill: none; stroke: #D9773A; stroke-width: 4.5; stroke-linecap: round; }
+            .ear-inner { fill: #F6A9A0; opacity: 0.85; }
+            .ear-tuft { fill: none; stroke: #FFF6E4; stroke-width: 2.4; stroke-linecap: round; }
+            .toe { fill: none; stroke: #5A3A26; stroke-width: 1.8; stroke-linecap: round; opacity: 0.7; }
+            .iris { fill: url(#iris); stroke: #3D2B1F; stroke-width: 2.5; }
+            .pupil { fill: #1E140D; }
+            .lid { fill: none; stroke: #3D2B1F; stroke-width: 4; stroke-linecap: round; }
+            .whiskers path { fill: none; stroke: #7A5A44; stroke-width: 1.5; stroke-linecap: round; opacity: 0.6; }
+            .whisker-dots circle { fill: #C88A60; }
+            .nose-pink { fill: #EE8F8F; stroke: #5A3A26; stroke-width: 2.5; stroke-linejoin: round; }
+            .outline-only { fill: none; stroke: #5A3A26; stroke-width: 3.5; stroke-linecap: round; }
             .no-stroke { stroke: none; }
           </style>
+          <radialGradient id="furHead" cx="0.5" cy="0.35" r="0.65">
+            <stop offset="0%" stop-color="#F8B878" />
+            <stop offset="75%" stop-color="#F2A05C" />
+            <stop offset="100%" stop-color="#E88F4C" />
+          </radialGradient>
+          <linearGradient id="furBody" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#F4A864" />
+            <stop offset="100%" stop-color="#E88F4C" />
+          </linearGradient>
+          <linearGradient id="furTail" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#F4A864" />
+            <stop offset="100%" stop-color="#EA934F" />
+          </linearGradient>
+          <radialGradient id="iris" cx="0.5" cy="0.55" r="0.55">
+            <stop offset="0%" stop-color="#F3D776" />
+            <stop offset="60%" stop-color="#D2AE48" />
+            <stop offset="100%" stop-color="#8C8A38" />
+          </radialGradient>
           <linearGradient id="shelfGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#9a8365" />
             <stop offset="40%" stop-color="#7a6548" />
@@ -1187,87 +1216,126 @@
           <rect x="577" y="310" width="22" height="135" rx="3" fill="#5a3a4a" stroke="#4a2a3a" stroke-width="1" />
           <rect x="601" y="300" width="18" height="145" rx="3" fill="#4a5a3a" stroke="#3a4a2a" stroke-width="1" />
         </g>
-        <!-- Tail -->
+        <!-- Tail (the paths are redrawn every frame by folio.js; these
+             static shapes are the no-JS fallback) -->
         <g id="tail">
           <path class="fur-orange" d="M 130 420 Q 110 420 95 350 Q 80 260 45 220 Q 30 200 45 185 Q 65 170 80 200 Q 100 240 110 330 Q 120 400 145 410 L 130 420 Z" />
           <path class="stripe" d="M 75 235 Q 85 230 95 235 L 95 240 Q 85 235 75 240 Z" opacity="0.8"/>
           <path class="stripe" d="M 80 275 Q 92 270 105 275 L 105 280 Q 92 275 80 280 Z" opacity="0.8"/>
           <path class="stripe" d="M 90 315 Q 100 310 110 315 L 110 320 Q 100 315 90 320 Z" opacity="0.8"/>
         </g>
-        <!-- Body -->
+        <!-- Body: a sitting silhouette, shoulders narrowing to the neck
+             and haunches rounding out at the base. -->
         <g id="body">
-          <path class="fur-orange" d="M 160 220 Q 110 350 120 420 Q 120 445 250 445 Q 380 445 380 420 Q 390 350 340 220 Z" />
-          <path class="stripe" d="M 140 290 L 165 295 L 138 305 Z" />
-          <path class="stripe" d="M 130 320 L 155 325 L 128 335 Z" />
-          <path class="stripe" d="M 360 290 L 335 295 L 362 305 Z" />
-          <path class="stripe" d="M 370 320 L 345 325 L 372 335 Z" />
-          <path class="fur-cream no-stroke" d="M 180 230 Q 180 350 250 380 Q 320 350 320 230 Z" />
+          <path class="fur-body" d="M 196 282 C 172 300, 154 328, 148 358 C 120 378, 112 424, 134 440 Q 150 446 250 446 Q 350 446 366 440 C 388 424, 380 378, 352 358 C 346 328, 328 300, 304 282 Z" />
+          <path class="stripe" d="M 150 318 Q 166 318 178 330 Q 165 326 152 325 Z" />
+          <path class="stripe" d="M 146 338 Q 162 338 172 350 Q 160 346 148 345 Z" />
+          <path class="stripe" d="M 350 318 Q 334 318 322 330 Q 335 326 348 325 Z" />
+          <path class="stripe" d="M 354 338 Q 338 338 328 350 Q 340 346 352 345 Z" />
+          <path class="stripe" d="M 124 396 Q 138 390 150 396 Q 138 396 126 402 Z" />
+          <path class="stripe" d="M 376 396 Q 362 390 350 396 Q 362 396 374 402 Z" />
+          <!-- haunch lines -->
+          <path class="fur-line" d="M 150 362 C 176 372, 184 410, 174 440" />
+          <path class="fur-line" d="M 350 362 C 324 372, 316 410, 326 440" />
+          <!-- chest bib with a soft ruff -->
+          <path class="fur-cream no-stroke" d="M 204 286 C 204 318, 214 346, 234 368 Q 250 380 266 368 C 286 346, 296 318, 296 286 Z" />
+          <path class="bib-fur" d="M 232 318 l 6 7 l 6 -7 M 256 318 l 6 7 l 6 -7 M 243 338 l 7 7 l 7 -7" />
         </g>
-        <!-- Back Feet -->
+        <!-- Back Feet: peeking out from under the haunches -->
         <g id="back-feet">
-          <path class="fur-cream" d="M 131 423 C 131 433, 125 445, 125 445 L 172 445 L 172 423 Q 152 416 131 423 Z" />
-          <path class="outline-only" d="M 145 432 L 145 445" stroke-width="2" />
-          <path class="outline-only" d="M 159 432 L 159 445" stroke-width="2" />
-          <path class="fur-cream" d="M 369 423 C 369 433, 375 445, 375 445 L 328 445 L 328 423 Q 348 416 369 423 Z" />
-          <path class="outline-only" d="M 355 432 L 355 445" stroke-width="2" />
-          <path class="outline-only" d="M 341 432 L 341 445" stroke-width="2" />
+          <path class="fur-cream" d="M 130 434 Q 124 446 138 446 L 178 446 Q 184 440 178 432 Q 152 426 130 434 Z" />
+          <path class="toe" d="M 146 438 L 146 446 M 160 437 L 160 446" />
+          <path class="fur-cream" d="M 370 434 Q 376 446 362 446 L 322 446 Q 316 440 322 432 Q 348 426 370 434 Z" />
+          <path class="toe" d="M 354 438 L 354 446 M 340 437 L 340 446" />
         </g>
-        <!-- Front Legs -->
+        <!-- Front Legs: slim, with cream socks -->
         <g id="front-legs">
-          <path class="fur-orange" d="M 190 380 C 190 410, 195 445, 205 445 L 248 445 L 248 380" fill-rule="evenodd" />
-          <path class="fur-cream" d="M 210 425 C 210 435, 205 445, 205 445 L 248 445 L 248 425 Q 228 418 210 425 Z" />
-          <path class="outline-only" d="M 222 432 L 222 445" stroke-width="2" />
-          <path class="outline-only" d="M 236 432 L 236 445" stroke-width="2" />
-          <path class="fur-orange" d="M 310 380 C 310 410, 305 445, 295 445 L 252 445 L 252 380" fill-rule="evenodd" />
-          <path class="fur-cream" d="M 290 425 C 290 435, 295 445, 295 445 L 252 445 L 252 425 Q 272 418 290 425 Z" />
-          <path class="outline-only" d="M 264 432 L 264 445" stroke-width="2" />
-          <path class="outline-only" d="M 278 432 L 278 445" stroke-width="2" />
-          <line x1="250" y1="380" x2="250" y2="445" stroke="#4A3020" stroke-width="2" opacity="0.2" />
+          <path class="fur-body no-stroke" d="M 206 352 C 204 384, 203 414, 204 434 L 251 434 L 251 352 Z" />
+          <path class="fur-body no-stroke" d="M 294 352 C 296 384, 297 414, 296 434 L 249 434 L 249 352 Z" />
+          <!-- the bib's point continues over the tops of the legs -->
+          <path class="fur-cream no-stroke" d="M 222 350 Q 250 396 278 350 Z" />
+          <path class="stripe" d="M 206 380 Q 216 376 224 382 Q 214 382 206 386 Z" />
+          <path class="stripe" d="M 294 380 Q 284 376 276 382 Q 286 382 294 386 Z" />
+          <path class="outline-only" d="M 206 352 C 204 384, 203 414, 204 434" />
+          <path class="outline-only" d="M 294 352 C 296 384, 297 414, 296 434" />
+          <path class="fur-line" d="M 250 384 L 250 432" />
+          <path class="fur-cream" d="M 203 428 Q 198 446 212 446 L 240 446 Q 250 446 247 430 Q 224 422 203 428 Z" />
+          <path class="toe" d="M 217 436 L 217 446 M 231 436 L 231 446" />
+          <path class="fur-cream" d="M 297 428 Q 302 446 288 446 L 260 446 Q 250 446 253 430 Q 276 422 297 428 Z" />
+          <path class="toe" d="M 283 436 L 283 446 M 269 436 L 269 446" />
         </g>
         <!-- Head -->
         <g id="head-group">
           <g class="ear-left-anim" style="transform-origin: 170px 150px;">
-            <path class="fur-orange" d="M 140 150 L 130 50 L 210 100 Z" />
-            <path class="nose-pink" d="M 145 140 L 138 65 L 190 110 Z" stroke="none" opacity="0.8"/>
+            <path class="fur-head" d="M 136 162 C 126 124, 126 84, 138 54 Q 142 46 150 50 C 176 68, 198 88, 214 110 Z" />
+            <path class="ear-inner" d="M 147 146 C 141 118, 141 90, 147 68 C 166 83, 182 97, 196 114 Z" />
+            <path class="ear-tuft" d="M 152 136 Q 158 118 156 100 M 160 138 Q 170 124 172 108 M 146 128 Q 148 114 147 100" />
           </g>
           <g class="ear-right-anim" style="transform-origin: 330px 150px;">
-            <path class="fur-orange" d="M 360 150 L 370 50 L 290 100 Z" />
-            <path class="nose-pink" d="M 355 140 L 362 65 L 310 110 Z" stroke="none" opacity="0.8"/>
+            <path class="fur-head" d="M 364 162 C 374 124, 374 84, 362 54 Q 358 46 350 50 C 324 68, 302 88, 286 110 Z" />
+            <path class="ear-inner" d="M 353 146 C 359 118, 359 90, 353 68 C 334 83, 318 97, 304 114 Z" />
+            <path class="ear-tuft" d="M 348 136 Q 342 118 344 100 M 340 138 Q 330 124 328 108 M 354 128 Q 352 114 353 100" />
           </g>
-          <ellipse class="fur-orange" cx="250" cy="200" rx="130" ry="115" />
-          <path class="fur-cream no-stroke" d="M 130 220 Q 125 180 150 180 Q 180 180 190 200 L 250 130 L 310 200 Q 320 180 350 180 Q 375 180 370 220 Q 360 300 250 300 Q 140 300 130 220 Z" />
-          <g transform="translate(250, 110)">
-            <path class="stripe-outline" d="M 0 -20 L 0 15" />
-            <path class="stripe-outline" d="M -20 -15 L -10 15" />
-            <path class="stripe-outline" d="M 20 -15 L 10 15" />
+          <!-- head: wider at the cheeks, with fur tufts at the jaw -->
+          <path class="fur-head" d="M 250 92 C 320 92, 362 130, 369 186 C 372 206, 378 222, 390 236 C 378 238, 375 245, 381 257 C 368 257, 360 262, 358 272 C 336 293, 296 304, 250 304 C 204 304, 164 293, 142 272 C 140 262, 132 257, 119 257 C 125 245, 122 238, 110 236 C 122 222, 128 206, 131 186 C 138 130, 180 92, 250 92 Z" />
+          <!-- cream muzzle and chin -->
+          <path class="fur-cream no-stroke" d="M 174 218 C 184 196, 218 192, 250 204 C 282 192, 316 196, 326 218 C 346 240, 336 288, 250 297 C 164 288, 154 240, 174 218 Z" />
+          <!-- tabby M on the forehead, cheek stripes -->
+          <g class="markings">
+            <path d="M 250 104 Q 248 122 250 140" />
+            <path d="M 229 110 Q 232 126 240 138" />
+            <path d="M 271 110 Q 268 126 260 138" />
+            <path d="M 209 122 Q 216 132 226 140" />
+            <path d="M 291 122 Q 284 132 274 140" />
+            <path d="M 126 206 Q 140 208 152 215" />
+            <path d="M 131 228 Q 144 230 156 236" />
+            <path d="M 374 206 Q 360 208 348 215" />
+            <path d="M 369 228 Q 356 230 344 236" />
           </g>
-          <path class="stripe-outline" d="M 125 190 L 155 195" stroke-width="4" />
-          <path class="stripe-outline" d="M 125 210 L 155 215" stroke-width="4" />
-          <path class="stripe-outline" d="M 375 190 L 345 195" stroke-width="4" />
-          <path class="stripe-outline" d="M 375 210 L 345 215" stroke-width="4" />
+          <!-- blush -->
+          <ellipse cx="164" cy="240" rx="16" ry="9" fill="#F28C8C" opacity="0.22" />
+          <ellipse cx="336" cy="240" rx="16" ry="9" fill="#F28C8C" opacity="0.22" />
           <g id="eyes">
-            <circle class="eye-dark" cx="190" cy="200" r="22" />
-            <circle fill="white" cx="182" cy="192" r="8" />
-            <circle fill="white" cx="195" cy="210" r="4" />
-            <circle class="eye-dark" cx="310" cy="200" r="22" />
-            <circle fill="white" cx="302" cy="192" r="8" />
-            <circle fill="white" cx="315" cy="210" r="4" />
+            <circle class="iris" cx="190" cy="200" r="23" />
+            <ellipse class="pupil" cx="190" cy="202" rx="13.5" ry="18" />
+            <path class="lid" d="M 165 197 Q 190 172 215 197 M 166 196 L 158 190" />
+            <circle fill="white" cx="182" cy="191" r="7" />
+            <circle fill="white" cx="197" cy="210" r="3.5" />
+            <circle class="iris" cx="310" cy="200" r="23" />
+            <ellipse class="pupil" cx="310" cy="202" rx="13.5" ry="18" />
+            <path class="lid" d="M 285 197 Q 310 172 335 197 M 334 196 L 342 190" />
+            <circle fill="white" cx="302" cy="191" r="7" />
+            <circle fill="white" cx="317" cy="210" r="3.5" />
+          </g>
+          <!-- whisker pads and whiskers -->
+          <g class="whisker-dots">
+            <circle cx="228" cy="252" r="1.8" /><circle cx="222" cy="259" r="1.8" /><circle cx="232" cy="261" r="1.8" />
+            <circle cx="272" cy="252" r="1.8" /><circle cx="278" cy="259" r="1.8" /><circle cx="268" cy="261" r="1.8" />
+          </g>
+          <g class="whiskers">
+            <path d="M 216 250 Q 178 240 132 244" />
+            <path d="M 216 257 Q 176 256 128 264" />
+            <path d="M 218 264 Q 182 270 142 284" />
+            <path d="M 284 250 Q 322 240 368 244" />
+            <path d="M 284 257 Q 324 256 372 264" />
+            <path d="M 282 264 Q 318 270 358 284" />
           </g>
           <g id="nose" style="transform-origin: 250px 240px;">
-            <path class="nose-pink" d="M 240 235 Q 250 225 260 235 Q 250 255 240 235 Z" />
+            <path class="nose-pink" d="M 239 232 Q 250 227 261 232 Q 263 236 256 241 L 252 245 Q 250 247 248 245 L 244 241 Q 237 236 239 232 Z" />
+            <ellipse cx="246" cy="233" rx="3.5" ry="1.8" fill="white" opacity="0.55" />
           </g>
           <g id="mouth" style="transform-origin: 250px 256px;">
             <!-- Open mouth, shown only while he talks (folio.js adds
                  .talking to #folio-scene while a line's words arrive). -->
-            <ellipse id="mouth-open" cx="250" cy="258" rx="8" ry="7" fill="#8a3f3a" stroke="#4A3020" stroke-width="2.5" />
-            <path class="outline-only" d="M 250 248 Q 230 265 220 250 M 250 248 Q 270 265 280 250" stroke-width="3" />
+            <ellipse id="mouth-open" cx="250" cy="259" rx="7" ry="6" fill="#8a3f3a" stroke="#5A3A26" stroke-width="2" />
+            <path class="outline-only" d="M 250 246 L 250 252 M 250 252 Q 243 262 233 256 M 250 252 Q 257 262 267 256" stroke-width="2.5" />
           </g>
           <g id="glasses">
-            <circle cx="190" cy="200" r="28" fill="none" stroke="#8a5a28" stroke-width="2.5" />
-            <circle cx="310" cy="200" r="28" fill="none" stroke="#8a5a28" stroke-width="2.5" />
-            <path d="M 218 196 C 230 188, 270 188, 282 196" stroke="#8a5a28" stroke-width="2.5" fill="none" />
-            <path d="M 162 198 C 148 194, 134 198, 124 208" stroke="#8a5a28" stroke-width="2" fill="none" />
-            <path d="M 338 198 C 352 194, 366 198, 376 208" stroke="#8a5a28" stroke-width="2" fill="none" />
+            <circle cx="190" cy="200" r="29" fill="rgba(255,255,255,0.08)" stroke="#8a5a28" stroke-width="2.2" />
+            <circle cx="310" cy="200" r="29" fill="rgba(255,255,255,0.08)" stroke="#8a5a28" stroke-width="2.2" />
+            <path d="M 219 197 C 231 189, 269 189, 281 197" stroke="#8a5a28" stroke-width="2.2" fill="none" />
+            <path d="M 161 198 C 147 194, 134 198, 124 208" stroke="#8a5a28" stroke-width="1.8" fill="none" />
+            <path d="M 339 198 C 353 194, 366 198, 376 208" stroke="#8a5a28" stroke-width="1.8" fill="none" />
           </g>
         </g>
       </svg>
@@ -1318,7 +1386,7 @@
   <script src="assets/js/config.js?v=24581d169c"></script>
   <script src="assets/js/book-utils.js?v=ba48744b32"></script>
   <script src="assets/js/app.js?v=22cb2c575c"></script>
-  <script src="assets/js/folio.js?v=730fd438e0"></script>
+  <script src="assets/js/folio.js?v=aa8e44080b"></script>
   <script src="assets/js/tour.js?v=3af3f0da57"></script>
   <script src="assets/js/preview-helper.js?v=7c1be5e5c1"></script>
 
