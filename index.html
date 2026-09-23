@@ -1197,33 +1197,45 @@
         </g>
         <!-- Folio, drawn from scratch in September 2026 after the owner's
              reference: a flat cartoon cat sitting and facing the viewer.
-             A body narrower than the head; two slim front legs down the
-             middle; each back leg shown as a curved thigh line on the side
-             of the body ending in a small back paw beside the front paws.
+             A slim body narrower than the head that swells gently at the
+             haunches; a fluffy cream chest ruff; tapered front legs that
+             end in rounder mitten paws; each back leg a thigh curve with
+             two tabby bands, ending in a back paw beside the front paws.
              Every animation hooks onto the group ids and transform origins
              below, not onto the shapes inside. -->
         <g id="body">
-          <path class="fur-orange" d="M 206 286 C 180 304, 166 336, 160 372 C 152 414, 150 446, 186 446 L 314 446 C 350 446, 348 414, 340 372 C 334 336, 320 304, 294 286 Z" />
-          <path class="stripe" d="M 163 348 L 187 354 L 162 362 Z" />
-          <path class="stripe" d="M 337 348 L 313 354 L 338 362 Z" />
+          <path class="fur-orange" d="M 214 268 C 194 290, 182 322, 177 352 C 166 386, 159 418, 170 437 Q 176 446 190 446 L 310 446 Q 324 446 330 437 C 341 418, 334 386, 323 352 C 318 322, 306 290, 286 268 Z" />
+          <!-- tabby bands: one on each flank, two following each haunch -->
+          <path class="stripe" d="M 178 334 Q 192 332 202 342 Q 191 339 177 342 Z" />
+          <path class="stripe" d="M 322 334 Q 308 332 298 342 Q 309 339 323 342 Z" />
+          <path class="stripe" d="M 166 392 Q 182 388 194 400 Q 181 396 167 400 Z" />
+          <path class="stripe" d="M 334 392 Q 318 388 306 400 Q 319 396 333 400 Z" />
+          <path class="stripe" d="M 166 410 Q 180 407 190 417 Q 179 414 167 418 Z" />
+          <path class="stripe" d="M 334 410 Q 320 407 310 417 Q 321 414 333 418 Z" />
           <!-- thighs: the back legs folded under him -->
-          <path class="outline-only" d="M 161 382 C 186 384, 206 406, 208 440" />
-          <path class="outline-only" d="M 339 382 C 314 384, 294 406, 292 440" />
-          <!-- cream chest -->
-          <path class="fur-cream no-stroke" d="M 222 292 C 230 330, 240 350, 250 356 C 260 350, 270 330, 278 292 Z" />
+          <path class="outline-only" d="M 170 374 C 196 372, 212 398, 212 440" />
+          <path class="outline-only" d="M 330 374 C 304 372 288 398 288 440" />
+          <!-- cream chest ruff with a fluffy scalloped edge -->
+          <path class="fur-cream no-stroke" d="M 224 272 C 211 292, 211 316, 215 330 Q 221 343 230 337 Q 236 349 244 341 Q 250 352 256 341 Q 264 349 270 337 Q 279 343 285 330 C 289 316, 289 292, 276 272 Z" />
         </g>
         <!-- Back paws, peeking out beside the front paws -->
         <g id="back-feet">
-          <path class="fur-cream" d="M 170 446 Q 162 446 165 437 Q 170 427 188 427 Q 210 429 211 446 Z" />
-          <path class="fur-cream" d="M 330 446 Q 338 446 335 437 Q 330 427 312 427 Q 290 429 289 446 Z" />
+          <path class="fur-cream" d="M 170 446 C 165 437, 174 428, 190 428 C 205 428, 214 436, 212 446 Z" />
+          <path class="fur-cream" d="M 330 446 C 335 437 326 428 310 428 C 295 428 286 436 288 446 Z" />
+          <path class="outline-only" d="M 186 439 L 186 446 M 196 439 L 196 446 M 314 439 L 314 446 M 304 439 L 304 446" stroke-width="2.5" />
         </g>
         <g id="front-legs">
-          <path class="fur-orange" d="M 216 350 L 216 438 Q 216 446 224 446 L 241 446 Q 249 446 249 438 L 249 350" fill-rule="evenodd" />
-          <path class="fur-orange" d="M 284 350 L 284 438 Q 284 446 276 446 L 259 446 Q 251 446 251 438 L 251 350" fill-rule="evenodd" />
-          <path class="fur-cream" d="M 216 431 Q 216 446 224 446 L 241 446 Q 249 446 249 431 Q 232 426 216 431 Z" />
-          <path class="fur-cream" d="M 284 431 Q 284 446 276 446 L 259 446 Q 251 446 251 431 Q 268 426 284 431 Z" />
-          <path class="outline-only" d="M 232 437 L 232 446 M 268 437 L 268 446" stroke-width="3" />
+          <!-- tapered legs; the open top lets them grow out of the chest -->
+          <path class="fur-orange" d="M 218 344 C 219 380, 222 400, 222 432 L 246 432 C 246 398, 248 376, 248 344" />
+          <path class="fur-orange" d="M 282 344 C 281 380 278 400 278 432 L 254 432 C 254 398 252 376 252 344" />
+          <path class="fur-cream" d="M 217 446 C 211 435, 220 425, 234 425 C 247 425, 253 435, 248 446 Z" />
+          <path class="fur-cream" d="M 283 446 C 289 435 280 425 266 425 C 253 425 247 435 252 446 Z" />
+          <path class="outline-only" d="M 228 437 L 228 446 M 238 437 L 238 446 M 272 437 L 272 446 M 262 437 L 262 446" stroke-width="2.5" />
         </g>
+        <!-- The head is drawn at its original coordinates and scaled down
+             around the neck here, so every head animation origin inside
+             #head-group stays valid. -->
+        <g transform="translate(250 287) scale(0.85) translate(-250 -300)">
         <g id="head-group">
           <g class="ear-left-anim" style="transform-origin: 170px 150px;">
             <path class="fur-orange" d="M 136 176 L 146 70 Q 149 58 159 64 L 226 116 Z" />
@@ -1264,6 +1276,7 @@
             <path d="M 170 208 L 126 200" stroke="#8a5a28" stroke-width="2.5" fill="none" />
             <path d="M 330 208 L 374 200" stroke="#8a5a28" stroke-width="2.5" fill="none" />
           </g>
+        </g>
         </g>
       </svg>
     </div>
