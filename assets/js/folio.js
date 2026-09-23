@@ -1753,8 +1753,7 @@
   const groomStatic = document.getElementById('groom-leg-static');
   const groomArm = document.getElementById('groom-arm');
   const groomArmFill = document.getElementById('groom-arm-fill');
-  const groomArmEdges = document.getElementById('groom-arm-edges');
-  const groomArmCap = document.getElementById('groom-arm-cap');
+  const groomArmOutline = document.getElementById('groom-arm-outline');
   const groomPaw = document.getElementById('groom-paw');
   const groomPawToes = document.getElementById('groom-paw-toes');
   const headGroup = document.getElementById('head-group');
@@ -1762,12 +1761,30 @@
 
   // Resting geometry, matching #groom-leg-static: the leg's open top
   // edge runs 252..310 at y 380 and its wrist (the top of the paw) sits
-  // around (276,423), 23 left and 30 right of the axis there.
-  const ARM_E0 = [281, 380];
+  // around (276,423). The arm is one spine, shoulder -> elbow -> wrist,
+  // stroked twice (see renderGroomArm). Its open shoulder end sits on
+  // the drawn leg's top edge. (A short straight stub below the shoulder,
+  // to keep that end level, was tried: the outline's round join at the
+  // stub poked a dark tick above the leg.)
+  const ARM_S0 = [281, 380];
+  const ARM_E0 = [279, 404];
   const ARM_W0 = [276, 423];
-  // Raised: the elbow rests low on the right of his chest, clear of the
-  // cream bib, so the band's closed end sits on orange fur.
-  const ARM_E1 = [310, 374];
+  // Raised: the elbow folds in right under the shoulder, so the spine
+  // doubles back on itself there. The upper arm then hides inside the
+  // forearm and the round join becomes the rounded bottom of a forearm
+  // held up in front of the chest. (An elbow out at his side read as a
+  // U-shaped pipe.) The shoulder slides a little right as the arm rises
+  // so its open end stays inside the forearm.
+  const ARM_E1 = [293, 408];
+  const ARM_SHOULDER_SHIFT = 9;
+  // Band width (the orange part; the outline adds 4 each side): about
+  // the standing paw's width at rest, slimming once the arm is up. A
+  // stroke cannot taper, so the arm only takes over from the drawn leg
+  // (which flares at the top) once the paw is already moving; see
+  // GROOM_ARM_SWAP.
+  const ARM_WIDTH0 = 50;
+  const ARM_WIDTH1 = 37;
+  const GROOM_ARM_SWAP = 0.02;
   // The tongue tip in the head's own coordinates (the tongue's U tip,
   // rotated -30deg in index.html), and where the wrist sits relative to
   // it: the paw's knuckle side meets the tongue.
@@ -1856,7 +1873,7 @@
   }
 
   function renderGroomArm(t) {
-    if (!groomArmFill) return;
+    if (!groomArmFill || !groomArmOutline) return;
     const lift = easeKeys(GROOM_LIFT, t);
     const up = Math.max(0, Math.min(1, lift));
     const morph = easeKeys(GROOM_MORPH, t);
@@ -1872,41 +1889,35 @@
     const tip = lerp2(hold, live, 0.3);
     const W1 = [tip[0] + GROOM_WRIST_FROM_TIP[0], tip[1] + GROOM_WRIST_FROM_TIP[1]];
     const W = lerp2(ARM_W0, W1, lift);
+    // Mid-swing the elbow bows out a little, so the lift arcs rather
+    // than sliding straight up.
     const E = lerp2(ARM_E0, ARM_E1, up);
+    E[0] += 10 * Math.sin(Math.PI * up);
+    const sx = ARM_SHOULDER_SHIFT * up;
+    const S0 = [ARM_S0[0] + sx, ARM_S0[1]];
+    // At (or all but at) rest, show the drawn leg itself.
+    const drawn = up < GROOM_ARM_SWAP;
+    groomStatic.style.display = drawn ? '' : 'none';
+    groomArm.style.display = drawn ? 'none' : '';
 
-    // Forearm band. Half-widths at the elbow end and the wrist, left and
-    // right of the E->W axis: the resting leg flares (23 / 30 at the
-    // wrist, 29 / 29 at the top); raised, it tapers 21 -> 16.
-    let ax = [W[0] - E[0], W[1] - E[1]];
-    const len = Math.hypot(ax[0], ax[1]) || 1;
-    ax = [ax[0] / len, ax[1] / len];
-    const n = [-ax[1], ax[0]];
-    const hEL = 29 + (21 - 29) * up, hER = 29 + (21 - 29) * up;
-    const hWL = 30 + (16 - 30) * up, hWR = 23 + (16 - 23) * up;
-    const EL = [E[0] + n[0] * hEL, E[1] + n[1] * hEL];
-    const ER = [E[0] - n[0] * hER, E[1] - n[1] * hER];
-    const WL = [W[0] + n[0] * hWL, W[1] + n[1] * hWL];
-    const WR = [W[0] - n[0] * hWR, W[1] - n[1] * hWR];
-    // The elbow end bulges back past E into a rounded cap, but only once
-    // the arm is well up and long enough to carry it: early in the lift a
-    // cap line across the top of the leg boxed it in like a drawer, and on
-    // a short, foreshortened forearm the cap curled into a hook.
-    const capK = Math.max(0, Math.min(1, (up - 0.45) / 0.35));
-    const capOn = capK * capK * (3 - 2 * capK);
-    const bulge = 1.35 * (hEL + hER) / 2 * capOn * Math.min(1, len / 50);
-    const C1 = [EL[0] - ax[0] * bulge, EL[1] - ax[1] * bulge];
-    const C2 = [ER[0] - ax[0] * bulge, ER[1] - ax[1] * bulge];
+    // The arm is the spine stroked twice, dark at width + 8 and orange at
+    // width, with round joins: that gives a flat 4-unit outline, a rounded
+    // elbow at any bend and no seam or self-overlap, while the butt ends
+    // stay open (the shoulder melts into the body; the paw covers the
+    // wrist). A filled band with a separate elbow cap was tried first:
+    // its open elbow end read as two loose sticks, and fading the cap in
+    // left a smudged half-outline.
     const f = (p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1);
-    groomArmFill.setAttribute('d', 'M ' + f(WL) + ' L ' + f(EL)
-      + ' C ' + f(C1) + ', ' + f(C2) + ', ' + f(ER) + ' L ' + f(WR) + ' Z');
-    groomArmEdges.setAttribute('d', 'M ' + f(WL) + ' L ' + f(EL) + ' M ' + f(ER) + ' L ' + f(WR));
-    groomArmCap.setAttribute('d', 'M ' + f(EL) + ' C ' + f(C1) + ', ' + f(C2) + ', ' + f(ER));
-    groomArmCap.setAttribute('opacity', capOn.toFixed(2));
-    // Mid-lift the forearm points at the viewer and shrinks to a stub
-    // behind the paw; its two edge lines then shrink to stray ticks
-    // beside the paw, so they fade out and the paw carries the frame.
-    const edgeK = Math.max(0, Math.min(1, (len - 22) / 22));
-    groomArmEdges.setAttribute('opacity', edgeK.toFixed(2));
+    const tail = ' L ' + f(E) + ' L ' + f(W);
+    const spine = 'M ' + f(S0) + tail;
+    const width = ARM_WIDTH0 + (ARM_WIDTH1 - ARM_WIDTH0) * up;
+    // The outline starts 2 units lower than the fur, so the two butt
+    // ends do not coincide and leave an antialiased hairline across the
+    // top of the leg.
+    groomArmOutline.setAttribute('d', 'M ' + f([S0[0], S0[1] + 2]) + tail);
+    groomArmOutline.setAttribute('stroke-width', (width + 8).toFixed(1));
+    groomArmFill.setAttribute('d', spine);
+    groomArmFill.setAttribute('stroke-width', width.toFixed(1));
 
     // Paw, in a frame at the wrist pointing along the paw direction.
     const P = (u, v) => [W[0] + dir[0] * u + nrm[0] * v, W[1] + dir[1] * u + nrm[1] * v];
@@ -1930,8 +1941,6 @@
     if (!groomArm || !groomStatic) return;
     groomStart = performance.now();
     renderGroomArm(0);
-    groomStatic.style.display = 'none';
-    groomArm.style.display = '';
     startTail();
   }
 
