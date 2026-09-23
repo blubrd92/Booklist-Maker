@@ -10126,6 +10126,30 @@ const BooklistApp = (function() {
     }
     applyMobileViewInert();
 
+    // The tool is a fixed-viewport app: the document itself should never
+    // be scrolled, because every surface scrolls inside its own container.
+    // Mobile browsers can still leave it offset (the address bar sliding
+    // in and out, the keyboard pushing a focused field into view), and then
+    // nothing the user can touch scrolls it back: the header sits above the
+    // screen and a bare strip shows below the page. Undo any such offset.
+    // Phones only; content pages don't load app.js at all.
+    // Stands down while a text field has focus: iOS scrolls the document on
+    // purpose then, to keep the field above the keyboard, and undoing that
+    // would hide what the user is typing. The focusout pass cleans up after.
+    const isEditingText = () => {
+      const el = document.activeElement;
+      return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+    };
+    const resetDocumentScroll = () => {
+      if (!isMobileLayout() || isEditingText()) return;
+      if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);
+    };
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resetDocumentScroll);
+    }
+    window.addEventListener('scroll', resetDocumentScroll, { passive: true });
+    document.addEventListener('focusout', () => setTimeout(resetDocumentScroll, 100));
+
     const moreBtn = document.getElementById('mobile-more-button');
     const menu = document.getElementById('mobile-more-menu');
     if (!moreBtn || !menu) return;

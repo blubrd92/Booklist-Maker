@@ -3498,6 +3498,18 @@ body.has-custom-qr #generate-qr-button:disabled {
   /* dvh tracks the real visible height on mobile browsers where the URL
      bar collapses; browsers without dvh support keep the base 100vh. */
   body { height: 100dvh; }
+  /* html must match. The base rule sizes it 100vh, which on a phone is
+     the viewport with the address bar COLLAPSED; while the bar shows,
+     html was taller than the screen by the bar's height, so the document
+     itself could scroll: the header slid off the top, a bare strip showed
+     below the page, and since every visible surface scrolls inside its
+     own container, no gesture scrolled it back. The 100vh line is the
+     fallback for browsers without dvh. initMobileChrome also resets any
+     document scroll a browser leaves behind (keyboard, bar changes). */
+  html {
+    height: 100vh;
+    height: 100dvh;
+  }
 
   /* --- Header: one row. Only the logo, Generate PDF and the More
      button stay; every other header control is reached through the
