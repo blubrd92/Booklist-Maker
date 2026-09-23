@@ -99,9 +99,9 @@ body:has(.sidebar.collapsed) .folio-container {
 }
 
 /* Scene container - scales with viewport, capped so it never dominates the preview.
-   760/466 aspect ratio matches the cropped SVG viewBox (shelf flush with bottom).
+   760/459 aspect ratio matches the cropped SVG viewBox (shelf flush with bottom).
    At 1920px: 280px (max). At 1280px: ~205px. At 1024px: ~164px. At 900px: 140px (min). */
-/* Only the cat itself takes the pointer. The scene is a 760x466
+/* Only the cat itself takes the pointer. The scene is a 760x459
    rectangle and the cat covers well under half of it, so a scene-wide
    hit area turned the empty air above the bookshelves into an
    invisible Folio button sitting over whatever controls were behind
@@ -114,7 +114,7 @@ body:has(.sidebar.collapsed) .folio-container {
   position: relative;
   pointer-events: none;
   width: clamp(140px, 16vw, 280px);
-  aspect-ratio: 760 / 466;
+  aspect-ratio: 760 / 459;
   /* Nothing in the scene is selectable text. Rapid clicks trigger
      double-click selection and petting rubs drag-select, which swept
      the heart/grump glyphs (real text nodes) and bubble text into the
