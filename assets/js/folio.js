@@ -106,10 +106,10 @@
         // "Clear content, keep styles": the titles go, the look stays.
         'content-cleared': [
           "Fresh shelf. Same good bones.",
-          "Cleared. I kept the fonts warm for you.",
           "Empty shelf, ready for the next display.",
+          "New display, same shelf.",
+          "All cleared. Your fonts and colors stayed put.",
           "*sweeps the shelf with his tail*",
-          "The look stays. The titles are up to you.",
         ],
       },
       ambient: [
