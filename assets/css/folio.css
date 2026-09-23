@@ -153,7 +153,7 @@ body:has(.sidebar.collapsed) .folio-container {
 
   /* Transform origins for each part */
   #tail {
-    transform-origin: 130px 420px;
+    transform-origin: 146px 420px;
     /* Snap-back: when leaving sleep, the tail springs up fast.
        This transition only fires on state change (class swap).
        During animation, the animation property overrides this. */

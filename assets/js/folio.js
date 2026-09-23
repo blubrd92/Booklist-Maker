@@ -1423,8 +1423,8 @@
   // Base (hidden behind the body) to tip, in SVG units. The last three
   // points are the hook at the top of the tail.
   const TAIL_REST = [
-    [137, 416], [121, 400], [112, 380], [106, 358], [102, 336], [98, 314],
-    [93, 292], [86, 270], [78, 249], [69, 230], [61, 212], [57, 197], [58, 184],
+    [153, 416], [137, 400], [128, 380], [122, 358], [118, 336], [114, 314],
+    [109, 292], [102, 270], [94, 249], [85, 230], [77, 212], [73, 197], [74, 184],
   ];
   const TAIL_SEGS = TAIL_REST.length - 1;
   // Where the three fur stripes sit, as fractional spine indices.
