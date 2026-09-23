@@ -6891,6 +6891,38 @@ const BooklistApp = (function() {
   // ---------------------------------------------------------------------------
   // PDF Export
   // ---------------------------------------------------------------------------
+  /**
+   * JPEG data URL of a captured print page, or a PdfCaptureError when the
+   * capture silently failed. Every real page is drawn on an opaque white
+   * background (html2canvas backgroundColor), so a canvas whose sample
+   * points are fully transparent, which has no 2D context, or which
+   * encodes to the empty "data:," URL, is a canvas the browser could not
+   * allocate at export resolution, not a page. Throwing here keeps a blank
+   * page out of the PDF instead of saving it.
+   */
+  function capturedPageDataUrl(canvas) {
+    const fail = () => {
+      const err = new Error('The page canvas came back empty at export resolution.');
+      err.name = 'PdfCaptureError';
+      return err;
+    };
+    const w = canvas && canvas.width;
+    const h = canvas && canvas.height;
+    const ctx = w && h ? canvas.getContext('2d') : null;
+    if (!ctx) throw fail();
+    const points = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1], [w >> 1, h >> 1]];
+    let opaque;
+    try {
+      opaque = points.some(([x, y]) => ctx.getImageData(x, y, 1, 1).data[3] > 0);
+    } catch {
+      opaque = false; // an unreadable canvas is no better than an empty one
+    }
+    if (!opaque) throw fail();
+    const url = canvas.toDataURL('image/jpeg', 0.92);
+    if (!url || url.length < 32) throw fail();
+    return url;
+  }
+
   async function exportPdf() {
     if (isExportingPdf) return;
     isExportingPdf = true;
@@ -6979,12 +7011,12 @@ const BooklistApp = (function() {
       // after we're done with each one forces the browser to release
       // the backing buffer immediately.
       const canvas1 = await html2canvas(document.getElementById('print-page-1'), options);
-      pdf.addImage(canvas1.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
+      pdf.addImage(capturedPageDataUrl(canvas1), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
       canvas1.width = 0; canvas1.height = 0;
       pdf.addPage();
 
       const canvas2 = await html2canvas(document.getElementById('print-page-2'), options);
-      pdf.addImage(canvas2.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
+      pdf.addImage(capturedPageDataUrl(canvas2), 'JPEG', 0, 0, CONFIG.PDF_WIDTH_IN, CONFIG.PDF_HEIGHT_IN);
       canvas2.width = 0; canvas2.height = 0;
 
       pdf.save(suggestedName);
@@ -7005,7 +7037,20 @@ const BooklistApp = (function() {
 
     } catch (err) {
       console.error("PDF Generation failed:", err);
-      showNotification("An error occurred generating the PDF. Please check the console.", 'error');
+      if (err && err.name === 'PdfCaptureError') {
+        // A device that can't hold a 600 DPI page canvas (iOS 17 and
+        // earlier cap canvases at ~16.7M px; each page is 33.7M) used to
+        // hand back a blank page and a blank PDF with no error at all.
+        showNotification(
+          "This device couldn't build the full-resolution PDF, so no file was saved. " +
+          'Save your list and open it on a computer to export it.',
+          'error',
+          true,
+          9000
+        );
+      } else {
+        showNotification("An error occurred generating the PDF. Please check the console.", 'error');
+      }
     } finally {
       isExportingPdf = false;
       elements.previewArea.classList.remove('print-mode');
