@@ -3362,6 +3362,59 @@ body.has-custom-qr #generate-qr-button:disabled {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.15);
 }
+/* Title actions in the phone edit sheet (the sheet only opens at phone
+   width). Two columns: Star and the Up/position/Down group each take a
+   full row, then Draft and Delete share one. */
+.book-edit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.book-edit-actions .book-edit-star,
+.book-edit-actions .book-edit-move,
+#book-edit-star-note { grid-column: 1 / -1; }
+/* The base .btn rule sets display: inline-flex, which outranks the hidden
+   attribute's user-agent display: none; Draft is hidden on instances
+   without the drafter, so restate it (see "Known CSS Pitfalls"). */
+.book-edit-action[hidden] { display: none; }
+/* Delete takes the whole row when Draft is absent (the public tool). */
+#book-edit-draft-btn[hidden] + .book-edit-delete { grid-column: 1 / -1; }
+/* :not([hidden]) so the display value below cannot override the hidden
+   attribute on Draft (see "Known CSS Pitfalls" in CLAUDE.md). */
+.book-edit-action:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.book-edit-star[aria-pressed="true"] {
+  background: #fff8e1;
+  border-color: #f5b301;
+  color: #8a6100;
+}
+.book-edit-star[aria-pressed="true"] i { color: #f5b301; }
+.book-edit-move {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.book-edit-move .book-edit-action { flex: 1; }
+.book-edit-position {
+  min-width: 72px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+.book-edit-delete { color: var(--danger-color); }
+.book-edit-delete.is-confirming {
+  background: var(--danger-color);
+  border-color: var(--danger-color);
+  color: white;
+}
+#book-edit-star-note { margin: -2px 0 4px; }
+
 .book-edit-hint {
   margin: 4px 0 0;
   font-size: 0.75rem;
@@ -3813,29 +3866,14 @@ body.has-custom-qr #generate-qr-button:disabled {
   .modal-search-form .search-row input[type="text"],
   .modal-search-form .advanced-fields-grid input,
   #cover-header-text-group #cover-simple-mode textarea { font-size: 16px; }
-  /* The item-number input lives in the floating per-book controls over
-     the preview (hidden in print mode), not in a form — keep it compact
-     so the controls column doesn't balloon. */
-  .list-item-controls .item-number {
-    min-height: 0;
-    font-size: 1.1rem;
-  }
 
-  /* Floating per-book controls: looser spacing + bigger glyphs for
-     touch. Absolutely positioned beside the page and display: none'd in
-     print mode, so this never affects the PDF. */
-  .list-item-controls {
-    height: auto;
-    gap: 12px;
-    padding: 10px 8px;
-  }
-  .drag-handle,
-  .delete-button { font-size: 1.6rem; }
-  .magic-button,
-  .star-button {
-    font-size: 1.3rem;
-    padding: 4px 0;
-  }
+  /* Floating per-book controls (drag, number, star, magic, delete): at
+     phone zoom they render a few pixels across, so phones reach every one
+     of those actions through the tap-to-edit sheet instead (Star, Up/Down,
+     Draft, Delete in #book-edit-modal) and the preview drops them. */
+  .list-item-controls { display: none; }
+  /* Room below the last page so it can scroll clear of the zoom bar. */
+  .main-content { padding-bottom: 96px; }
 
   /* Hover-revealed overlay delete buttons (tap acts as hover on touch
      browsers): slightly larger hit area. Hidden in print mode. */

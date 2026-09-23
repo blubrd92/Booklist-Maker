@@ -82,7 +82,7 @@
        deliberately left bare: auth.js and library-config.js import it as
        './firebase-init.js', and a tag URL that differed would load it as a
        second module and run Firebase setup twice. -->
-  <link rel="stylesheet" href="assets/css/styles.css?v=cb41063793"/>
+  <link rel="stylesheet" href="assets/css/styles.css?v=64206659ad"/>
   <link rel="stylesheet" href="assets/css/folio.css?v=d7b3db5b1b"/>
   <link rel="stylesheet" href="assets/css/tour.css?v=acaad0205a"/>
   <link rel="stylesheet" href="assets/css/auth.css?v=44acf04de2"/>
@@ -895,6 +895,34 @@
           <button type="button" class="modal-close" id="book-edit-close-btn" aria-label="Close modal">&times;</button>
         </div>
         <div class="modal-body">
+          <!-- The per-title controls that sit beside each entry on desktop
+               are specks at phone zoom, so phones get them here instead
+               (updateBookEditActions / bindBookEditSheetEvents in app.js).
+               Each button calls the same function the desktop control does. -->
+          <div class="book-edit-actions" role="group" aria-label="Title actions">
+            <button type="button" class="btn btn-secondary book-edit-action book-edit-star" id="book-edit-star-btn" aria-pressed="false">
+              <i class="fa-solid fa-star" aria-hidden="true"></i>
+              <span id="book-edit-star-label">Star for cover</span>
+            </button>
+            <p class="book-edit-hint" id="book-edit-star-note" hidden></p>
+            <div class="book-edit-move">
+              <button type="button" class="btn btn-secondary book-edit-action" id="book-edit-up-btn" aria-label="Move up">
+                <i class="fa-solid fa-arrow-up" aria-hidden="true"></i><span>Up</span>
+              </button>
+              <span class="book-edit-position" id="book-edit-position" aria-live="polite"></span>
+              <button type="button" class="btn btn-secondary book-edit-action" id="book-edit-down-btn" aria-label="Move down">
+                <i class="fa-solid fa-arrow-down" aria-hidden="true"></i><span>Down</span>
+              </button>
+            </div>
+            <button type="button" class="btn btn-secondary book-edit-action" id="book-edit-draft-btn" hidden>
+              <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+              <span>Draft description</span>
+            </button>
+            <button type="button" class="btn btn-secondary book-edit-action book-edit-delete" id="book-edit-delete-btn">
+              <i class="fa-solid fa-trash" aria-hidden="true"></i>
+              <span id="book-edit-delete-label">Delete</span>
+            </button>
+          </div>
           <div class="quick-add-field">
             <label for="book-edit-title">Title</label>
             <input type="text" id="book-edit-title" autocomplete="off" spellcheck="true">
@@ -1259,7 +1287,7 @@
 
   <script src="assets/js/config.js?v=24581d169c"></script>
   <script src="assets/js/book-utils.js?v=ba48744b32"></script>
-  <script src="assets/js/app.js?v=9b701fa2e1"></script>
+  <script src="assets/js/app.js?v=aa836075f2"></script>
   <script src="assets/js/folio.js?v=841a424b44"></script>
   <script src="assets/js/tour.js?v=3ee296a189"></script>
   <script src="assets/js/preview-helper.js?v=7c1be5e5c1"></script>
