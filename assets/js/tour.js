@@ -89,8 +89,8 @@
         },
         {
           target: '.header-actions',
-          text: "Up here you can Load a saved list, Save your work, and Generate PDF when everything looks right. Reset on the left clears the list and gives you a clean slate.",
-          phoneText: "Up here, Generate PDF makes your printable booklist when everything looks right. The More menu beside it holds Save, Load, and Reset, which clears the list for a clean slate.",
+          text: "Up here you can Load a saved list, Save your work, and Generate PDF when everything looks right. Reset on the left gives you a clean slate, or clears just the titles and text so you can reuse this list's styles for the next one.",
+          phoneText: "Up here, Generate PDF makes your printable booklist when everything looks right. The More menu beside it holds Save, Load, and Reset, which gives you a clean slate or clears just the titles and text so you can reuse this list's styles.",
           state: 'idle',
           padding: 6,
         },
