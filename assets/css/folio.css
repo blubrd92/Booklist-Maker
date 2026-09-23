@@ -2253,94 +2253,91 @@ body:has(.sidebar.collapsed) .folio-container {
     100% { transform: translateY(-30px) scale(0.9) rotate(0deg); opacity: 0; }
   }
   /* --- GROOM (idle fidget) ---
-     He lifts his right front paw to his mouth, closes his eyes and
-     licks it a few times, then puts it back down. #groom-leg rotates
-     about the top of the leg and shifts up so the paw lands beside his
-     mouth; the leg's open top end ends up on orange fur, where it has
-     no visible edge. #front-legs is drawn after #head-group (see
+     He shifts his weight, lifts his right front paw to his mouth, licks
+     it in two quick bursts of three, then puts it back down. The arm is
+     not animated here: folio.js hides #groom-leg-static and rebuilds
+     #groom-arm every frame (renderGroomArm), with a real elbow and a paw
+     that morphs from the standing mitten to a raised bean, and it steers
+     the paw to wherever this head animation has actually put his mouth.
+     Timing, as % of 3.4s: 0-6 weight shift, 6-20 lift (the paw dangles,
+     then turns over), 22-38 and 47-63 lick bursts, 74-82 release, 82-92
+     lower, 92-100 settle. #front-legs is drawn after #head-group (see
      index.html) so the raised paw passes in front of his chin. */
-  #folio #groom-leg { transform-origin: 281px 380px; }
   #folio #tongue { opacity: 0; transform-box: fill-box; transform-origin: 50% 0%; }
   #folio.react-groom #mouth-open {
     animation: reactGroomMouth 3.4s linear forwards !important;
   }
   @keyframes reactGroomMouth {
-    0%, 20%   { transform: scaleY(0); }
-    23%, 76%  { transform: scaleY(0.9); }
+    0%, 19%   { transform: scaleY(0); }
+    22%, 76%  { transform: scaleY(0.9); }
     79%, 100% { transform: scaleY(0); }
   }
-  #folio #groom-paw-raised { opacity: 0; }
-  #folio.react-groom #groom-paw-rest {
-    animation: reactGroomPawRest 3.4s linear forwards !important;
+  #folio.react-groom #body {
+    animation: reactGroomBody 3.4s ease-in-out forwards !important;
   }
-  #folio.react-groom #groom-paw-raised {
-    animation: reactGroomPawRaised 3.4s linear forwards !important;
-  }
-  /* The swap lands while the leg is swinging fast (about 70deg into
-     its lift), where a change of drawing reads as motion, not a pop.
-     It is instant on purpose: a crossfade left both paws half
-     transparent for a moment, and the chest patch showed through. */
-  @keyframes reactGroomPawRest {
-    0%, 9.99%   { opacity: 1; }
-    10%, 89.99% { opacity: 0; }
-    90%, 100%   { opacity: 1; }
-  }
-  @keyframes reactGroomPawRaised {
-    0%, 9.99%   { opacity: 0; }
-    10%, 89.99% { opacity: 1; }
-    90%, 100%   { opacity: 0; }
-  }
-  #folio.react-groom #groom-leg {
-    animation: reactGroomLeg 3.4s ease-in-out forwards !important;
-  }
-  @keyframes reactGroomLeg {
-    0%   { transform: translate(0, 0) rotate(0deg); }
-    10%  { transform: translate(10px, -12px) rotate(70deg); }
-    20%  { transform: translate(33px, -28px) rotate(152deg); }
-    30%  { transform: translate(33px, -25px) rotate(150deg); }
-    40%  { transform: translate(33px, -28px) rotate(152deg); }
-    50%  { transform: translate(33px, -25px) rotate(150deg); }
-    60%  { transform: translate(33px, -28px) rotate(152deg); }
-    70%  { transform: translate(33px, -25px) rotate(150deg); }
-    80%  { transform: translate(33px, -28px) rotate(152deg); }
-    90%  { transform: translate(8px, -10px) rotate(60deg); }
-    100% { transform: translate(0, 0) rotate(0deg); }
+  @keyframes reactGroomBody {
+    0%   { transform: rotate(0deg); }
+    6%   { transform: rotate(-1.2deg); }
+    20%  { transform: rotate(-0.4deg); }
+    88%  { transform: rotate(-0.4deg); }
+    94%  { transform: rotate(0.3deg); }
+    100% { transform: rotate(0deg); }
   }
   #folio.react-groom #head-group {
     animation: reactGroomHead 3.4s ease-in-out forwards !important;
   }
   @keyframes reactGroomHead {
-    0%   { transform: translateY(0) rotate(0deg); }
-    20%  { transform: translateY(10px) rotate(8deg); }
-    25%  { transform: translateY(14px) rotate(9deg); }
-    35%  { transform: translateY(9px) rotate(7deg); }
-    45%  { transform: translateY(14px) rotate(9deg); }
-    55%  { transform: translateY(9px) rotate(7deg); }
-    65%  { transform: translateY(14px) rotate(9deg); }
-    75%  { transform: translateY(10px) rotate(8deg); }
-    88%  { transform: translateY(2px) rotate(2deg); }
-    100% { transform: translateY(0) rotate(0deg); }
+    0%   { transform: translate(0, 0) rotate(0deg); }
+    6%   { transform: translate(-3px, 2px) rotate(-1deg); }
+    14%  { transform: translate(-1px, 6px) rotate(4deg); }
+    21%  { transform: translate(0, 14px) rotate(12deg); }
+    /* burst one: three quick licks, each a push up along the paw */
+    24.5% { transform: translate(1px, 10px) rotate(11deg); }
+    27.5% { transform: translate(0, 14px) rotate(12deg); }
+    30.5% { transform: translate(1px, 10px) rotate(11deg); }
+    33.5% { transform: translate(0, 14px) rotate(12deg); }
+    36%   { transform: translate(1px, 10px) rotate(11deg); }
+    38.5% { transform: translate(0, 14px) rotate(12deg); }
+    47%   { transform: translate(0, 14px) rotate(12.5deg); }
+    /* burst two */
+    50%   { transform: translate(1px, 10px) rotate(11deg); }
+    53%   { transform: translate(0, 14px) rotate(12deg); }
+    56%   { transform: translate(1px, 10px) rotate(11deg); }
+    59%   { transform: translate(0, 14px) rotate(12deg); }
+    61.5% { transform: translate(1px, 10px) rotate(11deg); }
+    64%   { transform: translate(0, 14px) rotate(12deg); }
+    74%   { transform: translate(0, 14px) rotate(12deg); }
+    82%   { transform: translate(0, 3px) rotate(2deg); }
+    92%   { transform: translate(0, 0) rotate(-0.5deg); }
+    100%  { transform: translate(0, 0) rotate(0deg); }
   }
   #folio.react-groom #eyes {
     animation: reactGroomEyes 3.4s ease-in-out forwards !important;
   }
   @keyframes reactGroomEyes {
-    0%, 14%  { transform: scaleY(1); }
-    22%, 78% { transform: scaleY(0.08); }
-    88%, 100% { transform: scaleY(1); }
+    0%, 15%   { transform: scaleY(1); }
+    21%, 75%  { transform: scaleY(0.08); }
+    82%, 100% { transform: scaleY(1); }
   }
   #folio.react-groom #tongue {
     animation: reactGroomTongue 3.4s ease-in-out forwards !important;
   }
   @keyframes reactGroomTongue {
-    0%, 21%   { opacity: 0; transform: scaleY(0.2); }
-    25%       { opacity: 1; transform: scaleY(1.2); }
-    33%       { opacity: 1; transform: scaleY(0.4); }
-    45%       { opacity: 1; transform: scaleY(1.2); }
-    53%       { opacity: 1; transform: scaleY(0.4); }
-    65%       { opacity: 1; transform: scaleY(1.2); }
-    73%, 76%  { opacity: 1; transform: scaleY(0.3); }
-    78%, 100% { opacity: 0; transform: scaleY(0.2); }
+    0%, 20%   { opacity: 0; transform: scaleY(0.2); }
+    22%       { opacity: 1; transform: scaleY(0.6); }
+    24.5%     { opacity: 1; transform: scaleY(1.15); }
+    27.5%     { opacity: 1; transform: scaleY(0.55); }
+    30.5%     { opacity: 1; transform: scaleY(1.15); }
+    33.5%     { opacity: 1; transform: scaleY(0.55); }
+    36%       { opacity: 1; transform: scaleY(1.15); }
+    38.5%, 47% { opacity: 1; transform: scaleY(0.4); }
+    50%       { opacity: 1; transform: scaleY(1.15); }
+    53%       { opacity: 1; transform: scaleY(0.55); }
+    56%       { opacity: 1; transform: scaleY(1.15); }
+    59%       { opacity: 1; transform: scaleY(0.55); }
+    61.5%     { opacity: 1; transform: scaleY(1.15); }
+    64%, 72%  { opacity: 1; transform: scaleY(0.4); }
+    76%, 100% { opacity: 0; transform: scaleY(0.2); }
   }
 
 /* =============================================================================

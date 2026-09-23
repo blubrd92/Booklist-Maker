@@ -1340,10 +1340,12 @@
     folioSvg.classList.add('react-' + name);
     activeReaction = name;
     tailReact(name);
+    if (name === 'groom') startGroomArm();
 
     reactTimer = setTimeout(() => {
       folioSvg.classList.remove('react-' + name);
       activeReaction = null;
+      if (name === 'groom') endGroomArm();
 
       // Startle complete: tail is upright, move it in front of books
       if (name === 'startle') {
@@ -1359,6 +1361,7 @@
     folioSvg.classList.remove('react-watch');
     activeReaction = null;
     if (watchHandler) stopWatch();
+    endGroomArm();
   }
 
   /* ----------------------------------------------------------------
@@ -1682,6 +1685,7 @@
     const root = readTailRoot();
     stepTail(dt, root);
     renderTail(root);
+    stepGroomArm(performance.now());
     tailRaf = requestAnimationFrame(tailFrame);
   }
 
@@ -1719,6 +1723,228 @@
       if (reducedMotion.matches) restTail();
       else startTail();
     });
+  }
+
+  /* ----------------------------------------------------------------
+     GROOM ARM: a jointed right foreleg, rebuilt every frame while he
+     grooms (react('groom')).
+
+     The first version rotated the whole resting leg about its top, so
+     it swung up from his belly like a gate arm, its open outline read
+     as two lines you could see the chest through, and the paw had to
+     be swapped mid-swing for a raised drawing, which popped. Instead,
+     for the length of the fidget, #groom-leg-static is hidden and
+     #groom-arm is drawn from a pose: an elbow end E, a wrist W and a
+     paw direction. The forearm is a tapered band from E to W whose E
+     end closes into a rounded elbow as it rises (at rest it is open,
+     so it melts into the body like the drawn leg). The paw is one
+     outline sampled from a shape that morphs from the standing mitten
+     (flat toe edge, toes pointing down) into a round bean with its
+     knuckles toward his mouth, so nothing is ever swapped.
+
+     The paw comes up toward the viewer in front of his chest rather
+     than swinging round a pivot: W travels roughly straight up while E
+     moves out to the side, so mid-lift the forearm is short, as a limb
+     pointing at the camera would be. The target is read from the head's
+     live CSS transform each frame, so the tongue meets the paw wherever
+     the head animation (reactGroomHead in folio.css) has put it.
+     ---------------------------------------------------------------- */
+  const GROOM_MS = 3400;
+  const groomStatic = document.getElementById('groom-leg-static');
+  const groomArm = document.getElementById('groom-arm');
+  const groomArmFill = document.getElementById('groom-arm-fill');
+  const groomArmEdges = document.getElementById('groom-arm-edges');
+  const groomArmCap = document.getElementById('groom-arm-cap');
+  const groomPaw = document.getElementById('groom-paw');
+  const groomPawToes = document.getElementById('groom-paw-toes');
+  const headGroup = document.getElementById('head-group');
+  let groomStart = 0;
+
+  // Resting geometry, matching #groom-leg-static: the leg's open top
+  // edge runs 252..310 at y 380 and its wrist (the top of the paw) sits
+  // around (276,423), 23 left and 30 right of the axis there.
+  const ARM_E0 = [281, 380];
+  const ARM_W0 = [276, 423];
+  // Raised: the elbow rests low on the right of his chest, clear of the
+  // cream bib, so the band's closed end sits on orange fur.
+  const ARM_E1 = [310, 374];
+  // The tongue tip in the head's own coordinates (the tongue's U tip,
+  // rotated -30deg in index.html), and where the wrist sits relative to
+  // it: the paw's knuckle side meets the tongue.
+  const GROOM_TONGUE_TIP = [262, 276];
+  const GROOM_WRIST_FROM_TIP = [26, 17];
+  // The head pose the paw is placed against; the licks push the head
+  // off it and the paw follows only part of the way, so the tongue
+  // visibly slides along the paw.
+  const GROOM_HOLD_HEAD = { tx: 0, ty: 14, rot: 12 };
+
+  // [time 0..1, value] pairs, eased between keys.
+  const GROOM_LIFT = [[0, 0], [0.06, 0], [0.13, 0.42], [0.20, 1.04], [0.23, 1],
+    [0.75, 1], [0.84, 0.5], [0.91, 0.02], [0.95, 0], [1, 0]];
+  // Paw direction in degrees (90 = toes down). It hangs while the wrist
+  // leads the lift, then turns over toward his face (through 180, the
+  // chest side) to point up with the knuckles by his mouth.
+  const GROOM_PAW_DIR = [[0, 90], [0.10, 84], [0.14, 110], [0.20, 262], [0.23, 266],
+    [0.75, 266], [0.80, 210], [0.86, 100], [0.91, 86], [1, 90]];
+  // 0 = standing mitten, 1 = raised bean.
+  const GROOM_MORPH = [[0, 0], [0.10, 0], [0.19, 1], [0.78, 1], [0.88, 0.1], [0.92, 0], [1, 0]];
+
+  function easeKeys(keys, t) {
+    if (t <= keys[0][0]) return keys[0][1];
+    for (let i = 1; i < keys.length; i++) {
+      if (t <= keys[i][0]) {
+        const a = keys[i - 1], b = keys[i];
+        const k = (t - a[0]) / (b[0] - a[0]);
+        return a[1] + (b[1] - a[1]) * k * k * (3 - 2 * k);
+      }
+    }
+    return keys[keys.length - 1][1];
+  }
+
+  function lerp2(a, b, k) {
+    return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+  }
+
+  // Map a head-local point through the head group's live CSS transform
+  // (about its transform-origin, 250 310).
+  function headPoint(p) {
+    let m = null;
+    if (headGroup) {
+      const t = getComputedStyle(headGroup).transform;
+      const mm = t && t !== 'none' && t.match(/matrix\(([^)]+)\)/);
+      if (mm) m = mm[1].split(',').map(parseFloat);
+    }
+    if (!m) return p.slice();
+    const dx = p[0] - 250, dy = p[1] - 310;
+    return [250 + m[0] * dx + m[2] * dy + m[4], 310 + m[1] * dx + m[3] * dy + m[5]];
+  }
+
+  function headPointAt(p, pose) {
+    const r = pose.rot * Math.PI / 180, c = Math.cos(r), s = Math.sin(r);
+    const dx = p[0] - 250, dy = p[1] - 310;
+    return [250 + c * dx - s * dy + pose.tx, 310 + s * dx + c * dy + pose.ty];
+  }
+
+  // Paw outline in its own frame: u runs from the wrist toward the toes,
+  // v across. Both shapes are sampled at the same parameter angles so
+  // the morph between them is a straight blend of points. The standing
+  // shape is boxy with a flat toe edge (the shelf); the raised one is a
+  // rounder, slightly larger bean.
+  const PAW_SAMPLES = 36;
+  function pawShapePoint(th, m) {
+    const c = Math.cos(th), s = Math.sin(th);
+    const box = (x, n) => Math.sign(x) * Math.pow(Math.abs(x), 2 / n);
+    // standing: centre 10.5 along, half-length 11.5, half-width 25.5
+    let u0 = 10.5 + 11.5 * box(c, 5);
+    const v0 = 25.5 * box(s, 5);
+    if (u0 > 21.5) u0 = 21.5;
+    // raised: centre 14 along, half-length 21, half-width 25
+    const u1 = 14 + 21 * box(c, 2.3), v1 = 25 * box(s, 2.3);
+    return [u0 + (u1 - u0) * m, v0 + (v1 - v0) * m];
+  }
+
+  function smoothClosed(pts) {
+    const n = pts.length, f = (p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1);
+    let d = 'M ' + f(pts[0]);
+    for (let i = 0; i < n; i++) {
+      const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+      d += ' C ' + f([p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6])
+        + ', ' + f([p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6])
+        + ', ' + f(p2);
+    }
+    return d + ' Z';
+  }
+
+  function renderGroomArm(t) {
+    if (!groomArmFill) return;
+    const lift = easeKeys(GROOM_LIFT, t);
+    const up = Math.max(0, Math.min(1, lift));
+    const morph = easeKeys(GROOM_MORPH, t);
+    const phi = easeKeys(GROOM_PAW_DIR, t) * Math.PI / 180;
+    const dir = [Math.cos(phi), Math.sin(phi)];
+    const nrm = [-dir[1], dir[0]];
+
+    // Wrist target: placed against the hold pose, then pulled 30% of the
+    // way toward where the head really is, so the licks drag the tongue
+    // along the paw instead of carrying the paw with the head.
+    const hold = headPointAt(GROOM_TONGUE_TIP, GROOM_HOLD_HEAD);
+    const live = headPoint(GROOM_TONGUE_TIP);
+    const tip = lerp2(hold, live, 0.3);
+    const W1 = [tip[0] + GROOM_WRIST_FROM_TIP[0], tip[1] + GROOM_WRIST_FROM_TIP[1]];
+    const W = lerp2(ARM_W0, W1, lift);
+    const E = lerp2(ARM_E0, ARM_E1, up);
+
+    // Forearm band. Half-widths at the elbow end and the wrist, left and
+    // right of the E->W axis: the resting leg flares (23 / 30 at the
+    // wrist, 29 / 29 at the top); raised, it tapers 21 -> 16.
+    let ax = [W[0] - E[0], W[1] - E[1]];
+    const len = Math.hypot(ax[0], ax[1]) || 1;
+    ax = [ax[0] / len, ax[1] / len];
+    const n = [-ax[1], ax[0]];
+    const hEL = 29 + (21 - 29) * up, hER = 29 + (21 - 29) * up;
+    const hWL = 30 + (16 - 30) * up, hWR = 23 + (16 - 23) * up;
+    const EL = [E[0] + n[0] * hEL, E[1] + n[1] * hEL];
+    const ER = [E[0] - n[0] * hER, E[1] - n[1] * hER];
+    const WL = [W[0] + n[0] * hWL, W[1] + n[1] * hWL];
+    const WR = [W[0] - n[0] * hWR, W[1] - n[1] * hWR];
+    // The elbow end bulges back past E into a rounded cap, but only once
+    // the arm is well up and long enough to carry it: early in the lift a
+    // cap line across the top of the leg boxed it in like a drawer, and on
+    // a short, foreshortened forearm the cap curled into a hook.
+    const capK = Math.max(0, Math.min(1, (up - 0.45) / 0.35));
+    const capOn = capK * capK * (3 - 2 * capK);
+    const bulge = 1.35 * (hEL + hER) / 2 * capOn * Math.min(1, len / 50);
+    const C1 = [EL[0] - ax[0] * bulge, EL[1] - ax[1] * bulge];
+    const C2 = [ER[0] - ax[0] * bulge, ER[1] - ax[1] * bulge];
+    const f = (p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1);
+    groomArmFill.setAttribute('d', 'M ' + f(WL) + ' L ' + f(EL)
+      + ' C ' + f(C1) + ', ' + f(C2) + ', ' + f(ER) + ' L ' + f(WR) + ' Z');
+    groomArmEdges.setAttribute('d', 'M ' + f(WL) + ' L ' + f(EL) + ' M ' + f(ER) + ' L ' + f(WR));
+    groomArmCap.setAttribute('d', 'M ' + f(EL) + ' C ' + f(C1) + ', ' + f(C2) + ', ' + f(ER));
+    groomArmCap.setAttribute('opacity', capOn.toFixed(2));
+    // Mid-lift the forearm points at the viewer and shrinks to a stub
+    // behind the paw; its two edge lines then shrink to stray ticks
+    // beside the paw, so they fade out and the paw carries the frame.
+    const edgeK = Math.max(0, Math.min(1, (len - 22) / 22));
+    groomArmEdges.setAttribute('opacity', edgeK.toFixed(2));
+
+    // Paw, in a frame at the wrist pointing along the paw direction.
+    const P = (u, v) => [W[0] + dir[0] * u + nrm[0] * v, W[1] + dir[1] * u + nrm[1] * v];
+    const pts = [];
+    for (let i = 0; i < PAW_SAMPLES; i++) {
+      const q = pawShapePoint(i / PAW_SAMPLES * 2 * Math.PI, morph);
+      pts.push(P(q[0], q[1]));
+    }
+    groomPaw.setAttribute('d', smoothClosed(pts));
+    // Toe notches: two short strokes in from the toe edge. Standing, they
+    // sit either side of the middle; raised, they move round to the
+    // knuckles on the side facing his mouth.
+    const toes = [-7 + (-15 + 7) * morph, 7 + (-3 - 7) * morph].map((v) => {
+      const edge = pawShapePoint(Math.asin(Math.max(-1, Math.min(1, v / 25))), morph)[0];
+      return 'M ' + f(P(edge, v)) + ' L ' + f(P(edge - 8 + 2 * morph, v));
+    });
+    groomPawToes.setAttribute('d', toes.join(' '));
+  }
+
+  function startGroomArm() {
+    if (!groomArm || !groomStatic) return;
+    groomStart = performance.now();
+    renderGroomArm(0);
+    groomStatic.style.display = 'none';
+    groomArm.style.display = '';
+    startTail();
+  }
+
+  function stepGroomArm(now) {
+    if (!groomStart) return;
+    renderGroomArm(Math.min(1, (now - groomStart) / GROOM_MS));
+  }
+
+  function endGroomArm() {
+    groomStart = 0;
+    if (!groomArm || !groomStatic) return;
+    groomArm.style.display = 'none';
+    groomStatic.style.display = '';
   }
 
   /* ----------------------------------------------------------------
