@@ -2415,7 +2415,7 @@ const BooklistApp = (function() {
     // Title field
     const titleField = document.createElement('div');
     titleField.className = 'editable-field title-field';
-    titleField.contentEditable = true;
+    titleField.contentEditable = String(!isMobileLayout());
     titleField.innerText = bookItem.title;
     titleField.setAttribute('role', 'textbox');
     titleField.setAttribute('aria-label', 'Book title');
@@ -2446,7 +2446,7 @@ const BooklistApp = (function() {
     // Author field
     const authorField = document.createElement('div');
     authorField.className = 'editable-field author-field';
-    authorField.contentEditable = true;
+    authorField.contentEditable = String(!isMobileLayout());
     // Use authorDisplay if set, otherwise construct from author/callNumber
     if (bookItem.authorDisplay !== null && bookItem.authorDisplay !== undefined) {
       authorField.innerText = bookItem.authorDisplay;
@@ -2475,7 +2475,7 @@ const BooklistApp = (function() {
     // Description field
     const descriptionField = document.createElement('div');
     descriptionField.className = 'editable-field description-field';
-    descriptionField.contentEditable = true;
+    descriptionField.contentEditable = String(!isMobileLayout());
     descriptionField.innerText = bookItem.description;
     descriptionField.setAttribute('role', 'textbox');
     descriptionField.setAttribute('aria-label', 'Book description');
@@ -2494,15 +2494,15 @@ const BooklistApp = (function() {
     detailsDiv.appendChild(descriptionField);
 
     // Phone-sized layouts: the preview is auto-fit far below 100% zoom,
-    // making the in-place contenteditable fields impractical to tap and
-    // edit, so route taps to the book edit sheet instead. pointerdown's
-    // preventDefault suppresses the focus (and the on-screen keyboard);
-    // the click then opens the sheet. Desktop and the guided tour keep
-    // the direct-editing behavior.
-    detailsDiv.addEventListener('pointerdown', function(e) {
-      if (_tourActive || !isMobileLayout()) return;
-      e.preventDefault();
-    });
+    // making the in-place fields impractical to tap and edit, so route
+    // taps to the book edit sheet instead. The fields above are created
+    // NOT editable at phone width (syncEntryEditability flips them when
+    // the width crosses 768px). An earlier version left them editable and
+    // cancelled pointerdown to stop the focus, which Chromium honors and
+    // iOS Safari does not: WebKit focused the field from the touch itself,
+    // and once the keyboard was up every later tap edited in place and the
+    // sheet never came back. With nothing focusable there, a tap can only
+    // reach this click. Desktop and the guided tour keep direct editing.
     detailsDiv.addEventListener('click', function(e) {
       if (_tourActive || !isMobileLayout()) return;
       e.preventDefault();
@@ -10235,6 +10235,41 @@ const BooklistApp = (function() {
     if (main) main.inert = mobile && view !== 'preview';
   }
 
+  /** Book entry fields are typed into in place on desktop and are not
+   *  editable at all on phones, where a tap opens the edit sheet (see
+   *  createListItemDetails). Re-applied when the width crosses 768px so a
+   *  rotation or resize needs no re-render. */
+  function syncEntryEditability() {
+    const editable = String(!isMobileLayout());
+    document.querySelectorAll('.list-item-details .editable-field').forEach((field) => {
+      field.contentEditable = editable;
+    });
+  }
+
+  // One-time nudge: the first time the Preview view opens at phone width
+  // with a title in it, the first entry glows twice, pointing at what the
+  // toolbar hint ("Tap a title to edit...") means. Remembered per browser;
+  // storage failures (private mode) just mean it can play again. Skipped
+  // under reduced motion, where the hint alone does the job, and during
+  // the tour, which shows the sheet itself.
+  const EDIT_HINT_SEEN_KEY = 'booklister.editHintSeen';
+  function pulseFirstEntryOnce() {
+    if (_tourActive || !isMobileLayout()) return;
+    if (document.body.dataset.mobileView !== 'preview') return;
+    try { if (localStorage.getItem(EDIT_HINT_SEEN_KEY) === 'true') return; } catch { /* storage blocked */ }
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const book = myBooklist.find(b => !b.isBlank);
+    if (!book) return;
+    const item = Array.from(document.querySelectorAll('#preview-area .list-item'))
+      .find(el => el.dataset.id === book.key);
+    const target = item && item.querySelector('.list-item-details');
+    if (!target) return;
+    try { localStorage.setItem(EDIT_HINT_SEEN_KEY, 'true'); } catch { /* storage blocked */ }
+    target.scrollIntoView({ block: 'nearest' });
+    target.classList.add('edit-hint-pulse');
+    target.addEventListener('animationend', () => target.classList.remove('edit-hint-pulse'), { once: true });
+  }
+
   /** For the tour: show whichever view contains `el` (phones only). */
   function showMobileViewFor(el) {
     if (!el || !isMobileLayout()) return;
@@ -10251,6 +10286,12 @@ const BooklistApp = (function() {
     const count = myBooklist.filter(b => !b.isBlank).length;
     badge.textContent = String(count);
     badge.hidden = count === 0;
+    const hint = document.getElementById('toolbar-hint-phone');
+    if (hint) {
+      hint.textContent = count
+        ? 'Tap a title to edit, star, move, or delete it.'
+        : 'Find titles in the Edit view\u2019s Search tab.';
+    }
     btn.setAttribute('aria-label', count
       ? `Preview (${count} title${count === 1 ? '' : 's'})`
       : 'Preview');
@@ -10306,10 +10347,14 @@ const BooklistApp = (function() {
       btn.addEventListener('click', () => {
         _mobileViewChosenByUser = true;
         setMobileView(btn.dataset.view);
+        pulseFirstEntryOnce();
       });
     });
     if (window.matchMedia) {
-      window.matchMedia('(max-width: 768px)').addEventListener('change', applyMobileViewInert);
+      window.matchMedia('(max-width: 768px)').addEventListener('change', () => {
+        applyMobileViewInert();
+        syncEntryEditability();
+      });
     }
     applyMobileViewInert();
 
@@ -10647,6 +10692,7 @@ const BooklistApp = (function() {
         // picked while the restore was running wins.
         if (!_mobileViewChosenByUser && myBooklist.some(b => !b.isBlank)) {
           setMobileView('preview');
+          pulseFirstEntryOnce();
         }
       });
 

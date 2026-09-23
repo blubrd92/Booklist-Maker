@@ -1642,6 +1642,9 @@ input[type="color"]:hover {
 .toolbar-hint i {
   color: var(--primary-color);
 }
+/* The phone wording (see the 768px block) replaces the desktop line,
+   since "edit text fields directly" is not how a phone edits. */
+.toolbar-hint-phone { display: none; }
 
 /* --- PREVIEW AREA --- */
 #preview-area {
@@ -2653,7 +2656,7 @@ body.has-custom-qr #generate-qr-button:disabled {
 .custom-font-dropdown-trigger:focus {
   border-color: var(--primary-color);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  box-shadow: 0 0 0 2px rgba(92, 107, 192, 0.2);
 }
 
 .custom-font-dropdown.open .custom-font-dropdown-trigger {
@@ -3774,6 +3777,8 @@ body.has-custom-qr #generate-qr-button:disabled {
     min-width: 0;
   }
   .toolbar-hint { font-size: 0.8rem; }
+  .toolbar-hint-desktop { display: none; }
+  .toolbar-hint-phone { display: inline; }
 
   /* --- Touch targets: 44x44px minimum --- */
   .btn,
@@ -3874,6 +3879,26 @@ body.has-custom-qr #generate-qr-button:disabled {
   .list-item-controls { display: none; }
   /* Room below the last page so it can scroll clear of the zoom bar. */
   .main-content { padding-bottom: 96px; }
+
+  /* A title's text is not typeable on phones (createListItemDetails):
+     a tap opens the edit sheet. Show the tap landing on the entry before
+     the sheet slides up. The tap highlight is iOS's own; :active covers
+     everything else. */
+  .list-item-details {
+    cursor: pointer;
+    border-radius: 6px;
+    -webkit-tap-highlight-color: rgba(92, 107, 192, 0.2);
+  }
+  .list-item-details:active { background-color: rgba(92, 107, 192, 0.12); }
+  /* One-time nudge the first time Preview opens with titles
+     (pulseFirstEntryOnce in app.js). The ring is drawn in page units, so
+     it is thick enough to read at phone zoom. */
+  .list-item-details.edit-hint-pulse { animation: edit-hint-pulse 1s ease-in-out 2; }
+  @keyframes edit-hint-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(92, 107, 192, 0); }
+    50% { box-shadow: 0 0 0 14px rgba(92, 107, 192, 0.5); }
+  }
+  .print-mode .list-item-details.edit-hint-pulse { animation: none; }
 
   /* Hover-revealed overlay delete buttons (tap acts as hover on touch
      browsers): slightly larger hit area. Hidden in print mode. */
@@ -4009,7 +4034,6 @@ body.has-custom-qr #generate-qr-button:disabled {
     font-size: 0.8rem;
   }
   .advanced-fields-grid { grid-template-columns: 1fr; }
-  .toolbar-hint { display: none; }
   #tab-search { padding: 12px; }
   .quick-add-tabs { padding: 0 10px; }
 }
