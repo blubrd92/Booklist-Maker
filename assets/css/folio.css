@@ -2261,19 +2261,38 @@ body:has(.sidebar.collapsed) .folio-container {
      index.html) so the raised paw passes in front of his chin. */
   #folio #groom-leg { transform-origin: 281px 380px; }
   #folio #tongue { opacity: 0; transform-box: fill-box; transform-origin: 50% 0%; }
+  #folio #groom-paw-raised { opacity: 0; }
+  #folio.react-groom #groom-paw-rest {
+    animation: reactGroomPawRest 3.4s linear forwards !important;
+  }
+  #folio.react-groom #groom-paw-raised {
+    animation: reactGroomPawRaised 3.4s linear forwards !important;
+  }
+  /* The swap lands while the leg is swinging fast (about 70deg into
+     its lift), where a change of drawing reads as motion, not a pop. */
+  @keyframes reactGroomPawRest {
+    0%, 9.5%   { opacity: 1; }
+    10.5%, 89.5% { opacity: 0; }
+    90.5%, 100% { opacity: 1; }
+  }
+  @keyframes reactGroomPawRaised {
+    0%, 9.5%   { opacity: 0; }
+    10.5%, 89.5% { opacity: 1; }
+    90.5%, 100% { opacity: 0; }
+  }
   #folio.react-groom #groom-leg {
     animation: reactGroomLeg 3.4s ease-in-out forwards !important;
   }
   @keyframes reactGroomLeg {
     0%   { transform: translate(0, 0) rotate(0deg); }
     10%  { transform: translate(10px, -12px) rotate(70deg); }
-    20%  { transform: translate(19px, -44px) rotate(152deg); }
-    30%  { transform: translate(19px, -41px) rotate(150deg); }
-    40%  { transform: translate(19px, -44px) rotate(152deg); }
-    50%  { transform: translate(19px, -41px) rotate(150deg); }
-    60%  { transform: translate(19px, -44px) rotate(152deg); }
-    70%  { transform: translate(19px, -41px) rotate(150deg); }
-    80%  { transform: translate(19px, -44px) rotate(152deg); }
+    20%  { transform: translate(27px, -38px) rotate(152deg); }
+    30%  { transform: translate(27px, -35px) rotate(150deg); }
+    40%  { transform: translate(27px, -38px) rotate(152deg); }
+    50%  { transform: translate(27px, -35px) rotate(150deg); }
+    60%  { transform: translate(27px, -38px) rotate(152deg); }
+    70%  { transform: translate(27px, -35px) rotate(150deg); }
+    80%  { transform: translate(27px, -38px) rotate(152deg); }
     90%  { transform: translate(8px, -10px) rotate(60deg); }
     100% { transform: translate(0, 0) rotate(0deg); }
   }

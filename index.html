@@ -83,7 +83,7 @@
        './firebase-init.js', and a tag URL that differed would load it as a
        second module and run Firebase setup twice. -->
   <link rel="stylesheet" href="assets/css/styles.css?v=67784b908f"/>
-  <link rel="stylesheet" href="assets/css/folio.css?v=7ad7d61934"/>
+  <link rel="stylesheet" href="assets/css/folio.css?v=ca579426b2"/>
   <link rel="stylesheet" href="assets/css/tour.css?v=3cea4ef36c"/>
   <link rel="stylesheet" href="assets/css/auth.css?v=44acf04de2"/>
   <link rel="stylesheet" href="assets/css/preview-helper.css?v=9b7e64fc67"/>
@@ -1246,7 +1246,7 @@
                  .talking to #folio-scene while a line's words arrive). -->
             <ellipse id="mouth-open" cx="250" cy="258" rx="8" ry="7" fill="#8a3f3a" stroke="#4A3020" stroke-width="2.5" />
             <!-- Tongue, shown only while he grooms (react-groom). -->
-            <g transform="rotate(-20 253 260)"><ellipse id="tongue" cx="253" cy="267" rx="6" ry="8" fill="#FF8FA0" stroke="#4A3020" stroke-width="2" /></g>
+            <g transform="rotate(-12 252 260)"><ellipse id="tongue" cx="252" cy="273" rx="10" ry="13.5" fill="#FF8FA0" stroke="#4A3020" stroke-width="2" /></g>
             <path class="outline-only" d="M 250 248 Q 230 265 220 250 M 250 248 Q 270 265 280 250" stroke-width="3" />
           </g>
           <g id="glasses">
@@ -1269,8 +1269,18 @@
           <line x1="250" y1="380" x2="250" y2="445" stroke="#4A3020" stroke-width="2" opacity="0.2" />
           <g id="groom-leg">
             <path class="fur-orange" d="M 310 380 C 310 410, 305 445, 295 445 L 252 445 L 252 380" fill-rule="evenodd" />
-            <path class="fur-cream" d="M 298 445 C 302 439, 300 427, 288 424 Q 271 419 254 424 C 251 427, 251 440, 252 445 Z" />
-            <path class="outline-only" d="M 281 445 Q 282 440 280 436 M 267 445 Q 267 440 266 436" stroke-width="2" />
+            <g id="groom-paw-rest">
+              <path class="fur-cream" d="M 298 445 C 302 439, 300 427, 288 424 Q 271 419 254 424 C 251 427, 251 440, 252 445 Z" />
+              <path class="outline-only" d="M 281 445 Q 282 440 280 436 M 267 445 Q 267 440 266 436" stroke-width="2" />
+            </g>
+            <!-- The same paw raised to his mouth: swapped in mid-swing so
+                 the lifted paw ends in a rounded tip with the toes on it,
+                 not the flat edge it stands on. Drawn in the leg's resting
+                 frame, so the leg's own rotation carries it up. -->
+            <g id="groom-paw-raised">
+              <path class="fur-cream" d="M 252 424 C 250 438, 258 452, 274 452 C 290 452, 299 438, 297 424 Q 274 417 252 424 Z" />
+              <path class="outline-only" d="M 266 451 Q 265 446 267 441 M 282 451 Q 283 446 281 441" stroke-width="2.5" />
+            </g>
           </g>
         </g>
       </svg>
