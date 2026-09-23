@@ -1196,27 +1196,33 @@
           <path class="stripe" d="M 135 315 Q 145 310 155 315 L 155 320 Q 145 315 135 320 Z" opacity="0.8"/>
         </g>
         <!-- Folio, drawn from scratch in September 2026 after the owner's
-             reference: a flat cartoon cat sitting in three-quarter view.
-             Chest and front legs on the right, a round haunch on the left
-             with the tail coming from behind it, and a big round head
-             facing the viewer. Every animation hooks onto the group ids
-             and transform origins below, not onto the shapes inside. -->
+             reference: a flat cartoon cat sitting and facing the viewer.
+             A body narrower than the head; two slim front legs down the
+             middle; each back leg shown as a curved thigh line on the side
+             of the body ending in a small back paw beside the front paws.
+             Every animation hooks onto the group ids and transform origins
+             below, not onto the shapes inside. -->
         <g id="body">
-          <path class="fur-orange" d="M 204 284 C 164 304, 136 336, 128 378 C 120 420, 146 446, 196 446 L 316 446 L 316 360 C 316 328, 312 304, 298 284 Z" />
-          <!-- tabby marks on the haunch -->
-          <path class="stripe" d="M 131 352 L 158 358 L 130 368 Z" />
-          <path class="stripe" d="M 127 384 L 153 389 L 127 398 Z" />
-          <!-- thigh line: the haunch folded under him -->
-          <path class="outline-only" d="M 206 446 C 190 428, 190 398, 218 384" />
-          <!-- cream chest under the chin -->
-          <path class="fur-cream no-stroke" d="M 232 290 C 246 336, 262 352, 282 358 C 300 340, 304 312, 300 290 Z" />
+          <path class="fur-orange" d="M 206 286 C 180 304, 166 336, 160 372 C 152 414, 150 446, 186 446 L 314 446 C 350 446, 348 414, 340 372 C 334 336, 320 304, 294 286 Z" />
+          <path class="stripe" d="M 163 348 L 187 354 L 162 362 Z" />
+          <path class="stripe" d="M 337 348 L 313 354 L 338 362 Z" />
+          <!-- thighs: the back legs folded under him -->
+          <path class="outline-only" d="M 161 382 C 186 384, 206 406, 208 440" />
+          <path class="outline-only" d="M 339 382 C 314 384, 294 406, 292 440" />
+          <!-- cream chest -->
+          <path class="fur-cream no-stroke" d="M 222 292 C 230 330, 240 350, 250 356 C 260 350, 270 330, 278 292 Z" />
         </g>
-        <g id="back-feet"></g>
+        <!-- Back paws, peeking out beside the front paws -->
+        <g id="back-feet">
+          <path class="fur-cream" d="M 170 446 Q 162 446 165 437 Q 170 427 188 427 Q 210 429 211 446 Z" />
+          <path class="fur-cream" d="M 330 446 Q 338 446 335 437 Q 330 427 312 427 Q 290 429 289 446 Z" />
+        </g>
         <g id="front-legs">
-          <path class="fur-orange" d="M 262 362 L 262 438 Q 262 446 270 446 L 281 446 Q 289 446 289 438 L 289 362" fill-rule="evenodd" />
-          <path class="fur-orange" d="M 289 362 L 289 438 Q 289 446 297 446 L 308 446 Q 316 446 316 438 L 316 362" fill-rule="evenodd" />
-          <path class="fur-cream" d="M 262 431 Q 262 446 270 446 L 281 446 Q 289 446 289 431 Q 275 426 262 431 Z" />
-          <path class="fur-cream" d="M 289 431 Q 289 446 297 446 L 308 446 Q 316 446 316 431 Q 302 426 289 431 Z" />
+          <path class="fur-orange" d="M 216 350 L 216 438 Q 216 446 224 446 L 241 446 Q 249 446 249 438 L 249 350" fill-rule="evenodd" />
+          <path class="fur-orange" d="M 284 350 L 284 438 Q 284 446 276 446 L 259 446 Q 251 446 251 438 L 251 350" fill-rule="evenodd" />
+          <path class="fur-cream" d="M 216 431 Q 216 446 224 446 L 241 446 Q 249 446 249 431 Q 232 426 216 431 Z" />
+          <path class="fur-cream" d="M 284 431 Q 284 446 276 446 L 259 446 Q 251 446 251 431 Q 268 426 284 431 Z" />
+          <path class="outline-only" d="M 232 437 L 232 446 M 268 437 L 268 446" stroke-width="3" />
         </g>
         <g id="head-group">
           <g class="ear-left-anim" style="transform-origin: 170px 150px;">
