@@ -7812,6 +7812,15 @@ const BooklistApp = (function() {
     applyState(st, { silent: true });
     debouncedSave();
     showNotification('Content cleared, styles kept. Undo brings it back.', 'success');
+    // Ears up at the empty shelf: a fresh start, not an alarm. The line
+    // waits out the whole 700ms perk, because setState() rewrites the SVG's
+    // class list and would cut the reaction off at the default 300ms.
+    if (window.folio) window.folio.celebrate({
+      reaction: 'perk',
+      reactionDelay: 700,
+      state: 'idle',
+      event: 'content-cleared',
+    });
   }
 
   // ---------------------------------------------------------------------------
