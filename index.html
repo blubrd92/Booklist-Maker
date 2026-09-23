@@ -1147,13 +1147,14 @@
       <svg class="idle" id="folio" width="760" height="466" viewBox="-130 0 760 466" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <style>
-            .fur-orange { fill: #F4A261; stroke: #4A3020; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
-            .fur-cream { fill: #FEFAE0; stroke: #4A3020; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+            .fur-orange { fill: #F4A261; stroke: #4A3020; stroke-width: 5.5; stroke-linejoin: round; stroke-linecap: round; }
+            .fur-cream { fill: #FEFAE0; stroke: #4A3020; stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
             .stripe { fill: #D67D3E; stroke: none; }
             .stripe-outline { stroke: #D67D3E; stroke-width: 5; stroke-linecap: round; fill: none; }
             .nose-pink { fill: #FF9999; stroke: #4A3020; stroke-width: 3; stroke-linejoin: round; }
             .eye-dark { fill: #3D2B1F; }
-            .outline-only { fill: none; stroke: #4A3020; stroke-width: 4; stroke-linecap: round; }
+            .outline-only { fill: none; stroke: #4A3020; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+            .whisker { fill: none; stroke: #4A3020; stroke-width: 3; stroke-linecap: round; }
             .no-stroke { stroke: none; }
           </style>
           <linearGradient id="shelfGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1194,71 +1195,68 @@
           <path class="stripe" d="M 125 275 Q 137 270 150 275 L 150 280 Q 137 275 125 280 Z" opacity="0.8"/>
           <path class="stripe" d="M 135 315 Q 145 310 155 315 L 155 320 Q 145 315 135 320 Z" opacity="0.8"/>
         </g>
-        <!-- Body: an egg narrower than the head, with soft haunches -->
+        <!-- Folio, drawn from scratch in September 2026 after the owner's
+             reference: a flat cartoon cat sitting in three-quarter view.
+             Chest and front legs on the right, a round haunch on the left
+             with the tail coming from behind it, and a big round head
+             facing the viewer. Every animation hooks onto the group ids
+             and transform origins below, not onto the shapes inside. -->
         <g id="body">
-          <path class="fur-orange" d="M 212 278 C 188 298, 172 336, 168 378 C 164 420, 178 446, 250 446 C 322 446, 336 420, 332 378 C 328 336, 312 298, 288 278 Z" />
-          <path class="stripe" d="M 173 342 L 195 347 L 171 356 Z" />
-          <path class="stripe" d="M 168 374 L 190 379 L 167 388 Z" />
-          <path class="stripe" d="M 327 342 L 305 347 L 329 356 Z" />
-          <path class="stripe" d="M 332 374 L 310 379 L 333 388 Z" />
-          <!-- cream chest, visible between the legs -->
-          <path class="fur-cream no-stroke" d="M 218 296 Q 250 400 282 296 Z" />
+          <path class="fur-orange" d="M 204 284 C 164 304, 136 336, 128 378 C 120 420, 146 446, 196 446 L 316 446 L 316 360 C 316 328, 312 304, 298 284 Z" />
+          <!-- tabby marks on the haunch -->
+          <path class="stripe" d="M 131 352 L 158 358 L 130 368 Z" />
+          <path class="stripe" d="M 127 384 L 153 389 L 127 398 Z" />
+          <!-- thigh line: the haunch folded under him -->
+          <path class="outline-only" d="M 206 446 C 190 428, 190 398, 218 384" />
+          <!-- cream chest under the chin -->
+          <path class="fur-cream no-stroke" d="M 232 290 C 246 336, 262 352, 282 358 C 300 340, 304 312, 300 290 Z" />
         </g>
-        <!-- Back Feet: none; the haunches round down to the shelf -->
         <g id="back-feet"></g>
-        <!-- Front Legs: long and slim, from the chest down -->
         <g id="front-legs">
-          <path class="fur-orange" d="M 216 318 L 216 445 L 241 445 L 241 318" fill-rule="evenodd" />
-          <path class="fur-orange" d="M 284 318 L 284 445 L 259 445 L 259 318" fill-rule="evenodd" />
-          <path class="fur-cream" d="M 215 433 Q 215 446 222 446 L 236 446 Q 242 446 242 433 Q 228 428 215 433 Z" />
-          <path class="fur-cream" d="M 285 433 Q 285 446 278 446 L 264 446 Q 258 446 258 433 Q 272 428 285 433 Z" />
-          <path class="outline-only" d="M 228 438 L 228 445" stroke-width="2" />
-          <path class="outline-only" d="M 272 438 L 272 445" stroke-width="2" />
+          <path class="fur-orange" d="M 262 362 L 262 438 Q 262 446 270 446 L 281 446 Q 289 446 289 438 L 289 362" fill-rule="evenodd" />
+          <path class="fur-orange" d="M 289 362 L 289 438 Q 289 446 297 446 L 308 446 Q 316 446 316 438 L 316 362" fill-rule="evenodd" />
+          <path class="fur-cream" d="M 262 431 Q 262 446 270 446 L 281 446 Q 289 446 289 431 Q 275 426 262 431 Z" />
+          <path class="fur-cream" d="M 289 431 Q 289 446 297 446 L 308 446 Q 316 446 316 431 Q 302 426 289 431 Z" />
         </g>
-        <!-- Head -->
         <g id="head-group">
           <g class="ear-left-anim" style="transform-origin: 170px 150px;">
-            <path class="fur-orange" d="M 140 150 L 130 42 L 210 100 Z" />
-            <path class="nose-pink" d="M 145 140 L 138 60 L 190 110 Z" stroke="none" opacity="0.8"/>
+            <path class="fur-orange" d="M 136 176 L 146 70 Q 149 58 159 64 L 226 116 Z" />
+            <path class="nose-pink" d="M 152 150 L 157 86 L 204 121 Z" stroke="none" opacity="0.85" />
           </g>
           <g class="ear-right-anim" style="transform-origin: 330px 150px;">
-            <path class="fur-orange" d="M 360 150 L 370 42 L 290 100 Z" />
-            <path class="nose-pink" d="M 355 140 L 362 60 L 310 110 Z" stroke="none" opacity="0.8"/>
+            <path class="fur-orange" d="M 364 176 L 354 70 Q 351 58 341 64 L 274 116 Z" />
+            <path class="nose-pink" d="M 348 150 L 343 86 L 296 121 Z" stroke="none" opacity="0.85" />
           </g>
-          <ellipse class="fur-orange" cx="250" cy="200" rx="130" ry="115" />
-          <path class="fur-cream no-stroke" d="M 130 220 Q 125 180 150 180 Q 180 180 190 200 L 250 130 L 310 200 Q 320 180 350 180 Q 375 180 370 220 Q 360 300 250 300 Q 140 300 130 220 Z" />
-          <g transform="translate(250, 110)">
-            <path class="stripe-outline" d="M 0 -20 L 0 15" />
-            <path class="stripe-outline" d="M -20 -15 L -10 15" />
-            <path class="stripe-outline" d="M 20 -15 L 10 15" />
-          </g>
-          <path class="stripe-outline" d="M 125 190 L 155 195" stroke-width="4" />
-          <path class="stripe-outline" d="M 125 210 L 155 215" stroke-width="4" />
-          <path class="stripe-outline" d="M 375 190 L 345 195" stroke-width="4" />
-          <path class="stripe-outline" d="M 375 210 L 345 215" stroke-width="4" />
+          <!-- a wide, soft head: flatter on top, fuller at the cheeks -->
+          <path class="fur-orange" d="M 250 104 C 322 104, 370 138, 376 196 C 380 228, 372 254, 354 272 C 328 298, 290 306, 250 306 C 210 306, 172 298, 146 272 C 128 254, 120 228, 124 196 C 130 138, 178 104, 250 104 Z" />
+          <!-- cream lower face -->
+          <path class="fur-cream no-stroke" d="M 148 236 C 186 218, 222 226, 250 236 C 278 226, 314 218, 352 236 C 350 272, 306 301, 250 301 C 194 301, 150 272, 148 236 Z" />
+          <!-- forehead stripes -->
+          <path class="stripe-outline" d="M 250 118 L 250 146 M 230 122 L 236 146 M 270 122 L 264 146" />
+          <!-- whiskers, poking past the cheeks -->
+          <path class="whisker" d="M 160 250 L 104 242 M 160 262 L 106 270" />
+          <path class="whisker" d="M 340 250 L 396 242 M 340 262 L 394 270" />
           <g id="eyes">
-            <circle class="eye-dark" cx="190" cy="200" r="22" />
-            <circle fill="white" cx="182" cy="192" r="8" />
-            <circle fill="white" cx="195" cy="210" r="4" />
-            <circle class="eye-dark" cx="310" cy="200" r="22" />
-            <circle fill="white" cx="302" cy="192" r="8" />
-            <circle fill="white" cx="315" cy="210" r="4" />
+            <ellipse class="eye-dark" cx="200" cy="212" rx="13" ry="16" />
+            <circle fill="white" cx="195" cy="205" r="5" />
+            <ellipse class="eye-dark" cx="300" cy="212" rx="13" ry="16" />
+            <circle fill="white" cx="295" cy="205" r="5" />
           </g>
           <g id="nose" style="transform-origin: 250px 240px;">
-            <path class="nose-pink" d="M 240 235 Q 250 225 260 235 Q 250 255 240 235 Z" />
+            <path class="nose-pink" d="M 241 236 Q 250 232 259 236 Q 256 243 250 247 Q 244 243 241 236 Z" />
           </g>
           <g id="mouth" style="transform-origin: 250px 256px;">
             <!-- Open mouth, shown only while he talks (folio.js adds
                  .talking to #folio-scene while a line's words arrive). -->
-            <ellipse id="mouth-open" cx="250" cy="258" rx="8" ry="7" fill="#8a3f3a" stroke="#4A3020" stroke-width="2.5" />
-            <path class="outline-only" d="M 250 248 Q 230 265 220 250 M 250 248 Q 270 265 280 250" stroke-width="3" />
+            <ellipse id="mouth-open" cx="250" cy="261" rx="7" ry="6" fill="#8a3f3a" stroke="#4A3020" stroke-width="2.5" />
+            <path class="outline-only" d="M 250 247 L 250 252 M 250 252 Q 243 262 234 255 M 250 252 Q 257 262 266 255" stroke-width="4" />
           </g>
           <g id="glasses">
-            <circle cx="190" cy="200" r="28" fill="none" stroke="#8a5a28" stroke-width="2.5" />
-            <circle cx="310" cy="200" r="28" fill="none" stroke="#8a5a28" stroke-width="2.5" />
-            <path d="M 218 196 C 230 188, 270 188, 282 196" stroke="#8a5a28" stroke-width="2.5" fill="none" />
-            <path d="M 162 198 C 148 194, 134 198, 124 208" stroke="#8a5a28" stroke-width="2" fill="none" />
-            <path d="M 338 198 C 352 194, 366 198, 376 208" stroke="#8a5a28" stroke-width="2" fill="none" />
+            <circle cx="200" cy="212" r="30" fill="none" stroke="#8a5a28" stroke-width="3" />
+            <circle cx="300" cy="212" r="30" fill="none" stroke="#8a5a28" stroke-width="3" />
+            <path d="M 230 208 Q 250 198 270 208" stroke="#8a5a28" stroke-width="3" fill="none" />
+            <path d="M 170 208 L 126 200" stroke="#8a5a28" stroke-width="2.5" fill="none" />
+            <path d="M 330 208 L 374 200" stroke="#8a5a28" stroke-width="2.5" fill="none" />
           </g>
         </g>
       </svg>
