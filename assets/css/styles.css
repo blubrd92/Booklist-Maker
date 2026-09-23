@@ -3268,6 +3268,59 @@ body.has-custom-qr #generate-qr-button:disabled {
   min-width: 80px;
 }
 
+/* Reset modal: two choice cards, each a whole-card button with a label
+   and a one-line consequence. Cancel sits alone in the footer, on the
+   right, away from the destructive choice. */
+.reset-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.reset-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  font: inherit;
+  color: var(--text-color);
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.reset-option:hover {
+  border-color: var(--primary-color);
+  background: #f7f8fc;
+}
+.reset-option:focus-visible,
+.reset-option:active {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+.reset-option-label {
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.reset-option-desc {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  line-height: 1.4;
+}
+.reset-option-danger .reset-option-label { color: var(--danger-color); }
+.reset-option-danger:hover {
+  border-color: var(--danger-color);
+  background: rgba(229, 57, 53, 0.05);
+}
+.reset-option-danger:focus-visible,
+.reset-option-danger:active { outline-color: var(--danger-color); }
+#reset-modal .modal-footer { justify-content: flex-end; }
+
 /* =========================================================================
    Zoom & Undo/Redo Controls (floating bottom-right toolbar)
    ========================================================================= */
