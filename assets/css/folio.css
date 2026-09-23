@@ -101,9 +101,18 @@ body:has(.sidebar.collapsed) .folio-container {
 /* Scene container - scales with viewport, capped so it never dominates the preview.
    760/466 aspect ratio matches the cropped SVG viewBox (shelf flush with bottom).
    At 1920px: 280px (max). At 1280px: ~205px. At 1024px: ~164px. At 900px: 140px (min). */
+/* Only the cat itself takes the pointer. The scene is a 760x466
+   rectangle and the cat covers well under half of it, so a scene-wide
+   hit area turned the empty air above the bookshelves into an
+   invisible Folio button sitting over whatever controls were behind
+   it. The scene and SVG pass the pointer through (pointer-events:
+   none); the cat's own groups opt back in, hit-tested on their painted
+   shapes only. Events on those shapes still bubble to the SVG, so the
+   click and petting listeners on #folio are unchanged. The shelf and
+   books stay pass-through: they are scenery, not part of him. */
 #folio-scene {
   position: relative;
-  cursor: pointer;
+  pointer-events: none;
   width: clamp(140px, 16vw, 280px);
   aspect-ratio: 760 / 466;
   /* Nothing in the scene is selectable text. Rapid clicks trigger
@@ -119,11 +128,25 @@ body:has(.sidebar.collapsed) .folio-container {
   display: block;
   width: 100%;
   height: 100%;
+  pointer-events: none;
   /* Petting on touch devices: horizontal finger-rubs over the cat are
      delivered as pointermove events instead of being claimed by the
      (nonexistent) horizontal scroll gesture. Vertical panning still
      scrolls the page normally. */
   touch-action: pan-y;
+}
+
+#folio-container.folio-hidden #folio * {
+  pointer-events: none;
+}
+
+#folio #tail,
+#folio #body,
+#folio #back-feet,
+#folio #front-legs,
+#folio #head-group {
+  pointer-events: visiblePainted;
+  cursor: pointer;
 }
 
 /* --- STATE-BASED ANIMATION SYSTEM --- */
