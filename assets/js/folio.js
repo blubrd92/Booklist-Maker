@@ -434,6 +434,7 @@
                      where the caller manages the return itself).
      ---------------------------------------------------------------- */
   let celebrateReturnTimer = null;
+  let celebrateStateTimer = null;
 
   function celebrate(opts) {
     opts = opts || {};
@@ -452,11 +453,19 @@
     // handle is a no-op, so this is safe on the first call too.
     clearTimeout(celebrateReturnTimer);
     celebrateReturnTimer = null;
+    // Same for a prior celebration's delayed state change: without this,
+    // a reaction-led celebration followed within its delay by one with
+    // no delay landed its quip AFTER the newer one.
+    clearTimeout(celebrateStateTimer);
+    celebrateStateTimer = null;
 
     if (reaction) react(reaction);
 
     if (reactionDelay > 0) {
-      setTimeout(() => setState(state, event), reactionDelay);
+      celebrateStateTimer = setTimeout(() => {
+        celebrateStateTimer = null;
+        setState(state, event);
+      }, reactionDelay);
     } else {
       setState(state, event);
     }
@@ -1134,10 +1143,69 @@
     bubblePhysical = false;
     bubbleStartTime = 0;
     bubble.className = 'speech-bubble';
+    stopTalking();
     // Also drop the text itself: the normal hide path leaves the last
     // line in textContent (harmless while he's live), but a hidden
     // Folio shouldn't be holding a stale sentence in a role="status".
     bubble.textContent = '';
+  }
+
+  /* Word-by-word reveal. Each word is its own span with a staggered
+     animation-delay; *stage directions* get a muted span of their own.
+     Returns how long the reveal takes, in ms (0 under reduced motion,
+     where the CSS drops the animation). */
+  const WORD_STAGGER_MS = 55;
+  const WORD_REVEAL_MAX_MS = 900;
+
+  function renderBubbleText(text) {
+    bubble.textContent = '';
+    const stagger = reducedMotion.matches ? 0 : WORD_STAGGER_MS;
+    let wordIndex = 0;
+    let lastDelay = 0;
+    text.split(/(\*[^*]+\*)/).forEach((part) => {
+      if (!part) return;
+      let host = bubble;
+      if (/^\*[^*]+\*$/.test(part)) {
+        host = document.createElement('span');
+        host.className = 'speech-action';
+        bubble.appendChild(host);
+      }
+      part.split(/(\s+)/).forEach((token) => {
+        if (!token) return;
+        if (/^\s+$/.test(token)) {
+          host.appendChild(document.createTextNode(token));
+          return;
+        }
+        const word = document.createElement('span');
+        word.className = 'speech-word';
+        lastDelay = Math.min(WORD_REVEAL_MAX_MS, wordIndex * stagger);
+        word.style.animationDelay = lastDelay + 'ms';
+        host.appendChild(word).textContent = token;
+        wordIndex++;
+      });
+    });
+    return stagger ? lastDelay + 260 : 0;
+  }
+
+  // Mouth moves while a spoken line arrives. Pure stage directions
+  // (*purrs*) and sleep-talk stay closed-mouthed.
+  let talkTimer = null;
+
+  function stopTalking() {
+    clearTimeout(talkTimer);
+    talkTimer = null;
+    const scene = document.getElementById('folio-scene');
+    if (scene) scene.classList.remove('talking');
+  }
+
+  function startTalking(text, ms) {
+    stopTalking();
+    if (!ms || currentState === 'sleeping') return;
+    if (!text.replace(/\*[^*]+\*/g, '').trim()) return;
+    const scene = document.getElementById('folio-scene');
+    if (!scene) return;
+    scene.classList.add('talking');
+    talkTimer = setTimeout(stopTalking, ms + 150);
   }
 
   function showBubbleNow(text, isPhysical) {
@@ -1147,18 +1215,25 @@
     followUpBubbleText = null;
     bubblePhysical = !!isPhysical;
     bubbleStartTime = Date.now();
+    // Already up: swap the words in place with a squash instead of
+    // collapsing to nothing and popping back.
+    const swapping = bubble.classList.contains('visible');
     bubble.className = 'speech-bubble';
-    bubble.textContent = text;
+    const revealMs = renderBubbleText(text);
     void bubble.offsetWidth;
     bubble.classList.add('visible');
+    if (swapping) bubble.classList.add('swap');
+    startTalking(text, revealMs);
     // Hold scales with reading length: short quips keep the old 3.2s,
-    // longer ones stay up long enough to actually finish reading.
-    const hold = Math.min(
+    // longer ones stay up long enough to actually finish reading. The
+    // clock starts once the last word has landed.
+    const hold = revealMs + Math.min(
       BUBBLE_MAX_HOLD_MS,
       Math.max(BUBBLE_MIN_HOLD_MS, 1400 + text.length * BUBBLE_MS_PER_CHAR)
     );
     bubbleTimer = setTimeout(() => {
-      bubble.classList.remove('visible');
+      stopTalking();
+      bubble.classList.remove('visible', 'swap');
       bubble.classList.add('hiding');
       setTimeout(() => {
         bubble.className = 'speech-bubble';
@@ -1235,6 +1310,7 @@
 
     folioSvg.classList.add('react-' + name);
     activeReaction = name;
+    tailReact(name);
 
     reactTimer = setTimeout(() => {
       folioSvg.classList.remove('react-' + name);
@@ -1286,6 +1362,337 @@
   }
 
   /* ----------------------------------------------------------------
+     TAIL: a jointed, spring-driven tail.
+
+     The tail used to be one rigid path that CSS rotated around its
+     base, so every wag swung it like a stick. Now the drawing is
+     rebuilt every frame from a spine of TAIL_REST points (fitted to
+     the original artwork's centerline), and each joint is a damped
+     spring chasing its parent. Three things drive it:
+
+     - The CSS state animations on #tail are UNCHANGED and still own
+       the pose: the lazy idle sway, the sleep droop to -70deg, the
+       startle spring, the swish fidget. They rotate the whole group,
+       and the chain feels that rotation through its springs, so the
+       tip lags the base, overshoots and settles (follow-through).
+       Nothing in the CSS choreography had to move.
+     - A travelling wave that runs base to tip, sized and paced per
+       state (TAIL_MOODS), gives the S-shaped ripple a real tail has.
+     - Short-lived moods from reactions: a lashing tail when pestered,
+       a contented curl when petted, a bottle-brush puff on startle.
+
+     Angles are absolute in the SVG's frame (root rotation included);
+     rendering subtracts the root so the path is drawn in the group's
+     own rotated frame. The loop only runs while he is visible, the tab
+     is foregrounded and reduced motion is off; otherwise the tail
+     rests in its drawn pose.
+     ---------------------------------------------------------------- */
+  const tailGroup = document.getElementById('tail');
+  const tailPathEls = tailGroup ? tailGroup.querySelectorAll('path') : [];
+  const tailOutline = tailPathEls[0] || null;
+  const tailStripes = Array.prototype.slice.call(tailPathEls, 1);
+
+  // Base (hidden behind the body) to tip, in SVG units. The last three
+  // points are the hook at the top of the tail.
+  const TAIL_REST = [
+    [137, 416], [121, 400], [112, 380], [106, 358], [102, 336], [98, 314],
+    [93, 292], [86, 270], [78, 249], [69, 230], [61, 212], [57, 197], [58, 184],
+  ];
+  const TAIL_SEGS = TAIL_REST.length - 1;
+  // Where the three fur stripes sit, as fractional spine indices.
+  const TAIL_STRIPE_AT = [5.2, 7.2, 9.1];
+  // Most any joint may trail its target, in radians (about 14deg).
+  const TAIL_MAX_LAG = 0.24;
+
+  // amp: wave size in degrees per joint (it accumulates toward the tip)
+  // period: seconds per wave. curl: multiplier on the tip's rest bend.
+  // puff: width multiplier.
+  const TAIL_MOODS = {
+    idle:       { amp: 1.4, period: 3.8, curl: 1.0,  puff: 1.0 },
+    searching:  { amp: 1.0, period: 1.4, curl: 1.25, puff: 1.0 },
+    excited:    { amp: 2.4, period: 0.8, curl: 0.9,  puff: 1.0 },
+    evaluating: { amp: 1.0, period: 5.5, curl: 1.4,  puff: 1.0 },
+    sleeping:   { amp: 0.5, period: 6.5, curl: 1.7,  puff: 1.0 },
+    greeting:   { amp: 2.2, period: 1.5, curl: 1.0,  puff: 1.0 },
+    worried:    { amp: 0.9, period: 0.7, curl: 0.7,  puff: 1.06 },
+    // Reaction moods (see tailReact)
+    lash:       { amp: 3.6, period: 0.55, curl: 0.6, puff: 1.08 },
+    content:    { amp: 1.1, period: 2.6, curl: 1.35, puff: 1.0 },
+  };
+
+  const tailLen = [];
+  const tailRel = [];      // rest bend of each joint relative to its parent
+  let tailRootRest = 0;    // rest angle of the first segment
+  for (let i = 0; i < TAIL_SEGS; i++) {
+    const [x0, y0] = TAIL_REST[i];
+    const [x1, y1] = TAIL_REST[i + 1];
+    tailLen.push(Math.hypot(x1 - x0, y1 - y0));
+    const ang = Math.atan2(y1 - y0, x1 - x0);
+    if (i === 0) {
+      tailRootRest = ang;
+      tailRel.push(0);
+    } else {
+      const [px, py] = TAIL_REST[i - 1];
+      let rel = ang - Math.atan2(y0 - py, x0 - px);
+      if (rel > Math.PI) rel -= 2 * Math.PI;
+      if (rel < -Math.PI) rel += 2 * Math.PI;
+      tailRel.push(rel);
+    }
+  }
+
+  const tailAng = new Array(TAIL_SEGS).fill(0);
+  const tailVel = new Array(TAIL_SEGS).fill(0);
+  const tailCur = Object.assign({}, TAIL_MOODS.idle);
+  let tailPhase = 0;
+  let tailPuffBoost = 0;
+  let tailMoodName = null;
+  let tailMoodUntil = 0;
+  let tailNextFlickAt = 0;
+  let tailRaf = null;
+  let tailLastTs = 0;
+
+  // Current rotation CSS has applied to the #tail group, in radians.
+  function readTailRoot() {
+    if (!tailGroup) return 0;
+    const t = getComputedStyle(tailGroup).transform;
+    if (!t || t === 'none') return 0;
+    const m = t.match(/matrix\(([^)]+)\)/);
+    if (!m) return 0;
+    const parts = m[1].split(',');
+    return Math.atan2(parseFloat(parts[1]), parseFloat(parts[0]));
+  }
+
+  // The tip's rest bend is scaled by the mood's curl over the last four
+  // joints, so a curious tail hooks harder and an angry one straightens.
+  function tailCurlAt(i, curl) {
+    const t = Math.max(0, (i - (TAIL_SEGS - 5)) / 4);
+    return 1 + (curl - 1) * Math.min(1, t);
+  }
+
+  function tailTarget(i, parentAng) {
+    const wave = (tailCur.amp * Math.PI / 180)
+      * Math.sin(tailPhase - i * 0.55)
+      * (0.35 + 0.65 * i / TAIL_SEGS);
+    return parentAng + tailRel[i] * tailCurlAt(i, tailCur.curl) + wave;
+  }
+
+  // Snap every joint to its target: no motion, no leftover velocity.
+  function resyncTail(root) {
+    tailAng[0] = root + tailRootRest;
+    tailVel[0] = 0;
+    for (let i = 1; i < TAIL_SEGS; i++) {
+      tailAng[i] = tailTarget(i, tailAng[i - 1]);
+      tailVel[i] = 0;
+    }
+  }
+
+  function tailMood(name, ms) {
+    tailMoodName = name;
+    tailMoodUntil = Date.now() + ms;
+  }
+
+  // Called from react(): the tail's share of each micro-reaction.
+  function tailReact(name) {
+    if (name === 'flatten') tailMood('lash', 2600);
+    else if (name === 'satisfied') tailMood('content', 1800);
+    else if (name === 'startle') tailPuffBoost = 0.45;
+  }
+
+  function stepTail(dt, root) {
+    const now = Date.now();
+    const moodKey = (tailMoodName && now < tailMoodUntil) ? tailMoodName : currentState;
+    const target = TAIL_MOODS[moodKey] || TAIL_MOODS.idle;
+    // Ease between moods so a state change never pops the pose.
+    const blend = 1 - Math.exp(-dt / 0.35);
+    tailCur.amp += (target.amp - tailCur.amp) * blend;
+    tailCur.period += (target.period - tailCur.period) * blend;
+    tailCur.curl += (target.curl - tailCur.curl) * blend;
+    tailCur.puff += (target.puff - tailCur.puff) * blend;
+    tailPuffBoost *= Math.exp(-dt / 0.9);
+    // Integrated phase (not t / period) so a period change bends the
+    // wave's pace instead of jumping it to a new position.
+    tailPhase += dt * 2 * Math.PI / tailCur.period;
+
+    // The occasional tip flick of a cat that is only half paying attention.
+    if (moodKey === 'idle' || moodKey === 'evaluating' || moodKey === 'sleeping') {
+      if (!tailNextFlickAt) tailNextFlickAt = now + 3000 + Math.random() * 5000;
+      if (now >= tailNextFlickAt) {
+        const kick = (Math.random() < 0.5 ? -1 : 1)
+          * (1.6 + Math.random() * 1.6)
+          * (moodKey === 'sleeping' ? 0.4 : 1);
+        for (let i = TAIL_SEGS - 3; i < TAIL_SEGS; i++) tailVel[i] += kick;
+        tailNextFlickAt = now + 4000 + Math.random() * 5000;
+      }
+    } else {
+      tailNextFlickAt = 0;
+    }
+
+    // Fixed substeps keep the springs stable at any frame rate.
+    const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
+    const h = dt / steps;
+    for (let s = 0; s < steps; s++) {
+      tailAng[0] = root + tailRootRest;
+      for (let i = 1; i < TAIL_SEGS; i++) {
+        // Stiff near the base, loose at the tip: that gradient is what
+        // makes the tip whip after the base has already stopped.
+        const k = 260 * (1 - 0.6 * i / TAIL_SEGS);
+        const c = 2 * 0.62 * Math.sqrt(k);
+        const want = tailTarget(i, tailAng[i - 1]);
+        const acc = k * (want - tailAng[i]) - c * tailVel[i];
+        tailVel[i] += acc * h;
+        tailAng[i] += tailVel[i] * h;
+        // A joint may lag its target by at most TAIL_MAX_LAG. Past that
+        // the outline kinks, and at the hook it can fold over itself.
+        const lag = tailAng[i] - want;
+        if (lag > TAIL_MAX_LAG || lag < -TAIL_MAX_LAG) {
+          tailAng[i] = want + Math.sign(lag) * TAIL_MAX_LAG;
+          tailVel[i] *= 0.5;
+        }
+      }
+    }
+  }
+
+  function tailWidthAt(k) {
+    return (19 + 7 * Math.pow(k / TAIL_SEGS, 1.8)) * (tailCur.puff + tailPuffBoost);
+  }
+
+  // Catmull-Rom through pts as cubic Beziers, starting at pts[0].
+  function smoothThrough(pts) {
+    let d = '';
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[Math.min(pts.length - 1, i + 2)];
+      d += ' C ' + (p1[0] + (p2[0] - p0[0]) / 6).toFixed(1) + ' ' + (p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)
+        + ', ' + (p2[0] - (p3[0] - p1[0]) / 6).toFixed(1) + ' ' + (p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)
+        + ', ' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
+    }
+    return d;
+  }
+
+  function renderTail(root) {
+    if (!tailOutline) return;
+    // Spine in the group's own (rotated) frame.
+    const pts = [TAIL_REST[0].slice()];
+    const segAng = [];
+    for (let i = 0; i < TAIL_SEGS; i++) {
+      const a = tailAng[i] - root;
+      segAng.push(a);
+      const p = pts[i];
+      pts.push([p[0] + tailLen[i] * Math.cos(a), p[1] + tailLen[i] * Math.sin(a)]);
+    }
+    // Tangent at each point: the mean of the segments meeting there.
+    const tan = pts.map((_, k) => {
+      const a = segAng[Math.max(0, k - 1)];
+      const b = segAng[Math.min(TAIL_SEGS - 1, k)];
+      return Math.atan2(Math.sin(a) + Math.sin(b), Math.cos(a) + Math.cos(b));
+    });
+    const left = [];
+    const right = [];
+    pts.forEach((p, k) => {
+      const hw = tailWidthAt(k) / 2;
+      const nx = -Math.sin(tan[k]);
+      const ny = Math.cos(tan[k]);
+      left.push([p[0] + nx * hw, p[1] + ny * hw]);
+      right.push([p[0] - nx * hw, p[1] - ny * hw]);
+    });
+
+    // Rounded tip: one cubic whose handles run 2/3 of the width along
+    // the tip's heading approximates a half circle closely.
+    const lt = left[TAIL_SEGS];
+    const rt = right[TAIL_SEGS];
+    const cap = tailWidthAt(TAIL_SEGS) * 0.667;
+    const tx = Math.cos(tan[TAIL_SEGS]) * cap;
+    const ty = Math.sin(tan[TAIL_SEGS]) * cap;
+    const rightBack = right.slice().reverse();
+    const d = 'M ' + left[0][0].toFixed(1) + ' ' + left[0][1].toFixed(1)
+      + smoothThrough(left)
+      + ' C ' + (lt[0] + tx).toFixed(1) + ' ' + (lt[1] + ty).toFixed(1)
+      + ', ' + (rt[0] + tx).toFixed(1) + ' ' + (rt[1] + ty).toFixed(1)
+      + ', ' + rt[0].toFixed(1) + ' ' + rt[1].toFixed(1)
+      + smoothThrough(rightBack)
+      + ' Z';
+    tailOutline.setAttribute('d', d);
+
+    // Stripes: thin fur bands laid across the spine, inset from the
+    // outline, bowed slightly toward the base like the original art.
+    tailStripes.forEach((el, n) => {
+      const at = TAIL_STRIPE_AT[n];
+      if (at === undefined) return;
+      const band = (s) => {
+        const k = Math.min(TAIL_SEGS - 1, Math.floor(s));
+        const f = s - k;
+        const x = pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f;
+        const y = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f;
+        const a = segAng[k];
+        const hw = tailWidthAt(s) / 2 - 2.5;
+        const nx = -Math.sin(a);
+        const ny = Math.cos(a);
+        const bx = -Math.cos(a) * 3;
+        const by = -Math.sin(a) * 3;
+        return { l: [x + nx * hw, y + ny * hw], r: [x - nx * hw, y - ny * hw], c: [x + bx, y + by] };
+      };
+      const a = band(at);
+      const b = band(at + 0.2);
+      const f = (p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1);
+      el.setAttribute('d', 'M ' + f(a.l) + ' Q ' + f(a.c) + ' ' + f(a.r)
+        + ' L ' + f(b.r) + ' Q ' + f(b.c) + ' ' + f(b.l) + ' Z');
+    });
+  }
+
+  function tailShouldRun() {
+    return !!tailOutline && !reducedMotion.matches && !folioIsHidden() && !document.hidden;
+  }
+
+  function tailFrame(ts) {
+    tailRaf = null;
+    if (!tailShouldRun()) return;
+    const dt = tailLastTs ? Math.min(0.05, (ts - tailLastTs) / 1000) : 1 / 60;
+    tailLastTs = ts;
+    const root = readTailRoot();
+    stepTail(dt, root);
+    renderTail(root);
+    tailRaf = requestAnimationFrame(tailFrame);
+  }
+
+  // Idempotent: safe to call on every "he might be visible now" event.
+  // A resumed loop starts from the rest pose so a long pause (the sleep
+  // droop happened while the tab was away) doesn't release as a whip.
+  function startTail() {
+    if (tailRaf !== null || !tailShouldRun()) return;
+    tailLastTs = 0;
+    resyncTail(readTailRoot());
+    tailRaf = requestAnimationFrame(tailFrame);
+  }
+
+  // Draw the procedural rest pose once so the reduced-motion and the
+  // animated tail are the same shape.
+  function restTail() {
+    Object.assign(tailCur, TAIL_MOODS.idle);
+    tailPuffBoost = 0;
+    const root = readTailRoot();
+    resyncTail(root);
+    renderTail(root);
+  }
+
+  // Any path that shows him restarts the loop: the header toggle, and
+  // also the guided tour, which removes .folio-hidden directly.
+  if (folioContainer && window.MutationObserver) {
+    new MutationObserver(startTail).observe(folioContainer, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+  }
+
+  if (reducedMotion.addEventListener) {
+    reducedMotion.addEventListener('change', () => {
+      if (reducedMotion.matches) restTail();
+      else startTail();
+    });
+  }
+
+  /* ----------------------------------------------------------------
      TOGGLE: Show/hide Folio with localStorage persistence.
      ---------------------------------------------------------------- */
   function initToggle() {
@@ -1311,7 +1718,7 @@
     // the same browser at desktop width still honors it (after a reload).
     // The guided tour still narrates as Folio from its panel's avatar.
     const isPhone = !!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
-    const shown = !isPhone && localStorage.getItem('folio-hidden') === 'false';
+    const shown = !isPhone && lsGet('folio-hidden') === 'false';
     if (shown) folioContainer.classList.remove('folio-hidden');
     // Reflect the initial shown/hidden state on the header toggle so its
     // pressed styling (filled when Folio is on) and a11y state are right
@@ -1323,7 +1730,7 @@
       folioContainer.classList.toggle('folio-hidden');
       const isHidden = folioContainer.classList.contains('folio-hidden');
       folioToggle.setAttribute('aria-pressed', String(!isHidden));
-      localStorage.setItem('folio-hidden', isHidden);
+      lsSet('folio-hidden', String(isHidden));
       // Turning Folio ON is his entrance — greet, same guard pattern
       // as the page-load greeting so cascading hooks can't stomp it.
       // The inactivity clock only runs while he's visible (there's
@@ -1397,6 +1804,7 @@
   // If Folio fell asleep while the tab was hidden, re-snap the
   // sleeping pose so CSS animations are visible when the user returns
   document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) startTail();
     if (!document.hidden && currentState === 'sleeping') {
       tailBehindBooks();
       folioSvg.className.baseVal = 'sleeping';
@@ -1446,6 +1854,8 @@
   initToggle();
   resetInactivity();
   scheduleFidget();
+  restTail();
+  startTail();
 
   /* ----------------------------------------------------------------
      EXPOSE PUBLIC API
