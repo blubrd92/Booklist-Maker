@@ -1298,6 +1298,7 @@
     stretch: 1800,
     'ear-flick': 600,
     'tail-swish': 1400,
+    groom: 3400,
   };
 
   let reactTimer = null;
@@ -1848,7 +1849,8 @@
      IDLE FIDGETS
 
      Real cats don't loop the same breath forever. Every 14-32s of
-     idle, play one small fidget (stretch, ear flick, tail swish) from
+     idle, play one small fidget (stretch, ear flick, tail swish, a paw
+     groom) from
      a shuffle bag. Fires only when he's visible, in the idle state,
      unguarded, not mid-reaction, not eye-tracking a drag, the tab is
      in the foreground, and the user hasn't asked for reduced motion.
@@ -1857,7 +1859,7 @@
      ---------------------------------------------------------------- */
   const FIDGET_MIN_DELAY_MS = 14000;
   const FIDGET_EXTRA_DELAY_MS = 18000;
-  const fidgetBag = createShuffleBag(['stretch', 'ear-flick', 'tail-swish']);
+  const fidgetBag = createShuffleBag(['stretch', 'ear-flick', 'tail-swish', 'groom']);
   let fidgetTimer = null;
 
   function maybeFidget() {

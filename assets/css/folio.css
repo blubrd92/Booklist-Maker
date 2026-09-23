@@ -2252,6 +2252,68 @@ body:has(.sidebar.collapsed) .folio-container {
     32%  { transform: translateY(-2px) scale(1) rotate(-4deg); }
     100% { transform: translateY(-30px) scale(0.9) rotate(0deg); opacity: 0; }
   }
+  /* --- GROOM (idle fidget) ---
+     He lifts his right front paw to his mouth, closes his eyes and
+     licks it a few times, then puts it back down. #groom-leg rotates
+     about the top of the leg and shifts up so the paw lands beside his
+     mouth; the leg's open top end ends up on orange fur, where it has
+     no visible edge. #front-legs is drawn after #head-group (see
+     index.html) so the raised paw passes in front of his chin. */
+  #folio #groom-leg { transform-origin: 281px 380px; }
+  #folio #tongue { opacity: 0; transform-box: fill-box; transform-origin: 50% 0%; }
+  #folio.react-groom #groom-leg {
+    animation: reactGroomLeg 3.4s ease-in-out forwards !important;
+  }
+  @keyframes reactGroomLeg {
+    0%   { transform: translate(0, 0) rotate(0deg); }
+    10%  { transform: translate(10px, -12px) rotate(70deg); }
+    20%  { transform: translate(19px, -44px) rotate(152deg); }
+    30%  { transform: translate(19px, -41px) rotate(150deg); }
+    40%  { transform: translate(19px, -44px) rotate(152deg); }
+    50%  { transform: translate(19px, -41px) rotate(150deg); }
+    60%  { transform: translate(19px, -44px) rotate(152deg); }
+    70%  { transform: translate(19px, -41px) rotate(150deg); }
+    80%  { transform: translate(19px, -44px) rotate(152deg); }
+    90%  { transform: translate(8px, -10px) rotate(60deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+  }
+  #folio.react-groom #head-group {
+    animation: reactGroomHead 3.4s ease-in-out forwards !important;
+  }
+  @keyframes reactGroomHead {
+    0%   { transform: translateY(0) rotate(0deg); }
+    20%  { transform: translateY(10px) rotate(8deg); }
+    25%  { transform: translateY(14px) rotate(9deg); }
+    35%  { transform: translateY(9px) rotate(7deg); }
+    45%  { transform: translateY(14px) rotate(9deg); }
+    55%  { transform: translateY(9px) rotate(7deg); }
+    65%  { transform: translateY(14px) rotate(9deg); }
+    75%  { transform: translateY(10px) rotate(8deg); }
+    88%  { transform: translateY(2px) rotate(2deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+  }
+  #folio.react-groom #eyes {
+    animation: reactGroomEyes 3.4s ease-in-out forwards !important;
+  }
+  @keyframes reactGroomEyes {
+    0%, 14%  { transform: scaleY(1); }
+    22%, 78% { transform: scaleY(0.08); }
+    88%, 100% { transform: scaleY(1); }
+  }
+  #folio.react-groom #tongue {
+    animation: reactGroomTongue 3.4s ease-in-out forwards !important;
+  }
+  @keyframes reactGroomTongue {
+    0%, 21%   { opacity: 0; transform: scaleY(0.2); }
+    25%       { opacity: 1; transform: scaleY(1.2); }
+    33%       { opacity: 1; transform: scaleY(0.4); }
+    45%       { opacity: 1; transform: scaleY(1.2); }
+    53%       { opacity: 1; transform: scaleY(0.4); }
+    65%       { opacity: 1; transform: scaleY(1.2); }
+    73%, 76%  { opacity: 1; transform: scaleY(0.3); }
+    78%, 100% { opacity: 0; transform: scaleY(0.2); }
+  }
+
 /* =============================================================================
    MOBILE (matches the stacked-layout breakpoint in styles.css)
    The toggle lives in the header now, so only the cat SCENE floats in
