@@ -365,7 +365,8 @@ body.has-library-config .header-credit {
    attribute keeps working (see "Known CSS Pitfalls" in CLAUDE.md). */
 .mobile-more-button,
 .mobile-more-menu,
-.mobile-view-switch { display: none; }
+.mobile-view-switch,
+.content-menu { display: none; }
 /* Mirror #tour-button's margin-right: 8px so the sign-out button's
    distance from Generate PDF on its left equals the tour button's
    distance from Load on its right (both end up 8px margin + 6px gap
@@ -3939,26 +3940,25 @@ body.has-custom-qr #generate-qr-button:disabled {
     gap: 8px;
   }
 
-  /* --- Footer: the tool page has the Edit/Preview bar at the bottom
-     and its footer links in the More menu, so its footer is hidden;
-     content pages keep theirs. --- */
-  body:not(.content-page) .site-footer { display: none; }
-  /* Content pages: wrap the nav links instead of clipping. The bottom
-     safe-area inset keeps the links clear of the iPhone home indicator
-     now that index.html declares viewport-fit=cover. */
-  .site-footer {
-    height: auto;
-    min-height: 32px;
-    padding: 6px 10px;
-    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  /* --- Footer: hidden on every page. The tool page has the Edit/Preview
+     bar at the bottom and its footer links in the More menu; content
+     pages carry the same links in the header's .content-menu, which
+     reuses the More button and menu styles above. --- */
+  .site-footer { display: none; }
+  .content-page .content-menu { display: block; }
+  .content-menu > summary { list-style: none; }
+  /* The menu styles above position it fixed, and a fixed child escapes
+     <details>' own hiding in Chromium, so closed has to be said outright. */
+  .content-menu:not([open]) > .mobile-more-menu { display: none; }
+  .content-menu > summary::-webkit-details-marker { display: none; }
+  .content-menu[open] > .mobile-more-button { background: rgba(255, 255, 255, 0.22); }
+  .content-menu-icon {
+    width: 20px;
+    height: 16px;
+    fill: currentColor;
   }
-  .site-footer-nav {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 4px 8px;
-    font-size: 0.85rem;
-  }
-  .site-footer-nav a { padding: 4px 2px; }
+  /* No icon column to line up with here, unlike the tool's menu. */
+  .content-menu a.mobile-more-item { padding-left: 16px; }
 
   /* Zoom/undo panel: one horizontal bar instead of a 3-row block so it
      covers far less of the preview. Auto-fit at startup plus the

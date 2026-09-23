@@ -193,7 +193,7 @@
         {
           target: '#print-page-2',
           text: "Now let me load a sample Discworld booklist so you can see what a full list looks like. Don't worry, your own list is saved and will come back when the tour ends. Each entry shows the cover, title, author, and description. You can type directly into these fields to edit anything.",
-          phoneText: "Now let me load a sample Discworld booklist so you can see what a full list looks like. Don't worry, your own list is saved and will come back when the tour ends. Each entry shows the cover, title, author, and description. Tap any title to edit it.",
+          phoneText: "Now let me load a sample Discworld booklist so you can see what a full list looks like. Don't worry, your own list is saved and will come back when the tour ends. Each entry shows the cover, title, author, and description. Tap any title to edit, star, move, or delete it.",
           state: 'excited',
           prepare: function() {
             BooklistApp.applyState(TOUR_SAMPLE_STATE, { silent: true });
@@ -339,6 +339,9 @@
         {
           target: '#cover-title-style-group',
           text: "And the purple-to-blue gradient you just saw came from here. This is the Cover Header Style section: the background bar with its optional gradient, plus a style row for each line of your header. That's why 'Mind How You Go' renders bigger than the line below it. You type your header in the text box just above, one line per row.",
+          // Shorter on phones: the full-width panel over this tall section
+          // otherwise hides the Line 1 box it is describing.
+          phoneText: "The purple-to-blue gradient came from here, the Cover Header Style section: the background bar and its gradient, plus a style row for each line of your header. That's why 'Mind How You Go' is bigger than the line below it.",
           state: 'excited',
           prepare: function() {
             openSidebarTab('tab-front-cover');
@@ -480,6 +483,7 @@
         {
           target: '#export-pdf-button',
           text: "When everything looks right, hit Generate PDF. For best results, print at Default or Actual Size scaling, double-sided, and flip on short edge. Your booklist is going to look great!",
+          phoneText: "When everything looks right, tap Generate PDF. Print at Default or Actual Size scaling, double-sided, flipped on the short edge. The PDF is full print resolution, so an older phone may not manage it; if so I'll say so, and a computer can finish the job from your saved list.",
           state: 'excited',
           padding: 6,
         },

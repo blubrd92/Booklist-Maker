@@ -22,7 +22,7 @@
   <meta name="twitter:image" content="https://booklister.org/assets/img/og-image.jpg">
   <title>Terms · Booklister</title>
 
-  <link rel="stylesheet" href="assets/css/styles.css?v=9929758d25"/>
+  <link rel="stylesheet" href="assets/css/styles.css?v=165133fe9b"/>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -40,6 +40,22 @@
       </a>
       <span class="header-credit"></span>
     </div>
+    <!-- Phones only (styles.css 768px block): the footer's links, since the
+         footer is hidden at that width. Keep in sync with .site-footer-nav. -->
+    <details class="content-menu">
+      <summary class="mobile-more-button" aria-label="Site menu" title="Site menu">
+        <svg class="content-menu-icon" viewBox="0 0 20 16" aria-hidden="true" focusable="false"><rect y="0" width="20" height="2.4" rx="1.2"/><rect y="6.8" width="20" height="2.4" rx="1.2"/><rect y="13.6" width="20" height="2.4" rx="1.2"/></svg>
+      </summary>
+      <nav class="mobile-more-menu" aria-label="Site menu">
+        <a class="mobile-more-item" href="index.html">Home</a>
+        <a class="mobile-more-item" href="about.html">About</a>
+        <a class="mobile-more-item" href="for-libraries.html">For Libraries</a>
+        <a class="mobile-more-item" href="extension.html">Helper</a>
+        <a class="mobile-more-item" href="privacy.html">Privacy</a>
+        <a class="mobile-more-item" href="terms.html" aria-current="page">Terms</a>
+        <a class="mobile-more-item" href="contact.html">Contact</a>
+      </nav>
+    </details>
   </nav>
 
   <main class="content-main">
