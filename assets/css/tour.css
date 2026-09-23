@@ -409,3 +409,15 @@ body.tour-active #speechBubble {
   background: #fff;
   color: var(--primary-color, #5c6bc0);
 }
+
+/* Phones (the tool's 768px phone layout): the panel spans the width and
+   positionPanel() in tour.js docks it to the top or bottom edge, away from
+   the spotlighted target, since there is no room to sit beside it. */
+@media (max-width: 768px) {
+  .tour-panel {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+  }
+}

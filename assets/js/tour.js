@@ -57,6 +57,8 @@
         {
           target: '#folio-scene',
           text: "Welcome to Booklister! I'm Folio. Let me show you around. Don't worry if you have a booklist loaded, it'll be saved and restored when the tour ends.\n\nTip: Use the left and right arrow keys to navigate.",
+          phoneTarget: null,
+          phoneText: "Welcome to Booklister! I'm Folio. Let me show you around. Don't worry if you have a booklist loaded, it'll be saved and restored when the tour ends.\n\nTap Next to keep going.",
           state: 'greeting',
           padding: 4,
           prepare: function() {
@@ -74,6 +76,8 @@
         {
           target: '.sidebar',
           text: "The sidebar is your workspace. The Search tab finds books, and the Text Styling, Front Cover, and Back Cover tabs customize everything.",
+          phoneTarget: '#mobile-view-switch',
+          phoneText: "On a phone, Booklister has two views, and this bar switches between them. Edit holds the Search, Text Styling, Front Cover, and Back Cover tabs. Preview shows the booklist itself.",
           state: 'evaluating',
           prepare: function() {
             const sidebar = document.querySelector('.sidebar');
@@ -86,6 +90,7 @@
         {
           target: '.header-actions',
           text: "Up here you can Load a saved list, Save your work, and Generate PDF when everything looks right. Reset on the left clears the list and gives you a clean slate.",
+          phoneText: "Up here, Generate PDF makes your printable booklist when everything looks right. The More menu beside it holds Save, Load, and Reset, which clears the list for a clean slate.",
           state: 'idle',
           padding: 6,
         },
@@ -188,6 +193,7 @@
         {
           target: '#print-page-2',
           text: "Now let me load a sample Discworld booklist so you can see what a full list looks like. Don't worry, your own list is saved and will come back when the tour ends. Each entry shows the cover, title, author, and description. You can type directly into these fields to edit anything.",
+          phoneText: "Now let me load a sample Discworld booklist so you can see what a full list looks like. Don't worry, your own list is saved and will come back when the tour ends. Each entry shows the cover, title, author, and description. Tap any title to edit it.",
           state: 'excited',
           prepare: function() {
             BooklistApp.applyState(TOUR_SAMPLE_STATE, { silent: true });
@@ -198,6 +204,9 @@
         {
           target: '#inside-left-panel .list-item:first-child .star-button',
           text: "The star icon marks a book for the front cover collage. Star at least 12 books if you want to create one. This sample list already has 12 starred.",
+          phoneSheet: true,
+          phoneTarget: '#book-edit-star-btn',
+          phoneText: "Tapping a title opens this editor. Star for cover marks the title for the front cover collage. Star at least 12 if you want to create one. This sample list already has 12 starred.",
           state: 'evaluating',
           prepare: function() {
             scrollPreviewTo('print-page-2');
@@ -206,6 +215,9 @@
         {
           target: '#inside-left-panel .list-item:first-child .drag-handle',
           text: "Drag this handle to reorder books on your list. Or type a new number in the position field to jump a book to a specific spot.",
+          phoneSheet: true,
+          phoneTarget: '.book-edit-move',
+          phoneText: "Up and Down move a title one spot at a time. The number between them shows where it sits on your list.",
           state: 'idle',
           prepare: function() {
             scrollPreviewTo('print-page-2');
@@ -214,6 +226,9 @@
         {
           target: '#inside-left-panel .list-item:first-child .magic-button',
           text: "The magic wand drafts a description for you. Shift+click the wand to paste your own summary for the drafter to condense. You can always edit a draft or write your own from scratch.",
+          phoneSheet: true,
+          phoneTarget: '#book-edit-draft-btn',
+          phoneText: "Draft description writes a first draft of the blurb for you. You can always edit a draft or write your own from scratch.",
           state: 'evaluating',
           // Drafter-enabled half of the pair described at drafterEnabled().
           // The magic button isn't rendered without it, so this step would
@@ -226,6 +241,9 @@
         {
           target: '#inside-left-panel .list-item:first-child .description-field',
           text: "The description is the blurb your patrons actually read. Click in and write your own, or paste one in from your catalog: the formatting gets stripped automatically, so pasted text always matches the rest of your list.",
+          phoneSheet: true,
+          phoneTarget: '#book-edit-description',
+          phoneText: "The description is the blurb your patrons actually read. Write your own here, or paste one in from your catalog.",
           state: 'evaluating',
           // No-drafter half of the pair. Same slot, same subject (getting
           // description text in), minus the AI.
@@ -237,6 +255,7 @@
         {
           target: '#inside-left-panel .list-item:first-child .cover-uploader',
           text: "Click the cover image to upload your own. Handy when the search didn't find the right edition or you want a custom look.",
+          phoneText: "Tap a cover image to upload your own. Handy when the search didn't find the right edition or you want a custom look.",
           state: 'idle',
           prepare: function() {
             scrollPreviewTo('print-page-2');
@@ -245,6 +264,9 @@
         {
           target: '#inside-left-panel .list-item:first-child .delete-button',
           text: "The X button removes a book and frees up that slot. Don't worry, you can always search and add another.",
+          phoneSheet: true,
+          phoneTarget: '#book-edit-delete-btn',
+          phoneText: "Delete removes a title and frees up its slot. It asks for a second tap first, and you can always search and add another.",
           state: 'worried',
           prepare: function() {
             scrollPreviewTo('print-page-2');
@@ -470,7 +492,8 @@
           // button a comfortable halo.
           target: '#folio-toggle',
           text: "That's it! You're all set to make some great booklists. I'll be down here in the corner keeping an eye on things. Click the cat button up here in the header to hide or show me anytime.",
-          phoneText: "That's it! You're all set to make some great booklists. I'll be down here in the corner keeping an eye on things. Open the More menu up here to hide or show me anytime.",
+          phoneTarget: null,
+          phoneText: "That's it! You're all set to make some great booklists. On a computer, I keep you company in the corner of the screen, so come find me there.",
           state: 'greeting',
           padding: 8,
           prepare: function() {
@@ -1347,6 +1370,12 @@
   }
 
   function resolveStepTarget(step) {
+    // A step's phoneTarget replaces its target on phones; null means "no
+    // spotlight, center the panel" (step 1, whose floating Folio phones
+    // never show).
+    if (isPhoneLayout() && step.phoneTarget !== undefined) {
+      return step.phoneTarget ? document.querySelector(step.phoneTarget) : null;
+    }
     const target = step.target ? document.querySelector(step.target) : null;
     if (target && isPhoneLayout() && target.closest('.header-actions')
         && !target.getClientRects().length) {
@@ -1383,6 +1412,15 @@
         showCurrentStep();
       }
       return;
+    }
+
+    // Phones: the Your Booklist steps marked phoneSheet show the tap-to-edit
+    // sheet for the first sample title (it replaces the per-title controls
+    // there); every other step closes it. Nothing is saved: the sheet only
+    // writes on its Save button, and the tour suppresses undo anyway.
+    if (isPhoneLayout()) {
+      if (step.phoneSheet) BooklistApp.openBookEditSheetAt(0);
+      else BooklistApp.closeBookEditSheet();
     }
 
     // Run prepare if defined
@@ -1555,6 +1593,9 @@
     spotlight.classList.remove('visible');
     panel.classList.remove('visible');
 
+    // A phone step may have left the edit sheet open over the sample list.
+    if (BooklistApp.closeBookEditSheet) BooklistApp.closeBookEditSheet();
+
     // Restore the user's full pre-tour state (books, settings, undo history)
     await BooklistApp.exitTourMode();
 
@@ -1609,6 +1650,24 @@
   }
 
   function positionPanel(target) {
+    // Phones: the panel is full width (tour.css), so beside-the-target
+    // placement has no room. Dock it to the top or bottom edge, whichever
+    // half the target is NOT in, clear of the header (52px) and the
+    // Edit/Preview bar (56px + safe area) so neither is covered.
+    if (isPhoneLayout()) {
+      const h = panel.offsetHeight || 180;
+      const vh = window.innerHeight;
+      const bar = document.getElementById('mobile-view-switch');
+      const barH = bar ? bar.getBoundingClientRect().height : 56;
+      const r = target ? target.getBoundingClientRect() : null;
+      const targetInBottomHalf = r && (r.top + r.bottom) / 2 > vh / 2;
+      panel.style.left = '';
+      panel.style.top = (targetInBottomHalf
+        ? 60
+        : Math.max(60, vh - barH - h - 8)) + 'px';
+      return;
+    }
+
     // Determine best position for narration panel
     const panelWidth = 340;
     const panelHeight = panel.offsetHeight || 180;

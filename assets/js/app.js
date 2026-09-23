@@ -10714,6 +10714,10 @@ const BooklistApp = (function() {
     resetZoom, // For tour: reset zoom before spotlight positioning
     fitToWidth, // For tour: fit preview to content width on small screens
     showMobileViewFor, // For tour: on phones, show the view holding a step's target
+    openBookEditSheetAt(index) { // For tour: phone steps show the edit sheet
+      if (myBooklist[index]) openBookEditSheet(myBooklist[index]);
+    },
+    closeBookEditSheet, // For tour: close it again (and on exit)
     enterTourMode, // For tour: save state + blank the app
     exitTourMode,  // For tour: restore pre-tour state
     applyState,    // For tour: load sample booklist during tour
