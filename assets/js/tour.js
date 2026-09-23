@@ -444,12 +444,14 @@
         {
           target: '#save-list-button',
           text: "Save your work anytime as a .booklist file. It captures everything: books, covers, settings, styling. You can pick it back up later. If you see a blinking white dot on this button, that means you have unsaved changes, so make sure to save often!",
+          phoneText: "Save your work anytime as a .booklist file from this More menu. It captures everything: books, covers, settings, styling. You can pick it back up later, on this phone or on a computer.",
           state: 'idle',
           padding: 6,
         },
         {
           target: '#load-list-button',
           text: "Load a previously saved .booklist file to continue editing or create a new version from an existing list.",
+          phoneText: "Load saved list, also in the More menu, opens a .booklist file to continue editing or create a new version from an existing list.",
           state: 'idle',
           padding: 6,
         },
@@ -468,6 +470,7 @@
           // button a comfortable halo.
           target: '#folio-toggle',
           text: "That's it! You're all set to make some great booklists. I'll be down here in the corner keeping an eye on things. Click the cat button up here in the header to hide or show me anytime.",
+          phoneText: "That's it! You're all set to make some great booklists. I'll be down here in the corner keeping an eye on things. Open the More menu up here to hide or show me anytime.",
           state: 'greeting',
           padding: 8,
           prepare: function() {
@@ -1331,6 +1334,28 @@
     panel.classList.add('visible', 'tour-panel-loading');
   }
 
+  // On phones (max-width 768px) the header shows only Generate PDF and a
+  // More button; Save, Load, the Folio toggle and friends move into the
+  // More menu (initMobileChrome in app.js). A step aimed at one of those
+  // hidden header controls spotlights the More button instead, and reads
+  // its phoneText if it has one. Desktop resolves exactly as before.
+  function isPhoneLayout() {
+    return !!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+  }
+
+  function resolveStepTarget(step) {
+    const target = step.target ? document.querySelector(step.target) : null;
+    if (target && isPhoneLayout() && target.closest('.header-actions')
+        && !target.getClientRects().length) {
+      return document.getElementById('mobile-more-button') || target;
+    }
+    return target;
+  }
+
+  function stepText(step) {
+    return (step.phoneText && isPhoneLayout()) ? step.phoneText : step.text;
+  }
+
   function showCurrentStep() {
     const section = SECTIONS[currentSectionId];
     const step = section.steps[currentStepIndex];
@@ -1398,7 +1423,19 @@
       // hid, and the deferred counter update below would render "1 / 0"
       // because currentSectionId is now null (totalSteps returns 0).
       if (!currentSectionId) return;
-      const target = step.target ? document.querySelector(step.target) : null;
+      const target = resolveStepTarget(step);
+
+      // Phones show the controls and the preview as separate full-height
+      // views; bring up the one holding this step's target before it is
+      // scrolled to and measured for the spotlight. No-op on desktop.
+      if (target && BooklistApp.showMobileViewFor) {
+        BooklistApp.showMobileViewFor(target);
+        // The narrow preview can leave a target below the fold even when
+        // a prepare hook ran; 'nearest' is a no-op when it's already in view.
+        if (isPhoneLayout() && step.prepare) {
+          target.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+        }
+      }
 
       // Folio state
       if (window.folio) {
@@ -1442,7 +1479,7 @@
         const nextBtn = panel.querySelector('.tour-next-btn');
 
         sectionLabel.textContent = section.title;
-        message.textContent = step.text;
+        message.textContent = stepText(step);
 
         const gIdx = globalStepIndex();
         const total = totalSteps();
@@ -1632,7 +1669,7 @@
       if (!currentSectionId) return;
       const section = SECTIONS[currentSectionId];
       const step = section.steps[currentStepIndex];
-      const target = step.target ? document.querySelector(step.target) : null;
+      const target = resolveStepTarget(step);
       positionSpotlight(target, step.padding);
       positionPanel(target);
     });

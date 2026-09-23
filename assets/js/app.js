@@ -1646,6 +1646,7 @@ const BooklistApp = (function() {
     updateBackCoverVisibility();
     updateTitleCaseButtonsState();
     updateBylineButtonsState();
+    updateMobileViewCount();
 
     // Restore scroll position after DOM rebuild
     if (scrollContainer) scrollContainer.scrollTop = prevScrollTop;
@@ -10012,6 +10013,147 @@ const BooklistApp = (function() {
     return !!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
   }
 
+  // ---------------------------------------------------------------------------
+  // Phone chrome: Edit / Preview views and the header's More menu
+  //
+  // At max-width 768px the desktop's side-by-side sidebar and preview
+  // become two full-height views, switched by #mobile-view-switch. The
+  // choice lives on body[data-mobile-view] and the CSS in the 768px block
+  // does the showing and hiding; neither view is ever display: none (see
+  // the comment there), so this only has to track the choice and keep the
+  // covered view inert. Above 768px nothing here has any visible effect.
+  // ---------------------------------------------------------------------------
+
+  // Set once the user picks a view themselves, so the post-restore
+  // default below never overrides a choice already made.
+  let _mobileViewChosenByUser = false;
+
+  function setMobileView(view) {
+    if (view !== 'edit' && view !== 'preview') return;
+    document.body.dataset.mobileView = view;
+    document.querySelectorAll('.mobile-view-btn').forEach((btn) => {
+      btn.setAttribute('aria-pressed', String(btn.dataset.view === view));
+    });
+    applyMobileViewInert();
+  }
+
+  // The covered view stays laid out, so without inert its controls would
+  // still be reachable by Tab and read by screen readers.
+  function applyMobileViewInert() {
+    const sidebar = document.querySelector('.sidebar');
+    const main = document.querySelector('.main-content');
+    const mobile = isMobileLayout();
+    const view = document.body.dataset.mobileView;
+    if (sidebar) sidebar.inert = mobile && view !== 'edit';
+    if (main) main.inert = mobile && view !== 'preview';
+  }
+
+  /** For the tour: show whichever view contains `el` (phones only). */
+  function showMobileViewFor(el) {
+    if (!el || !isMobileLayout()) return;
+    const sidebar = document.querySelector('.sidebar');
+    setMobileView(sidebar && sidebar.contains(el) ? 'edit' : 'preview');
+  }
+
+  /** Title count on the Preview button, so an add made from the Edit view
+   *  visibly lands somewhere. Called from renderBooklist. */
+  function updateMobileViewCount() {
+    const badge = document.getElementById('mobile-view-count');
+    const btn = document.querySelector('.mobile-view-btn[data-view="preview"]');
+    if (!badge || !btn) return;
+    const count = myBooklist.filter(b => !b.isBlank).length;
+    badge.textContent = String(count);
+    badge.hidden = count === 0;
+    btn.setAttribute('aria-label', count
+      ? `Preview (${count} title${count === 1 ? '' : 's'})`
+      : 'Preview');
+  }
+
+  // Header controls the phone header hides, in menu order. Each menu item
+  // is a proxy that clicks the real control, so no handler is duplicated,
+  // and one that is absent or [hidden] (sign-out and the admin link only
+  // exist on branded instances) is left out.
+  const MOBILE_MENU_CONTROLS = [
+    { id: 'folio-toggle', icon: 'fa-cat',
+      label: (el) => (el.getAttribute('aria-pressed') === 'true' ? 'Hide Folio' : 'Show Folio') },
+    { id: 'tour-button', icon: 'fa-circle-question', label: () => 'Guided tour' },
+    { id: 'save-list-button', icon: 'fa-download', label: () => 'Save list' },
+    { id: 'load-list-button', icon: 'fa-upload', label: () => 'Load saved list' },
+    { id: 'reset-blank-button', icon: 'fa-rotate-right', label: () => 'Reset to blank' },
+    { id: 'library-admin-link', icon: 'fa-user-gear', label: (el) => el.textContent.trim() || 'Admin' },
+    { id: 'auth-signout-button', icon: 'fa-right-from-bracket', label: () => 'Sign out' },
+  ];
+
+  function buildMobileMoreMenu(menu, close) {
+    menu.textContent = '';
+    MOBILE_MENU_CONTROLS.forEach(({ id, icon, label }) => {
+      const target = document.getElementById(id);
+      if (!target || target.hidden) return;
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'mobile-more-item';
+      item.innerHTML = `<i class="fa-solid ${icon}" aria-hidden="true"></i>`;
+      item.append(document.createTextNode(label(target)));
+      item.addEventListener('click', () => {
+        close(false);
+        target.click();
+      });
+      menu.appendChild(item);
+    });
+    // The tool page's footer is hidden on phones; its links live here.
+    const links = document.querySelectorAll('.site-footer-nav a');
+    if (links.length) {
+      const divider = document.createElement('div');
+      divider.className = 'mobile-more-divider';
+      menu.appendChild(divider);
+      links.forEach((a) => {
+        const link = a.cloneNode(true);
+        link.className = 'mobile-more-item';
+        menu.appendChild(link);
+      });
+    }
+  }
+
+  function initMobileChrome() {
+    document.querySelectorAll('.mobile-view-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        _mobileViewChosenByUser = true;
+        setMobileView(btn.dataset.view);
+      });
+    });
+    if (window.matchMedia) {
+      window.matchMedia('(max-width: 768px)').addEventListener('change', applyMobileViewInert);
+    }
+    applyMobileViewInert();
+
+    const moreBtn = document.getElementById('mobile-more-button');
+    const menu = document.getElementById('mobile-more-menu');
+    if (!moreBtn || !menu) return;
+    const close = (returnFocus) => {
+      if (menu.hidden) return;
+      menu.hidden = true;
+      moreBtn.setAttribute('aria-expanded', 'false');
+      if (returnFocus) moreBtn.focus();
+    };
+    moreBtn.addEventListener('click', () => {
+      if (!menu.hidden) { close(false); return; }
+      // Rebuilt on every open so labels (Show/Hide Folio) and branded-only
+      // items reflect the current state.
+      buildMobileMoreMenu(menu, close);
+      menu.hidden = false;
+      moreBtn.setAttribute('aria-expanded', 'true');
+      const first = menu.querySelector('.mobile-more-item');
+      if (first) first.focus();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !menu.hidden) close(true);
+    });
+    document.addEventListener('pointerdown', (e) => {
+      if (!menu.hidden && !menu.contains(e.target) && !moreBtn.contains(e.target)) close(false);
+    });
+    window.addEventListener('resize', () => { if (!isMobileLayout()) close(false); });
+  }
+
   // On phone-sized layouts the 11in-wide preview would load at 100%
   // zoom showing only its top-left corner, so fit it to the screen
   // width once at startup. Re-fits on viewport changes (orientation
@@ -10240,6 +10382,7 @@ const BooklistApp = (function() {
     initZoomControls();
     initUndoRedoControls();
     initMobileAutoFit();
+    initMobileChrome();
 
     // Sync the style panels to the checkbox's shipped default (checked:
     // per-line styling); also syncs the per-line group labels with the
@@ -10286,7 +10429,15 @@ const BooklistApp = (function() {
     // settles so the blank init render can't clobber the saved draft.
     recoverTourBackupIfPresent()
       .then(() => restoreDraftLocalIfPresent())
-      .finally(() => { _initialRestorePending = false; });
+      .finally(() => {
+        _initialRestorePending = false;
+        // Phones open on Edit (search is where a list begins) unless a
+        // restored draft already has titles to look at. A view the user
+        // picked while the restore was running wins.
+        if (!_mobileViewChosenByUser && myBooklist.some(b => !b.isBlank)) {
+          setMobileView('preview');
+        }
+      });
 
     // Folio: context provider. Gives folio.js read-only access to live
     // booklist facts (for context-aware quips) without the IIFE layers
@@ -10393,6 +10544,7 @@ const BooklistApp = (function() {
     updateBackCoverVisibility, // For tour: visual-only toggle update (no data trim)
     resetZoom, // For tour: reset zoom before spotlight positioning
     fitToWidth, // For tour: fit preview to content width on small screens
+    showMobileViewFor, // For tour: on phones, show the view holding a step's target
     enterTourMode, // For tour: save state + blank the app
     exitTourMode,  // For tour: restore pre-tour state
     applyState,    // For tour: load sample booklist during tour

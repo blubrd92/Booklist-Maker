@@ -2182,9 +2182,9 @@ body:has(.sidebar.collapsed) .folio-container {
      button sizing there without needing extra specificity.
    - .folio-container: the desktop left: 340px anchor would push the
      summoned cat off the right edge of a phone, so pin it left: 8px.
-     Keep it lifted (bottom: 148px) so the summoned cat clears the
-     expanded zoom bar in the bottom-right (~84px offset + ~54px bar
-     height + gap) on the chance both are open at once.
+     Keep it lifted above the Edit/Preview bar and the expanded zoom
+     bar that sits on it (~64px offset + ~54px bar height + gap) on the
+     chance both are open at once.
    Appended last so these overrides win without disturbing the cascade.
    ============================================================================= */
 @media (max-width: 768px) {
@@ -2195,7 +2195,8 @@ body:has(.sidebar.collapsed) .folio-container {
   }
   .folio-container {
     left: 8px;
-    bottom: 148px;
+    /* Edit/Preview bar (56px + safe area) + the zoom bar (54px) + gaps. */
+    bottom: calc(128px + env(safe-area-inset-bottom, 0px));
   }
 }
 
