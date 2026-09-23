@@ -1228,8 +1228,11 @@
 
     // Ensure Folio is visible (class-only; don't touch localStorage
     // so the user's saved preference survives the tour)
+    // Not on phones: the floating cat stays off there (folio.js initToggle)
+    // and he narrates from the tour panel's avatar instead.
     const container = document.getElementById('folio-container');
-    if (container) {
+    preTourFolioHidden = false;
+    if (container && !isPhoneLayout()) {
       preTourFolioHidden = container.classList.contains('folio-hidden');
       if (preTourFolioHidden) {
         container.classList.remove('folio-hidden');

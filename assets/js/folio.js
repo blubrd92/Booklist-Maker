@@ -1301,7 +1301,17 @@
     // (it used to render visible, then vanish at DOMContentLoaded).
     // We therefore REMOVE the class for opted-in visitors instead of
     // adding it for everyone else.
-    const shown = localStorage.getItem('folio-hidden') === 'false';
+    //
+    // Phones (the tool's 768px phone layout) never show the floating cat,
+    // whatever the saved preference: at that width he covered the corner
+    // of whichever view was open and caught taps there, and his one-line
+    // bubble ran off the left edge. Keeping .folio-hidden (rather than
+    // hiding him with CSS) keeps "hidden = actually off": no bubbles, no
+    // aria-live, no sleep clock. The preference itself is left alone, so
+    // the same browser at desktop width still honors it (after a reload).
+    // The guided tour still narrates as Folio from its panel's avatar.
+    const isPhone = !!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+    const shown = !isPhone && localStorage.getItem('folio-hidden') === 'false';
     if (shown) folioContainer.classList.remove('folio-hidden');
     // Reflect the initial shown/hidden state on the header toggle so its
     // pressed styling (filled when Folio is on) and a11y state are right

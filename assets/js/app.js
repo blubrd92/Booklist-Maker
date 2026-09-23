@@ -10216,8 +10216,8 @@ const BooklistApp = (function() {
   // and one that is absent or [hidden] (sign-out and the admin link only
   // exist on branded instances) is left out.
   const MOBILE_MENU_CONTROLS = [
-    { id: 'folio-toggle', icon: 'fa-cat',
-      label: (el) => (el.getAttribute('aria-pressed') === 'true' ? 'Hide Folio' : 'Show Folio') },
+    // No Folio toggle: phones never show the floating cat (initToggle in
+    // folio.js), so a Show Folio item would do nothing visible.
     { id: 'tour-button', icon: 'fa-circle-question', label: () => 'Guided tour' },
     { id: 'save-list-button', icon: 'fa-download', label: () => 'Save list' },
     { id: 'load-list-button', icon: 'fa-upload', label: () => 'Load saved list' },
@@ -10629,6 +10629,9 @@ const BooklistApp = (function() {
     // greeting from folio.js, not catch the tail of this one.
     let folioShown = false;
     try { folioShown = localStorage.getItem('folio-hidden') === 'false'; } catch { /* private browsing */ }
+    // Phones never show the floating cat (folio.js initToggle), so no
+    // invisible greeting there either.
+    if (isMobileLayout()) folioShown = false;
     if (window.folio && folioShown) {
       window.folio.guard(3500);
       let hasDraft = false;
