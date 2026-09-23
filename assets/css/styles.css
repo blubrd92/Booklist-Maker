@@ -1234,12 +1234,12 @@ input[type="color"]:hover {
   padding: 8px 0 0;
   border-top: 1px solid var(--border-color);
 }
-/* The cover disclosure belongs to the text box above it, so its divider
-   goes underneath instead, separating it from Create Cover. */
+/* No divider on the cover disclosure: the text box above, the disclosure
+   and Create Cover below read as one block, since the button makes the
+   cover from that text. Spacing alone separates them. */
 #cover-case-group {
   padding: 0 0 8px;
   border-top: none;
-  border-bottom: 1px solid var(--border-color);
 }
 #title-case-group > summary,
 #cover-case-group > summary,
