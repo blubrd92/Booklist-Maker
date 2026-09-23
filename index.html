@@ -83,7 +83,7 @@
        './firebase-init.js', and a tag URL that differed would load it as a
        second module and run Firebase setup twice. -->
   <link rel="stylesheet" href="assets/css/styles.css?v=67784b908f"/>
-  <link rel="stylesheet" href="assets/css/folio.css?v=d3d514b120"/>
+  <link rel="stylesheet" href="assets/css/folio.css?v=5fbee5b36f"/>
   <link rel="stylesheet" href="assets/css/tour.css?v=3cea4ef36c"/>
   <link rel="stylesheet" href="assets/css/auth.css?v=44acf04de2"/>
   <link rel="stylesheet" href="assets/css/preview-helper.css?v=9b7e64fc67"/>
@@ -1189,35 +1189,31 @@
         </g>
         <!-- Tail -->
         <g id="tail">
-          <path class="fur-orange" d="M 130 420 Q 110 420 95 350 Q 80 260 45 220 Q 30 200 45 185 Q 65 170 80 200 Q 100 240 110 330 Q 120 400 145 410 L 130 420 Z" />
-          <path class="stripe" d="M 75 235 Q 85 230 95 235 L 95 240 Q 85 235 75 240 Z" opacity="0.8"/>
-          <path class="stripe" d="M 80 275 Q 92 270 105 275 L 105 280 Q 92 275 80 280 Z" opacity="0.8"/>
-          <path class="stripe" d="M 90 315 Q 100 310 110 315 L 110 320 Q 100 315 90 320 Z" opacity="0.8"/>
+          <path class="fur-orange" d="M 175 420 Q 155 420 140 350 Q 125 260 90 220 Q 75 200 90 185 Q 110 170 125 200 Q 145 240 155 330 Q 165 400 190 410 L 175 420 Z" />
+          <path class="stripe" d="M 120 235 Q 130 230 140 235 L 140 240 Q 130 235 120 240 Z" opacity="0.8"/>
+          <path class="stripe" d="M 125 275 Q 137 270 150 275 L 150 280 Q 137 275 125 280 Z" opacity="0.8"/>
+          <path class="stripe" d="M 135 315 Q 145 310 155 315 L 155 320 Q 145 315 135 320 Z" opacity="0.8"/>
         </g>
-        <!-- Body -->
+        <!-- Body: an egg narrower than the head, with soft haunches -->
         <g id="body">
-          <path class="fur-orange" d="M 204 270 C 152 296, 122 356, 124 402 C 126 438, 160 446, 250 446 C 340 446, 374 438, 376 402 C 378 356, 348 296, 296 270 Z" />
-          <path class="stripe" d="M 150 334 L 174 339 L 146 349 Z" />
-          <path class="stripe" d="M 136 368 L 160 373 L 134 383 Z" />
-          <path class="stripe" d="M 350 334 L 326 339 L 354 349 Z" />
-          <path class="stripe" d="M 364 368 L 340 373 L 366 383 Z" />
-          <path class="fur-cream no-stroke" d="M 196 285 C 194 330, 214 368, 250 378 C 286 368, 306 330, 304 285 Z" />
+          <path class="fur-orange" d="M 212 278 C 188 298, 172 336, 168 378 C 164 420, 178 446, 250 446 C 322 446, 336 420, 332 378 C 328 336, 312 298, 288 278 Z" />
+          <path class="stripe" d="M 173 342 L 195 347 L 171 356 Z" />
+          <path class="stripe" d="M 168 374 L 190 379 L 167 388 Z" />
+          <path class="stripe" d="M 327 342 L 305 347 L 329 356 Z" />
+          <path class="stripe" d="M 332 374 L 310 379 L 333 388 Z" />
+          <!-- cream chest, visible between the legs -->
+          <path class="fur-cream no-stroke" d="M 218 296 Q 250 400 282 296 Z" />
         </g>
-        <!-- Back Feet -->
-        <g id="back-feet">
-          <path class="fur-cream" d="M 148 434 Q 146 446 158 446 L 192 446 Q 198 440 192 432 Q 170 427 148 434 Z" />
-          <path class="outline-only" d="M 164 438 L 164 446 M 178 437 L 178 446" stroke-width="2" />
-          <path class="fur-cream" d="M 352 434 Q 354 446 342 446 L 308 446 Q 302 440 308 432 Q 330 427 352 434 Z" />
-          <path class="outline-only" d="M 336 438 L 336 446 M 322 437 L 322 446" stroke-width="2" />
-        </g>
-        <!-- Front Legs -->
+        <!-- Back Feet: none; the haunches round down to the shelf -->
+        <g id="back-feet"></g>
+        <!-- Front Legs: long and slim, from the chest down -->
         <g id="front-legs">
-          <path class="fur-orange" d="M 212 360 L 212 445 L 240 445 L 240 360" fill-rule="evenodd" />
-          <path class="fur-orange" d="M 288 360 L 288 445 L 260 445 L 260 360" fill-rule="evenodd" />
-          <path class="fur-cream" d="M 211 432 Q 211 446 219 446 L 234 446 Q 241 446 241 432 Q 226 427 211 432 Z" />
-          <path class="fur-cream" d="M 289 432 Q 289 446 281 446 L 266 446 Q 259 446 259 432 Q 274 427 289 432 Z" />
-          <path class="outline-only" d="M 226 437 L 226 445" stroke-width="2" />
-          <path class="outline-only" d="M 274 437 L 274 445" stroke-width="2" />
+          <path class="fur-orange" d="M 216 318 L 216 445 L 241 445 L 241 318" fill-rule="evenodd" />
+          <path class="fur-orange" d="M 284 318 L 284 445 L 259 445 L 259 318" fill-rule="evenodd" />
+          <path class="fur-cream" d="M 215 433 Q 215 446 222 446 L 236 446 Q 242 446 242 433 Q 228 428 215 433 Z" />
+          <path class="fur-cream" d="M 285 433 Q 285 446 278 446 L 264 446 Q 258 446 258 433 Q 272 428 285 433 Z" />
+          <path class="outline-only" d="M 228 438 L 228 445" stroke-width="2" />
+          <path class="outline-only" d="M 272 438 L 272 445" stroke-width="2" />
         </g>
         <!-- Head -->
         <g id="head-group">
@@ -1313,7 +1309,7 @@
   <script src="assets/js/config.js?v=24581d169c"></script>
   <script src="assets/js/book-utils.js?v=ba48744b32"></script>
   <script src="assets/js/app.js?v=22cb2c575c"></script>
-  <script src="assets/js/folio.js?v=aa8e44080b"></script>
+  <script src="assets/js/folio.js?v=63895dd188"></script>
   <script src="assets/js/tour.js?v=3af3f0da57"></script>
   <script src="assets/js/preview-helper.js?v=7c1be5e5c1"></script>
 

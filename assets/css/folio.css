@@ -153,7 +153,7 @@ body:has(.sidebar.collapsed) .folio-container {
 
   /* Transform origins for each part */
   #tail {
-    transform-origin: 130px 420px;
+    transform-origin: 175px 420px;
     /* Snap-back: when leaving sleep, the tail springs up fast.
        This transition only fires on state change (class swap).
        During animation, the animation property overrides this. */
@@ -774,7 +774,7 @@ body:has(.sidebar.collapsed) .folio-container {
      The base #tail transition (0.3s overshoot) snaps it back. */
 
   #folio.tail-droop #tail {
-    transform: rotate(-70deg);
+    transform: rotate(-56deg);
     transition: transform 2.5s cubic-bezier(0.37,0,0.63,1);
   }
 
@@ -782,16 +782,16 @@ body:has(.sidebar.collapsed) .folio-container {
     animation: sleepTailCurl 8s cubic-bezier(0.37,0,0.63,1) infinite;
   }
   @keyframes sleepTailCurl {
-    0%, 100% { transform: rotate(-70deg); }
-    25%  { transform: rotate(-72deg); }
-    50%  { transform: rotate(-67deg); }
-    75%  { transform: rotate(-71deg); }
+    0%, 100% { transform: rotate(-56deg); }
+    25%  { transform: rotate(-58deg); }
+    50%  { transform: rotate(-53deg); }
+    75%  { transform: rotate(-57deg); }
     /* Dream twitch cluster */
-    82%  { transform: rotate(-70deg); }
-    84%  { transform: rotate(-65deg); }
-    86%  { transform: rotate(-72deg); }
-    88%  { transform: rotate(-66deg); }
-    90%  { transform: rotate(-70deg); }
+    82%  { transform: rotate(-56deg); }
+    84%  { transform: rotate(-51deg); }
+    86%  { transform: rotate(-58deg); }
+    88%  { transform: rotate(-52deg); }
+    90%  { transform: rotate(-56deg); }
   }
 
   /* GLASSES: slipped down, resting on nose.
@@ -1814,7 +1814,7 @@ body:has(.sidebar.collapsed) .folio-container {
     animation: reactStartleTail 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards !important;
   }
   @keyframes reactStartleTail {
-    0%   { transform: rotate(-70deg); }
+    0%   { transform: rotate(-56deg); }
     30%  { transform: rotate(8deg); }
     55%  { transform: rotate(-3deg); }
     75%  { transform: rotate(2deg); }

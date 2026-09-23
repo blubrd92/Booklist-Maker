@@ -1421,11 +1421,25 @@
   const tailStripes = Array.prototype.slice.call(tailPathEls, 1);
 
   // Base (hidden behind the body) to tip, in SVG units. The last three
-  // points are the hook at the top of the tail.
+  // points are the hook at the top of the tail. The base sits inside the
+  // body's left haunch; it must stay covered by the body outline, and the
+  // #tail transform-origin in folio.css must match it.
   const TAIL_REST = [
-    [137, 416], [121, 400], [112, 380], [106, 358], [102, 336], [98, 314],
-    [93, 292], [86, 270], [78, 249], [69, 230], [61, 212], [57, 197], [58, 184],
+    [182, 416], [166, 400], [157, 380], [151, 358], [147, 336], [143, 314],
+    [138, 292], [131, 270], [123, 249], [114, 230], [106, 212], [102, 197], [103, 184],
   ];
+  // Lean the whole resting tail outward, away from the head, by rotating
+  // the fitted spine about its base. Negative is counterclockwise on screen.
+  const TAIL_LEAN_DEG = -14;
+  (function leanTail() {
+    const [bx, by] = TAIL_REST[0];
+    const r = TAIL_LEAN_DEG * Math.PI / 180;
+    const c = Math.cos(r), sn = Math.sin(r);
+    for (let i = 1; i < TAIL_REST.length; i++) {
+      const dx = TAIL_REST[i][0] - bx, dy = TAIL_REST[i][1] - by;
+      TAIL_REST[i] = [bx + dx * c - dy * sn, by + dx * sn + dy * c];
+    }
+  })();
   const TAIL_SEGS = TAIL_REST.length - 1;
   // Where the three fur stripes sit, as fractional spine indices.
   const TAIL_STRIPE_AT = [5.2, 7.2, 9.1];
