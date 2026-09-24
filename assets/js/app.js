@@ -398,6 +398,8 @@ const BooklistApp = (function() {
       collageLayoutSelector: document.getElementById('collage-layout-selector'),
       titleBarPosition: document.getElementById('title-bar-position'),
       tiltedSettings: document.getElementById('tilted-settings'),
+      honeycombSettings: document.getElementById('honeycomb-settings'),
+      honeycombBackdrop: document.getElementById('honeycomb-backdrop'),
       jigsawSettings: document.getElementById('jigsaw-settings'),
       jigsawRecutButton: document.getElementById('jigsaw-recut-button'),
       tiltDegree: document.getElementById('tilt-degree'),
@@ -1503,6 +1505,9 @@ const BooklistApp = (function() {
     }
     if (elements.classicSettings) {
       elements.classicSettings.style.display = selectedLayout === 'classic' ? 'block' : 'none';
+    }
+    if (elements.honeycombSettings) {
+      elements.honeycombSettings.style.display = selectedLayout === 'honeycomb' ? 'block' : 'none';
     }
     if (elements.jigsawSettings) {
       elements.jigsawSettings.style.display = selectedLayout === 'jigsaw' ? 'block' : 'none';
@@ -3157,6 +3162,7 @@ const BooklistApp = (function() {
       tiltOffsetDirection,
       tiltCoverSize,
       jigsawSeed: _jigsawSeed,
+      honeycombBackdrop: elements.honeycombBackdrop?.value || 'soft',
       coverCount: coversToDraw.length
     };
     
@@ -4650,9 +4656,11 @@ const BooklistApp = (function() {
   /**
    * Layout: Honeycomb
    * A comb of hexagons running off every edge. Each cell holds a whole cover,
-   * framed on a softened, darkened wash of itself. Every title gets one whole
-   * cell; every other cell repeats titles in Staggered's rhythm. The title
-   * bar floats at Tilted's heights on a white strip.
+   * framed on a backdrop chosen by options.honeycombBackdrop: 'soft' (default,
+   * a softened, darkened wash of that cover), 'sharp' (the cover itself,
+   * enlarged and lightly darkened) or 'bar' (the title bar's color). Every
+   * title gets one whole cell; every other cell repeats titles in Staggered's
+   * rhythm. The title bar floats at Tilted's heights on a white strip.
    */
   function drawLayoutHoneycomb(ctx, canvas, images, styles, options = {}) {
     const W = canvas.width, H = canvas.height, S = W / 750;
@@ -4660,6 +4668,7 @@ const BooklistApp = (function() {
     const gutter = 6 * (CONFIG.PDF_DPI / 72);
     const margin = styles.outerMarginPx;
     const n = images.length;
+    const backdrop = options.honeycombBackdrop || 'soft';
 
     const { bgH } = drawTitleBarAt(ctx, styles, W, 0);
     ctx.fillStyle = '#FFFFFF';
@@ -4678,9 +4687,14 @@ const BooklistApp = (function() {
         ctx.save();
         hexagonPath(ctx, c.cx, c.cy, ri);
         ctx.clip();
-        drawCoverCropped(ctx, softenedCover(img), bx, by, bw, bh);
-        ctx.fillStyle = 'rgba(12,14,22,0.28)';
-        ctx.fillRect(bx, by, bw, bh);
+        if (backdrop === 'bar') {
+          ctx.fillStyle = styles.bgColor;
+          ctx.fillRect(bx, by, bw, bh);
+        } else {
+          drawCoverCropped(ctx, backdrop === 'sharp' ? img : softenedCover(img), bx, by, bw, bh);
+          ctx.fillStyle = backdrop === 'sharp' ? 'rgba(12,14,22,0.18)' : 'rgba(12,14,22,0.28)';
+          ctx.fillRect(bx, by, bw, bh);
+        }
         // Largest rectangle of the cover's shape whose corners stay inside the hexagon.
         const a = collageImageAspect(img);
         const p = Math.min((SQ3 / 2) * ri, ri / (1 / a + 1 / SQ3)) * 0.95;
@@ -4744,6 +4758,8 @@ const BooklistApp = (function() {
    * and repeats fill the rest in Staggered's rhythm. The title bar is a
    * full-width piece that both neighbouring rows tab into, so it carries equal
    * extra padding above and below its text. options.jigsawSeed fixes the cut.
+   * Covers are drawn whole and the tabs are seams over them, so no tab ever
+   * hides part of a neighbouring cover.
    */
   function drawLayoutJigsaw(ctx, canvas, images, styles, options = {}) {
     const W = canvas.width, H = canvas.height, S = W / 750;
@@ -4791,29 +4807,21 @@ const BooklistApp = (function() {
     BookUtils.cutJigsawSeams(strips, BookUtils.seededRandom((options.jigsawSeed || 1) * 7919 + n * 131), u);
 
     const barStyles = { ...styles, padYPx: styles.padYPx + pad, bgSideMarginPx: 0 };
-    const scratch = document.createElement('canvas');
-    const sctx = scratch.getContext('2d');
-    sctx.imageSmoothingEnabled = true;
-    sctx.imageSmoothingQuality = 'high';
+    // Every cover is drawn whole in its own rectangle, and the puzzle is cut
+    // as seams on top. A tab is an outline over whatever it sits on, so it
+    // shows the neighbouring cover (or the bar) rather than hiding it; filling
+    // tabs from the cover they sprout from painted over the neighbour's
+    // details. The bar's padding keeps the seams clear of its text.
     strips.flatMap((s) => s.pieces).forEach((p) => {
-      ctx.save();
-      jigsawPiecePath(ctx, p, u);
-      ctx.clip();
       if (p.bar) {
         drawTitleBarAt(ctx, barStyles, W, p.y);
-      } else {
-        // Render the cover into its piece, then carry its edge pixels outward
-        // to fill the tabs, rather than inventing art past the cover's edge.
-        scratch.width = Math.max(2, Math.round(p.w));
-        scratch.height = Math.max(2, Math.round(p.h));
-        drawCoverCropped(sctx, p.img, 0, 0, scratch.width, scratch.height);
-        const k = 0.4 * u, ow = scratch.width, oh = scratch.height;
-        ctx.drawImage(scratch, 0, 0, ow, 2, p.x, p.y - k, p.w, k);
-        ctx.drawImage(scratch, 0, oh - 2, ow, 2, p.x, p.y + p.h, p.w, k);
-        ctx.drawImage(scratch, 0, 0, 2, oh, p.x - k, p.y, k, p.h);
-        ctx.drawImage(scratch, ow - 2, 0, 2, oh, p.x + p.w, p.y, k, p.h);
-        ctx.drawImage(scratch, p.x, p.y, p.w, p.h);
+        return;
       }
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(p.x, p.y, p.w, p.h);
+      ctx.clip();
+      drawCoverCropped(ctx, p.img, p.x, p.y, p.w, p.h);
       ctx.restore();
     });
     const pieces = strips.flatMap((s) => s.pieces);
@@ -7545,6 +7553,7 @@ const BooklistApp = (function() {
         tiltOffsetDirection,
         tiltCoverSizePct,
         jigsawSeed: _jigsawSeed,
+        honeycombBackdrop: elements.honeycombBackdrop?.value || 'soft',
         collageCoverCount: getCollageCoverCount(),
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: qrTextContent,
@@ -7817,6 +7826,12 @@ const BooklistApp = (function() {
         ? Math.max(50, Math.min(100, loadedPct))
         : 100;
       elements.tiltCoverSize.value = pct;
+    }
+
+    // Restore what fills each Honeycomb cell behind its cover (older saves: softened).
+    if (elements.honeycombBackdrop) {
+      const backdrop = loaded.ui?.honeycombBackdrop;
+      elements.honeycombBackdrop.value = ['soft', 'sharp', 'bar'].includes(backdrop) ? backdrop : 'soft';
     }
 
     // Restore the Jigsaw cut. Older saves have no seed; 1 is the default cut.
@@ -8548,6 +8563,15 @@ const BooklistApp = (function() {
     if (elements.showShelvesToggle) {
       bindPreChangeCapture(elements.showShelvesToggle, 'change-style');
       elements.showShelvesToggle.addEventListener('change', () => {
+        debouncedSave();
+        autoRegenerateCoverIfAble();
+      });
+    }
+
+    // Honeycomb: what fills each cell behind its cover
+    if (elements.honeycombBackdrop) {
+      bindPreChangeCapture(elements.honeycombBackdrop, 'change-style');
+      elements.honeycombBackdrop.addEventListener('change', () => {
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
@@ -10242,6 +10266,7 @@ const BooklistApp = (function() {
     if (elements.tiltOffsetDirection) elements.tiltOffsetDirection.value = 'vertical';
     if (elements.tiltCoverSize) elements.tiltCoverSize.value = 100;
     _jigsawSeed = 1;
+    if (elements.honeycombBackdrop) elements.honeycombBackdrop.value = 'soft';
     updateTiltedSettingsVisibility();
 
     // Clear front cover and branding images

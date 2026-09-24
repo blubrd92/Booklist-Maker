@@ -2143,18 +2143,19 @@ input[type="color"]:hover {
 }
 
 #collage-layout-selector {
-  /* Three across: six layouts no longer fit one row of the 340px sidebar. */
+  /* Six layouts in one row: the 340px sidebar leaves ~303px inside this
+     box, so tiles share it evenly (~46px each) instead of a fixed 52px. */
   display: grid;
-  grid-template-columns: repeat(3, 52px);
-  gap: 10px;
-  padding: 12px;
-  justify-content: center;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 5px;
+  padding: 10px 6px;
   background: var(--border-light);
   border-radius: var(--radius);
 }
 
 .layout-option {
-  width: 52px;
+  width: auto;
+  min-width: 0;
   height: 68px;
   border: 2px solid var(--border-color);
   border-radius: var(--radius);
@@ -2165,7 +2166,7 @@ input[type="color"]:hover {
   justify-content: center;
   background: white;
   transition: all var(--transition-fast);
-  padding: 4px;
+  padding: 4px 0;
   overflow: hidden;
 }
 
@@ -2197,7 +2198,11 @@ input[type="color"]:hover {
 }
 
 .layout-option-label {
-  font-size: 0.55rem;
+  /* 0.5rem with a hair of tracking taken out is what lets "Honeycomb",
+     the longest label, fit a one-row tile. */
+  font-size: 0.5rem;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
   color: var(--text-light);
   margin-top: 3px;
   text-align: center;
