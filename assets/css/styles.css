@@ -2143,9 +2143,10 @@ input[type="color"]:hover {
 }
 
 #collage-layout-selector {
-  display: flex;
+  /* Three across: six layouts no longer fit one row of the 340px sidebar. */
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
   gap: 10px;
-  flex-wrap: nowrap;
   padding: 12px;
   justify-content: center;
   background: var(--border-light);

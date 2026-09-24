@@ -61,6 +61,7 @@ const BooklistApp = (function() {
   const DRAFTER_CONSOLE_KEY_STORAGE = 'booklister.drafterConsoleKey';
 
   let _collageGenId = 0;     // Generation counter to discard stale async collage results
+  let _jigsawSeed = 1;        // Jigsaw's cut: Recut bumps it, and it is saved so a list keeps its puzzle
   let _collageRegenPromise = null; // Resolves when the in-flight generateCoverCollage() settles (null when idle). Lets undo/redo await a render that's still catching up to the latest setting — see flushCollageRegen.
   // Pre-edit snapshot used by style inputs (color pickers, font selects, size
   // inputs, etc.) where the DOM value is mutated by the browser BEFORE the
@@ -397,6 +398,8 @@ const BooklistApp = (function() {
       collageLayoutSelector: document.getElementById('collage-layout-selector'),
       titleBarPosition: document.getElementById('title-bar-position'),
       tiltedSettings: document.getElementById('tilted-settings'),
+      jigsawSettings: document.getElementById('jigsaw-settings'),
+      jigsawRecutButton: document.getElementById('jigsaw-recut-button'),
       tiltDegree: document.getElementById('tilt-degree'),
       tiltOffsetDirection: document.getElementById('tilt-offset-direction'),
       tiltCoverSize: document.getElementById('tilt-cover-size'),
@@ -1501,18 +1504,27 @@ const BooklistApp = (function() {
     if (elements.classicSettings) {
       elements.classicSettings.style.display = selectedLayout === 'classic' ? 'block' : 'none';
     }
+    if (elements.jigsawSettings) {
+      elements.jigsawSettings.style.display = selectedLayout === 'jigsaw' ? 'block' : 'none';
+    }
     
-    // Handle masonry layout: disable stretch toggle and show hint
+    // Layouts that always keep each cover's proportions: disable the stretch
+    // toggle and say why. (The hint element keeps its masonry-era id.)
     const stretchToggle = elements.stretchCoversToggle;
     const masonryHint = document.getElementById('masonry-stretch-hint');
+    const naturalProportionHints = {
+      masonry: 'Masonry uses actual cover proportions',
+      honeycomb: 'Honeycomb shows every cover whole, in its own proportions',
+      jigsaw: 'Jigsaw uses actual cover proportions',
+    };
     
-    if (selectedLayout === 'masonry') {
-      // Disable stretch toggle for masonry (it always uses natural proportions)
+    if (naturalProportionHints[selectedLayout]) {
       if (stretchToggle) {
         stretchToggle.disabled = true;
         stretchToggle.parentElement?.classList.add('disabled');
       }
       if (masonryHint) {
+        masonryHint.textContent = naturalProportionHints[selectedLayout];
         masonryHint.style.display = 'block';
       }
     } else {
@@ -1529,7 +1541,8 @@ const BooklistApp = (function() {
     // Disable outer margin for layouts that set their own title bar margins
     const outerMarginInput = document.getElementById('cover-title-outer-margin');
     const outerMarginLabel = outerMarginInput?.previousElementSibling;
-    const layoutsWithFixedMargin = ['masonry', 'tilted', 'staggered'];
+    // Jigsaw's bar padding is set by its tabs, so the margin has nothing to do there.
+    const layoutsWithFixedMargin = ['masonry', 'tilted', 'staggered', 'jigsaw'];
     
     if (outerMarginInput) {
       if (layoutsWithFixedMargin.includes(selectedLayout)) {
@@ -3143,6 +3156,7 @@ const BooklistApp = (function() {
       tiltDegree,
       tiltOffsetDirection,
       tiltCoverSize,
+      jigsawSeed: _jigsawSeed,
       coverCount: coversToDraw.length
     };
     
@@ -3184,6 +3198,12 @@ const BooklistApp = (function() {
           break;
         case 'tilted':
           drawLayoutTilted(ctx, canvas, images, styles, shouldStretchCovers, layoutOptions);
+          break;
+        case 'honeycomb':
+          drawLayoutHoneycomb(ctx, canvas, images, styles, layoutOptions);
+          break;
+        case 'jigsaw':
+          drawLayoutJigsaw(ctx, canvas, images, styles, layoutOptions);
           break;
         case 'classic':
         default:
@@ -4562,6 +4582,248 @@ const BooklistApp = (function() {
     
     // Draw title bar on top of white margin
     drawTitleBarAt(ctx, styles, canvasWidth, titleY);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Layouts: Honeycomb and Jigsaw
+  //
+  // Geometry and title dealing live in BookUtils (planHoneycomb,
+  // assignHoneycombTitles, planJigsaw, layoutJigsaw, cutJigsawSeams) where
+  // they are tested; these functions only draw. Both layouts ignore the
+  // Stretch toggle: every cover keeps its own proportions. Stroke widths and
+  // shadow blurs were tuned on a 750px-wide proof, so they scale by
+  // canvas.width / 750 (shadowBlur is in device pixels and does not follow
+  // the transform, which is why it needs the factor explicitly).
+  // ---------------------------------------------------------------------------
+
+  function collageImageAspect(img) {
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    return w > 0 && h > 0 ? w / h : 0.67;
+  }
+
+  // Draws img to cover the box completely, cropping the overflow evenly.
+  function drawCoverCropped(ctx, img, x, y, w, h) {
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    if (!(iw > 0 && ih > 0)) return;
+    const s = Math.max(w / iw, h / ih);
+    ctx.drawImage(img, x + (w - iw * s) / 2, y + (h - ih * s) / 2, iw * s, ih * s);
+  }
+
+  // Same title bar heights as Tilted, for layouts with no rows to split.
+  function floatingTitleBarY(position, barH, canvasHeight) {
+    switch (position) {
+      case 'top': return 0;
+      case 'classic': return (canvasHeight - barH) * 0.25;
+      case 'lower': return (canvasHeight - barH) * 0.75;
+      case 'bottom': return canvasHeight - barH;
+      default: return (canvasHeight - barH) / 2;
+    }
+  }
+
+  function hexagonPath(ctx, cx, cy, r) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 180) * (60 * i - 90);
+      const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+      if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    }
+    ctx.closePath();
+  }
+
+  // A softened copy of a cover, for the Honeycomb backdrop: shrunk to a few
+  // pixels, so scaling it back up blurs it. A plain drawImage, so it needs no
+  // canvas filter support and prints the same everywhere.
+  const _softCoverCache = new WeakMap();
+  function softenedCover(img) {
+    if (_softCoverCache.has(img)) return _softCoverCache.get(img);
+    const a = collageImageAspect(img);
+    const t = document.createElement('canvas');
+    t.width = Math.max(4, Math.round(10 * Math.min(1, a)));
+    t.height = Math.max(4, Math.round(10 / Math.max(1, a)));
+    const tctx = t.getContext('2d');
+    tctx.imageSmoothingQuality = 'high';
+    tctx.drawImage(img, 0, 0, t.width, t.height);
+    _softCoverCache.set(img, t);
+    return t;
+  }
+
+  /**
+   * Layout: Honeycomb
+   * A comb of hexagons running off every edge. Each cell holds a whole cover,
+   * framed on a softened, darkened wash of itself. Every title gets one whole
+   * cell; every other cell repeats titles in Staggered's rhythm. The title
+   * bar floats at Tilted's heights on a white strip.
+   */
+  function drawLayoutHoneycomb(ctx, canvas, images, styles, options = {}) {
+    const W = canvas.width, H = canvas.height, S = W / 750;
+    const SQ3 = Math.sqrt(3);
+    const gutter = 6 * (CONFIG.PDF_DPI / 72);
+    const margin = styles.outerMarginPx;
+    const n = images.length;
+
+    const { bgH } = drawTitleBarAt(ctx, styles, W, 0);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, W, bgH + 1);
+    const barY = floatingTitleBarY(options.titleBarPosition || 'classic', bgH, H);
+    const zoneTop = bgH ? barY - margin : -1, zoneBottom = bgH ? barY + bgH + margin : -1;
+
+    const plan = BookUtils.planHoneycomb({ width: W, height: H, count: n, zoneTop, zoneBottom, gutter });
+    if (plan) {
+      const { titles } = BookUtils.assignHoneycombTitles(plan.cells, n, plan.dx);
+      const ri = plan.r - (gutter * 0.9) / SQ3;     // inset so neighbouring cells show a white seam
+      plan.cells.forEach((c, i) => {
+        const img = images[titles[i]];
+        if (!img) return;
+        const bx = c.cx - (SQ3 / 2) * ri, by = c.cy - ri, bw = SQ3 * ri, bh = 2 * ri;
+        ctx.save();
+        hexagonPath(ctx, c.cx, c.cy, ri);
+        ctx.clip();
+        drawCoverCropped(ctx, softenedCover(img), bx, by, bw, bh);
+        ctx.fillStyle = 'rgba(12,14,22,0.28)';
+        ctx.fillRect(bx, by, bw, bh);
+        // Largest rectangle of the cover's shape whose corners stay inside the hexagon.
+        const a = collageImageAspect(img);
+        const p = Math.min((SQ3 / 2) * ri, ri / (1 / a + 1 / SQ3)) * 0.95;
+        const q = p / a;
+        ctx.shadowColor = 'rgba(0,0,0,0.38)';
+        ctx.shadowBlur = 8 * S;
+        ctx.shadowOffsetY = 2 * S;
+        ctx.drawImage(img, c.cx - p, c.cy - q, 2 * p, 2 * q);
+        ctx.restore();
+      });
+    }
+
+    if (bgH) {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, barY - margin * 0.6, W, bgH + margin * 1.2);
+      drawTitleBarAt(ctx, styles, W, barY);
+    }
+  }
+
+  // Traces one Jigsaw piece edge from p0 to p1 (outward normal nx, ny).
+  // knobs: [{ at, s (+1 tab out / -1 blank), size, head, neck, lean }].
+  function traceJigsawEdge(ctx, p0, p1, nx, ny, knobs, u) {
+    const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+    const ux = (p1[0] - p0[0]) / L, uy = (p1[1] - p0[1]) / L;
+    const P = (a, b) => [p0[0] + ux * a + nx * b, p0[1] + uy * a + ny * b];
+    knobs.slice().sort((x, y) => x.at - y.at).forEach((k) => {
+      const m = k.at;
+      const Q = (da, b) => P(m + da + k.lean * b, k.s * b);
+      const n1 = 0.16 * u * k.neck, n2 = 0.09 * u * k.neck, n3 = 0.06 * u * k.neck;
+      const h1 = 0.17 * u * k.head, h2 = 0.09 * u * k.head;
+      const v = (f) => f * u * k.size;
+      ctx.lineTo(...P(m - n1, 0));
+      ctx.bezierCurveTo(...Q(-n2, 0), ...Q(-n3, v(0.05)), ...Q(-n2, v(0.10)));
+      ctx.bezierCurveTo(...Q(-h1, v(0.20)), ...Q(-h2, v(0.27)), ...Q(0, v(0.27)));
+      ctx.bezierCurveTo(...Q(h2, v(0.27)), ...Q(h1, v(0.20)), ...Q(n2, v(0.10)));
+      ctx.bezierCurveTo(...Q(n3, v(0.05)), ...Q(n2, 0), ...Q(n1, 0));
+    });
+    ctx.lineTo(p1[0], p1[1]);
+  }
+
+  // Outlines a Jigsaw piece from the shared boundaries cutJigsawSeams gave it.
+  function jigsawPiecePath(ctx, p, u) {
+    const { x, y, w, h } = p;
+    const shape = (k) => ({ size: k.size, head: k.head, neck: k.neck });
+    const along = (B, lo, hi, outDir, toAt, leanSign) => (B ? B.knobs.filter((k) => k.x > lo && k.x < hi)
+      .map((k) => ({ ...shape(k), at: toAt(k.x), s: k.dir === outDir ? 1 : -1, lean: k.lean * leanSign })) : []);
+    const side = (V, outDir, toAt, leanSign) => (V ? [{ ...shape(V.knob), at: toAt(V.knob.y), s: V.knob.dir === outDir ? 1 : -1, lean: V.knob.lean * leanSign }] : []);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    traceJigsawEdge(ctx, [x, y], [x + w, y], 0, -1, along(p.top, x, x + w, 'up', (kx) => kx - x, 1), u);
+    traceJigsawEdge(ctx, [x + w, y], [x + w, y + h], 1, 0, side(p.right, 'right', (ky) => ky - y, 1), u);
+    traceJigsawEdge(ctx, [x + w, y + h], [x, y + h], 0, 1, along(p.bottom, x, x + w, 'down', (kx) => x + w - kx, -1), u);
+    traceJigsawEdge(ctx, [x, y + h], [x, y], -1, 0, side(p.left, 'left', (ky) => y + h - ky, -1), u);
+    ctx.closePath();
+  }
+
+  /**
+   * Layout: Jigsaw
+   * An edge-to-edge puzzle. Rows fill the page top to bottom and run off both
+   * sides; every title gets one whole piece (centered in its row, list order)
+   * and repeats fill the rest in Staggered's rhythm. The title bar is a
+   * full-width piece that both neighbouring rows tab into, so it carries equal
+   * extra padding above and below its text. options.jigsawSeed fixes the cut.
+   */
+  function drawLayoutJigsaw(ctx, canvas, images, styles, options = {}) {
+    const W = canvas.width, H = canvas.height, S = W / 750;
+    const n = images.length;
+    const aspects = images.map(collageImageAspect);
+    const mean = aspects.reduce((s, v) => s + v, 0) / n;
+    const position = options.titleBarPosition || 'classic';
+
+    const { bgH: textBarH } = drawTitleBarAt(ctx, styles, W, 0);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, W, textBarH + 1);
+
+    // Tabs from both neighbouring rows reach into the bar, so it grows by the
+    // same room above and below its text. That room depends on the piece size,
+    // which depends on the bar, so settle it over a few passes.
+    let pad = 0, plan, u = 0;
+    for (let pass = 0; pass < 3; pass++) {
+      plan = BookUtils.planJigsaw(aspects, W, H - (textBarH ? textBarH + 2 * pad : 0));
+      u = 0.8 * plan.pieceHeight * Math.min(1, mean);
+      pad = textBarH ? 0.36 * u : 0;
+    }
+    const barH = textBarH ? textBarH + 2 * pad : 0;
+    plan = BookUtils.planJigsaw(aspects, W, H - barH);
+    const R = plan.rows, ch = plan.pieceHeight;
+    const b = { top: 0, classic: 1, center: Math.floor(R / 2), lower: R - 1, bottom: R }[position] ?? 1;
+
+    const rowTops = [];
+    let y = 0;
+    for (let r = 0; r < R; r++) {
+      if (r === b && barH) y += barH;
+      rowTops.push(y);
+      y += ch;
+    }
+    const rows = BookUtils.layoutJigsaw(plan, aspects, W, rowTops);
+    const strips = [];
+    rows.forEach((row, r) => {
+      if (r === b && barH) strips.push({ bar: true, y: rowTops[r] - barH, h: barH, pieces: [] });
+      strips.push({ y: rowTops[r], h: ch, pieces: row.map((p) => ({ x: p.x, w: p.w, y: rowTops[r], h: ch, img: images[p.t] })) });
+    });
+    if (b === R && barH) strips.push({ bar: true, y: H - barH, h: barH, pieces: [] });
+    // The bar spans every column it touches, past the page edges, so its seams meet every piece.
+    const all = strips.flatMap((s) => s.pieces);
+    const minX = Math.min(...all.map((p) => p.x)), maxX = Math.max(...all.map((p) => p.x + p.w));
+    strips.forEach((s) => { if (s.bar) s.pieces.push({ x: minX, w: maxX - minX, y: s.y, h: s.h, bar: true }); });
+    BookUtils.cutJigsawSeams(strips, BookUtils.seededRandom((options.jigsawSeed || 1) * 7919 + n * 131), u);
+
+    const barStyles = { ...styles, padYPx: styles.padYPx + pad, bgSideMarginPx: 0 };
+    const scratch = document.createElement('canvas');
+    const sctx = scratch.getContext('2d');
+    sctx.imageSmoothingEnabled = true;
+    sctx.imageSmoothingQuality = 'high';
+    strips.flatMap((s) => s.pieces).forEach((p) => {
+      ctx.save();
+      jigsawPiecePath(ctx, p, u);
+      ctx.clip();
+      if (p.bar) {
+        drawTitleBarAt(ctx, barStyles, W, p.y);
+      } else {
+        // Render the cover into its piece, then carry its edge pixels outward
+        // to fill the tabs, rather than inventing art past the cover's edge.
+        scratch.width = Math.max(2, Math.round(p.w));
+        scratch.height = Math.max(2, Math.round(p.h));
+        drawCoverCropped(sctx, p.img, 0, 0, scratch.width, scratch.height);
+        const k = 0.4 * u, ow = scratch.width, oh = scratch.height;
+        ctx.drawImage(scratch, 0, 0, ow, 2, p.x, p.y - k, p.w, k);
+        ctx.drawImage(scratch, 0, oh - 2, ow, 2, p.x, p.y + p.h, p.w, k);
+        ctx.drawImage(scratch, 0, 0, 2, oh, p.x - k, p.y, k, p.h);
+        ctx.drawImage(scratch, ow - 2, 0, 2, oh, p.x + p.w, p.y, k, p.h);
+        ctx.drawImage(scratch, p.x, p.y, p.w, p.h);
+      }
+      ctx.restore();
+    });
+    const pieces = strips.flatMap((s) => s.pieces);
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+    ctx.lineWidth = 2 * S;
+    pieces.forEach((p) => { jigsawPiecePath(ctx, p, u); ctx.stroke(); });
+    ctx.strokeStyle = 'rgba(20,24,40,0.18)';
+    ctx.lineWidth = 0.6 * S;
+    pieces.forEach((p) => { jigsawPiecePath(ctx, p, u); ctx.stroke(); });
   }
 
   function autoRegenerateCoverIfAble() {
@@ -7282,6 +7544,7 @@ const BooklistApp = (function() {
         tiltDegree,
         tiltOffsetDirection,
         tiltCoverSizePct,
+        jigsawSeed: _jigsawSeed,
         collageCoverCount: getCollageCoverCount(),
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: qrTextContent,
@@ -7555,6 +7818,11 @@ const BooklistApp = (function() {
         : 100;
       elements.tiltCoverSize.value = pct;
     }
+
+    // Restore the Jigsaw cut. Older saves have no seed; 1 is the default cut.
+    _jigsawSeed = (typeof loaded.ui?.jigsawSeed === 'number' && isFinite(loaded.ui.jigsawSeed))
+      ? loaded.ui.jigsawSeed
+      : 1;
     
     // Show/hide tilted settings based on layout
     updateTiltedSettingsVisibility();
@@ -8280,6 +8548,16 @@ const BooklistApp = (function() {
     if (elements.showShelvesToggle) {
       bindPreChangeCapture(elements.showShelvesToggle, 'change-style');
       elements.showShelvesToggle.addEventListener('change', () => {
+        debouncedSave();
+        autoRegenerateCoverIfAble();
+      });
+    }
+
+    // Jigsaw: Recut cuts a new set of tabs (the repeats follow the pattern and stay put)
+    if (elements.jigsawRecutButton) {
+      elements.jigsawRecutButton.addEventListener('click', () => {
+        pushUndo('recut-jigsaw');
+        _jigsawSeed += 1;
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
@@ -9963,6 +10241,7 @@ const BooklistApp = (function() {
     if (elements.tiltDegree) elements.tiltDegree.value = -25;
     if (elements.tiltOffsetDirection) elements.tiltOffsetDirection.value = 'vertical';
     if (elements.tiltCoverSize) elements.tiltCoverSize.value = 100;
+    _jigsawSeed = 1;
     updateTiltedSettingsVisibility();
 
     // Clear front cover and branding images

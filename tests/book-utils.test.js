@@ -1697,3 +1697,180 @@ describe('getBylineOpenerWords', () => {
     expect(BookUtils.getBylineOpenerWords(['By', 'Por'])).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Collage geometry: Honeycomb and Jigsaw
+// ---------------------------------------------------------------------------
+
+const CANVAS_W = 3000, CANVAS_H = 4800, GUTTER = 50;
+const STANDARD_ASPECTS = [0.66, 0.68, 0.67, 0.66, 0.69, 0.67, 0.68, 0.66, 0.66, 0.67,
+  0.65, 0.68, 0.67, 0.67, 0.66, 0.69, 0.66, 0.68, 0.66, 0.67];
+const MIXED_ASPECTS = [0.66, 1.0, 0.68, 1.3, 0.55, 0.67, 0.8, 0.66, 0.62, 0.72,
+  0.6, 1.25, 0.75, 0.67, 0.9, 0.7, 0.85, 0.68, 0.5, 0.71];
+// Title bar zones at Tilted's heights for a 480px bar with 83px margins.
+function barZone(pos) {
+  const bh = 480, m = 83;
+  const y = { top: 0, classic: (CANVAS_H - bh) * 0.25, center: (CANVAS_H - bh) / 2,
+    lower: (CANVAS_H - bh) * 0.75, bottom: CANVAS_H - bh }[pos];
+  return { zoneTop: y - m, zoneBottom: y + bh + m };
+}
+
+describe('BookUtils.seededRandom', () => {
+  it('repeats the same sequence for the same seed', () => {
+    const a = globalThis.BookUtils.seededRandom(42), b = globalThis.BookUtils.seededRandom(42);
+    for (let i = 0; i < 20; i++) expect(a()).toBe(b());
+  });
+  it('stays in [0, 1) and differs between seeds', () => {
+    const a = globalThis.BookUtils.seededRandom(1), b = globalThis.BookUtils.seededRandom(2);
+    const va = Array.from({ length: 50 }, () => a());
+    va.forEach((v) => { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThan(1); });
+    expect(va).not.toEqual(Array.from({ length: 50 }, () => b()));
+  });
+});
+
+describe('BookUtils.pickRhythmTitle', () => {
+  it('returns the preferred title when no copy is near', () => {
+    expect(globalThis.BookUtils.pickRhythmTitle([], 12, 0, 0, 5, 1, 100)).toBe(5);
+  });
+  it('wraps the preferred index around the list', () => {
+    expect(globalThis.BookUtils.pickRhythmTitle([], 12, 0, 0, 13, 1, 100)).toBe(1);
+    expect(globalThis.BookUtils.pickRhythmTitle([], 12, 0, 0, -1, -1, 100)).toBe(11);
+  });
+  it('steps along the list in the given direction past a nearby copy', () => {
+    const placed = [{ cx: 10, cy: 0, t: 5 }, { cx: 20, cy: 0, t: 6 }];
+    expect(globalThis.BookUtils.pickRhythmTitle(placed, 12, 0, 0, 5, 1, 100)).toBe(7);
+    expect(globalThis.BookUtils.pickRhythmTitle(placed, 12, 0, 0, 6, -1, 100)).toBe(4);
+  });
+  it('ignores copies farther away than the spacing', () => {
+    const placed = [{ cx: 500, cy: 0, t: 5 }];
+    expect(globalThis.BookUtils.pickRhythmTitle(placed, 12, 0, 0, 5, 1, 100)).toBe(5);
+  });
+});
+
+describe('BookUtils.planHoneycomb and assignHoneycombTitles', () => {
+  const combos = [];
+  [12, 16, 20].forEach((n) => ['top', 'classic', 'center', 'lower', 'bottom', 'none'].forEach((pos) => combos.push([n, pos])));
+
+  it.each(combos)('%i covers, bar %s: whole cells for every title, on canvas and clear of the bar', (n, pos) => {
+    const zone = pos === 'none' ? { zoneTop: -1, zoneBottom: -1 } : barZone(pos);
+    const plan = globalThis.BookUtils.planHoneycomb({ width: CANVAS_W, height: CANVAS_H, count: n, gutter: GUTTER, ...zone });
+    expect(plan).not.toBeNull();
+    const full = plan.cells.filter((c) => c.full);
+    expect(full.length).toBeGreaterThanOrEqual(n);
+    full.forEach((c) => {
+      expect(c.cx - plan.dx / 2).toBeGreaterThanOrEqual(0);
+      expect(c.cx + plan.dx / 2).toBeLessThanOrEqual(CANVAS_W);
+      expect(c.cy - plan.r).toBeGreaterThanOrEqual(0);
+      expect(c.cy + plan.r).toBeLessThanOrEqual(CANVAS_H);
+      if (pos !== 'none') expect(c.cy + plan.r <= zone.zoneTop || c.cy - plan.r >= zone.zoneBottom).toBe(true);
+    });
+  });
+
+  it.each(combos)('%i covers, bar %s: each title whole once, and no cell touches its own title', (n, pos) => {
+    const zone = pos === 'none' ? { zoneTop: -1, zoneBottom: -1 } : barZone(pos);
+    const plan = globalThis.BookUtils.planHoneycomb({ width: CANVAS_W, height: CANVAS_H, count: n, gutter: GUTTER, ...zone });
+    const { titles, whole } = globalThis.BookUtils.assignHoneycombTitles(plan.cells, n, plan.dx);
+    titles.forEach((t) => { expect(t).toBeGreaterThanOrEqual(0); expect(t).toBeLessThan(n); });
+    const wholeTitles = titles.filter((_, i) => whole[i]);
+    expect(wholeTitles.slice().sort((a, b) => a - b)).toEqual(Array.from({ length: n }, (_, i) => i));
+    whole.forEach((w, i) => { if (w) expect(plan.cells[i].full).toBe(true); });
+    for (let a = 0; a < plan.cells.length; a++) {
+      for (let b = a + 1; b < plan.cells.length; b++) {
+        const d = Math.hypot(plan.cells[a].cx - plan.cells[b].cx, plan.cells[a].cy - plan.cells[b].cy);
+        if (d < plan.dx * 1.1) expect(titles[a]).not.toBe(titles[b]);
+      }
+    }
+  });
+
+  it('keeps whole titles in list order down the page', () => {
+    const plan = globalThis.BookUtils.planHoneycomb({ width: CANVAS_W, height: CANVAS_H, count: 12, gutter: GUTTER, ...barZone('classic') });
+    const { titles, whole } = globalThis.BookUtils.assignHoneycombTitles(plan.cells, 12, plan.dx);
+    const order = plan.cells.map((c, i) => ({ c, i })).filter(({ i }) => whole[i])
+      .sort((a, b) => a.c.cy - b.c.cy || a.c.cx - b.c.cx).map(({ i }) => titles[i]);
+    expect(order).toEqual(Array.from({ length: 12 }, (_, i) => i));
+  });
+});
+
+describe('BookUtils.planJigsaw and layoutJigsaw', () => {
+  const combos = [];
+  [12, 16, 20].forEach((n) => ['standard', 'mixed'].forEach((shape) => combos.push([n, shape])));
+  const setup = (n, shape) => {
+    const aspects = (shape === 'standard' ? STANDARD_ASPECTS : MIXED_ASPECTS).slice(0, n);
+    const plan = globalThis.BookUtils.planJigsaw(aspects, CANVAS_W, 4200);
+    const tops = Array.from({ length: plan.rows }, (_, r) => r * plan.pieceHeight);
+    return { aspects, plan, rows: globalThis.BookUtils.layoutJigsaw(plan, aspects, CANVAS_W, tops) };
+  };
+
+  it('uses a true grid for close-to-standard covers and free-form rows otherwise', () => {
+    expect(setup(12, 'standard').plan.uniform).toBe(true);
+    expect(setup(12, 'mixed').plan.uniform).toBe(false);
+  });
+
+  it.each(combos)('%i covers (%s): rows share the height and hold every title', (n, shape) => {
+    const { plan } = setup(n, shape);
+    expect(plan.counts.reduce((a, v) => a + v, 0)).toBe(n);
+    expect(plan.pieceHeight * plan.rows).toBeCloseTo(4200, 6);
+    if (plan.uniform) expect(plan.rows * plan.slots).toBeGreaterThanOrEqual(n);
+  });
+
+  it.each(combos)('%i covers (%s): each title whole once, on the page, rows run off both edges', (n, shape) => {
+    const { rows } = setup(n, shape);
+    const whole = rows.flat().filter((p) => p.whole);
+    expect(whole.map((p) => p.t).sort((a, b) => a - b)).toEqual(Array.from({ length: n }, (_, i) => i));
+    whole.forEach((p) => { expect(p.x).toBeGreaterThanOrEqual(0); expect(p.x + p.w).toBeLessThanOrEqual(CANVAS_W); });
+    rows.forEach((row) => {
+      expect(row[0].x).toBeLessThanOrEqual(0);
+      expect(row[row.length - 1].x + row[row.length - 1].w).toBeGreaterThanOrEqual(CANVAS_W);
+      row.forEach((p, i) => { if (i) expect(p.x).toBeCloseTo(row[i - 1].x + row[i - 1].w, 6); });
+    });
+  });
+
+  it.each(combos)('%i covers (%s): no piece touches its own title, sideways or across a row', (n, shape) => {
+    const { rows } = setup(n, shape);
+    rows.forEach((row, r) => {
+      row.forEach((p, i) => { if (row[i + 1]) expect(row[i + 1].t).not.toBe(p.t); });
+      (rows[r + 1] || []).forEach((q) => row.forEach((p) => {
+        if (q.x <= p.x + p.w + 0.5 && q.x + q.w >= p.x - 0.5) expect(q.t).not.toBe(p.t);
+      }));
+    });
+  });
+});
+
+describe('BookUtils.cutJigsawSeams', () => {
+  const strip = (y, h, xs, bar) => ({ y, h, bar, pieces: xs.map(([x, w]) => ({ x, w })) });
+  const make = () => [
+    strip(0, 1000, [[-300, 700], [400, 700], [1100, 700]]),
+    strip(1000, 500, [[-300, 2100]], true),       // the bar spans every piece, past both edges
+    strip(1500, 1000, [[-100, 700], [600, 700]]),
+    strip(2500, 1000, [[-100, 700], [600, 700]]),
+  ];
+
+  it('gives both pieces of a seam the same boundary', () => {
+    const s = make();
+    globalThis.BookUtils.cutJigsawSeams(s, globalThis.BookUtils.seededRandom(3), 300);
+    expect(s[0].pieces[0].right).toBe(s[0].pieces[1].left);
+    expect(s[0].pieces[1].bottom).toBe(s[1].pieces[0].top);
+    expect(s[2].pieces[0].bottom).toBe(s[3].pieces[0].top);
+  });
+
+  it('points tabs into the title bar from both sides, and up between cover rows', () => {
+    const s = make();
+    globalThis.BookUtils.cutJigsawSeams(s, globalThis.BookUtils.seededRandom(3), 300);
+    s[1].pieces[0].top.knobs.forEach((k) => expect(k.dir).toBe('down'));
+    s[1].pieces[0].bottom.knobs.forEach((k) => expect(k.dir).toBe('up'));
+    s[2].pieces[0].bottom.knobs.forEach((k) => expect(k.dir).toBe('up'));
+    expect(s[1].pieces[0].top.knobs.length).toBe(3);
+  });
+
+  it('keeps each tab inside its shared segment and cuts the same way for the same seed', () => {
+    const a = make(), b = make();
+    globalThis.BookUtils.cutJigsawSeams(a, globalThis.BookUtils.seededRandom(9), 300);
+    globalThis.BookUtils.cutJigsawSeams(b, globalThis.BookUtils.seededRandom(9), 300);
+    a[2].pieces[0].bottom.knobs.forEach((k, i) => {
+      expect(k.x).toBe(b[2].pieces[0].bottom.knobs[i].x);
+      const inPiece = [...a[2].pieces, ...a[3].pieces].some((p) => k.x > p.x + 0.3 * 300 - 1 && k.x < p.x + p.w - 0.3 * 300 + 1);
+      expect(inPiece).toBe(true);
+    });
+    expect(a[0].pieces[0].right.knob.y).toBe(b[0].pieces[0].right.knob.y);
+  });
+});

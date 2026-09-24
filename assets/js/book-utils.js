@@ -913,6 +913,365 @@
       const noListName = !listName || listName === 'booklist';
       return allBlank && noExtras && noImages && noText && noListName;
     },
+
+    // -----------------------------------------------------------------------
+    // Collage geometry: Honeycomb and Jigsaw layouts.
+    //
+    // Everything below is pure layout math in canvas pixels, with no DOM or
+    // canvas access, so app.js's draw functions stay thin and these rules
+    // stay testable. Two rules govern both layouts' repeats:
+    //   1. Every title appears whole at least once before any repeat is dealt.
+    //   2. Repeats follow Staggered's rhythm (each row reads through the list
+    //      in order, starting further along than the row above) and step past
+    //      any title that would sit next to itself.
+    // -----------------------------------------------------------------------
+
+    /**
+     * Deterministic pseudo-random generator (mulberry32). The same seed
+     * always yields the same sequence, so a saved Jigsaw keeps its cut.
+     * @param {number} seed
+     * @returns {function(): number} values in [0, 1)
+     */
+    seededRandom: function(seed) {
+      let a = seed >>> 0;
+      return function() {
+        a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    },
+
+    /**
+     * Rhythm repeat choice: take the title the pattern calls for; if a copy
+     * of it already sits within `near`, step along the list in `dir` until
+     * one doesn't (then relax to 60% of `near`, then give in).
+     * @param {Array<{cx:number, cy:number, t:number}>} placed
+     * @returns {number} title index
+     */
+    pickRhythmTitle: function(placed, count, cx, cy, preferred, dir, near) {
+      const mod = function(v) { return ((v % count) + count) % count; };
+      const nearest = function(t) {
+        let d = Infinity;
+        for (let i = 0; i < placed.length; i++) {
+          if (placed[i].t === t) d = Math.min(d, Math.hypot(placed[i].cx - cx, placed[i].cy - cy));
+        }
+        return d;
+      };
+      const reaches = [near, near * 0.6];
+      for (let r = 0; r < reaches.length; r++) {
+        for (let d = 0; d < count; d++) {
+          const t = mod(preferred + d * dir);
+          if (nearest(t) >= reaches[r]) return t;
+        }
+      }
+      return mod(preferred);
+    },
+
+    /**
+     * Plans a honeycomb of pointy-top hexagons over a width x height canvas:
+     * the largest cells at which `count` cells sit wholly on the canvas and
+     * clear of the title bar's zone. A region tall enough to hold a cell must
+     * get at least one whole cell (or the comb reads lopsided); up to 15%
+     * smaller cells are accepted to achieve that, unless it would leave a
+     * comb full of spares.
+     * @param {Object} o - { width, height, count, zoneTop, zoneBottom, gutter }
+     *   Pass zoneTop = zoneBottom = -1 when there is no title bar.
+     * @returns {{r:number, dx:number, dy:number, cells:Array}|null}
+     *   cells: { cx, cy, j (row), k (column), full }
+     */
+    planHoneycomb: function(o) {
+      const W = o.width, H = o.height, n = o.count;
+      const zoneTop = o.zoneTop, zoneBot = o.zoneBottom;
+      const hasBar = zoneBot > zoneTop;
+      const pad = o.gutter * 0.5;
+      const SQ3 = Math.sqrt(3);
+      const cellsFor = function(r, phaseX, phaseY) {
+        const dx = SQ3 * r, dy = 1.5 * r, hw = dx / 2, hh = r;
+        const cells = [];
+        const j0 = Math.floor((-hh - phaseY) / dy) - 1, j1 = Math.ceil((H + hh - phaseY) / dy) + 1;
+        const k0 = Math.floor(-W / 2 / dx) - 2, k1 = Math.ceil(W / 2 / dx) + 2;
+        for (let j = j0; j <= j1; j++) {
+          const cy = phaseY + j * dy;
+          const off = (((j % 2) + 2) % 2 ? 0.5 : 0) + phaseX;
+          for (let k = k0; k <= k1; k++) {
+            const cx = W / 2 + (k + off) * dx;
+            if (cx < -hw || cx > W + hw || cy < -hh || cy > H + hh) continue;
+            const clear = cy + hh <= zoneTop || cy - hh >= zoneBot;
+            // Cells hidden under the bar's white strip are left out entirely.
+            if (!clear && cy - hh * 0.5 >= zoneTop && cy + hh * 0.5 <= zoneBot) continue;
+            const full = clear && cx - hw >= pad && cx + hw <= W - pad && cy - hh >= pad && cy + hh <= H - pad;
+            cells.push({ cx: cx, cy: cy, j: j, k: k, full: full });
+          }
+        }
+        return { r: r, dx: dx, dy: dy, cells: cells };
+      };
+      let first = null;
+      const step = W / 1500;
+      for (let r = W * 0.35; r >= W * 0.027; r -= step) {
+        if (first && r < first.r * 0.85) break;
+        let best = null;
+        [0, 0.5].forEach(function(px) {
+          [0, 0.25, 0.5, 0.75].forEach(function(f) {
+            const plan = cellsFor(r, px, f * 3 * r);
+            const full = plan.cells.filter(function(c) { return c.full; });
+            if (full.length < n) return;
+            plan.fullCount = full.length;
+            if (!first) first = plan;
+            if (hasBar) {
+              const above = full.filter(function(c) { return c.cy < zoneTop; }).length;
+              const below = full.length - above;
+              if ((zoneTop > 2.3 * r && above === 0) || (H - zoneBot > 2.3 * r && below === 0)) return;
+            }
+            if (!best || plan.fullCount < best.fullCount) best = plan;
+          });
+        });
+        if (best) return best.fullCount - n > Math.max(3, n * 0.2) && first ? first : best;
+      }
+      return first;
+    },
+
+    /**
+     * Deals titles into a planned honeycomb. Every title gets one whole cell,
+     * in list order across the page (spare whole cells are the outermost).
+     * Every other cell repeats titles in Staggered's rhythm: each row of the
+     * comb reads through the list in order, starting further along than the
+     * row above, stepping past any title within ~two cells of itself.
+     * @param {Array} cells - from planHoneycomb
+     * @param {number} count - number of titles
+     * @param {number} dx - horizontal cell pitch (planHoneycomb's dx)
+     * @returns {{titles:number[], whole:boolean[]}} parallel to cells
+     */
+    assignHoneycombTitles: function(cells, count, dx) {
+      const titles = new Array(cells.length).fill(-1);
+      const whole = new Array(cells.length).fill(false);
+      const idx = cells.map(function(_, i) { return i; });
+      const fullIdx = idx.filter(function(i) { return cells[i].full; })
+        .sort(function(a, b) { return cells[a].cy - cells[b].cy || cells[a].cx - cells[b].cx; });
+      const W2 = cells.length ? (Math.min.apply(null, cells.map(function(c) { return c.cx; })) + Math.max.apply(null, cells.map(function(c) { return c.cx; }))) / 2 : 0;
+      const H2 = cells.length ? (Math.min.apply(null, cells.map(function(c) { return c.cy; })) + Math.max.apply(null, cells.map(function(c) { return c.cy; }))) / 2 : 0;
+      const spare = new Set(fullIdx.slice().sort(function(a, b) {
+        return Math.abs(cells[b].cx - W2) - Math.abs(cells[a].cx - W2) || Math.abs(cells[b].cy - H2) - Math.abs(cells[a].cy - H2);
+      }).slice(0, Math.max(0, fullIdx.length - count)));
+      let t = 0;
+      fullIdx.forEach(function(i) { if (!spare.has(i) && t < count) { titles[i] = t++; whole[i] = true; } });
+
+      // Row anchors: title = anchor + column, so a row reads the list in order.
+      const rows = new Map();
+      idx.forEach(function(i) { const j = cells[i].j; if (!rows.has(j)) rows.set(j, []); rows.get(j).push(i); });
+      const js = Array.from(rows.keys()).sort(function(a, b) { return a - b; });
+      const anchor = new Map(), perRow = [];
+      js.forEach(function(j) {
+        const w = rows.get(j).filter(function(i) { return whole[i]; }).sort(function(a, b) { return cells[a].k - cells[b].k; });
+        if (w.length) { anchor.set(j, titles[w[0]] - cells[w[0]].k); perRow.push(w.length); }
+      });
+      const stepRows = perRow.length ? Math.max(2, Math.round(perRow.reduce(function(a, v) { return a + v; }, 0) / perRow.length)) : 3;
+      const firstIdx = js.findIndex(function(j) { return anchor.has(j); });
+      if (firstIdx < 0) return { titles: titles, whole: whole };
+      for (let i = firstIdx + 1; i < js.length; i++) if (!anchor.has(js[i])) anchor.set(js[i], anchor.get(js[i - 1]) + stepRows);
+      for (let i = firstIdx - 1; i >= 0; i--) if (!anchor.has(js[i])) anchor.set(js[i], anchor.get(js[i + 1]) - stepRows);
+
+      const placed = [];
+      idx.forEach(function(i) { if (whole[i]) placed.push({ cx: cells[i].cx, cy: cells[i].cy, t: titles[i] }); });
+      const self = this;
+      js.forEach(function(j) {
+        rows.get(j).slice().sort(function(a, b) { return cells[a].k - cells[b].k; }).forEach(function(i) {
+          if (whole[i]) return;
+          const c = cells[i];
+          const pick = self.pickRhythmTitle(placed, count, c.cx, c.cy, anchor.get(j) + c.k, 1, dx * 1.9);
+          titles[i] = pick;
+          placed.push({ cx: c.cx, cy: c.cy, t: pick });
+        });
+      });
+      return { titles: titles, whole: whole };
+    },
+
+    /**
+     * Plans Jigsaw rows. Rows fill the height exactly and bleed off both
+     * sides; the plan is the fewest rows (largest pieces) at which every
+     * title gets one whole piece clear of the side edges. Covers within 5%
+     * of their mean aspect share one piece width in a true grid; anything
+     * else is cut free-form, each piece at its own cover's aspect.
+     * @param {number[]} aspects - width / height per title, in list order
+     * @param {number} width - canvas width
+     * @param {number} availHeight - height left for rows after the title bar
+     * @returns {{uniform:boolean, rows:number, pieceHeight:number,
+     *   pieceWidth?:number, slots?:number, counts:number[]}}
+     */
+    planJigsaw: function(aspects, width, availHeight) {
+      const n = aspects.length;
+      const mean = aspects.reduce(function(s, v) { return s + v; }, 0) / n;
+      const uniform = aspects.every(function(a) { return Math.abs(a - mean) / mean <= 0.05; });
+      const balanced = function(R) {
+        return Array.from({ length: R }, function(_, r) { return Math.floor(n / R) + (r < n % R ? 1 : 0); });
+      };
+      // Contiguous splits of the list into R rows, each 1-7 titles.
+      const splits = function(R) {
+        const out = [], cur = [];
+        (function rec(rem, left) {
+          if (left === 0) { if (rem === 0) out.push(cur.slice()); return; }
+          for (let v = 1; v <= 7 && v <= rem; v++) {
+            const rest = rem - v;
+            if (rest < left - 1 || rest > 7 * (left - 1)) continue;
+            cur.push(v); rec(rest, left - 1); cur.pop();
+          }
+        })(n, R);
+        return out;
+      };
+      let last = null;
+      for (let R = 2; R <= 7; R++) {
+        const ch = availHeight / R;
+        if (uniform) {
+          const cw = ch * mean;
+          // Whole slots per row, leaving a real (>= 35%) cut-off piece at each side.
+          const m = Math.max(1, Math.floor((width - 0.7 * cw) / cw));
+          last = { uniform: true, rows: R, pieceHeight: ch, pieceWidth: cw, slots: m, counts: balanced(R) };
+          if (R * m >= n) return last;
+        } else {
+          const limit = width - 0.7 * ch * mean;
+          let best = null;
+          splits(R).forEach(function(c) {
+            let i = 0, worst = 0;
+            c.forEach(function(k) {
+              let s = 0;
+              for (let j = 0; j < k; j++) s += aspects[i + j];
+              i += k;
+              worst = Math.max(worst, s * ch);
+            });
+            if (worst <= limit && (!best || worst < best.worst)) best = { counts: c, worst: worst };
+          });
+          last = { uniform: false, rows: R, pieceHeight: ch, counts: best ? best.counts : balanced(R) };
+          if (best) return last;
+        }
+      }
+      return last;
+    },
+
+    /**
+     * Lays out Jigsaw pieces row by row. Every title's whole piece is placed
+     * first (centered in its row, list order); repeats then continue each
+     * row's run of the list outward, backward past the left end and forward
+     * past the right, until the row runs off both edges, stepping past any
+     * title that would touch itself.
+     * @param {Object} plan - from planJigsaw
+     * @param {number[]} aspects
+     * @param {number} width - canvas width
+     * @param {number[]} rowTops - top y of each row (bar already accounted for)
+     * @returns {Array<Array<{x:number, w:number, t:number, whole:boolean}>>}
+     *   pieces per row, sorted left to right
+     */
+    layoutJigsaw: function(plan, aspects, width, rowTops) {
+      const n = aspects.length, ch = plan.pieceHeight;
+      const rows = [], placed = [], built = [];
+      const self = this;
+      const add = function(r, t, x, w, whole) {
+        const p = { x: x, w: w, t: t, whole: whole };
+        rows[r].push(p);
+        placed.push({ cx: x + w / 2, cy: rowTops[r] + ch / 2, t: t });
+        return p;
+      };
+      let next = 0;
+      for (let r = 0; r < plan.rows; r++) {
+        rows.push([]);
+        const titles = Array.from({ length: plan.counts[r] }, function(_, k) { return next + k; });
+        next += plan.counts[r];
+        if (plan.uniform) {
+          const cw = plan.pieceWidth, m = plan.slots;
+          const left = (width - m * cw) / 2 - cw;        // slot -1 is the cut-off piece at the left edge
+          const start = Math.floor((m - titles.length) / 2);
+          titles.forEach(function(t, j) { add(r, t, left + (start + j + 1) * cw, cw, true); });
+          built.push({ titles: titles, left: left, start: start });
+        } else {
+          const widths = titles.map(function(t) { return aspects[t] * ch; });
+          let x = (width - widths.reduce(function(s, v) { return s + v; }, 0)) / 2;
+          const x0 = x;
+          titles.forEach(function(t, j) { add(r, t, x, widths[j], true); x += widths[j]; });
+          built.push({ titles: titles, x0: x0, x1: x });
+        }
+      }
+      const near = 1.25 * ch;
+      built.forEach(function(b, r) {
+        const cy = rowTops[r] + ch / 2;
+        if (plan.uniform) {
+          const cw = plan.pieceWidth, m = plan.slots;
+          const slots = [];
+          for (let k = -1; k <= m; k++) if (k < b.start || k >= b.start + b.titles.length) slots.push(k);
+          slots.sort(function(a, c) { return Math.abs(a - (m - 1) / 2) - Math.abs(c - (m - 1) / 2); })
+            .forEach(function(k) {
+              const x = b.left + (k + 1) * cw;
+              const t = self.pickRhythmTitle(placed, n, x + cw / 2, cy, b.titles[0] + (k - b.start), k < b.start ? -1 : 1, near);
+              add(r, t, x, cw, false);
+            });
+        } else {
+          let xl = b.x0, xr = b.x1, side = 0;
+          let prevL = b.titles[0], nextR = b.titles[b.titles.length - 1];
+          while (xl > 0 || xr < width) {                  // grow outward, alternating sides
+            if ((side++ % 2 === 0 && xl > 0) || xr >= width) {
+              const t = self.pickRhythmTitle(placed, n, xl - ch * 0.35, cy, prevL - 1, -1, near);
+              const w = aspects[t] * ch;
+              xl -= w; add(r, t, xl, w, false); prevL = t;
+            } else {
+              const t = self.pickRhythmTitle(placed, n, xr + ch * 0.35, cy, nextR + 1, 1, near);
+              const w = aspects[t] * ch;
+              add(r, t, xr, w, false); xr += w; nextR = t;
+            }
+          }
+        }
+        rows[r].sort(function(a, c) { return a.x - c.x; });
+      });
+      return rows;
+    },
+
+    /**
+     * Cuts the seams of a Jigsaw. Each shared edge is defined once, and both
+     * pieces reference the same boundary object, so the two sides of a seam
+     * always meet. Side tabs point left or right at random (seeded); tabs
+     * between cover rows point up, so every blank lands at the bottom of a
+     * cover and none bites a title; both rows beside the title bar tab into
+     * it. Tabs vary in position, size, head, neck and lean.
+     * @param {Array<{y:number, h:number, bar?:boolean, pieces:Array<{x:number, w:number}>}>} strips
+     *   top to bottom; each piece gains top/bottom/left/right boundary refs
+     * @param {function(): number} rand - e.g. BookUtils.seededRandom(seed)
+     * @param {number} u - tab scale in pixels
+     */
+    cutJigsawSeams: function(strips, rand, u) {
+      const knob = function(r) {
+        return { size: 0.85 + r() * 0.3, head: 0.85 + r() * 0.35, neck: 0.8 + r() * 0.3, lean: (r() - 0.5) * 0.35 };
+      };
+      strips.forEach(function(s) {
+        s.pieces.forEach(function(p, j) {
+          const q = s.pieces[j + 1];
+          if (!q) return;
+          const slack = Math.max(0, s.h / 2 - 0.3 * u);
+          const k = knob(rand);
+          k.y = s.y + s.h / 2 + (rand() - 0.5) * 2 * Math.min(slack, 0.14 * s.h);
+          k.dir = rand() < 0.5 ? 'right' : 'left';
+          const V = { kind: 'v', x: q.x, y0: s.y, y1: s.y + s.h, knob: k };
+          p.right = V; q.left = V;
+        });
+      });
+      for (let i = 0; i < strips.length - 1; i++) {
+        const A = strips[i], B = strips[i + 1];
+        const cuts = Array.from(new Set(A.pieces.concat(B.pieces).reduce(function(acc, p) {
+          acc.push(Math.round(p.x * 100) / 100, Math.round((p.x + p.w) * 100) / 100);
+          return acc;
+        }, []))).sort(function(a, b) { return a - b; });
+        const dir = B.bar ? 'down' : 'up';               // into the bar from above; otherwise up
+        const knobs = [];
+        for (let c = 0; c < cuts.length - 1; c++) {
+          const c0 = cuts[c], c1 = cuts[c + 1], len = c1 - c0;
+          if (len < 0.6 * u) continue;
+          const slack = Math.max(0, len / 2 - 0.3 * u);
+          const k = knob(rand);
+          k.x = (c0 + c1) / 2 + (rand() - 0.5) * 2 * Math.min(slack, 0.14 * len);
+          k.dir = dir;
+          knobs.push(k);
+        }
+        const Hb = { kind: 'h', y: B.y, knobs: knobs };
+        A.pieces.forEach(function(p) { p.bottom = Hb; });
+        B.pieces.forEach(function(p) { p.top = Hb; });
+      }
+    },
   };
 
   // Expose globally
