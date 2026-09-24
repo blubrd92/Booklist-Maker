@@ -1668,6 +1668,9 @@
   };
   const TAIL_BLEND_TAU = 0.35;
   const TAIL_SNAP_TAU = 0.04;
+  // Below this the fur is flat enough to hand back to the smooth path
+  // with no visible change (tufts under ~0.03 units tall).
+  const TAIL_BRISTLE_MIN = 0.002;
   const TAIL_STARTLE_MS = 1000;
   // Quiver rate, in Hz: fast enough to read as a tremble.
   const TAIL_QUIVER_HZ = 7;
@@ -1841,6 +1844,139 @@
     return d;
   }
 
+  // Bristled fur: the outline becomes a run of curved tufts, each a
+  // pair of quadratics bulging out to a soft point that leans toward the
+  // tail's tip, the way raised fur lies. Three runs (left side, rounded
+  // cap, right side) are each spaced evenly by their own arc length, so
+  // tufts neither bunch on the inside of a bend nor stretch on the
+  // outside, and the counts are fixed so no tuft appears or vanishes as
+  // the tail moves. Every size scales with bristle, and at zero the
+  // tufts lie flat along the smooth outline: that is what lets the fur
+  // settle away without a visible switch back to the smooth path.
+  function tailTuftHeight(i) {
+    // Fixed per-tuft irregularity (0.7..1.15): organic, never flickers.
+    const r = Math.sin(i * 12.9898) * 43758.5453;
+    return 0.7 + 0.45 * (r - Math.floor(r));
+  }
+
+  function bristledTailPath(pts, tan) {
+    const SUB = 4;
+    const sample = (kk) => {
+      const k = Math.min(TAIL_SEGS - 1, Math.floor(kk));
+      const f = kk - k;
+      // Wrap-safe blend: a tail lying flat sits near +-180deg.
+      const da = Math.atan2(Math.sin(tan[k + 1] - tan[k]), Math.cos(tan[k + 1] - tan[k]));
+      const a = tan[k] + da * f;
+      return {
+        x: pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f,
+        y: pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f,
+        a,
+      };
+    };
+    // Dense polylines with an outward normal, the tail's forward
+    // direction, and the spine position (kk) at each point.
+    const side = (sign) => {
+      const out = [];
+      for (let n = 0; n <= TAIL_SEGS * SUB; n++) {
+        const kk = n / SUB;
+        const s = sample(kk);
+        const hw = tailWidthAt(kk) / 2;
+        const nx = -Math.sin(s.a) * sign;
+        const ny = Math.cos(s.a) * sign;
+        out.push({ x: s.x + nx * hw, y: s.y + ny * hw, nx, ny, fx: Math.cos(s.a), fy: Math.sin(s.a), kk, hw });
+      }
+      return out;
+    };
+    const tipA = tan[TAIL_SEGS];
+    const tipP = pts[TAIL_SEGS];
+    const tipR = tailWidthAt(TAIL_SEGS) / 2;
+    const cap = [];
+    for (let n = 0; n <= 16; n++) {
+      const th = tipA + Math.PI / 2 - Math.PI * n / 16;
+      const nx = Math.cos(th);
+      const ny = Math.sin(th);
+      // On the cap the fur points straight out: forward = normal.
+      cap.push({ x: tipP[0] + nx * tipR, y: tipP[1] + ny * tipR, nx, ny, fx: nx, fy: ny, kk: TAIL_SEGS, hw: tipR });
+    }
+    // Resample a polyline at count*4 + 1 evenly spaced points.
+    const resample = (poly, count) => {
+      const cum = [0];
+      for (let i = 1; i < poly.length; i++) {
+        cum.push(cum[i - 1] + Math.hypot(poly[i].x - poly[i - 1].x, poly[i].y - poly[i - 1].y));
+      }
+      const total = cum[cum.length - 1] || 1;
+      const out = [];
+      let j = 1;
+      for (let m = 0; m <= count * 4; m++) {
+        const want = total * m / (count * 4);
+        while (j < poly.length - 1 && cum[j] < want) j++;
+        const span = cum[j] - cum[j - 1] || 1;
+        const f = Math.max(0, Math.min(1, (want - cum[j - 1]) / span));
+        const A = poly[j - 1];
+        const B = poly[j];
+        const q = {};
+        ['x', 'y', 'nx', 'ny', 'fx', 'fy', 'kk', 'hw'].forEach((key) => { q[key] = A[key] + (B[key] - A[key]) * f; });
+        const nl = Math.hypot(q.nx, q.ny) || 1;
+        q.nx /= nl; q.ny /= nl;
+        out.push(q);
+      }
+      return out;
+    };
+    const f = (x, y) => x.toFixed(1) + ' ' + y.toFixed(1);
+    const bristle = tailCur.bristle;
+    let tuftNo = 0;
+    // Emit tufts along a resampled run. `lean` is how far a tuft's point
+    // slides toward the tail's tip, as a share of its height.
+    // `baseFirst` says whether the run is walked base to tip (left side)
+    // or tip to base (right side), which decides which edge bows.
+    const tufts = (run, count, lean, baseFirst) => {
+      let out = '';
+      for (let t = 0; t < count; t++) {
+        const s1 = run[t * 4 + 1];
+        const s2 = run[t * 4 + 2];
+        const s3 = run[t * 4 + 3];
+        const s4 = run[t * 4 + 4];
+        const id = tuftNo++;
+        // No fur tufts where the tail meets the body.
+        const grow = Math.min(1, s2.kk / 2.5);
+        const ease = grow * grow * (3 - 2 * grow);
+        const ruffle = 1 + 0.07 * Math.sin(tailPhase * 3 + id * 2.3);
+        // Squared so the fur settles quickly through the low-bump stage,
+        // which on a slow fade reads as a lumpy tail, not a calming one.
+        const h = s2.hw * 0.5 * bristle * bristle * ease * tailTuftHeight(id) * ruffle;
+        const tipX = s2.x + s2.nx * h + s2.fx * h * lean;
+        const tipY = s2.y + s2.ny * h + s2.fy * h * lean;
+        // A lock of fur, not a tooth: a full convex back on the side
+        // nearer the base, then a short concave return under the point.
+        const back = baseFirst ? s1 : s3;
+        const under = baseFirst ? s3 : s1;
+        const bx = back.x + back.nx * h * 1.05 + back.fx * h * lean * 0.2;
+        const by = back.y + back.ny * h * 1.05 + back.fy * h * lean * 0.2;
+        const ux = under.x + under.nx * h * 0.05 + under.fx * h * lean * 0.45;
+        const uy = under.y + under.ny * h * 0.05 + under.fy * h * lean * 0.45;
+        const c1x = baseFirst ? bx : ux;
+        const c1y = baseFirst ? by : uy;
+        const c2x = baseFirst ? ux : bx;
+        const c2y = baseFirst ? uy : by;
+        out += ' Q ' + f(c1x, c1y) + ', ' + f(tipX, tipY)
+          + ' Q ' + f(c2x, c2y) + ', ' + f(s4.x, s4.y);
+      }
+      return out;
+    };
+    const SIDE_TUFTS = 10;
+    const CAP_TUFTS = 4;
+    const leftRun = resample(side(1), SIDE_TUFTS);
+    // The right side is walked tip to base; forward still means toward
+    // the tail's tip, so the lean stays correct in either direction.
+    const rightRun = resample(side(-1).reverse(), SIDE_TUFTS);
+    const capRun = resample(cap, CAP_TUFTS);
+    return 'M ' + f(leftRun[0].x, leftRun[0].y)
+      + tufts(leftRun, SIDE_TUFTS, 0.9, true)
+      + tufts(capRun, CAP_TUFTS, 0, true)
+      + tufts(rightRun, SIDE_TUFTS, 0.9, false)
+      + ' Z';
+  }
+
   function renderTail(root) {
     if (!tailOutline) return;
     // Spine in the group's own (rotated) frame.
@@ -1880,37 +2016,8 @@
       + ', ' + (rt[0] + tx).toFixed(1) + ' ' + (rt[1] + ty).toFixed(1)
       + ', ' + rt[0].toFixed(1) + ' ' + rt[1].toFixed(1);
     let d;
-    if (tailCur.bristle > 0.05) {
-      // Bristled: the edges become a zigzag of fur spikes, their height
-      // scaled by bristle so they settle back into the smooth outline.
-      const spikes = (sideSign) => {
-        const out = [];
-        const SUB = 3;
-        for (let k = 0; k < TAIL_SEGS; k++) {
-          for (let j = 0; j < SUB; j++) {
-            const f = j / SUB;
-            const x = pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f;
-            const y = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f;
-            // Wrap-safe blend: a tail lying flat sits near +-180deg.
-            const da = Math.atan2(Math.sin(tan[k + 1] - tan[k]), Math.cos(tan[k + 1] - tan[k]));
-            const a = tan[k] + da * f;
-            const kk = k + f;
-            const tipOut = (k * SUB + j) % 2 === 1;
-            // The base is fur blending into the body: no spikes there.
-            const grow = Math.min(1, kk / 2);
-            const hw = tailWidthAt(kk) / 2
-              * (1 + (tipOut ? 0.34 : -0.04) * tailCur.bristle * grow);
-            out.push([x - Math.sin(a) * hw * sideSign, y + Math.cos(a) * hw * sideSign]);
-          }
-        }
-        out.push(sideSign > 0 ? lt : rt);
-        return out;
-      };
-      const zig = (arr) => arr.map((q) => ' L ' + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join('');
-      const l = spikes(1);
-      const r = spikes(-1).reverse();
-      d = 'M ' + left[0][0].toFixed(1) + ' ' + left[0][1].toFixed(1)
-        + zig(l.slice(1)) + capPath + zig(r.slice(1)) + ' Z';
+    if (tailCur.bristle > TAIL_BRISTLE_MIN) {
+      d = bristledTailPath(pts, tan);
     } else {
       d = 'M ' + left[0][0].toFixed(1) + ' ' + left[0][1].toFixed(1)
         + smoothThrough(left) + capPath + smoothThrough(rightBack) + ' Z';
