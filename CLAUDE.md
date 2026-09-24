@@ -509,9 +509,10 @@ Supports three collage cover counts: 12 (standard), 16 (4×4), and 20 (extended)
 
 ### Dynamic Grid Sizing
 - Classic / Bookshelf: 12=3×4, 16=4×4, 20=4×5
-- Staggered: 12=4 rows, 16=4 rows, 20=5 rows
-- Masonry: 12=5 cols, 16=5 cols, 20=6 cols
-- Tilted: 16-count routes through the existing 20-count `getImageForCell` patterns. The function wraps the final index with `% totalImages` so 20-count row groups (which can resolve to indices up to 19) wrap cleanly when there are only 16 books. If 16-count Tilted ever needs its own hand-tuned pattern, add a `totalImages === 16` branch alongside the existing `<= 12` and `else` blocks
+- Staggered: 12=4 rows, 16=5 rows, 20=5 rows (16 takes 5 so the rows read denser; `imageOffsetPerRow` uses floor, not ceil, so the five 16-count rows get distinct offsets)
+- Masonry: 12=5 cols, 16=6 cols, 20=6 cols
+- Tilted: 16-count has its own `getImageForCell` branches: vertical offset uses a 12-count-style column-group pattern (4-title groups, period-3 row offset), horizontal centre uses a doubled 6-row pattern adapted from 20-count, and horizontal non-centre shares the sequential pattern with 20-count plus a period-3 column offset. The final `% totalImages` wrap is a defensive safety net, not something any branch relies on
+- **Every cover must load or nothing is drawn.** The grids size themselves from how many images arrived, so a partial set used to leave a hole (or drop a 12 to a smaller grid). `generateCoverCollage` now refuses when any cover fails, names the titles in the notification, and leaves the existing front cover in place
 - Layout drawing functions still iterate `images[imageIndex++]` (Classic, Bookshelf) or use `step % imageCount` cycling (Masonry, Staggered) — the loops are count-agnostic; only the grid dimension ternaries change per count
 
 ### State Persistence

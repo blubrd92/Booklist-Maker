@@ -3088,10 +3088,10 @@ const BooklistApp = (function() {
       const listItem = document.querySelector('.list-item[data-id="' + book.key + '"]');
       const img = listItem?.querySelector('.cover-uploader img');
       if (img && img.naturalWidth > 0) {
-        return { domImg: img };
+        return { domImg: img, label: book.title };
       }
       // Fallback: load from URL if DOM image not available
-      return { large: BookUtils.getBookCoverUrl(book, 'L'), medium: BookUtils.getBookCoverUrl(book, 'M') };
+      return { large: BookUtils.getBookCoverUrl(book, 'L'), medium: BookUtils.getBookCoverUrl(book, 'M'), label: book.title };
     });
 
     // Get URLs from extra collage covers (only if extended mode — 16 or 20)
@@ -3104,7 +3104,7 @@ const BooklistApp = (function() {
     // Combine all covers (up to max for current mode)
     const allCovers = [
       ...bookBlockCovers,
-      ...extraCoverUrls.map(url => ({ large: url, medium: url }))
+      ...extraCoverUrls.map(url => ({ large: url, medium: url, label: null }))
     ].slice(0, maxCovers);
 
     // Require exactly the active cover count (12, 16, or 20)
@@ -3158,13 +3158,22 @@ const BooklistApp = (function() {
       // Discard stale result if a newer generation was started (e.g. undo/redo cancelled this one)
       if (thisGenId !== _collageGenId) return;
 
-      const images = results
-        .filter(r => r.status === 'fulfilled')
-        .map(r => r.value);
-      if (images.length === 0) {
-        showNotification('No cover images could be loaded.', 'error');
+      // Every cover must load. The layouts size their grids from
+      // images.length, so drawing with one missing left a hole in the
+      // grid (or, at 12, fell back to a smaller one). Refuse instead and
+      // keep whatever front cover is already there.
+      const failed = coversToDraw.filter((c, i) => results[i].status !== 'fulfilled');
+      if (failed.length > 0) {
+        const names = failed.map(c => c.label ? `"${c.label}"` : 'an added cover');
+        const shown = names.slice(0, 3).join(', ') + (names.length > 3 ? `, and ${names.length - 3} more` : '');
+        let what;
+        if (failed.length > 1) what = `${failed.length} covers: ${shown}`;
+        else if (failed[0].label) what = `the cover for ${shown}`;
+        else what = 'one of the added covers';
+        showNotification(`Couldn't load ${what}. Try again, or swap in a different cover.`, 'error');
         return;
       }
+      const images = results.map(r => r.value);
       // Draw based on selected layout
       switch (selectedLayout) {
         case 'masonry':
@@ -4275,10 +4284,11 @@ const BooklistApp = (function() {
       // If a library gives feedback on how the masonry-pack mode looks in
       // Tilted, these are the knobs worth touching (in order of likelihood):
       //
-      // gridExtent factor (see `canvasDiag * 0.8` a few dozen lines up):
-      //   controls how far past canvas edges the pattern extends. Tighten
-      //   to 0.6 if bleed feels excessive on a particular collection;
-      //   loosen to 1.0 if you see gaps near rotated corners.
+      // gridExtent factor (see `canvasDiag * 1.0` a few dozen lines up):
+      //   controls how far past canvas edges the pattern extends. It was
+      //   0.8 until gaps showed at the rotated corners; tighten back
+      //   toward 0.8 if bleed feels excessive on a particular collection,
+      //   push past 1.0 if gaps reappear.
       //
       // hGutter / vGutter (6pt, near top of function): horizontal and
       //   vertical spacing between packed covers. Tighten to 3-4pt for a
@@ -4450,7 +4460,6 @@ const BooklistApp = (function() {
     // Column count based on cover count: 5 for 12, 6 for 16 or 20
     const imageCount = images.length;
     const numCols = imageCount <= CONFIG.MIN_COVERS_FOR_COLLAGE ? 5 : 6;
-    console.log('[Masonry] Using numCols =', numCols, 'for', imageCount, 'covers');
     
     // Calculate column width - gutters only BETWEEN columns, not at edges
     const totalHGutter = (numCols - 1) * baseGutter;

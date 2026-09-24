@@ -31,9 +31,6 @@
     // Looks gallery preview renders so both use identical geometry.
     COLLAGE_WIDTH_IN: 5,
     COLLAGE_HEIGHT_IN: 8,
-    COLLAGE_GRID_COLS: 3,
-    COLLAGE_TOP_ROW_COUNT: 3,
-    COLLAGE_BOTTOM_ROWS: 3,
 
     // QR Code
     QR_SIZE_PX: 900,
