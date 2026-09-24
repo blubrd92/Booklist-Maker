@@ -1664,7 +1664,7 @@
     // to twice its width and trembling, holds, then melts back. It uses
     // a much faster blend (TAIL_SNAP_TAU) going in, so it snaps rather
     // than rises.
-    startle:    { amp: 0,   period: 1.0, curl: 0.15, bend: 0.08, lean: 32, sweep: 0,  quiver: 2.2, puff: 1.9,  bristle: 1, twitch: 0, stiff: 8 },
+    startle:    { amp: 0,   period: 1.0, curl: 0.15, bend: 0.08, lean: 32, sweep: 0,  quiver: 2.2, puff: 1.65, bristle: 1, twitch: 0, stiff: 8 },
   };
   const TAIL_BLEND_TAU = 0.35;
   const TAIL_SNAP_TAU = 0.04;
