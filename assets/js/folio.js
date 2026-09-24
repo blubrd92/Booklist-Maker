@@ -293,6 +293,7 @@
         'covers-needed': "We need a few more starred titles for the collage...",
         'cover-images-needed': "Some starred titles still need cover images...",
         'collage-failed': "The cover didn't draw. Let's try that again.",
+        'pdf-failed': "The PDF didn't come out. Your list is still safe.",
       },
       ambient: [
         "*ears flatten a little*",
@@ -1654,21 +1655,51 @@
   // Most any joint may trail its target, in radians (about 14deg).
   const TAIL_MAX_LAG = 0.24;
 
-  // amp: wave size in degrees per joint (it accumulates toward the tip)
-  // period: seconds per wave. curl: multiplier on the tip's rest bend.
-  // puff: width multiplier.
+  // Each mood is a POSE as well as a motion, because a cat says most of
+  // what it means with where the tail is, not how fast it moves. An
+  // earlier set varied only speed around one upright pose, so happy
+  // moods wagged side to side like a dog and read almost the same as
+  // the annoyed lash. In cat terms: happy is tall, straight and hooked
+  // with a quiver; worried is low; hunting focus is low and still with a
+  // twitching tip; annoyance is a wide, low thrash.
+  //
+  // amp:    travelling wave, degrees per joint (accumulates toward the tip)
+  // period: seconds per wave (and per sweep)
+  // curl:   multiplier on the tip's rest bend (the hook)
+  // bend:   multiplier on the rest bends along the rest of the tail;
+  //         below 1 straightens it, 0 is a straight rod
+  // lean:   base rotation in degrees; + stands it up toward vertical,
+  //         - lowers it out to his side
+  // sweep:  side-to-side swing of the whole tail from the base, degrees
+  // quiver: fast, small tremble at the base, degrees (a happy cat's
+  //         upright tail vibrates; it doesn't wag)
+  // puff:   width multiplier. bristle: spiky fur outline, 0..1
+  // twitch: tip-flick odds while in this mood (0 = none)
+  // stiff:  spring stiffness multiplier. A startled tail is rigid, and
+  //         at 1 the springs' follow-through whipped the tip sideways and
+  //         took half a second to settle, so it rose instead of snapping.
   const TAIL_MOODS = {
-    idle:       { amp: 1.4, period: 3.8, curl: 1.0,  puff: 1.0 },
-    searching:  { amp: 1.0, period: 1.4, curl: 1.25, puff: 1.0 },
-    excited:    { amp: 2.4, period: 0.8, curl: 0.9,  puff: 1.0 },
-    evaluating: { amp: 1.0, period: 5.5, curl: 1.25, puff: 1.0 },
-    sleeping:   { amp: 0.5, period: 6.5, curl: 1.5,  puff: 1.0 },
-    greeting:   { amp: 2.2, period: 1.5, curl: 1.0,  puff: 1.0 },
-    worried:    { amp: 0.9, period: 0.7, curl: 0.7,  puff: 1.06 },
+    idle:       { amp: 1.4, period: 3.8, curl: 1.0,  bend: 1.0,  lean: 0,   sweep: 0,  quiver: 0,   puff: 1.0,  bristle: 0, twitch: 1, stiff: 1 },
+    searching:  { amp: 0.3, period: 2.4, curl: 1.1,  bend: 0.95, lean: -14, sweep: 0,  quiver: 0,   puff: 1.0,  bristle: 0, twitch: 2.2, stiff: 1 },
+    excited:    { amp: 0.6, period: 1.8, curl: 1.35, bend: 0.45, lean: 12,  sweep: 0,  quiver: 1.6, puff: 1.0,  bristle: 0, twitch: 0, stiff: 1 },
+    evaluating: { amp: 1.0, period: 5.5, curl: 1.25, bend: 1.0,  lean: 0,   sweep: 0,  quiver: 0,   puff: 1.0,  bristle: 0, twitch: 1, stiff: 1 },
+    sleeping:   { amp: 0.5, period: 6.5, curl: 1.5,  bend: 1.0,  lean: 0,   sweep: 0,  quiver: 0,   puff: 1.0,  bristle: 0, twitch: 0.4, stiff: 1 },
+    greeting:   { amp: 0.8, period: 2.2, curl: 1.4,  bend: 0.5,  lean: 10,  sweep: 0,  quiver: 1.2, puff: 1.0,  bristle: 0, twitch: 0, stiff: 1 },
+    worried:    { amp: 0.5, period: 2.6, curl: 0.8,  bend: 1.15, lean: -38, sweep: 0,  quiver: 0,   puff: 1.05, bristle: 0, twitch: 1.6, stiff: 1 },
     // Reaction moods (see tailReact)
-    lash:       { amp: 3.6, period: 0.55, curl: 0.6, puff: 1.08 },
-    content:    { amp: 1.1, period: 2.6, curl: 1.35, puff: 1.0 },
+    lash:       { amp: 2.2, period: 0.75, curl: 0.5, bend: 0.8,  lean: -22, sweep: 16, quiver: 0,   puff: 1.1,  bristle: 0, twitch: 0, stiff: 1 },
+    content:    { amp: 1.0, period: 2.6, curl: 1.4,  bend: 0.7,  lean: 6,   sweep: 0,  quiver: 0.7, puff: 1.0,  bristle: 0, twitch: 0, stiff: 1 },
+    // The cartoon startle: the tail shoots straight up, stiff, bristled
+    // to twice its width and trembling, holds, then melts back. It uses
+    // a much faster blend (TAIL_SNAP_TAU) going in, so it snaps rather
+    // than rises.
+    startle:    { amp: 0,   period: 1.0, curl: 0.15, bend: 0.08, lean: 32, sweep: 0,  quiver: 2.2, puff: 1.9,  bristle: 1, twitch: 0, stiff: 8 },
   };
+  const TAIL_BLEND_TAU = 0.35;
+  const TAIL_SNAP_TAU = 0.04;
+  const TAIL_STARTLE_MS = 1000;
+  // Quiver rate, in Hz: fast enough to read as a tremble.
+  const TAIL_QUIVER_HZ = 7;
 
   const tailLen = [];
   const tailRel = [];      // rest bend of each joint relative to its parent
@@ -1694,7 +1725,7 @@
   const tailVel = new Array(TAIL_SEGS).fill(0);
   const tailCur = Object.assign({}, TAIL_MOODS.idle);
   let tailPhase = 0;
-  let tailPuffBoost = 0;
+  let tailQuiverPhase = 0;
   let tailMoodName = null;
   let tailMoodUntil = 0;
   let tailNextFlickAt = 0;
@@ -1712,23 +1743,35 @@
     return Math.atan2(parseFloat(parts[1]), parseFloat(parts[0]));
   }
 
-  // The tip's rest bend is scaled by the mood's curl over the last four
-  // joints, so a curious tail hooks harder and an angry one straightens.
-  function tailCurlAt(i, curl) {
-    const t = Math.max(0, (i - (TAIL_SEGS - 5)) / 4);
-    return 1 + (curl - 1) * Math.min(1, t);
+  // Rest bends are scaled by the mood's bend along the tail and by its
+  // curl over the last four joints (the hook), so a happy tail stands
+  // straight with a hooked tip, a curious one hooks harder and an angry
+  // one straightens out.
+  function tailCurlAt(i, curl, bend) {
+    const t = Math.min(1, Math.max(0, (i - (TAIL_SEGS - 5)) / 4));
+    return bend * (1 - t) + curl * t;
   }
 
   function tailTarget(i, parentAng) {
     const wave = (tailCur.amp * Math.PI / 180)
       * Math.sin(tailPhase - i * 0.55)
       * (0.35 + 0.65 * i / TAIL_SEGS);
-    return parentAng + tailRel[i] * tailCurlAt(i, tailCur.curl) + wave;
+    return parentAng + tailRel[i] * tailCurlAt(i, tailCur.curl, tailCur.bend) + wave;
+  }
+
+  // The base joint isn't a spring: it follows the CSS rotation plus the
+  // mood's lean, sweep and quiver, and the springs above it carry that
+  // up the tail with their lag and overshoot.
+  function tailBaseAngle(root) {
+    const deg = tailCur.lean
+      + tailCur.sweep * Math.sin(tailPhase)
+      + tailCur.quiver * Math.sin(tailQuiverPhase);
+    return root + tailRootRest + deg * Math.PI / 180;
   }
 
   // Snap every joint to its target: no motion, no leftover velocity.
   function resyncTail(root) {
-    tailAng[0] = root + tailRootRest;
+    tailAng[0] = tailBaseAngle(root);
     tailVel[0] = 0;
     for (let i = 1; i < TAIL_SEGS; i++) {
       tailAng[i] = tailTarget(i, tailAng[i - 1]);
@@ -1745,33 +1788,37 @@
   function tailReact(name) {
     if (name === 'flatten') tailMood('lash', 2600);
     else if (name === 'satisfied') tailMood('content', 1800);
-    else if (name === 'startle') tailPuffBoost = 0.45;
+    else if (name === 'startle') tailMood('startle', TAIL_STARTLE_MS);
   }
 
   function stepTail(dt, root) {
     const now = Date.now();
     const moodKey = (tailMoodName && now < tailMoodUntil) ? tailMoodName : currentState;
     const target = TAIL_MOODS[moodKey] || TAIL_MOODS.idle;
-    // Ease between moods so a state change never pops the pose.
-    const blend = 1 - Math.exp(-dt / 0.35);
-    tailCur.amp += (target.amp - tailCur.amp) * blend;
-    tailCur.period += (target.period - tailCur.period) * blend;
-    tailCur.curl += (target.curl - tailCur.curl) * blend;
-    tailCur.puff += (target.puff - tailCur.puff) * blend;
-    tailPuffBoost *= Math.exp(-dt / 0.9);
+    // Ease between moods so a state change never pops the pose. Into a
+    // startle the ease is near-instant: a startle that eases in reads as
+    // the tail rising, not shooting up.
+    const tau = moodKey === 'startle' ? TAIL_SNAP_TAU : TAIL_BLEND_TAU;
+    const blend = 1 - Math.exp(-dt / tau);
+    ['amp', 'period', 'curl', 'bend', 'lean', 'sweep', 'quiver', 'puff', 'bristle', 'stiff']
+      .forEach((key) => { tailCur[key] += (target[key] - tailCur[key]) * blend; });
     // Integrated phase (not t / period) so a period change bends the
     // wave's pace instead of jumping it to a new position.
     tailPhase += dt * 2 * Math.PI / tailCur.period;
+    tailQuiverPhase += dt * 2 * Math.PI * TAIL_QUIVER_HZ;
 
-    // The occasional tip flick of a cat that is only half paying attention.
-    if (moodKey === 'idle' || moodKey === 'evaluating' || moodKey === 'sleeping') {
-      if (!tailNextFlickAt) tailNextFlickAt = now + 3000 + Math.random() * 5000;
+    // The occasional tip flick of a cat that is only half paying
+    // attention (idle), or the busier twitch of one that is focused or
+    // uneasy (searching, worried). Sleep twitches are small.
+    const twitch = target.twitch || 0;
+    if (twitch > 0) {
+      if (!tailNextFlickAt) tailNextFlickAt = now + (3000 + Math.random() * 5000) / twitch;
       if (now >= tailNextFlickAt) {
         const kick = (Math.random() < 0.5 ? -1 : 1)
           * (1.6 + Math.random() * 1.6)
           * (moodKey === 'sleeping' ? 0.4 : 1);
         for (let i = TAIL_SEGS - 3; i < TAIL_SEGS; i++) tailVel[i] += kick;
-        tailNextFlickAt = now + 4000 + Math.random() * 5000;
+        tailNextFlickAt = now + (4000 + Math.random() * 5000) / twitch;
       }
     } else {
       tailNextFlickAt = 0;
@@ -1781,12 +1828,14 @@
     const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
     const h = dt / steps;
     for (let s = 0; s < steps; s++) {
-      tailAng[0] = root + tailRootRest;
+      tailAng[0] = tailBaseAngle(root);
       for (let i = 1; i < TAIL_SEGS; i++) {
         // Stiff near the base, loose at the tip: that gradient is what
         // makes the tip whip after the base has already stopped.
-        const k = 260 * (1 - 0.6 * i / TAIL_SEGS);
-        const c = 2 * 0.62 * Math.sqrt(k);
+        const k = 260 * (1 - 0.6 * i / TAIL_SEGS) * tailCur.stiff;
+        // Stiffer also means better damped: a rigid tail doesn't wobble.
+        const zeta = 0.62 + 0.38 * Math.min(1, (tailCur.stiff - 1) / 7);
+        const c = 2 * zeta * Math.sqrt(k);
         const want = tailTarget(i, tailAng[i - 1]);
         const acc = k * (want - tailAng[i]) - c * tailVel[i];
         tailVel[i] += acc * h;
@@ -1803,7 +1852,7 @@
   }
 
   function tailWidthAt(k) {
-    return (24 + 8 * Math.pow(k / TAIL_SEGS, 1.6)) * (tailCur.puff + tailPuffBoost);
+    return (24 + 8 * Math.pow(k / TAIL_SEGS, 1.6)) * tailCur.puff;
   }
 
   // Catmull-Rom through pts as cubic Beziers, starting at pts[0].
@@ -1856,13 +1905,45 @@
     const tx = Math.cos(tan[TAIL_SEGS]) * cap;
     const ty = Math.sin(tan[TAIL_SEGS]) * cap;
     const rightBack = right.slice().reverse();
-    const d = 'M ' + left[0][0].toFixed(1) + ' ' + left[0][1].toFixed(1)
-      + smoothThrough(left)
-      + ' C ' + (lt[0] + tx).toFixed(1) + ' ' + (lt[1] + ty).toFixed(1)
+    const capPath = ' C ' + (lt[0] + tx).toFixed(1) + ' ' + (lt[1] + ty).toFixed(1)
       + ', ' + (rt[0] + tx).toFixed(1) + ' ' + (rt[1] + ty).toFixed(1)
-      + ', ' + rt[0].toFixed(1) + ' ' + rt[1].toFixed(1)
-      + smoothThrough(rightBack)
-      + ' Z';
+      + ', ' + rt[0].toFixed(1) + ' ' + rt[1].toFixed(1);
+    let d;
+    if (tailCur.bristle > 0.05) {
+      // Bristled: the edges become a zigzag of fur spikes, their height
+      // scaled by bristle so they settle back into the smooth outline.
+      const spikes = (sideSign) => {
+        const out = [];
+        const SUB = 3;
+        for (let k = 0; k < TAIL_SEGS; k++) {
+          for (let j = 0; j < SUB; j++) {
+            const f = j / SUB;
+            const x = pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f;
+            const y = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f;
+            // Wrap-safe blend: a tail lying flat sits near +-180deg.
+            const da = Math.atan2(Math.sin(tan[k + 1] - tan[k]), Math.cos(tan[k + 1] - tan[k]));
+            const a = tan[k] + da * f;
+            const kk = k + f;
+            const tipOut = (k * SUB + j) % 2 === 1;
+            // The base is fur blending into the body: no spikes there.
+            const grow = Math.min(1, kk / 2);
+            const hw = tailWidthAt(kk) / 2
+              * (1 + (tipOut ? 0.34 : -0.04) * tailCur.bristle * grow);
+            out.push([x - Math.sin(a) * hw * sideSign, y + Math.cos(a) * hw * sideSign]);
+          }
+        }
+        out.push(sideSign > 0 ? lt : rt);
+        return out;
+      };
+      const zig = (arr) => arr.map((q) => ' L ' + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join('');
+      const l = spikes(1);
+      const r = spikes(-1).reverse();
+      d = 'M ' + left[0][0].toFixed(1) + ' ' + left[0][1].toFixed(1)
+        + zig(l.slice(1)) + capPath + zig(r.slice(1)) + ' Z';
+    } else {
+      d = 'M ' + left[0][0].toFixed(1) + ' ' + left[0][1].toFixed(1)
+        + smoothThrough(left) + capPath + smoothThrough(rightBack) + ' Z';
+    }
     tailOutline.setAttribute('d', d);
 
     // Stripes: thin fur bands laid across the spine, inset from the
@@ -1920,7 +2001,6 @@
   // animated tail are the same shape.
   function restTail() {
     Object.assign(tailCur, TAIL_MOODS.idle);
-    tailPuffBoost = 0;
     const root = readTailRoot();
     resyncTail(root);
     renderTail(root);

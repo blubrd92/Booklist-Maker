@@ -1145,9 +1145,10 @@ const BooklistApp = (function() {
       .catch(error => {
         console.error('There was a problem:', error);
         resultsContainer.innerHTML = '<p class="error-message">Sorry, could not connect to the search server. Please check your network connection and try again.</p>';
-        // Folio: worried about network error
+        // Folio: the connection dropping out from under him is a jolt:
+        // tail straight up and bristled, then worried.
         if (window.folio) window.folio.celebrate({
-          reaction: 'wince', state: 'worried', event: 'network-error',
+          reaction: 'startle', state: 'worried', event: 'network-error',
           reactionDelay: 500, returnAfter: 5500,
         });
       })
@@ -3203,9 +3204,10 @@ const BooklistApp = (function() {
     }).catch(err => {
       console.error('Cover generation failed:', err);
       showNotification('Could not create cover. Please try again.');
-      // Folio: worried about collage failure (a drawing error, not the network)
+      // Folio: startled, then worried, by a collage that failed to draw
+      // (a drawing error, not the network)
       if (window.folio) window.folio.celebrate({
-        reaction: 'wince', state: 'worried', event: 'collage-failed',
+        reaction: 'startle', state: 'worried', event: 'collage-failed',
         reactionDelay: 500, returnAfter: 5500,
       });
     }).finally(() => {
@@ -7096,6 +7098,11 @@ const BooklistApp = (function() {
       } else {
         showNotification("An error occurred generating the PDF. Please check the console.", 'error');
       }
+      // Folio: a PDF that fails at the last step is a jolt too.
+      if (window.folio) window.folio.celebrate({
+        reaction: 'startle', state: 'worried', event: 'pdf-failed',
+        reactionDelay: 500, returnAfter: 5500,
+      });
     } finally {
       isExportingPdf = false;
       elements.previewArea.classList.remove('print-mode');
