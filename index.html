@@ -1164,6 +1164,14 @@
         </defs>
         <!-- Shelf -->
         <rect x="-125" y="445" width="750" height="14" rx="3" fill="url(#shelfGrad)" stroke="#5a4a35" stroke-width="0.8" />
+        <!-- Tail: painted before the books, so a low or lashing tail passes
+             behind the stacks rather than over them. -->
+        <g id="tail">
+          <path class="fur-orange" d="M 146 420 Q 126 420 111 350 Q 96 260 61 220 Q 46 200 61 185 Q 81 170 96 200 Q 116 240 126 330 Q 136 400 161 410 L 146 420 Z" />
+          <path class="stripe" d="M 91 235 Q 101 230 111 235 L 111 240 Q 101 235 91 240 Z" opacity="0.8"/>
+          <path class="stripe" d="M 96 275 Q 108 270 121 275 L 121 280 Q 108 275 96 280 Z" opacity="0.8"/>
+          <path class="stripe" d="M 106 315 Q 116 310 126 315 L 126 320 Q 116 315 106 320 Z" opacity="0.8"/>
+        </g>
         <!-- Books Left -->
         <g id="books-left">
           <rect x="-115" y="310" width="18" height="135" rx="3" fill="#4a5a3a" stroke="#3a4a2a" stroke-width="1" />
@@ -1185,13 +1193,6 @@
           <rect x="557" y="295" width="18" height="150" rx="3" fill="#3a5a5a" stroke="#2a4a4a" stroke-width="1" />
           <rect x="577" y="310" width="22" height="135" rx="3" fill="#5a3a4a" stroke="#4a2a3a" stroke-width="1" />
           <rect x="601" y="300" width="18" height="145" rx="3" fill="#4a5a3a" stroke="#3a4a2a" stroke-width="1" />
-        </g>
-        <!-- Tail -->
-        <g id="tail">
-          <path class="fur-orange" d="M 146 420 Q 126 420 111 350 Q 96 260 61 220 Q 46 200 61 185 Q 81 170 96 200 Q 116 240 126 330 Q 136 400 161 410 L 146 420 Z" />
-          <path class="stripe" d="M 91 235 Q 101 230 111 235 L 111 240 Q 101 235 91 240 Z" opacity="0.8"/>
-          <path class="stripe" d="M 96 275 Q 108 270 121 275 L 121 280 Q 108 275 96 280 Z" opacity="0.8"/>
-          <path class="stripe" d="M 106 315 Q 116 310 126 315 L 126 320 Q 116 315 106 320 Z" opacity="0.8"/>
         </g>
         <!-- Body -->
         <g id="body">
@@ -1311,7 +1312,7 @@
   <script src="assets/js/config.js?v=24581d169c"></script>
   <script src="assets/js/book-utils.js?v=ba48744b32"></script>
   <script src="assets/js/app.js?v=5e6789760e"></script>
-  <script src="assets/js/folio.js?v=68a84f8f80"></script>
+  <script src="assets/js/folio.js?v=46058da624"></script>
   <script src="assets/js/tour.js?v=3af3f0da57"></script>
   <script src="assets/js/preview-helper.js?v=7c1be5e5c1"></script>
 

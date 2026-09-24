@@ -385,24 +385,6 @@
     guardTimer = setTimeout(() => { isGuarded = false; }, duration);
   }
 
-  /* Tail z-order helpers. SVG paints in document order, so the tail is
-     physically moved in the DOM: behind the books while sleeping (it
-     curls around the body), back in front of the body when awake. */
-  function tailBehindBooks() {
-    const tail = document.getElementById('tail');
-    const booksLeft = document.getElementById('books-left');
-    if (tail && booksLeft) booksLeft.parentNode.insertBefore(tail, booksLeft);
-  }
-
-  function tailInFront() {
-    const tail = document.getElementById('tail');
-    const booksLeft = document.getElementById('books-left');
-    const body = document.getElementById('body');
-    if (tail && body && tail.nextElementSibling === booksLeft) {
-      body.parentNode.insertBefore(tail, body);
-    }
-  }
-
   function setState(state, event) {
     // While guarded, only greetings get through
     if (isGuarded && state !== 'greeting') return;
@@ -410,12 +392,6 @@
     // Clear sleep tail classes on any state change
     folioSvg.classList.remove('tail-droop', 'tail-sleeping');
     clearTimeout(droopTimer);
-
-    if (state === 'sleeping') {
-      tailBehindBooks();
-    } else {
-      tailInFront();
-    }
 
     // Set base state class (replaces all classes on SVG root). A reaction
     // in flight keeps its class: celebrate() changes state 300ms after
@@ -1566,11 +1542,6 @@
     reactTimer = setTimeout(() => {
       folioSvg.classList.remove('react-' + name);
       activeReaction = null;
-
-      // Startle complete: tail is upright, move it in front of books
-      if (name === 'startle') {
-        tailInFront();
-      }
     }, duration);
   }
 
@@ -2142,7 +2113,6 @@
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) startTail();
     if (!document.hidden && currentState === 'sleeping') {
-      tailBehindBooks();
       folioSvg.className.baseVal = 'sleeping';
       folioSvg.classList.add('tail-droop', 'tail-sleeping');
     }
