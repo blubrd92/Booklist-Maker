@@ -1452,21 +1452,7 @@ const BooklistApp = (function() {
           getAiDescription(newBook.key);
         }
         
-        // Folio: check if all slots are now filled. Wait past the
-        // book-added celebration's auto-return so the two beats don't
-        // collide. (celebrate would also internally guard against
-        // overlap by clearing the prior return timer, but the bubble
-        // pacing reads better with the explicit space.)
-        if (window.folio) {
-          const allFilled = myBooklist.every(function(b) { return !b.isBlank; });
-          if (allFilled) {
-            setTimeout(function() {
-              if (window.folio) window.folio.celebrate({
-                state: 'excited', event: 'slots-full', returnAfter: 5000,
-              });
-            }, 4200);
-          }
-        }
+        celebrateIfSlotsFull();
         
         // Auto-generate if this book has a cover, is starred, and completes the required count
         const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
@@ -3062,9 +3048,13 @@ const BooklistApp = (function() {
   }
   
   /**
-   * Main collage generation function
+   * Main collage generation function. Pass { announce: true } only for a
+   * deliberate Create Cover press: every other caller is an automatic
+   * rebuild (a text edit, a layout change, a star), and Folio praising
+   * each of those repeated the same line several times a minute.
    */
-  function generateCoverCollage() {
+  function generateCoverCollage(opts) {
+    const announce = !!(opts && opts.announce);
     const thisGenId = ++_collageGenId;
     const button = elements.generateCoverButton;
     // User-facing label says "Creating..."; the function name
@@ -3124,14 +3114,17 @@ const BooklistApp = (function() {
       const totalWithCovers = booksWithCovers.length + extraCoverUrls.length;
       const totalSelected = starredCount + (isExtended ? extraCollageCovers.length : 0);
       
-      if (totalSelected < requiredCovers) {
+      const missingStars = totalSelected < requiredCovers;
+      if (missingStars) {
         showNotification(`Need ${requiredCovers} covers. Currently ${totalSelected} selected.`);
       } else {
         showNotification(`Need ${requiredCovers} covers with images. ${totalWithCovers} have covers.`);
       }
-      // Folio: worried about missing covers
+      // Folio: worried about missing covers (stars, or images for them)
       if (window.folio) window.folio.celebrate({
-        state: 'worried', event: 'covers-needed', returnAfter: 5000,
+        state: 'worried',
+        event: missingStars ? 'covers-needed' : 'cover-images-needed',
+        returnAfter: 5000,
       });
       setLoading(button, false);
       return Promise.resolve();
@@ -3202,17 +3195,17 @@ const BooklistApp = (function() {
       elements.frontCoverUploader.classList.add('has-image');
       debouncedSave();
       
-      // Folio: excited about the collage
-      if (window.folio) window.folio.celebrate({
+      // Folio: excited about the collage, when someone asked for it
+      if (announce && window.folio) window.folio.celebrate({
         state: 'excited', event: 'collage-generated',
       });
 
     }).catch(err => {
       console.error('Cover generation failed:', err);
       showNotification('Could not create cover. Please try again.');
-      // Folio: worried about collage failure
+      // Folio: worried about collage failure (a drawing error, not the network)
       if (window.folio) window.folio.celebrate({
-        reaction: 'wince', state: 'worried', event: 'network-error',
+        reaction: 'wince', state: 'worried', event: 'collage-failed',
         reactionDelay: 500, returnAfter: 5500,
       });
     }).finally(() => {
@@ -6046,10 +6039,25 @@ const BooklistApp = (function() {
     if (window.folio) {
       window.folio.celebrate({ reaction: 'nod', state: 'excited', event: 'quick-add-single' });
     }
+    celebrateIfSlotsFull();
 
     closeQuickAddModal();
     renderBooklist();
     debouncedSave();
+  }
+
+  /**
+   * Folio's "every slot filled" beat, for any add path. It waits past the
+   * add's own celebration so the two lines don't collide.
+   */
+  function celebrateIfSlotsFull() {
+    if (!window.folio) return;
+    if (!myBooklist.every(function(b) { return !b.isBlank; })) return;
+    setTimeout(function() {
+      if (window.folio) window.folio.celebrate({
+        state: 'excited', event: 'slots-full', returnAfter: 5000,
+      });
+    }, 4200);
   }
 
   // Spreadsheet-tab submit. Parses pasted TSV, validates, applies title
@@ -6150,9 +6158,14 @@ const BooklistApp = (function() {
       };
     }
 
+    // A one-row paste is one title, not "a stack".
     if (window.folio) {
-      window.folio.celebrate({ reaction: 'nod', state: 'excited', event: 'quick-add-multi' });
+      window.folio.celebrate({
+        reaction: 'nod', state: 'excited',
+        event: toAdd === 1 ? 'book-added' : 'quick-add-multi',
+      });
     }
+    celebrateIfSlotsFull();
     renderBooklist();
     debouncedSave();
 
@@ -7812,12 +7825,9 @@ const BooklistApp = (function() {
     applyState(st, { silent: true });
     debouncedSave();
     showNotification('Content cleared, styles kept. Undo brings it back.', 'success');
-    // Ears up at the empty shelf: a fresh start, not an alarm. The line
-    // waits out the whole 700ms perk, because setState() rewrites the SVG's
-    // class list and would cut the reaction off at the default 300ms.
+    // Ears up at the empty shelf: a fresh start, not an alarm.
     if (window.folio) window.folio.celebrate({
       reaction: 'perk',
-      reactionDelay: 700,
       state: 'idle',
       event: 'content-cleared',
     });
@@ -8183,7 +8193,7 @@ const BooklistApp = (function() {
     // Cover generation
     elements.generateCoverButton.addEventListener('click', () => {
       pushUndo('generate-collage');
-      generateCoverCollage();
+      generateCoverCollage({ announce: true });
     });
     // Stretch toggles: capture BEFORE the change event (which fires
     // after the checkbox is already flipped). mousedown/keydown both

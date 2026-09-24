@@ -2116,13 +2116,21 @@ body:has(.sidebar.collapsed) .folio-container {
   /* Anchored by its bottom edge so a two-line quip grows UP, away from
      his face, and scaled from the pointer so it pops out of the tail
      and shrinks back into it. Long lines wrap (balanced) instead of
-     running off the scene. */
+     running off the scene.
+
+     Placement comes from folio.js (fitBubble): --bub-dx shifts the
+     bubble sideways to keep it on screen and clear of the sidebar, and
+     --bub-tail moves the pointer (and the pop's origin) back over his
+     head. Every transform below adds the shift, so none may drop it.
+     The height is a share of the scene, not a fixed offset: the scene
+     scales with the window and a fixed 10px sat on his ear tips when
+     it was small. */
   .speech-bubble {
     position: absolute;
-    bottom: calc(100% - 10px);
+    bottom: 95%;
     left: 50%;
-    transform: translateX(-50%) scale(0);
-    transform-origin: 50% calc(100% + 8px);
+    transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(0);
+    transform-origin: var(--bub-tail, 50%) calc(100% + 8px);
     background: white;
     border-radius: 18px;
     padding: 9px 18px 10px;
@@ -2130,7 +2138,10 @@ body:has(.sidebar.collapsed) .folio-container {
     font-size: 17px;
     line-height: 1.15;
     color: #3a3530;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    /* drop-shadow, not box-shadow: it outlines the pointer as well, and
+       the white bubble needs an edge against the white sidebar, pages
+       and light background it sits over. */
+    filter: drop-shadow(0 0 1px rgba(0,0,0,0.22)) drop-shadow(0 2px 6px rgba(0,0,0,0.10));
     width: max-content;
     max-width: min(250px, 70vw);
     text-align: center;
@@ -2151,20 +2162,20 @@ body:has(.sidebar.collapsed) .folio-container {
     animation: bubShrink 0.25s cubic-bezier(0.55,0,0.9,0.45) forwards;
   }
   @keyframes bubPop {
-    0% { transform: translateX(-50%) scale(0.2); opacity: 0; }
-    45% { transform: translateX(-50%) scale(1.07,0.95); opacity: 1; }
-    70% { transform: translateX(-50%) scale(0.98,1.02); opacity: 1; }
-    100% { transform: translateX(-50%) scale(1); opacity: 1; }
+    0% { transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(0.2); opacity: 0; }
+    45% { transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(1.07,0.95); opacity: 1; }
+    70% { transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(0.98,1.02); opacity: 1; }
+    100% { transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(1); opacity: 1; }
   }
   @keyframes bubSwap {
-    0% { transform: translateX(-50%) scale(0.95,1.04); opacity: 1; }
-    55% { transform: translateX(-50%) scale(1.03,0.98); opacity: 1; }
-    100% { transform: translateX(-50%) scale(1); opacity: 1; }
+    0% { transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(0.95,1.04); opacity: 1; }
+    55% { transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(1.03,0.98); opacity: 1; }
+    100% { transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(1); opacity: 1; }
   }
   @keyframes bubShrink {
-    0% { transform: translateX(-50%) scale(1); opacity: 1; }
-    30% { transform: translateX(-50%) scale(1.03,0.97); opacity: 1; }
-    100% { transform: translateX(-50%) scale(0.3,0.5); opacity: 0; }
+    0% { transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(1); opacity: 1; }
+    30% { transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(1.03,0.97); opacity: 1; }
+    100% { transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(0.3,0.5); opacity: 0; }
   }
   /* Words arrive one at a time (folio.js staggers animation-delay), so
      a line reads as spoken rather than stamped. The whole text is in
@@ -2178,15 +2189,16 @@ body:has(.sidebar.collapsed) .folio-container {
     0% { opacity: 0; transform: translateY(3px); }
     100% { opacity: 1; transform: translateY(0); }
   }
-  /* Stage directions (*purrs*): muted, so they read as action. */
+  /* Stage directions (*purrs*): muted, so they read as action. Dark
+     enough for 4.5:1 on white; the thin Caveat strokes need it. */
   .speech-action {
-    color: #9a8570;
+    color: #7a6653;
   }
   .speech-bubble::after {
     content: '';
     position: absolute;
     bottom: -8px;
-    left: 50%;
+    left: var(--bub-tail, 50%);
     transform: translateX(-50%);
     border-left: 8px solid transparent;
     border-right: 8px solid transparent;
@@ -2303,12 +2315,12 @@ body:has(.sidebar.collapsed) .folio-container {
   }
   #folio-container .speech-bubble.visible {
     animation: none !important;
-    transform: translateX(-50%) scale(1);
+    transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(1);
     opacity: 1;
   }
   #folio-container .speech-bubble.hiding {
     animation: none !important;
-    transform: translateX(-50%) scale(1);
+    transform: translateX(calc(-50% + var(--bub-dx, 0px))) scale(1);
     opacity: 0;
   }
   #folio-container .speech-word {

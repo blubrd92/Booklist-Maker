@@ -43,9 +43,20 @@
   // flickering through several). A pending defer is tracked here so
   // a fresh showBubble can replace it.
   const MIN_VISIBLE_MS = 1500;
+  // A long line gets longer before anything may replace it: a flat 1.5s
+  // cut a 56-character line off before it could be read. Capped, so a
+  // burst still collapses to its last line in reasonable time.
+  const MIN_VISIBLE_PER_CHAR_MS = 45;
+  const MIN_VISIBLE_CAP_MS = 3000;
+  let bubbleMinVisibleMs = MIN_VISIBLE_MS;
   let bubbleStartTime = 0;
   let pendingBubbleTimer = null;
   let pendingBubbleText = null;
+  let pendingBubbleKey = null;
+  // "state:event" of the line on screen (null for clicks, pets and other
+  // lines with no event). The same event firing again while its line is
+  // still up is skipped rather than swapping in a same-meaning line.
+  let currentBubbleKey = null;
   // One-shot follow-up: a line waiting for the CURRENT bubble to
   // complete its full hold (used by the click-annoyance tiers so
   // their lines breathe instead of stomping each other at the
@@ -97,7 +108,7 @@
         "We need to fill in those slots.",
         "I already have opinions about fonts.",
         "*happy purr*",
-        "The printer is probably ready. Probably.",
+        "Let's find something worth displaying.",
         "Let's make something good.",
       ]
     },
@@ -119,12 +130,17 @@
         "A booklist is a love letter to readers.",
         "*purrs while reviewing layout*",
         "I wonder what patrons will pick up first.",
-        "Print is not dead. I'm proof.",
+        "A good display starts with one good title.",
       ]
     },
     searching: {
       triggered: {
-        'search-started':  "Let's see what's out there...",
+        'search-started': [
+          "Let's see what's out there...",
+          "Let's see what turns up.",
+          "*ears forward*",
+          "Checking the stacks...",
+        ],
       },
       ambient: [
         "I know Open Library has it...",
@@ -148,16 +164,16 @@
           "*nods approvingly*",
         ],
         'quick-add-single': [
-          "Typed it in yourself, even better.",
+          "Straight onto the list.",
           "Direct add. I like efficiency.",
           "Quick and clean.",
-          "Skipping the search, I see. Bold.",
+          "Added. Nice and simple.",
           "*nods at the manual entry*",
         ],
         'quick-add-multi': [
           "Whoa, that's a stack!",
           "A whole batch at once. Productive.",
-          "*purrs at the spreadsheet energy*",
+          "*counts the new arrivals*",
           "Look at all these new arrivals.",
           "Now we're cooking.",
         ],
@@ -168,15 +184,25 @@
           "That one's going to catch some eyes.",
           "Good image quality too. Nice.",
           "I approve. Carry on.",
-          "*nods approvingly*",
+          "*tilts head at the art*",
         ],
-        'collage-generated':"The collage just came together perfectly!",
+        // Only on a Create Cover press: automatic rebuilds stay quiet.
+        'collage-generated': [
+          "There's the front cover.",
+          "The collage came together.",
+          "*admires the front cover*",
+          "Now that's a front cover.",
+        ],
         'collage-ready': [
-          "That's enough starred covers — the collage is unlocked!",
-          "Cover quota reached! Time to generate that collage.",
-          "All the stars are in. Let's see that collage!",
+          "That's enough starred covers for the collage.",
+          "Every collage slot has a star now.",
+          "All the stars are in.",
         ],
-        'pdf-exported':     "PDF is on its way!",
+        'pdf-exported': [
+          "PDF is on its way!",
+          "Off to the printer.",
+          "*stamps it approved*",
+        ],
         'save-complete': [
           "Saved! Your work is safe.",
           "Tucked away. Nice and tidy.",
@@ -189,22 +215,26 @@
         'slots-full':       "Every slot filled! Full house!",
       },
       ambient: [
-        "THAT is a front cover!",
-        "*happy bouncing*",
-        "This booklist is going to fly off the rack!",
+        "Good momentum.",
+        "*tail up, pleased*",
+        "This list has a point of view. I like it.",
         "Look at that layout!",
         "Patrons will love this one!",
-        "Everything lines up! This is clean!",
+        "Everything lines up. Clean.",
         "This is really coming together!",
       ]
     },
     evaluating: {
       triggered: {
-        'description-fetching': "Let's see what comes back...",
+        'description-fetching': [
+          "Drafting a description...",
+          "Give it a moment to write.",
+          "*watches the words come in*",
+        ],
         'browsing-covers': [
           "Take your time, covers matter.",
           "Ooh, that one has good contrast.",
-          "The spine art says a lot about a book.",
+          "Cover art says a lot about a title.",
           "Keep going, the right cover is in here.",
           "This one would pop on the collage.",
           "I'm partial to bold colors, personally.",
@@ -238,34 +268,40 @@
       ]
     },
     sleeping: {
+      // The dream lines used to sit in an ambient pool nothing could
+      // reach (a click on a sleeping cat wakes him instead), so only
+      // "five more minutes" ever played. They rotate on falling asleep.
       triggered: {
-        'inactivity': "zzz... five more minutes... zzz...",
+        'inactivity': [
+          "zzz... five more minutes... zzz...",
+          "zzz... perfect kerning... zzz...",
+          "zzz... no paper jams... zzz...",
+          "*soft purring*",
+          "zzz... patrons read the QR code... zzz...",
+          "zzz... the fold lines up... zzz...",
+          "zzz... unlimited color ink... zzz...",
+          "*dream twitches*",
+        ],
       },
-      ambient: [
-        "zzz... perfect kerning... zzz...",
-        "zzz... no paper jams... zzz...",
-        "*soft purring*",
-        "zzz... patrons read the QR code... zzz...",
-        "zzz... the fold lines up... zzz...",
-        "zzz... unlimited color ink... zzz...",
-        "*dream twitches*",
-      ]
+      ambient: []
     },
     worried: {
       triggered: {
         'search-empty':  "Nothing came back... try different keywords?",
         'network-error': "Something's wrong with the connection...",
         'fetch-failed':  "The description didn't come through...",
-        'covers-needed': "We need more starred covers for the collage...",
+        'covers-needed': "We need a few more starred titles for the collage...",
+        'cover-images-needed': "Some starred titles still need cover images...",
+        'collage-failed': "The cover didn't draw. Let's try that again.",
       },
       ambient: [
-        "Is the wifi ok? Asking for a friend.",
+        "*ears flatten a little*",
         "*nervous tail twitch*",
         "Deep breaths. We'll figure it out.",
-        "It's fine. Everything is fine.",
+        "We'll sort it out.",
         "Technical difficulties make my fur stand up.",
         "I've seen this before. It usually resolves.",
-        "I don't like when things go quiet...",
+        "Let's give it another try.",
       ]
     }
   };
@@ -380,8 +416,12 @@
       tailInFront();
     }
 
-    // Set base state class (replaces all classes on SVG root)
+    // Set base state class (replaces all classes on SVG root). A reaction
+    // in flight keeps its class: celebrate() changes state 300ms after
+    // starting a reaction, and wiping the class there cut every nod and
+    // perk off partway through.
     folioSvg.className.baseVal = state;
+    if (activeReaction) folioSvg.classList.add('react-' + activeReaction);
     currentState = state;
 
     // Add droop classes after baseVal is set so they persist
@@ -419,7 +459,7 @@
         ? pickTriggered(state, event)
         : triggered;
     }
-    if (line) showBubble(line);
+    if (line) showBubble(line, state + ':' + event);
   }
 
   /* ----------------------------------------------------------------
@@ -543,7 +583,7 @@
 
   const contextQuips = [
     (ctx) => ctx.bookCount === 0
-      ? "Empty list. My favorite part — anything could go on it."
+      ? "Empty list. My favorite part\u00a0— anything could go on it."
       : null,
     (ctx) => ctx.bookCount === 1
       ? "One title down. A list of one is just a recommendation."
@@ -570,7 +610,7 @@
         : null;
     },
     (ctx) => (ctx.listName && ctx.listName.length <= 30)
-      ? `"${ctx.listName}" — good theme. I'd browse that shelf.`
+      ? `Working on \u201c${ctx.listName}\u201d. I'm in.`
       : null,
   ];
 
@@ -677,7 +717,7 @@
     "You're going to wear out my pixels.",
     "That tickles. Stop.",
     "I am not a button.",
-    "This is not what my animation degree was for.",
+    "Enough pokes for one day.",
     "Ok. Ok. I see you.",
   ];
   const pesteredBag = createShuffleBag(pesteredQuips);
@@ -721,6 +761,13 @@
   // simply replaced by the next quip.
   const CLICK_INTERRUPT_FRESH_MS = 2200;
 
+  // A lone click's line waits this long, so the first click of a
+  // double-click doesn't flash a line for a fifth of a second (and push
+  // it to screen readers) before the annoyed tier replaces it. The
+  // squish itself stays instant.
+  const SINGLE_CLICK_QUIP_DELAY_MS = 260;
+  let singleClickTimer = null;
+
   /* Annoyance-tier routing follows the interaction grammar:
      - Mid-STANDARD-line (ambient/context/event quip): the pokes
        interrupt it immediately — being clicked at outranks droning on.
@@ -756,6 +803,10 @@
       clearTimeout(guardTimer);
     }
 
+    // A second click cancels the first click's waiting line.
+    clearTimeout(singleClickTimer);
+    singleClickTimer = null;
+
     // Track click timing
     clickTimestamps.push(now);
     clearTimeout(clickResetTimer);
@@ -778,6 +829,8 @@
       // Fresh spam re-arms the rebuff: more clicking means the next
       // pet gets pushed away again before forgiveness can be earned.
       angerRebuffed = false;
+      clearTimeout(rebuffTimer);
+      rebuffTimer = null;
       queueTierLine(pesteredBag);
     } else if (recent.length >= 2) {
       // Rapid: squish again (restarted — every click must visibly
@@ -803,12 +856,19 @@
       if (now - lastPhysicalAt > INTERACTION_QUIET_MS) {
         if (bubbleIsVisible() && bubblePhysical) {
           // tail of a purr/annoyed line past the quiet window: let it be
-        } else if (bubbleIsVisible() && now - bubbleStartTime < CLICK_INTERRUPT_FRESH_MS) {
-          interruptBubble(clickInterruptBag.next());
         } else {
-          const quip = (Math.random() < 0.6 ? pickContextQuip() : null)
-            || pickAmbient(currentState);
-          if (quip) showBubble(quip);
+          // Freshness is judged at the click, not after the wait.
+          const fresh = bubbleIsVisible() && now - bubbleStartTime < CLICK_INTERRUPT_FRESH_MS;
+          singleClickTimer = setTimeout(() => {
+            singleClickTimer = null;
+            if (fresh) {
+              interruptBubble(clickInterruptBag.next());
+              return;
+            }
+            const quip = (Math.random() < 0.6 ? pickContextQuip() : null)
+              || pickAmbient(currentState);
+            if (quip) showBubble(quip);
+          }, SINGLE_CLICK_QUIP_DELAY_MS);
         }
       }
     }
@@ -842,7 +902,7 @@
     "*leans into it*",
     "Right behind the ear. Yes. There.",
     "*purring intensifies*",
-    "Okay, that's the spot.",
+    "Okay, yes. Right there.",
     "*happy rumble*",
     "I suppose you may continue.",
   ];
@@ -871,6 +931,38 @@
   const REBUFF_HOLD_MS = 2500;
   let angerRebuffed = false;
   let lastRebuffAt = 0;
+  // The rebuff line waiting for his current line's minimum time. The
+  // sulk clock starts when the rebuff is actually on screen: timing it
+  // from the rub let the sulk (and the grudge) run out while the rebuff
+  // still waited behind a full hold, so it arrived after forgiveness,
+  // or never.
+  let rebuffTimer = null;
+
+  // Still mad: the grudge is fresh, or he has rebuffed a rub and the
+  // hand hasn't won him round yet (a started rebuff keeps the grudge
+  // alive until forgiveness, rather than expiring mid-sulk).
+  function angerIsHot(now) {
+    if (now - lastPesteredAt < PESTERED_MEMORY_MS) return true;
+    return angerRebuffed && (!!rebuffTimer || now - lastRebuffAt < PESTERED_MEMORY_MS);
+  }
+
+  function showRebuffLine() {
+    const line = rebuffBag.next();
+    // The rebuff is his answer to the hand, so it takes the place of a
+    // grievance still waiting in the follow-up slot; that line landing
+    // just as the rub began read as his reply to it.
+    followUpBubbleText = null;
+    const wait = bubbleIsVisible()
+      ? Math.max(0, bubbleMinVisibleMs - (Date.now() - bubbleStartTime))
+      : 0;
+    clearTimeout(rebuffTimer);
+    rebuffTimer = setTimeout(() => {
+      rebuffTimer = null;
+      if (folioIsHidden()) return;
+      lastRebuffAt = Date.now();
+      interruptBubble(line);
+    }, wait);
+  }
 
   const rebuffQuips = [
     "A rub doesn't undo all that clicking.",
@@ -951,7 +1043,7 @@
     lastPhysicalAt = now;
     if (now - lastHeartAt < 700) return;
     lastHeartAt = now;
-    if (now - lastPesteredAt < PESTERED_MEMORY_MS) {
+    if (angerIsHot(now)) {
       // He's mad: rubs during the pet cooldown get the cold shoulder
       // (a grump mark, not a heart, and no blissful squint).
       spawnGrump();
@@ -982,21 +1074,19 @@
     // must be earned. Rebuff and sulk phases do NOT set lastPetAt, so
     // continued rubbing keeps re-attempting (each attempt needs 3
     // fresh strokes) instead of falling into the 8s quip cooldown.
-    const angerHot = now - lastPesteredAt < PESTERED_MEMORY_MS;
-    if (angerHot) {
+    if (angerIsHot(now)) {
       if (!angerRebuffed) {
-        // Stage 1 — rebuff: his angry line stands, the hand gets a
-        // dismissive tail swish and a grump mark (no hearts, no
-        // blissful squint), and the rebuff line waits its turn behind
-        // whatever he's currently saying.
+        // Stage 1 — rebuff: the hand gets a dismissive tail swish and a
+        // grump mark (no hearts, no blissful squint), and the rebuff line
+        // answers it once his current line has had its minimum time on
+        // screen (see showRebuffLine).
         angerRebuffed = true;
-        lastRebuffAt = now;
         react('tail-swish');
         spawnGrump();
-        queueTierLine(rebuffBag);
+        showRebuffLine();
         return;
       }
-      if (now - lastRebuffAt < REBUFF_HOLD_MS) {
+      if (rebuffTimer || now - lastRebuffAt < REBUFF_HOLD_MS) {
         // Mid-sulk: pointedly ignoring the hand. A throttled grump
         // mark keeps the (rebuffed) effort visible.
         if (now - lastHeartAt >= 700) {
@@ -1010,6 +1100,7 @@
       // line mid-read — the emotional turn justifies the one stomp.
       lastPesteredAt = 0;
       angerRebuffed = false;
+      lastRebuffAt = 0;
       lastPetAt = now;
       react('satisfied');
       lastHeartAt = now;
@@ -1104,30 +1195,39 @@
      async returns) collapses to the latest single quip rather than
      flashing through every one.
      ---------------------------------------------------------------- */
-  function showBubble(text) {
+  function showBubble(text, key) {
     if (!text) return;
     // No bubbles while Folio is hidden: the scene is invisible, and a
     // text swap would still hit the aria-live region — screen reader
     // announcements from a cat that isn't there.
     if (folioIsHidden()) return;
+    // The same event again while its line is still up: keep the line.
+    if (key && key === currentBubbleKey && bubble.classList.contains('visible')) return;
 
     const now = Date.now();
     const elapsed = bubbleStartTime ? now - bubbleStartTime : Infinity;
 
-    if (elapsed < MIN_VISIBLE_MS) {
+    if (elapsed < bubbleMinVisibleMs) {
       // Defer: replace any existing pending text with the new one.
       pendingBubbleText = text;
+      pendingBubbleKey = key || null;
       clearTimeout(pendingBubbleTimer);
       pendingBubbleTimer = setTimeout(() => {
         const next = pendingBubbleText;
+        const nextKey = pendingBubbleKey;
         pendingBubbleText = null;
+        pendingBubbleKey = null;
         pendingBubbleTimer = null;
         // A physical line may have interrupted in while this standard
         // quip waited (via the follow-up path, which doesn't clear
         // pendings). Standard loses: dropping a background event quip
-        // beats stomping his in-the-moment response mid-read.
-        if (next && !(bubbleIsVisible() && bubblePhysical)) showBubbleNow(next);
-      }, MIN_VISIBLE_MS - elapsed);
+        // beats stomping his in-the-moment response mid-read. And a cat
+        // hidden in the meantime (the tour's exit re-hides him) says
+        // nothing.
+        if (next && !folioIsHidden() && !(bubbleIsVisible() && bubblePhysical)) {
+          showBubbleNow(next, false, nextKey);
+        }
+      }, bubbleMinVisibleMs - elapsed);
       return;
     }
 
@@ -1136,8 +1236,9 @@
     clearTimeout(pendingBubbleTimer);
     pendingBubbleTimer = null;
     pendingBubbleText = null;
+    pendingBubbleKey = null;
 
-    showBubbleNow(text);
+    showBubbleNow(text, false, key);
   }
 
   /* Immediate bubble replacement, bypassing the MIN_VISIBLE_MS pacing
@@ -1152,14 +1253,18 @@
     clearTimeout(pendingBubbleTimer);
     pendingBubbleTimer = null;
     pendingBubbleText = null;
+    pendingBubbleKey = null;
     // showBubbleNow also clears any queued follow-up line — important
     // for the pet-while-pestered reconciliation, which must not be
     // chased by a stale "I am not a button."
     showBubbleNow(text, true);
   }
 
+  // A line in its 250ms shrink still counts as up: treating it as gone
+  // let a line arriving in that window wipe the queued follow-up (a
+  // rebuff or pestered line vanished that way).
   function bubbleIsVisible() {
-    return bubble.classList.contains('visible');
+    return bubble.classList.contains('visible') || bubble.classList.contains('hiding');
   }
 
   /* Hard stop on all speech: drops the visible bubble and every queued
@@ -1173,7 +1278,13 @@
     clearTimeout(pendingBubbleTimer);
     pendingBubbleTimer = null;
     pendingBubbleText = null;
+    pendingBubbleKey = null;
+    clearTimeout(rebuffTimer);
+    rebuffTimer = null;
+    clearTimeout(singleClickTimer);
+    singleClickTimer = null;
     followUpBubbleText = null;
+    currentBubbleKey = null;
     bubblePhysical = false;
     bubbleStartTime = 0;
     bubble.className = 'speech-bubble';
@@ -1235,6 +1346,9 @@
   function startTalking(text, ms) {
     stopTalking();
     if (!ms || currentState === 'sleeping') return;
+    // The tour hides the bubble (tour.css), so a moving mouth there is
+    // talking with no words.
+    if (document.body.classList.contains('tour-active')) return;
     if (!text.replace(/\*[^*]+\*/g, '').trim()) return;
     const scene = document.getElementById('folio-scene');
     if (!scene) return;
@@ -1242,7 +1356,87 @@
     talkTimer = setTimeout(stopTalking, ms + 150);
   }
 
-  function showBubbleNow(text, isPhysical) {
+  /* Size and place the bubble for the words just rendered.
+
+     Shrink-wrap: text-wrap: balance evens out a two-line quip, but the
+     box keeps the full max-width, so balanced lines sat in a mostly
+     empty bubble. CSS can't size a box to balanced lines, so measure
+     the widest line from the word spans (offsetLeft/offsetWidth ignore
+     the pop animation's scale) and set the width to fit.
+
+     Keep on screen: the bubble centres on the scene, and when the
+     sidebar collapses the scene sits at the left edge, so a wide bubble
+     ran off the screen (and with the sidebar open it spilled over the
+     sidebar). Shift it right just enough to clear the preview area's
+     left edge, and move the pointer back the same distance so it still
+     points at his head. The shift and pointer ride on CSS variables the
+     pop, swap and shrink keyframes all read. */
+  const BUBBLE_EDGE_GAP = 8;
+  const BUBBLE_POINTER_INSET = 22;
+
+  function fitBubble() {
+    bubble.style.width = '';
+    bubble.style.setProperty('--bub-dx', '0px');
+    bubble.style.removeProperty('--bub-tail');
+
+    const lines = new Map();
+    bubble.querySelectorAll('.speech-word').forEach((w) => {
+      const top = w.offsetTop;
+      const line = lines.get(top) || [Infinity, -Infinity];
+      line[0] = Math.min(line[0], w.offsetLeft);
+      line[1] = Math.max(line[1], w.offsetLeft + w.offsetWidth);
+      lines.set(top, line);
+    });
+    if (lines.size > 1) {
+      let widest = 0;
+      lines.forEach(([l, r]) => { widest = Math.max(widest, r - l); });
+      const cs = getComputedStyle(bubble);
+      const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      const border = cs.boxSizing === 'border-box'
+        ? pad + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth)
+        : 0;
+      bubble.style.width = Math.ceil(widest + border + 1) + 'px';
+    }
+
+    const scene = document.getElementById('folio-scene');
+    if (!scene) return;
+    const sceneRect = scene.getBoundingClientRect();
+    const width = bubble.offsetWidth;
+    const naturalLeft = sceneRect.left + sceneRect.width / 2 - width / 2;
+    const main = document.querySelector('.main-content');
+    const mainLeft = main ? main.getBoundingClientRect().left : 0;
+    const minLeft = Math.max(BUBBLE_EDGE_GAP, mainLeft + BUBBLE_EDGE_GAP);
+    const maxRight = window.innerWidth - BUBBLE_EDGE_GAP;
+    let dx = 0;
+    if (naturalLeft < minLeft) dx = minLeft - naturalLeft;
+    else if (naturalLeft + width > maxRight) dx = maxRight - (naturalLeft + width);
+    if (!dx) return;
+    const pointer = Math.min(width - BUBBLE_POINTER_INSET,
+      Math.max(BUBBLE_POINTER_INSET, width / 2 - dx));
+    bubble.style.setProperty('--bub-dx', Math.round(dx) + 'px');
+    bubble.style.setProperty('--bub-tail', Math.round(pointer) + 'px');
+  }
+
+  // The sidebar slides the scene over 0.3s, and a window resize moves it
+  // too: re-place a bubble that is up when either settles.
+  if (folioContainer) {
+    folioContainer.addEventListener('transitionend', (e) => {
+      if (e.target === folioContainer && e.propertyName === 'left' &&
+          bubble.classList.contains('visible')) fitBubble();
+    });
+  }
+  window.addEventListener('resize', () => {
+    if (bubble.classList.contains('visible')) fitBubble();
+  });
+  // His greeting can arrive before the Caveat webfont does. Words fitted
+  // to the fallback font rewrap when Caveat lands, so fit again then.
+  if (document.fonts && document.fonts.addEventListener) {
+    document.fonts.addEventListener('loadingdone', () => {
+      if (bubble.classList.contains('visible')) fitBubble();
+    });
+  }
+
+  function showBubbleNow(text, isPhysical, key) {
     clearTimeout(bubbleTimer);
     clearTimeout(bubbleHideTimer);
     bubbleHideTimer = null;
@@ -1250,12 +1444,23 @@
     // fires below only when the hold expires with nothing new shown).
     followUpBubbleText = null;
     bubblePhysical = !!isPhysical;
+    currentBubbleKey = key || null;
     bubbleStartTime = Date.now();
+    bubbleMinVisibleMs = Math.min(MIN_VISIBLE_CAP_MS,
+      Math.max(MIN_VISIBLE_MS, 600 + text.length * MIN_VISIBLE_PER_CHAR_MS));
     // Already up: swap the words in place with a squash instead of
-    // collapsing to nothing and popping back.
-    const swapping = bubble.classList.contains('visible');
+    // collapsing to nothing and popping back. Not when the size jumps,
+    // though: a squash can't hide a bubble doubling in width in one
+    // frame, so a very different line pops in fresh instead.
+    let swapping = bubble.classList.contains('visible');
+    const oldWidth = swapping ? bubble.offsetWidth : 0;
     bubble.className = 'speech-bubble';
     const revealMs = renderBubbleText(text);
+    fitBubble();
+    if (swapping && oldWidth &&
+        Math.abs(bubble.offsetWidth - oldWidth) / oldWidth > 0.4) {
+      swapping = false;
+    }
     void bubble.offsetWidth;
     bubble.classList.add('visible');
     if (swapping) bubble.classList.add('swap');
@@ -1274,10 +1479,18 @@
       bubbleHideTimer = setTimeout(() => {
         bubbleHideTimer = null;
         bubble.className = 'speech-bubble';
+        currentBubbleKey = null;
         const followUp = followUpBubbleText;
         followUpBubbleText = null;
         // Follow-ups are tier lines — physical by definition.
-        if (followUp && !folioIsHidden()) showBubbleNow(followUp, true);
+        if (followUp && !folioIsHidden()) {
+          showBubbleNow(followUp, true);
+        } else {
+          // Nothing follows: drop the words too. The shrunk bubble is
+          // invisible but still in the accessibility tree, where a screen
+          // reader could find his last line indefinitely.
+          bubble.textContent = '';
+        }
       }, 250);
     }, hold);
   }
@@ -1806,8 +2019,14 @@
   function wakeUp() {
     if (isWaking) return;
     isWaking = true;
+    const wokeAt = Date.now();
     react('startle');
-    setTimeout(() => setState('greeting', 'wake-up'), 800);
+    // Whatever woke him (a click on Quick Add, say) often speaks inside
+    // the startle. Announcing "I'm awake!" after it put the lines in
+    // reverse order, so the wake line only plays into silence.
+    setTimeout(() => {
+      setState('greeting', bubbleStartTime >= wokeAt ? null : 'wake-up');
+    }, 800);
     setTimeout(() => {
       setState('idle');
       isWaking = false;
