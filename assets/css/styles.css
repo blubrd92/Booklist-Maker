@@ -2156,7 +2156,7 @@ input[type="color"]:hover {
 .layout-option {
   width: auto;
   min-width: 0;
-  height: 68px;
+  height: 54px;
   border: 2px solid var(--border-color);
   border-radius: var(--radius);
   cursor: pointer;
@@ -2198,21 +2198,32 @@ input[type="color"]:hover {
 }
 
 .layout-option-label {
-  /* 0.5rem with a hair of tracking taken out is what lets "Honeycomb",
-     the longest label, fit a one-row tile. */
-  font-size: 0.5rem;
-  letter-spacing: -0.02em;
+  /* Visually hidden, kept for screen readers: six tiles in one row leave
+     ~40px per name, and "Honeycomb" needs ~57px at a readable size. The
+     name shows in .layout-name-caption under the row instead. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-  color: var(--text-light);
-  margin-top: 3px;
-  text-align: center;
-  line-height: 1.1;
-  font-weight: 500;
 }
 
-.layout-option.selected .layout-option-label {
+.layout-name-caption {
+  grid-column: 1 / -1;
+  margin: 2px 0 -2px;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
   color: var(--primary-color);
-  font-weight: 700;
+}
+
+/* Hovering a tile other than the selected one previews its name. */
+.layout-name-caption.is-preview {
+  color: var(--text-light);
+  font-weight: 500;
 }
 
 /* Masonry layout: disabled stretch toggle */

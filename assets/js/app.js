@@ -396,6 +396,7 @@ const BooklistApp = (function() {
       
       // Collage layout selector (in Settings)
       collageLayoutSelector: document.getElementById('collage-layout-selector'),
+      collageLayoutName: document.getElementById('collage-layout-name'),
       titleBarPosition: document.getElementById('title-bar-position'),
       tiltedSettings: document.getElementById('tilted-settings'),
       honeycombSettings: document.getElementById('honeycomb-settings'),
@@ -4680,30 +4681,27 @@ const BooklistApp = (function() {
     if (plan) {
       const { titles } = BookUtils.assignHoneycombTitles(plan.cells, n, plan.dx);
       const ri = plan.r - (gutter * 0.9) / SQ3;     // inset so neighbouring cells show a white seam
-      plan.cells.forEach((c, i) => {
-        const img = images[titles[i]];
-        if (!img) return;
-        const bx = c.cx - (SQ3 / 2) * ri, by = c.cy - ri, bw = SQ3 * ri, bh = 2 * ri;
-        ctx.save();
-        hexagonPath(ctx, c.cx, c.cy, ri);
-        ctx.clip();
-        if (backdrop === 'bar') {
-          ctx.fillStyle = styles.bgColor;
-          ctx.fillRect(bx, by, bw, bh);
-        } else {
-          drawCoverCropped(ctx, backdrop === 'sharp' ? img : softenedCover(img), bx, by, bw, bh);
-          ctx.fillStyle = backdrop === 'sharp' ? 'rgba(12,14,22,0.18)' : 'rgba(12,14,22,0.28)';
-          ctx.fillRect(bx, by, bw, bh);
+      // Every cell of a title looks the same, so each title's cell is drawn
+      // once on its own small canvas and stamped wherever that title repeats.
+      // Drawing all ~60 cells in place (a hexagon clip, a backdrop, a darken
+      // and a shadowed cover each) made Honeycomb rasterize several times
+      // slower than any other layout, and every edit regenerates the cover.
+      // Stamps land on whole pixels, so they are copied, never resampled.
+      const tw = Math.ceil(SQ3 * ri) + 4, th = Math.ceil(2 * ri) + 4;
+      const tiles = new Map();
+      const tileFor = (t) => {
+        if (!tiles.has(t)) {
+          const tile = document.createElement('canvas');
+          tile.width = tw;
+          tile.height = th;
+          drawHoneycombCell(tile.getContext('2d'), images[t], tw / 2, th / 2, ri, backdrop, styles.bgColor, S);
+          tiles.set(t, tile);
         }
-        // Largest rectangle of the cover's shape whose corners stay inside the hexagon.
-        const a = collageImageAspect(img);
-        const p = Math.min((SQ3 / 2) * ri, ri / (1 / a + 1 / SQ3)) * 0.95;
-        const q = p / a;
-        ctx.shadowColor = 'rgba(0,0,0,0.38)';
-        ctx.shadowBlur = 8 * S;
-        ctx.shadowOffsetY = 2 * S;
-        ctx.drawImage(img, c.cx - p, c.cy - q, 2 * p, 2 * q);
-        ctx.restore();
+        return tiles.get(t);
+      };
+      plan.cells.forEach((c, i) => {
+        if (!images[titles[i]]) return;
+        ctx.drawImage(tileFor(titles[i]), Math.round(c.cx - tw / 2), Math.round(c.cy - th / 2));
       });
     }
 
@@ -4712,6 +4710,33 @@ const BooklistApp = (function() {
       ctx.fillRect(0, barY - margin * 0.6, W, bgH + margin * 1.2);
       drawTitleBarAt(ctx, styles, W, barY);
     }
+  }
+
+  // One Honeycomb cell centred on (cx, cy): the backdrop clipped to the
+  // hexagon, then the whole cover on top with a soft shadow.
+  function drawHoneycombCell(ctx, img, cx, cy, ri, backdrop, barColor, S) {
+    const SQ3 = Math.sqrt(3);
+    const bx = cx - (SQ3 / 2) * ri, by = cy - ri, bw = SQ3 * ri, bh = 2 * ri;
+    ctx.save();
+    hexagonPath(ctx, cx, cy, ri);
+    ctx.clip();
+    if (backdrop === 'bar') {
+      ctx.fillStyle = barColor;
+      ctx.fillRect(bx, by, bw, bh);
+    } else {
+      drawCoverCropped(ctx, backdrop === 'sharp' ? img : softenedCover(img), bx, by, bw, bh);
+      ctx.fillStyle = backdrop === 'sharp' ? 'rgba(12,14,22,0.18)' : 'rgba(12,14,22,0.28)';
+      ctx.fillRect(bx, by, bw, bh);
+    }
+    // Largest rectangle of the cover's shape whose corners stay inside the hexagon.
+    const a = collageImageAspect(img);
+    const p = Math.min((SQ3 / 2) * ri, ri / (1 / a + 1 / SQ3)) * 0.95;
+    const q = p / a;
+    ctx.shadowColor = 'rgba(0,0,0,0.38)';
+    ctx.shadowBlur = 8 * S;
+    ctx.shadowOffsetY = 2 * S;
+    ctx.drawImage(img, cx - p, cy - q, 2 * p, 2 * q);
+    ctx.restore();
   }
 
   // Traces one Jigsaw piece edge from p0 to p1 (outward normal nx, ny).
@@ -4827,11 +4852,36 @@ const BooklistApp = (function() {
     const pieces = strips.flatMap((s) => s.pieces);
     ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(255,255,255,0.92)';
-    ctx.lineWidth = 2 * S;
+    ctx.lineWidth = 3.5 * S;
     pieces.forEach((p) => { jigsawPiecePath(ctx, p, u); ctx.stroke(); });
-    ctx.strokeStyle = 'rgba(20,24,40,0.18)';
-    ctx.lineWidth = 0.6 * S;
+    ctx.strokeStyle = 'rgba(20,24,40,0.26)';
+    ctx.lineWidth = 1.1 * S;
     pieces.forEach((p) => { jigsawPiecePath(ctx, p, u); ctx.stroke(); });
+  }
+
+  // The picker's tiles are too narrow for readable names, so one caption
+  // under the row names the selected layout, or the hovered tile while the
+  // pointer is over one. The selection changes from many places (a click,
+  // undo, a loaded file, reset, the tour), so the caption watches the tiles'
+  // classes instead of being told by each of them.
+  function initLayoutNameCaption() {
+    const caption = elements.collageLayoutName;
+    const selector = elements.collageLayoutSelector;
+    if (!caption || !selector) return;
+    const nameOf = (opt) => opt?.querySelector('.layout-option-label')?.textContent.trim() || '';
+    let hovered = null;
+    const refresh = () => {
+      const selected = selector.querySelector('.layout-option.selected');
+      const shown = hovered || selected;
+      caption.textContent = nameOf(shown);
+      caption.classList.toggle('is-preview', !!hovered && hovered !== selected);
+    };
+    selector.querySelectorAll('.layout-option').forEach((opt) => {
+      opt.addEventListener('mouseenter', () => { hovered = opt; refresh(); });
+      opt.addEventListener('mouseleave', () => { if (hovered === opt) hovered = null; refresh(); });
+    });
+    new MutationObserver((muts) => { if (muts.some((m) => m.target !== caption)) refresh(); }).observe(selector, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    refresh();
   }
 
   function autoRegenerateCoverIfAble() {
@@ -8557,6 +8607,7 @@ const BooklistApp = (function() {
       elements.collageLayoutSelector.addEventListener('mouseleave', function() {
         if (window.folio) window.folio.setState('idle');
       });
+      initLayoutNameCaption();
     }
     
     // Show shelves toggle for classic layout
