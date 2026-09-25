@@ -977,8 +977,10 @@
      * clear of the title bar's zone. A region tall enough to hold a cell must
      * get at least one whole cell (or the comb reads lopsided); up to 15%
      * smaller cells are accepted to achieve that, unless it would leave a
-     * comb full of spares.
-     * @param {Object} o - { width, height, count, zoneTop, zoneBottom, gutter }
+     * comb full of spares. o.scale (0.5 to 1, the Cover Size setting) then
+     * shrinks those cells and re-lays the comb, so smaller settings mean more,
+     * smaller hexagons; the smaller comb keeps both guarantees.
+     * @param {Object} o - { width, height, count, zoneTop, zoneBottom, gutter, scale }
      *   Pass zoneTop = zoneBottom = -1 when there is no title bar.
      * @returns {{r:number, dx:number, dy:number, cells:Array}|null}
      *   cells: { cx, cy, j (row), k (column), full }
@@ -1009,7 +1011,14 @@
         }
         return { r: r, dx: dx, dy: dy, cells: cells };
       };
-      let first = null;
+      const balanced = function(plan, full) {
+        if (!hasBar) return true;
+        const above = full.filter(function(c) { return c.cy < zoneTop; }).length;
+        const below = full.length - above;
+        const r = plan.r;
+        return !((zoneTop > 2.3 * r && above === 0) || (H - zoneBot > 2.3 * r && below === 0));
+      };
+      let first = null, base = null;
       const step = W / 1500;
       for (let r = W * 0.35; r >= W * 0.027; r -= step) {
         if (first && r < first.r * 0.85) break;
@@ -1021,17 +1030,30 @@
             if (full.length < n) return;
             plan.fullCount = full.length;
             if (!first) first = plan;
-            if (hasBar) {
-              const above = full.filter(function(c) { return c.cy < zoneTop; }).length;
-              const below = full.length - above;
-              if ((zoneTop > 2.3 * r && above === 0) || (H - zoneBot > 2.3 * r && below === 0)) return;
-            }
+            if (!balanced(plan, full)) return;
             if (!best || plan.fullCount < best.fullCount) best = plan;
           });
         });
-        if (best) return best.fullCount - n > Math.max(3, n * 0.2) && first ? first : best;
+        if (best) { base = best.fullCount - n > Math.max(3, n * 0.2) && first ? first : best; break; }
       }
-      return first;
+      if (!base) base = first;
+      const scale = Math.max(0.5, Math.min(1, o.scale || 1));
+      if (!base || scale >= 1) return base;
+      // Smaller cells at the same phases; a balanced comb is preferred, as
+      // above. Shrinking only adds whole cells, so every title still fits.
+      const r2 = base.r * scale;
+      let pick = null;
+      [0, 0.5].forEach(function(px) {
+        [0, 0.25, 0.5, 0.75].forEach(function(f) {
+          const plan = cellsFor(r2, px, f * 3 * r2);
+          const full = plan.cells.filter(function(c) { return c.full; });
+          if (full.length < n) return;
+          plan.fullCount = full.length;
+          plan.balanced = balanced(plan, full);
+          if (!pick || (plan.balanced && !pick.balanced)) pick = plan;
+        });
+      });
+      return pick || base;
     },
 
     /**

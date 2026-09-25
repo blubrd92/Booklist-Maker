@@ -1782,6 +1782,37 @@ describe('BookUtils.planHoneycomb and assignHoneycombTitles', () => {
     }
   });
 
+  const scaled = [];
+  [12, 20].forEach((n) => ['classic', 'center', 'none'].forEach((pos) => [0.5, 0.75].forEach((sc) => scaled.push([n, pos, sc]))));
+  it.each(scaled)('%i covers, bar %s, Cover Size %s: smaller cells that keep both rules', (n, pos, sc) => {
+    const zone = pos === 'none' ? { zoneTop: -1, zoneBottom: -1 } : barZone(pos);
+    const opts = { width: CANVAS_W, height: CANVAS_H, count: n, gutter: GUTTER, ...zone };
+    const base = globalThis.BookUtils.planHoneycomb(opts);
+    const plan = globalThis.BookUtils.planHoneycomb({ ...opts, scale: sc });
+    expect(plan.r).toBeCloseTo(base.r * sc, 6);
+    expect(plan.cells.length).toBeGreaterThan(base.cells.length);
+    const full = plan.cells.filter((c) => c.full);
+    expect(full.length).toBeGreaterThanOrEqual(n);
+    full.forEach((c) => {
+      if (pos !== 'none') expect(c.cy + plan.r <= zone.zoneTop || c.cy - plan.r >= zone.zoneBottom).toBe(true);
+    });
+    const { titles, whole } = globalThis.BookUtils.assignHoneycombTitles(plan.cells, n, plan.dx);
+    expect(titles.filter((_, i) => whole[i]).sort((a, b) => a - b)).toEqual(Array.from({ length: n }, (_, i) => i));
+    for (let a = 0; a < plan.cells.length; a++) {
+      for (let b = a + 1; b < plan.cells.length; b++) {
+        const d = Math.hypot(plan.cells[a].cx - plan.cells[b].cx, plan.cells[a].cy - plan.cells[b].cy);
+        if (d < plan.dx * 1.1) expect(titles[a]).not.toBe(titles[b]);
+      }
+    }
+  });
+
+  it('treats a missing or out-of-range Cover Size as 100, and clamps below 50', () => {
+    const opts = { width: CANVAS_W, height: CANVAS_H, count: 12, gutter: GUTTER, ...barZone('classic') };
+    const base = globalThis.BookUtils.planHoneycomb(opts);
+    expect(globalThis.BookUtils.planHoneycomb({ ...opts, scale: 1.4 }).r).toBe(base.r);
+    expect(globalThis.BookUtils.planHoneycomb({ ...opts, scale: 0.2 }).r).toBeCloseTo(base.r * 0.5, 6);
+  });
+
   it('keeps whole titles in list order down the page', () => {
     const plan = globalThis.BookUtils.planHoneycomb({ width: CANVAS_W, height: CANVAS_H, count: 12, gutter: GUTTER, ...barZone('classic') });
     const { titles, whole } = globalThis.BookUtils.assignHoneycombTitles(plan.cells, 12, plan.dx);

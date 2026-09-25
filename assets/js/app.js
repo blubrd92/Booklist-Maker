@@ -4771,7 +4771,7 @@ const BooklistApp = (function() {
     const barY = floatingTitleBarY(options.titleBarPosition || 'classic', bgH, H);
     const zoneTop = bgH ? barY - margin : -1, zoneBottom = bgH ? barY + bgH + margin : -1;
 
-    const plan = BookUtils.planHoneycomb({ width: W, height: H, count: n, zoneTop, zoneBottom, gutter });
+    const plan = BookUtils.planHoneycomb({ width: W, height: H, count: n, zoneTop, zoneBottom, gutter, scale: coverSize });
     if (plan) {
       const { titles } = BookUtils.assignHoneycombTitles(plan.cells, n, plan.dx);
       const ri = plan.r - (gutter * 0.9) / SQ3;     // inset so neighbouring cells show a white seam
@@ -4788,7 +4788,7 @@ const BooklistApp = (function() {
           const tile = document.createElement('canvas');
           tile.width = tw;
           tile.height = th;
-          drawHoneycombCell(tile.getContext('2d'), images[t], tw / 2, th / 2, ri, backdrop, fill, coverSize, S);
+          drawHoneycombCell(tile.getContext('2d'), images[t], tw / 2, th / 2, ri, backdrop, fill, S);
           tiles.set(t, tile);
         }
         return tiles.get(t);
@@ -4810,7 +4810,7 @@ const BooklistApp = (function() {
   // hexagon, then the whole cover on top with a soft shadow. fill is
   // { color, gradient, color2, direction } for the 'color' backdrop
   // ('bar' is the same thing under the name it had before it could be set).
-  function drawHoneycombCell(ctx, img, cx, cy, ri, backdrop, fill, coverSize, S) {
+  function drawHoneycombCell(ctx, img, cx, cy, ri, backdrop, fill, S) {
     const SQ3 = Math.sqrt(3);
     const bx = cx - (SQ3 / 2) * ri, by = cy - ri, bw = SQ3 * ri, bh = 2 * ri;
     ctx.save();
@@ -4835,9 +4835,9 @@ const BooklistApp = (function() {
       ctx.fillRect(bx, by, bw, bh);
     }
     // Largest rectangle of the cover's shape whose corners stay inside the
-    // hexagon, scaled by the Cover Size setting.
+    // hexagon. (Cover Size scales the cells themselves, in planHoneycomb.)
     const a = collageImageAspect(img);
-    const p = Math.min((SQ3 / 2) * ri, ri / (1 / a + 1 / SQ3)) * 0.95 * coverSize;
+    const p = Math.min((SQ3 / 2) * ri, ri / (1 / a + 1 / SQ3)) * 0.95;
     const q = p / a;
     ctx.shadowColor = 'rgba(0,0,0,0.38)';
     ctx.shadowBlur = 8 * S;
