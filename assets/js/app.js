@@ -4851,12 +4851,16 @@ const BooklistApp = (function() {
     });
     const pieces = strips.flatMap((s) => s.pieces);
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
-    ctx.lineWidth = 3.5 * S;
+    // One white cut with a soft shadow, which keeps it visible between two
+    // pale covers. A dark line down the middle of the white was tried and
+    // read as two thin parallel lines.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = 3 * S;
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.lineWidth = 4 * S;
     pieces.forEach((p) => { jigsawPiecePath(ctx, p, u); ctx.stroke(); });
-    ctx.strokeStyle = 'rgba(20,24,40,0.26)';
-    ctx.lineWidth = 1.1 * S;
-    pieces.forEach((p) => { jigsawPiecePath(ctx, p, u); ctx.stroke(); });
+    ctx.restore();
   }
 
   // The picker's tiles are too narrow for readable names, so one caption
