@@ -4816,8 +4816,9 @@ const BooklistApp = (function() {
    * An edge-to-edge puzzle. Rows fill the page top to bottom and run off both
    * sides; every title gets one whole piece (centered in its row, list order)
    * and repeats fill the rest in Staggered's rhythm. The title bar is a
-   * full-width piece that both neighbouring rows tab into, so it carries equal
-   * extra padding above and below its text. options.jigsawSeed fixes the cut.
+   * full-width piece whose tabs grow out of both its edges into the rows
+   * beside it, so nothing cuts into it and it needs no extra padding.
+   * options.jigsawSeed fixes the cut.
    * Covers are drawn whole and the tabs are seams over them, so no tab ever
    * hides part of a neighbouring cover.
    */
@@ -4832,17 +4833,11 @@ const BooklistApp = (function() {
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, W, textBarH + 1);
 
-    // Tabs from both neighbouring rows reach into the bar, so it grows by the
-    // same room above and below its text. That room depends on the piece size,
-    // which depends on the bar, so settle it over a few passes.
-    let pad = 0, plan, u = 0;
-    for (let pass = 0; pass < 3; pass++) {
-      plan = BookUtils.planJigsaw(aspects, W, H - (textBarH ? textBarH + 2 * pad : 0));
-      u = 0.8 * plan.pieceHeight * Math.min(1, mean);
-      pad = textBarH ? 0.36 * u : 0;
-    }
-    const barH = textBarH ? textBarH + 2 * pad : 0;
-    plan = BookUtils.planJigsaw(aspects, W, H - barH);
+    // The bar's tabs grow out of it into the rows beside it and none cut into
+    // it, so it needs no room beyond its own padding.
+    const barH = textBarH;
+    const plan = BookUtils.planJigsaw(aspects, W, H - barH);
+    const u = 0.8 * plan.pieceHeight * Math.min(1, mean);
     const R = plan.rows, ch = plan.pieceHeight;
     const b = { top: 0, classic: 1, center: Math.floor(R / 2), lower: R - 1, bottom: R }[position] ?? 1;
 
@@ -4866,12 +4861,12 @@ const BooklistApp = (function() {
     strips.forEach((s) => { if (s.bar) s.pieces.push({ x: minX, w: maxX - minX, y: s.y, h: s.h, bar: true }); });
     BookUtils.cutJigsawSeams(strips, BookUtils.seededRandom((options.jigsawSeed || 1) * 7919 + n * 131), u);
 
-    const barStyles = { ...styles, padYPx: styles.padYPx + pad, bgSideMarginPx: 0 };
+    const barStyles = { ...styles, bgSideMarginPx: 0 };
     // Every cover is drawn whole in its own rectangle, and the puzzle is cut
     // as seams on top. A tab is an outline over whatever it sits on, so it
     // shows the neighbouring cover (or the bar) rather than hiding it; filling
     // tabs from the cover they sprout from painted over the neighbour's
-    // details. The bar's padding keeps the seams clear of its text.
+    // details. No tab reaches into the bar, so no seam crosses its text.
     strips.flatMap((s) => s.pieces).forEach((p) => {
       if (p.bar) {
         drawTitleBarAt(ctx, barStyles, W, p.y);

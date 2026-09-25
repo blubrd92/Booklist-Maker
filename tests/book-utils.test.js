@@ -1853,11 +1853,12 @@ describe('BookUtils.cutJigsawSeams', () => {
     expect(s[2].pieces[0].bottom).toBe(s[3].pieces[0].top);
   });
 
-  it('points tabs into the title bar from both sides, and up between cover rows', () => {
+  it('grows the title bar\'s tabs out of both its edges, and points them up between cover rows', () => {
     const s = make();
     globalThis.BookUtils.cutJigsawSeams(s, globalThis.BookUtils.seededRandom(3), 300);
-    s[1].pieces[0].top.knobs.forEach((k) => expect(k.dir).toBe('down'));
-    s[1].pieces[0].bottom.knobs.forEach((k) => expect(k.dir).toBe('up'));
+    s[1].pieces[0].top.knobs.forEach((k) => expect(k.dir).toBe('up'));
+    s[1].pieces[0].bottom.knobs.forEach((k) => expect(k.dir).toBe('down'));
+    expect(s[1].pieces[0].bottom.knobs.length).toBeGreaterThan(0);
     s[2].pieces[0].bottom.knobs.forEach((k) => expect(k.dir).toBe('up'));
     expect(s[1].pieces[0].top.knobs.length).toBe(3);
   });

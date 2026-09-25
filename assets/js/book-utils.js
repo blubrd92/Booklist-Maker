@@ -1230,8 +1230,10 @@
      * pieces reference the same boundary object, so the two sides of a seam
      * always meet. Side tabs point left or right at random (seeded); tabs
      * between cover rows point up, so every blank lands at the bottom of a
-     * cover and none bites a title; both rows beside the title bar tab into
-     * it. Tabs vary in position, size, head, neck and lean.
+     * cover and none bites a title. The title bar grows tabs out of both its
+     * edges and none cut into it, so its text needs no extra room; the ones
+     * below it land on the top of the covers there, by the owner's choice.
+     * Tabs vary in position, size, head, neck and lean.
      * @param {Array<{y:number, h:number, bar?:boolean, pieces:Array<{x:number, w:number}>}>} strips
      *   top to bottom; each piece gains top/bottom/left/right boundary refs
      * @param {function(): number} rand - e.g. BookUtils.seededRandom(seed)
@@ -1259,7 +1261,7 @@
           acc.push(Math.round(p.x * 100) / 100, Math.round((p.x + p.w) * 100) / 100);
           return acc;
         }, []))).sort(function(a, b) { return a - b; });
-        const dir = B.bar ? 'down' : 'up';               // into the bar from above; otherwise up
+        const dir = A.bar ? 'down' : 'up';               // out of the bar on both edges; otherwise up
         const knobs = [];
         for (let c = 0; c < cuts.length - 1; c++) {
           const c0 = cuts[c], c1 = cuts[c + 1], len = c1 - c0;
