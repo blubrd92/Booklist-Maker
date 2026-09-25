@@ -1,0 +1,2145 @@
+<!doctype html>
+<!--
+  Booklister promo video scene. Rendered frame by frame by build.mjs:
+  window.renderAt(t) draws the frame at time t (seconds). There is no
+  CSS animation or transition anywhere in this file, so any frame can be
+  reproduced exactly. window.getCues() hands the soundtrack generator the
+  same timeline the picture uses.
+
+  Tokens replaced by build.mjs: the font-face comment in <style> and the
+  QR data comment in the first <script> (the module matrix for a real,
+  scannable code to booklister.org).
+
+  Folio's drawing is the one in index.html (same paths, colors and
+  proportions); only the rig is new. Everything that moves is posed per
+  frame: head, ears, eyes, mouth, breathing, leaps, and the jointed
+  spring tail ported from assets/js/folio.js.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Booklister tour</title>
+<style>
+/*__FONT_FACES__*/
+html, body { margin: 0; padding: 0; background: #f4e8d2; overflow: hidden; }
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden;
+  font-family: 'Inter', sans-serif; color: #2d3748; }
+.abs { position: absolute; left: 0; top: 0; }
+.layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+svg { overflow: visible; }
+
+/* ---------- logo / end card ---------- */
+.logo { position: absolute; display: flex; flex-direction: column; align-items: center;
+  transform-origin: 50% 50%; white-space: nowrap; }
+.logo-row { display: flex; align-items: center; gap: 22px; }
+.logo-row svg { width: 92px; height: auto; fill: #5c6bc0; }
+.logo-word { font: 800 104px/1 'Inter'; color: #37474f; letter-spacing: -2px; }
+.logo-tag { font: italic 500 38px/1.2 'EB Garamond'; color: #6b5a48; margin-top: 12px; }
+.logo-url { margin-top: 22px; font: 700 40px/1 'Inter'; color: #fff; background: #5c6bc0;
+  padding: 14px 30px; border-radius: 999px; box-shadow: 0 10px 24px rgba(63,81,181,.3); }
+
+/* ---------- chapter chip ---------- */
+#chapter { position: absolute; left: 56px; top: 52px; display: flex; align-items: center; gap: 14px;
+  background: #fffaf0; border: 3px solid #4A3020; border-radius: 999px; padding: 10px 26px 10px 10px;
+  font: 700 30px/1 'Inter'; color: #37474f; box-shadow: 0 6px 0 rgba(74,48,32,.18); transform-origin: 0 50%; }
+#chapter .num { width: 46px; height: 46px; border-radius: 50%; background: #f4a261; color: #fff;
+  display: flex; align-items: center; justify-content: center; font: 800 26px/1 'Inter'; }
+
+/* ---------- generic cards ---------- */
+.card { position: absolute; background: #fff; border-radius: 20px;
+  box-shadow: 0 22px 44px rgba(80,52,24,.18), 0 3px 8px rgba(0,0,0,.08); }
+.card h3 { margin: 0; font: 700 26px/1 'Inter'; color: #37474f; }
+.card .sub { font: 500 15px/1.3 'Inter'; color: #718096; }
+
+/* ---------- app window (scene B) ---------- */
+#win { position: absolute; left: 610px; top: 96px; width: 1240px; height: 756px; border-radius: 16px;
+  overflow: hidden; background: #fff; transform-origin: 0 0;
+  box-shadow: 0 30px 60px rgba(80,52,24,.22), 0 3px 10px rgba(0,0,0,.1); }
+.w-head { position: absolute; left: 0; top: 0; width: 100%; height: 52px; background: #37474f; color: #fff;
+  display: flex; align-items: center; padding: 0 18px; box-sizing: border-box; gap: 10px; }
+.w-head .brand { display: flex; align-items: center; gap: 9px; font: 700 20px/1 'Inter'; }
+.w-head .brand svg { width: 24px; fill: #fff; }
+.w-head .hbtn { font: 600 14px/1 'Inter'; padding: 9px 14px; border-radius: 7px; background: rgba(255,255,255,.1); }
+.w-head .hbtn.primary { background: #5c6bc0; }
+.w-head .spacer { flex: 1; }
+.w-side { position: absolute; left: 0; top: 52px; width: 380px; height: 704px; background: #fff;
+  border-right: 1px solid #e1e5eb; }
+.w-tabs { display: flex; height: 48px; border-bottom: 1px solid #e1e5eb; }
+.w-tabs div { flex: 1; display: flex; align-items: center; justify-content: center; font: 600 13px/1 'Inter';
+  color: #718096; }
+.w-tabs div.on { color: #5c6bc0; box-shadow: inset 0 -3px 0 #5c6bc0; background: #f5f6fd; }
+.w-label { position: absolute; left: 20px; top: 66px; font: 600 13px/1 'Inter'; color: #546e7a; }
+.w-input { position: absolute; left: 20px; top: 88px; width: 340px; height: 46px; box-sizing: border-box;
+  border: 2px solid #e1e5eb; border-radius: 8px; font: 500 18px/42px 'Inter'; padding: 0 14px; color: #2d3748; }
+.w-input.focus { border-color: #5c6bc0; box-shadow: 0 0 0 4px rgba(92,107,192,.15); }
+.w-input .ph { color: #a0aec0; }
+.w-input .caret { display: inline-block; width: 2px; height: 22px; background: #2d3748; vertical-align: -4px; margin-left: 1px; }
+.w-btn { position: absolute; top: 150px; height: 44px; border-radius: 8px; font: 700 16px/44px 'Inter';
+  text-align: center; box-sizing: border-box; }
+.w-btn.search { left: 20px; width: 164px; background: #5c6bc0; color: #fff; }
+.w-btn.qa { left: 196px; width: 164px; border: 2px solid #5c6bc0; color: #5c6bc0; line-height: 40px; }
+.w-rhead { position: absolute; left: 20px; top: 214px; font: 600 13px/1 'Inter'; color: #718096; }
+.w-result { position: absolute; left: 12px; width: 356px; height: 68px; border-radius: 10px; }
+.w-result .th { position: absolute; left: 8px; top: 1px; width: 44px; height: 66px; border-radius: 3px; overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+.w-result .th svg, .fly svg, .e-cover svg { width: 100%; height: 100%; display: block; }
+.w-result .t { position: absolute; left: 64px; top: 12px; width: 200px; font: 700 15px/1.2 'Inter'; color: #2d3748;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-result .a { position: absolute; left: 64px; top: 34px; width: 200px; font: 500 13px/1.2 'Inter'; color: #718096;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-result .add { position: absolute; left: 282px; top: 17px; width: 66px; height: 34px; border-radius: 7px;
+  background: #43a047; color: #fff; font: 700 14px/34px 'Inter'; text-align: center; }
+.w-main { position: absolute; left: 380px; top: 52px; width: 860px; height: 704px; background: #eef1f5; }
+.w-main .fold { position: absolute; left: 429.6px; top: 42px; width: 1px; height: 619px; background: rgba(0,0,0,.07); }
+
+/* quick add modal */
+#qa { position: absolute; left: 220px; top: 130px; width: 800px; height: 520px; background: #fff; border-radius: 16px;
+  box-shadow: 0 30px 70px rgba(0,0,0,.28); transform-origin: 50% 50%; }
+#qaShade { position: absolute; left: 0; top: 0; width: 1240px; height: 756px; background: rgba(30,40,50,.35); }
+#qa .qt { position: absolute; left: 28px; top: 24px; font: 800 26px/1 'Inter'; color: #37474f; }
+#qa .qx { position: absolute; right: 26px; top: 20px; font: 400 32px/1 'Inter'; color: #a0aec0; }
+#qa .tabs { position: absolute; left: 28px; top: 70px; display: flex; gap: 26px; font: 600 16px/1 'Inter'; color: #718096; }
+#qa .tabs .on { color: #5c6bc0; box-shadow: 0 3px 0 #5c6bc0; padding-bottom: 8px; }
+#qa .hint { position: absolute; left: 28px; top: 116px; font: 500 15px/1.3 'Inter'; color: #546e7a; }
+#qa .ta { position: absolute; left: 28px; top: 148px; width: 744px; height: 262px; border: 2px solid #e1e5eb; border-radius: 10px;
+  box-sizing: border-box; overflow: hidden; background: #fbfcfe; }
+#qa .ta.focus { border-color: #5c6bc0; }
+#qa .row { position: absolute; left: 14px; height: 30px; font: 500 17px/30px 'Inter'; color: #2d3748; white-space: nowrap; }
+#qa .row span { position: absolute; top: 0; }
+#qa .row .tabmark { color: #c3cad8; font-size: 13px; }
+#qa .tc { position: absolute; left: 28px; top: 452px; font: 600 16px/1 'Inter'; color: #37474f; display: flex; gap: 10px; align-items: center; }
+#qa .tc i { display: inline-block; width: 20px; height: 20px; border-radius: 5px; background: #5c6bc0; position: relative; }
+#qa .tc i::after { content: ''; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px; border: solid #fff;
+  border-width: 0 3px 3px 0; transform: rotate(45deg); }
+#qa .go { position: absolute; left: 596px; top: 438px; width: 176px; height: 48px; border-radius: 9px; background: #5c6bc0;
+  color: #fff; font: 700 17px/48px 'Inter'; text-align: center; }
+.keycap { position: absolute; font: 700 22px/1 'Inter'; color: #37474f; background: #fff; border: 2px solid #cfd6e0;
+  border-bottom-width: 5px; border-radius: 10px; padding: 10px 14px; box-shadow: 0 8px 18px rgba(0,0,0,.15); }
+#sticky { position: absolute; left: 1596px; top: 682px; width: 250px; height: 172px; background: #ffe98f;
+  box-shadow: 0 14px 22px rgba(90,70,10,.25); padding: 22px 22px; box-sizing: border-box;
+  font: 600 25px/1.18 'Caveat'; color: #4a3b12; transform-origin: 50% 0; }
+#sticky b { font-weight: 700; color: #6b4b00; }
+#sticky::before { content: ''; position: absolute; left: 90px; top: -12px; width: 70px; height: 26px;
+  background: rgba(255,255,255,.55); transform: rotate(-3deg); }
+
+/* ---------- print panels (list pages) ---------- */
+.panel { position: absolute; left: 0; top: 0; width: 520px; height: 804px; background: #fff; transform-origin: 0 0; overflow: hidden; }
+.entry { position: absolute; left: 0; width: 520px; height: 144px; }
+.entry .filled, .entry .blank { position: absolute; left: 0; top: 0; width: 520px; height: 144px; }
+.e-cover { position: absolute; left: 22px; top: 8px; width: 86px; height: 129px; border-radius: 3px; overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,.28); transform-origin: 50% 50%; }
+.e-text { position: absolute; left: 126px; top: 6px; width: 340px; }
+.e-title { font: 700 21px/1.22 'Lora'; color: #1f2430; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.e-author { font: italic 400 16px/1.3 'Lora'; color: #4a5160; margin-top: 2px; }
+.e-desc { font: 400 13.5px/1.36 'Inter'; color: #3d4452; margin-top: 6px; height: 55px; overflow: hidden; }
+.e-call { font: 700 11px/1 'Inter'; letter-spacing: 1.6px; color: #9a6b2f; margin-top: 7px; }
+.blank .e-cover { background: #e9edf3; box-shadow: none; border: 2px dashed #cfd6e0; box-sizing: border-box; }
+.blank .e-title, .blank .e-author, .blank .e-desc { color: #b4bfcd; }
+.e-star { position: absolute; left: 472px; top: 6px; width: 36px; height: 36px; transform-origin: 50% 50%; }
+.e-grip { position: absolute; left: 4px; top: 56px; width: 12px; height: 30px;
+  background-image: radial-gradient(circle, #a0aec0 2px, transparent 2.5px); background-size: 6px 7.5px; }
+.backqr { position: absolute; left: 22px; top: 488px; width: 476px; height: 290px; }
+.backqr .qrbox { position: absolute; left: 0; top: 0; width: 200px; height: 200px; }
+.backqr .qrtext { position: absolute; left: 222px; top: 18px; width: 250px; font: 600 20px/1.3 'Lora'; color: #2d3748; }
+.backqr .brand { position: absolute; left: 0; top: 222px; width: 476px; height: 62px; border-radius: 10px;
+  background: #f1f3f8; display: flex; align-items: center; justify-content: center; gap: 12px;
+  font: 700 22px/1 'Inter'; color: #5c6bc0; }
+.backqr .brand svg { width: 34px; fill: #5c6bc0; }
+
+/* ---------- callouts (scene C) ---------- */
+.callout { position: absolute; left: 0; top: 0; background: #fffaf0; border: 3px solid #4A3020; border-radius: 16px;
+  padding: 12px 20px 13px; box-shadow: 0 6px 0 rgba(74,48,32,.15); transform-origin: 0 50%; white-space: nowrap; }
+.callout b { display: block; font: 800 25px/1.1 'Inter'; color: #37474f; }
+.callout span { display: block; font: 600 27px/1.1 'Caveat'; color: #8a5a28; margin-top: 3px; }
+
+/* ---------- layout picker / style panel / qr card ---------- */
+.lrow { position: absolute; left: 20px; width: 340px; height: 82px; display: flex; align-items: center; gap: 18px;
+  font: 700 23px/1 'Inter'; color: #546e7a; }
+.lrow svg { width: 58px; height: 58px; flex: none; }
+#lhi { position: absolute; left: 12px; width: 356px; height: 82px; border-radius: 14px; background: #eef0fb;
+  box-shadow: inset 4px 0 0 #5c6bc0; }
+.field-label { position: absolute; left: 30px; font: 700 15px/1 'Inter'; color: #718096; letter-spacing: .5px; text-transform: uppercase; }
+.dropdown { position: absolute; left: 30px; width: 440px; height: 62px; border: 2px solid #e1e5eb; border-radius: 10px;
+  box-sizing: border-box; display: flex; align-items: center; padding: 0 18px; font-size: 28px; color: #2d3748; overflow: hidden; }
+.dropdown .caretdn { margin-left: auto; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent;
+  border-top: 10px solid #718096; }
+.swatch { position: absolute; width: 50px; height: 50px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(0,0,0,.08); }
+#swring { position: absolute; width: 62px; height: 62px; border-radius: 50%; border: 3px solid #37474f; box-sizing: border-box; }
+.toggle { position: absolute; width: 64px; height: 36px; border-radius: 18px; background: #cfd6e0; }
+.toggle i { position: absolute; left: 4px; top: 4px; width: 28px; height: 28px; border-radius: 50%; background: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,.2); }
+.stepper { position: absolute; display: flex; align-items: center; gap: 0; border: 2px solid #e1e5eb; border-radius: 10px; overflow: hidden;
+  font: 700 22px/56px 'Inter'; color: #2d3748; height: 58px; box-sizing: border-box; }
+.stepper div { width: 58px; text-align: center; }
+.stepper .v { width: 76px; border-left: 2px solid #e1e5eb; border-right: 2px solid #e1e5eb; }
+
+/* ---------- export (scene F) ---------- */
+#pdfbtn { position: absolute; left: 0; top: 0; height: 96px; border-radius: 48px; background: #5c6bc0; color: #fff;
+  display: flex; align-items: center; justify-content: center; gap: 16px; font: 800 36px/1 'Inter'; overflow: hidden;
+  box-shadow: 0 16px 34px rgba(63,81,181,.35); transform-origin: 50% 50%; white-space: nowrap; }
+#pdfbtn svg { width: 38px; fill: #fff; flex: none; }
+#printStage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; perspective: 2600px; perspective-origin: 1180px 420px; }
+#sheet { position: absolute; left: 740px; top: 140px; width: 880px; height: 680px; transform-style: preserve-3d; transform-origin: 440px 340px; }
+.half { position: absolute; top: 0; width: 440px; height: 680px; transform-style: preserve-3d; }
+.face { position: absolute; left: 0; top: 0; width: 440px; height: 680px; backface-visibility: hidden; overflow: hidden; background: #fff; }
+.face .panel { transform: scale(0.84615); }
+.face.back { transform: rotateY(180deg); }
+.face .shade { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: #000; opacity: 0; }
+#sheetShadow { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, rgba(70,45,20,.35), rgba(70,45,20,0)); }
+#stamp { position: absolute; left: 0; top: 0; width: 210px; height: 210px; border-radius: 50%; border: 7px solid #e76f51;
+  color: #e76f51; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;
+  font: 800 54px/0.95 'Inter'; background: rgba(255,250,240,.92); transform-origin: 50% 50%; }
+#stamp small { font: 700 20px/1 'Inter'; letter-spacing: 3px; margin-top: 6px; }
+#takeone { position: absolute; background: #fffaf0; border: 3px solid #4A3020; border-radius: 12px; padding: 10px 18px;
+  font: 700 30px/1 'Caveat'; color: #4A3020; transform-origin: 50% 100%; }
+
+/* ---------- speech bubble ---------- */
+#bubble { position: absolute; left: 0; top: 0; max-width: 560px; background: #fffdf7; border: 4px solid #4A3020;
+  border-radius: 34px; padding: 16px 30px 20px; box-sizing: border-box; transform-origin: 50% 100%;
+  font: 600 46px/1.1 'Caveat'; color: #3a2a1e; text-wrap: balance; text-align: center;
+  filter: drop-shadow(0 8px 0 rgba(74,48,32,.16)); }
+#bubble::before, #bubble::after { content: ''; position: absolute; left: calc(50% + var(--tail, 0px)); width: 0; height: 0; }
+#bubble::before { bottom: -30px; margin-left: -20px; border-left: 20px solid transparent; border-right: 20px solid transparent;
+  border-top: 30px solid #4A3020; }
+#bubble::after { bottom: -21px; margin-left: -14px; border-left: 14px solid transparent; border-right: 14px solid transparent;
+  border-top: 22px solid #fffdf7; }
+#bubble .w { display: inline-block; white-space: pre; }
+#bubble .w em { font-style: normal; color: #c2652a; font-weight: 700; }
+
+#fade { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: #f7eedc; }
+#hidden-defs { position: absolute; width: 0; height: 0; }
+</style>
+</head>
+<body>
+<svg id="hidden-defs" aria-hidden="true"><defs id="coverDefs"></defs></svg>
+<div id="stage">
+  <canvas id="bg" class="abs" width="1920" height="1080"></canvas>
+  <svg id="fxBack" class="layer" viewBox="0 0 1920 1080"></svg>
+  <div id="content" class="layer"></div>
+  <div id="printStage"></div>
+  <svg id="catLayer" class="layer" viewBox="0 0 1920 1080"></svg>
+  <canvas id="desk" class="abs" width="1920" height="1080"></canvas>
+  <svg id="deskFront" class="layer" viewBox="0 0 1920 1080"></svg>
+  <svg id="fxFront" class="layer" viewBox="0 0 1920 1080"></svg>
+  <div id="chapter"><div class="num">1</div><div class="lbl">Find titles</div></div>
+  <div id="bubble"></div>
+  <svg id="cursorLayer" class="layer" viewBox="0 0 1920 1080"></svg>
+  <div id="fade"></div>
+</div>
+<script>
+/*__QR_DATA__*/
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   UTILITIES
+   ===================================================================== */
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const E = {
+  lin: (t) => t,
+  inOut: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+  out: (t) => 1 - Math.pow(1 - t, 3),
+  in: (t) => t * t * t,
+  sine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
+  outQuint: (t) => 1 - Math.pow(1 - t, 5),
+  outBack: (t) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  outSoftBack: (t) => { const c1 = 1.2, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  outElastic: (t) => (t <= 0 ? 0 : t >= 1 ? 1 : Math.pow(2, -9 * t) * Math.sin((t * 8 - 0.75) * (2 * Math.PI / 3)) + 1),
+};
+function rng(seed) {
+  let s = seed | 0;
+  return function () {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Keyframe track: keys = [[t, value, ease?], ...]; value may be a number or array.
+function track(keys) {
+  return (t) => {
+    if (t <= keys[0][0]) return keys[0][1];
+    for (let i = 1; i < keys.length; i++) {
+      if (t < keys[i][0]) {
+        const [t0, v0] = keys[i - 1];
+        const [t1, v1, e] = keys[i];
+        const u = E[e || 'inOut']((t - t0) / (t1 - t0));
+        return Array.isArray(v0) ? v0.map((x, j) => lerp(x, v1[j], u)) : lerp(v0, v1, u);
+      }
+    }
+    return keys[keys.length - 1][1];
+  };
+}
+// Appear / disappear envelope: 0 before a, eased 0..1 over fin, 1, then out over fout ending at b.
+function env(t, a, b, fin = 0.4, fout = 0.35, ein = 'outBack', eout = 'in') {
+  if (t < a || t > b) return 0;
+  if (t < a + fin) return E[ein](seg(t, a, a + fin));
+  if (t > b - fout) return 1 - E[eout](seg(t, b - fout, b));
+  return 1;
+}
+function setT(el, tf) { if (el._tf !== tf) { el.style.transform = tf; el._tf = tf; } }
+function setO(el, o) {
+  o = Math.round(clamp(o) * 1000) / 1000;
+  if (el._o !== o) { el.style.opacity = o; el.style.visibility = o <= 0 ? 'hidden' : 'visible'; el._o = o; }
+}
+function setA(el, name, v) { if (el['_a_' + name] !== v) { el.setAttribute(name, v); el['_a_' + name] = v; } }
+function setH(el, html) { if (el._h !== html) { el.innerHTML = html; el._h = html; } }
+const f1 = (v) => (Math.round(v * 10) / 10).toString();
+const NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs, parent) {
+  const el = document.createElementNS(NS, tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(el);
+  return el;
+}
+function div(cls, parent, html) {
+  const el = document.createElement('div');
+  if (cls) el.className = cls;
+  if (html != null) el.innerHTML = html;
+  if (parent) parent.appendChild(el);
+  return el;
+}
+function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function mixHex(a, b, t) {
+  const A = hexToRgb(a), B = hexToRgb(b);
+  return '#' + A.map((x, i) => Math.round(lerp(x, B[i], t)).toString(16).padStart(2, '0')).join('');
+}
+const BOOK_ICON = '<svg viewBox="0 0 576 512"><path d="M249.6 471.5c10.8 3.8 22.4-4.1 22.4-15.5V78.6c0-4.2-1.6-8.4-5-11C247.4 52 202.4 32 144 32C93.5 32 46.3 45.3 18.1 56.1C6.8 60.5 0 71.7 0 83.8V454.1c0 11.9 12.8 20.2 24.1 16.5C55.6 460.1 105.5 448 144 448c33.9 0 79 14 105.6 23.5zm76.8 0C353 462 398.1 448 432 448c38.5 0 88.4 12.1 119.9 22.6c11.3 3.8 24.1-4.6 24.1-16.5V83.8c0-12.1-6.8-23.3-18.1-27.6C529.7 45.3 482.5 32 432 32c-58.4 0-103.4 20-123 35.6c-3.3 2.6-5 6.8-5 11V456c0 11.4 11.7 19.3 22.4 15.5z"/></svg>';
+const STAR_PATH = 'M18 2.5 L22.6 12.4 L33.4 13.6 L25.3 20.9 L27.6 31.6 L18 26.1 L8.4 31.6 L10.7 20.9 L2.6 13.6 L13.4 12.4 Z';
+const HEART_PATH = 'M0 6 C0 -2 -12 -4 -12 4 C-12 11 -4 15 0 20 C4 15 12 11 12 4 C12 -4 0 -2 0 6 Z';
+
+/* =====================================================================
+   BOOKS: invented titles, abstract art. Nothing here is a real book.
+   ===================================================================== */
+const BOOKS = [
+  { t: 'The Salt Harvest', a: 'Mira Delacroix', c: 'FIC DELACROIX', d: 'A fishing town on a shrinking coast learns the tide taking their livelihood is also returning what it swallowed a century ago.', m: 'waves', bg: ['#16445a', '#7fb3c8'], ac: '#f4e3c1', fg: '#ffffff', f: "'Playfair Display'", fw: 900, k: 0.6, tp: 'top' },
+  { t: 'Nightjar', a: 'Owen Petrakis', c: 'FIC PETRAKIS', d: 'A rural veterinarian starts hearing a bird no field guide lists, and following the sound costs her far more than a season.', m: 'bird', bg: ['#171b36', '#4b3f72'], ac: '#f2c46d', fg: '#fdf2d8', f: "'Cinzel'", fw: 700, k: 0.78, tp: 'bottom' },
+  { t: 'The Cartographer of Ash', a: 'Beatriz Lindqvist', c: 'FIC LINDQVIST', d: 'Sent to map a valley after the fire, a surveyor finds the residents have redrawn it themselves, and disagree with her lines.', m: 'map', bg: ['#efe3cb', '#c9a47a'], ac: '#8a4b2a', fg: '#3b2416', f: "'Libre Baskerville'", fw: 700, k: 0.66, tp: 'top' },
+  { t: 'Small Hours', a: 'Ada Nwosu', c: 'FIC NWOSU', d: 'Six linked stories set between midnight and dawn in a city hospital, where the night shift keeps its own kind of time.', m: 'moon', bg: ['#0f2a3d', '#2b5577'], ac: '#ffd88a', fg: '#ffe9b8', f: "'Josefin Sans'", fw: 700, k: 0.6, tp: 'top' },
+  { t: 'The Weight of Bees', a: 'Tomas Halloran', c: '638.1 HALLORAN', d: 'A beekeeper chronicles a decade of losses and stubborn recoveries, and what forty hives taught him about paying attention.', m: 'hive', bg: ['#f7cd52', '#e39b2d'], ac: '#6b3e10', fg: '#3a2208', f: "'Abril Fatface'", fw: 400, k: 0.6, tp: 'bottom' },
+  { t: 'Riverwork', a: 'Simone Achebe', c: 'FIC ACHEBE', d: 'Three generations of a family that built bridges, and the one crossing none of them could finish.', m: 'river', bg: ['#2f5d50', '#8fbf9f'], ac: '#e8f1e4', fg: '#ffffff', f: "'Bebas Neue'", fw: 400, k: 0.42, tp: 'top' },
+  { t: 'A Field Guide to Leaving', a: 'Ruth Okonkwo', c: '910.4 OKONKWO', d: 'Part travelogue, part reckoning: an essayist revisits every place she once fled and asks what she was running from.', m: 'leaves', bg: ['#f3e9d6', '#dcc6a3'], ac: '#5a7a4a', fg: '#2f3b25', f: "'Lora'", fw: 700, k: 0.58, tp: 'top' },
+  { t: 'The Lantern Rooms', a: 'Yusuf Bergstrom', c: 'FIC BERGSTROM', d: 'A translator inherits a house whose last owner left instructions in four languages, none of them entirely honest.', m: 'lantern', bg: ['#3b1f2b', '#7a3b4a'], ac: '#ffcf7a', fg: '#ffe8c4', f: "'Playfair Display'", fw: 700, k: 0.6, tp: 'bottom' },
+  { t: 'Understory', a: 'Clara Mbeki', c: '577.3 MBEKI', d: 'What happens beneath a forest floor, told by an ecologist who spent eleven years listening to roots negotiate.', m: 'roots', bg: ['#20331f', '#4e6b3c'], ac: '#c8e0a0', fg: '#eef7dc', f: "'Oswald'", fw: 600, k: 0.5, tp: 'top' },
+  { t: 'The Quiet Machinery', a: 'Anton Reyes', c: 'FIC REYES', d: 'In a factory town where the plant never closed, a maintenance worker finds the line has been running empty for months.', m: 'factory', bg: ['#d7dde0', '#8e9aa0'], ac: '#2f3a40', fg: '#1d2428', f: "'Special Elite'", fw: 400, k: 0.62, tp: 'top' },
+  { t: 'Winter Count', a: 'Hana Lindgren', c: 'FIC LINDGREN', d: 'A translator of Arctic oral histories confronts the year her own family stopped keeping records.', m: 'snow', bg: ['#e4edf5', '#a9c1d6'], ac: '#2e4a66', fg: '#1f3347', f: "'Cinzel'", fw: 700, k: 0.78, tp: 'bottom' },
+  { t: 'The Borrowed Coast', a: 'Femi Aturu', c: 'FIC ATURU', d: 'Two siblings return to the rented beach house of their childhood to settle an estate and an older argument.', m: 'house', bg: ['#f7b267', '#f4845f'], ac: '#fff3e0', fg: '#40241a', f: "'Fredoka'", fw: 600, k: 0.58, tp: 'top' },
+  { t: 'The Paper Lantern Society', a: 'June Takahashi', c: 'FIC TAKAHASHI', d: 'A retired printer and three teenagers revive a neighborhood zine, and stumble onto a forty-year-old mystery.', m: 'lanterns', bg: ['#26365c', '#5b6fa8'], ac: '#ffb86b', fg: '#fff1dc', f: "'Josefin Sans'", fw: 700, k: 0.6, tp: 'bottom' },
+  { t: 'Tidewater Kitchen', a: 'Marisol Vega', c: '641.5 VEGA', d: 'Recipes and stories from a coastal family kitchen, built on whatever the morning boats brought in.', m: 'kitchen', bg: ['#eaf5f1', '#a7d3c6'], ac: '#e76f51', fg: '#1f3d36', f: "'Pacifico'", fw: 400, k: 0.64, tp: 'top' },
+  { t: 'Where the Owls Keep Count', a: 'Dara Whitfield', c: 'FIC WHITFIELD', d: 'An insomniac census worker takes the night route, where the residents answer questions nobody asked.', m: 'owl', bg: ['#2d2a26', '#5c4a3a'], ac: '#f0c05a', fg: '#fbe7b5', f: "'Abril Fatface'", fw: 400, k: 0.6, tp: 'top' },
+  { t: 'Moth & Moon', a: 'Priya Ramaswamy', c: 'J FIC RAMASWAMY', d: 'A shy moth sets out to find the brightest light in the city, and finds a friend instead.', m: 'moth', bg: ['#3a2c5a', '#8a6fb5'], ac: '#f7e7a1', fg: '#fff6d6', f: "'Playfair Display'", fw: 700, k: 0.6, tp: 'bottom' },
+];
+
+function wrapTitle(title, maxChars) {
+  const words = title.split(' ');
+  const lines = [];
+  let cur = '';
+  words.forEach((w) => {
+    if (cur && (cur + ' ' + w).length > maxChars) { lines.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w;
+  });
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+const MOTIF = {
+  waves: (b) => [250, 300, 350, 400].map((y, i) => `<path d="M0 ${y} Q37.5 ${y - 22} 75 ${y} T150 ${y} T225 ${y} T300 ${y} V450 H0Z" fill="${b.ac}" opacity="${(0.22 + i * 0.2).toFixed(2)}"/>`).join('')
+    + `<circle cx="206" cy="206" r="34" fill="${b.ac}"/>`,
+  bird: (b) => `<circle cx="196" cy="150" r="72" fill="${b.ac}" opacity=".92"/>`
+    + `<path d="M58 250 Q108 206 150 238 Q196 196 252 214 Q205 228 176 258 Q150 284 118 272 Q90 262 58 250Z" fill="#0b0d1f"/>`
+    + [[40, 60], [90, 110], [260, 70], [240, 300], [60, 330]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.5" fill="${b.ac}"/>`).join(''),
+  map: (b, r) => {
+    let s = '';
+    for (let k = 1; k <= 7; k++) {
+      let d = '';
+      for (let a = 0; a <= 24; a++) {
+        const ang = a / 24 * Math.PI * 2;
+        const rad = k * 17 + Math.sin(ang * 3 + k) * 6 + Math.cos(ang * 2 + r) * 5;
+        const x = 150 + Math.cos(ang) * rad * 1.15, y = 285 + Math.sin(ang) * rad * 0.9;
+        d += (a ? ' L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+      }
+      s += `<path d="${d}Z" fill="none" stroke="${b.ac}" stroke-width="${k === 7 ? 3 : 2}" opacity="${(0.35 + k * 0.08).toFixed(2)}"/>`;
+    }
+    return s + `<path d="M150 285 l10 -26 l10 26 l-10 -8z" fill="${b.ac}"/>`;
+  },
+  moon: (b) => `<rect x="62" y="150" width="176" height="220" rx="88" fill="#0a1a28" stroke="${b.ac}" stroke-width="6"/>`
+    + `<line x1="150" y1="150" x2="150" y2="370" stroke="${b.ac}" stroke-width="5"/><line x1="62" y1="262" x2="238" y2="262" stroke="${b.ac}" stroke-width="5"/>`
+    + `<circle cx="110" cy="214" r="26" fill="${b.ac}"/><circle cx="121" cy="206" r="23" fill="#0a1a28"/>`
+    + `<circle cx="196" cy="206" r="3" fill="${b.ac}"/><circle cx="180" cy="320" r="2.5" fill="${b.ac}"/><circle cx="108" cy="316" r="2" fill="${b.ac}"/>`,
+  hive: (b) => {
+    let s = '';
+    const R = 34, cells = [[0, 0], [1, 0], [-1, 0], [0.5, -1], [-0.5, -1], [0.5, 1], [-0.5, 1]];
+    cells.forEach(([q, rr], i) => {
+      const cx = 150 + q * R * 1.732, cy = 190 + rr * R * 1.5;
+      let pts = '';
+      for (let k = 0; k < 6; k++) { const an = Math.PI / 180 * (60 * k - 90); pts += (cx + R * 0.94 * Math.cos(an)).toFixed(1) + ',' + (cy + R * 0.94 * Math.sin(an)).toFixed(1) + ' '; }
+      s += `<polygon points="${pts}" fill="${i % 3 === 0 ? b.ac : 'none'}" fill-opacity=".85" stroke="${b.ac}" stroke-width="5"/>`;
+    });
+    return s + `<ellipse cx="218" cy="92" rx="12" ry="8" fill="${b.fg}"/><ellipse cx="212" cy="84" rx="8" ry="5" fill="#fff" opacity=".7"/>`;
+  },
+  river: (b) => `<path d="M-20 330 Q80 300 150 330 T320 320 V450 H-20Z" fill="#244a40" opacity=".5"/>`
+    + `<path d="M150 470 C 60 400, 250 340, 150 270 S 80 170, 180 120" stroke="${b.ac}" stroke-width="30" fill="none" stroke-linecap="round" opacity=".9"/>`
+    + `<path d="M70 250 h160 M70 250 v22 M110 250 v22 M150 250 v22 M190 250 v22 M230 250 v22" stroke="#1d3a33" stroke-width="7" stroke-linecap="round"/>`,
+  leaves: (b) => {
+    let s = `<path d="M150 420 C150 330 140 250 160 150" stroke="${b.ac}" stroke-width="5" fill="none"/>`;
+    [[152, 360, -50], [148, 320, 45], [150, 280, -40], [152, 240, 40], [156, 200, -35], [159, 165, 20]].forEach(([x, y, a]) => {
+      s += `<path transform="translate(${x} ${y}) rotate(${a})" d="M0 0 Q26 -22 0 -62 Q-26 -22 0 0Z" fill="${b.ac}" opacity=".85"/>`;
+    });
+    return s;
+  },
+  lantern: (b) => `<circle cx="150" cy="220" r="110" fill="${b.ac}" opacity=".16"/><circle cx="150" cy="220" r="70" fill="${b.ac}" opacity=".2"/>`
+    + `<path d="M150 100 V132" stroke="${b.fg}" stroke-width="4"/><rect x="112" y="132" width="76" height="16" rx="4" fill="#2a1219"/>`
+    + `<rect x="104" y="148" width="92" height="134" rx="30" fill="${b.ac}"/><rect x="112" y="282" width="76" height="14" rx="4" fill="#2a1219"/>`
+    + `<path d="M150 170 v90 M127 172 q-8 45 0 88 M173 172 q8 45 0 88" stroke="#b97a3a" stroke-width="3" fill="none" opacity=".6"/>`,
+  roots: (b) => `<circle cx="150" cy="150" r="80" fill="${b.ac}" opacity=".28"/><rect x="142" y="170" width="16" height="92" fill="${b.ac}"/>`
+    + `<line x1="0" y1="262" x2="300" y2="262" stroke="${b.ac}" stroke-width="3"/>`
+    + `<path d="M150 262 C150 300 110 310 90 360 M150 262 C152 310 190 330 214 380 M150 262 C150 320 150 360 146 420 M120 330 C100 330 70 340 50 332 M186 330 C210 320 236 330 262 322" stroke="${b.ac}" stroke-width="4" fill="none" stroke-linecap="round" opacity=".8"/>`,
+  factory: (b) => `<path d="M30 360 V250 L90 280 V250 L150 280 V250 L210 280 V200 H240 V360Z" fill="${b.ac}"/>`
+    + `<circle cx="226" cy="170" r="14" fill="${b.ac}" opacity=".3"/><circle cx="238" cy="140" r="20" fill="${b.ac}" opacity=".22"/><circle cx="252" cy="104" r="26" fill="${b.ac}" opacity=".15"/>`
+    + `<rect x="0" y="360" width="300" height="10" fill="${b.ac}"/>` + [48, 108, 168].map((x) => `<rect x="${x}" y="300" width="20" height="26" fill="${b.bg[0]}"/>`).join(''),
+  snow: (b, r) => {
+    let s = '';
+    const rnd = rng(r * 7 + 3);
+    for (let i = 0; i < 26; i++) s += `<circle cx="${(rnd() * 300).toFixed(0)}" cy="${(150 + rnd() * 280).toFixed(0)}" r="${(1.5 + rnd() * 3).toFixed(1)}" fill="#fff"/>`;
+    for (let g = 0; g < 3; g++) {
+      const x0 = 62 + g * 64;
+      s += `<path d="M${x0} 250 v70 M${x0 + 12} 250 v70 M${x0 + 24} 250 v70 M${x0 + 36} 250 v70 M${x0 - 6} 305 L${x0 + 44} 262" stroke="${b.ac}" stroke-width="5" stroke-linecap="round"/>`;
+    }
+    return s;
+  },
+  house: (b) => `<circle cx="210" cy="172" r="48" fill="${b.ac}" opacity=".9"/>`
+    + `<path d="M0 330 Q75 312 150 330 T300 330 V450 H0Z" fill="#2c6e7a" opacity=".85"/>`
+    + `<path d="M70 330 V262 L118 222 L166 262 V330Z" fill="${b.fg}"/><rect x="108" y="276" width="22" height="22" fill="#ffd166"/>`,
+  lanterns: (b) => {
+    let s = '<path d="M0 150 Q150 230 300 150" stroke="#fff" stroke-width="2" fill="none" opacity=".6"/>';
+    [[40, 168, 1], [95, 186, 1.2], [150, 192, 1.4], [205, 186, 1.2], [260, 168, 1]].forEach(([x, y, k]) => {
+      s += `<circle cx="${x}" cy="${y + 34 * k}" r="${36 * k}" fill="${b.ac}" opacity=".18"/><rect x="${x - 16 * k}" y="${y + 8}" width="${32 * k}" height="${50 * k}" rx="${14 * k}" fill="${b.ac}"/>`;
+    });
+    return s;
+  },
+  kitchen: (b) => `<path d="M60 250 H240 V300 Q240 360 150 360 Q60 360 60 300Z" fill="${b.ac}"/><rect x="48" y="238" width="204" height="16" rx="8" fill="#b4523a"/>`
+    + `<path d="M110 220 q-14 -24 0 -46 q14 -22 0 -44 M150 220 q-14 -24 0 -46 q14 -22 0 -44 M190 220 q-14 -24 0 -46 q14 -22 0 -44" stroke="${b.fg}" stroke-width="4" fill="none" opacity=".35" stroke-linecap="round"/>`
+    + `<path d="M88 404 q40 -26 90 0 q-50 26 -90 0z M178 404 l18 -14 v28z" fill="#2a9d8f"/>`,
+  owl: (b) => `<path d="M20 330 Q150 300 290 322" stroke="${b.ac}" stroke-width="10" fill="none" stroke-linecap="round"/>`
+    + `<path d="M100 318 Q96 210 150 206 Q204 210 200 318Z" fill="#8a6a4a"/><path d="M104 220 L100 190 L126 210Z M196 220 L200 190 L174 210Z" fill="#8a6a4a"/>`
+    + `<circle cx="128" cy="248" r="20" fill="${b.ac}"/><circle cx="172" cy="248" r="20" fill="${b.ac}"/><circle cx="128" cy="248" r="8" fill="#1c1510"/><circle cx="172" cy="248" r="8" fill="#1c1510"/>`
+    + `<path d="M144 266 l6 10 l6 -10z" fill="#e0a040"/>`,
+  moth: (b) => `<circle cx="150" cy="230" r="120" fill="${b.ac}" opacity=".18"/><circle cx="150" cy="230" r="80" fill="${b.ac}" opacity=".3"/>`
+    + `<ellipse cx="116" cy="220" rx="40" ry="30" transform="rotate(-25 116 220)" fill="${b.fg}"/><ellipse cx="184" cy="220" rx="40" ry="30" transform="rotate(25 184 220)" fill="${b.fg}"/>`
+    + `<ellipse cx="124" cy="262" rx="24" ry="18" transform="rotate(30 124 262)" fill="${b.fg}" opacity=".85"/><ellipse cx="176" cy="262" rx="24" ry="18" transform="rotate(-30 176 262)" fill="${b.fg}" opacity=".85"/>`
+    + `<rect x="145" y="208" width="10" height="70" rx="5" fill="#3a2c5a"/><path d="M148 210 q-10 -24 -24 -30 M152 210 q10 -24 24 -30" stroke="#3a2c5a" stroke-width="3" fill="none"/>`,
+};
+
+function buildCoverSymbols() {
+  const defs = document.getElementById('coverDefs');
+  let html = '';
+  BOOKS.forEach((b, i) => {
+    const maxChars = b.k < 0.5 ? 14 : b.k > 0.7 ? 9 : 11;
+    const lines = wrapTitle(b.t, maxChars);
+    const longest = Math.max(...lines.map((l) => l.length));
+    const fs = Math.min(58, 262 / (longest * b.k));
+    const lh = fs * 1.08;
+    let tx = '';
+    const upper = b.m === 'moon' || b.f === "'Cinzel'" || b.f === "'Bebas Neue'" || b.f === "'Oswald'";
+    const y0 = b.tp === 'top' ? 36 + fs : 408 - lh * (lines.length - 1);
+    lines.forEach((l, k) => {
+      tx += `<text x="150" y="${(y0 + k * lh).toFixed(1)}" text-anchor="middle" font-family="${b.f.replace(/'/g, '')}" font-weight="${b.fw}" font-size="${fs.toFixed(1)}" fill="${b.fg}">${upper ? l.toUpperCase() : l}</text>`;
+    });
+    const ay = b.tp === 'top' ? 428 : 40;
+    tx += `<text x="150" y="${ay}" text-anchor="middle" font-family="Inter" font-weight="600" font-size="14" letter-spacing="2.4" fill="${b.fg}" opacity=".85">${b.a.toUpperCase()}</text>`;
+    html += `<linearGradient id="cg${i}" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="${b.bg[0]}"/><stop offset="1" stop-color="${b.bg[1]}"/></linearGradient>`
+      + `<symbol id="cov${i}" viewBox="0 0 300 450" preserveAspectRatio="xMidYMid slice">`
+      + `<rect width="300" height="450" fill="url(#cg${i})"/>` + MOTIF[b.m](b, i) + tx
+      + `<rect x="0" y="0" width="10" height="450" fill="#000" opacity=".13"/><rect x="10" y="0" width="3" height="450" fill="#fff" opacity=".12"/>`
+      + '</symbol>';
+  });
+  defs.innerHTML = html;
+}
+const coverSvg = (i) => `<svg viewBox="0 0 300 450" preserveAspectRatio="xMidYMid slice"><use href="#cov${i}"/></svg>`;
+
+/* =====================================================================
+   SPEECH: Folio's lines, split into syllables. Word reveal times, mouth
+   motion and the babble voice in the soundtrack all read this schedule.
+   "{0.4}" in a line is a pause in seconds; *word* is emphasized.
+   ===================================================================== */
+const LINES = [
+  { id: 'hi', t: 2.5, end: 5.5, text: "Hi! I'm *Folio.* Let me show you *Booklister!*", pitch: 2 },
+  { id: 'search', t: 6.85, end: 10.6, text: 'Search *Open Library* for any title you want on your list...', pitch: 0 },
+  { id: 'paste', t: 10.8, end: 14.55, text: '...or paste a whole list at once with *Quick Add.*', pitch: 0 },
+  { id: 'entry', t: 15.45, end: 19.3, text: 'Every title gets its *cover,* {0.1} *call number,* {0.1} and a *description.*', pitch: 0 },
+  { id: 'star', t: 20.75, end: 23.55, text: 'Star your favorites for the *front cover.*', pitch: 1 },
+  { id: 'collage', t: 24.9, end: 32.4, text: 'Then pick a collage. {0.35} *Classic?* {0.75} *Tilted?* {0.75} *Staggered?* {0.9} Ooh... {0.25} *Honeycomb!*', pitch: 1 },
+  { id: 'style', t: 33.4, end: 37.9, text: 'Try on new *fonts* {0.2} and *colors...*', pitch: 0 },
+  { id: 'qr', t: 38.1, end: 42.2, text: '...and add a *QR code* that links to your catalog.', pitch: 0 },
+  { id: 'pdf', t: 42.85, end: 47.5, text: 'One click makes a *print-ready PDF,* {0.15} at a crisp *600 DPI.*', pitch: 0 },
+  { id: 'fold', t: 47.75, end: 50.7, text: 'Print it, {0.1} fold it, {0.1} set it out!', pitch: 2 },
+  { id: 'free', t: 52.2, end: 55.5, text: "It's *free,* {0.1} and your lists stay right in your browser.", pitch: 0 },
+  { id: 'bye', t: 55.75, end: 59.1, text: 'Happy displaying!', pitch: 3 },
+];
+
+function countSyl(tok) {
+  const w = tok.replace(/[*.,!?…]/g, '');
+  if (/^\d+$/.test(w)) return { '600': 4 }[w] || w.length;
+  if (/^[A-Z]{2,4}$/.test(w)) return w.length;
+  const parts = w.toLowerCase().split(/[-']/).filter(Boolean);
+  let n = 0;
+  parts.forEach((p) => {
+    const q = p.length > 3 ? p.replace(/e$/, '') : p;
+    const m = q.match(/[aeiouy]+/g);
+    n += Math.max(1, m ? m.length : 1);
+  });
+  return Math.max(1, n);
+}
+function vowelsOf(tok) {
+  const m = tok.toLowerCase().match(/[aeiouy]+/g) || ['a'];
+  return m.map((v) => v[0]);
+}
+function scheduleLines() {
+  const r = rng(4242);
+  const all = [];
+  LINES.forEach((L, li) => {
+    let t = L.t;
+    L.words = [];
+    L.syl = [];
+    const toks = L.text.split(/\s+/);
+    toks.forEach((tok) => {
+      const pm = tok.match(/^\{([\d.]+)\}$/);
+      if (pm) { t += parseFloat(pm[1]); return; }
+      const n = countSyl(tok);
+      const vs = vowelsOf(tok);
+      const plain = tok.replace(/\*/g, '');
+      const emph = tok.startsWith('*');
+      const q = /\?\*?$/.test(tok), ex = /!\*?$/.test(tok);
+      const w = { html: emph ? `<em>${plain}</em>` : plain, t, first: L.words.length === 0 };
+      for (let k = 0; k < n; k++) {
+        const d = 0.085 + r() * 0.035 + (emph ? 0.018 : 0);
+        let p = (L.pitch || 0) + (r() * 4 - 2) + (k === 0 && n > 1 ? 1.5 : 0) + (emph ? 1.5 : 0);
+        if (ex) p += 2;
+        let glide = 0;
+        if (k === n - 1 && q) { glide = 1; p += 1; }
+        if (k === n - 1 && ex) glide = 0.6;
+        const s = { t, dur: d, pitch: p, vowel: vs[k % vs.length], glide, line: li };
+        L.syl.push(s);
+        all.push(s);
+        t += d + 0.018;
+      }
+      w.end = t;
+      L.words.push(w);
+      t += 0.055;
+      if (/,\*?$/.test(tok)) t += 0.12;
+      if (/\.\.\.\*?$/.test(tok)) t += 0.24;
+      else if (/[.!?]\*?$/.test(tok)) t += 0.2;
+    });
+    L.speechEnd = t;
+  });
+  return all;
+}
+const SYL = scheduleLines();
+const LINE = Object.fromEntries(LINES.map((L) => [L.id, L]));
+// Time a given word of a line appears.
+const wordT = (id, i) => LINE[id].words[i].t;
+/* =====================================================================
+   TIMELINE
+   ===================================================================== */
+const DURATION = 60;
+const SFX = [];
+function sfx(t, type, o) { SFX.push(Object.assign({ t, type, pan: 0, gain: 1 }, o || {})); }
+const panOf = (x) => clamp((x - 960) / 960, -1, 1) * 0.7;
+
+// Slot k of the booklist (display order) holds book ORDER[k].
+const ORDER = [0, 11, 13, 3, 1, 7, 5, 8, 12, 2];
+const RESULTS = [0, 11, 13, 5, 9, 14];
+
+const T = {
+  logoIn: 1.9, logoOut: 5.35,
+  winIn: 5.7, typeStart: 7.0, typeText: 'the sea', typeStep: 0.105,
+  searchClick: 8.3, resultsAt: 8.45,
+  addClicks: [9.35, 9.8, 10.25], flyDur: 0.55,
+  qaClick: 10.75, qaOpen: 10.85, pasteAt: 11.55, rowStep: 0.075,
+  qaGo: 12.6, qaClose: 12.68, qaFly: 12.78, qaFlyStep: 0.085,
+  stickyIn: 13.3, zoomStart: 14.55, zoomEnd: 15.35,
+  calloutOut: 19.0,
+  grab: 19.45, dragA: 19.55, dragB: 20.25, drop: 20.3,
+  stars: [21.05, 21.45, 21.85], starEntries: [0, 1, 3],
+  panelOut: 23.15, pageIn: 23.35, coverPops: 24.05,
+  pickerIn: 24.25,
+  toStyle: 32.75,
+  qrIn: 0, // set below
+  styleOut: 42.2, pdfIn: 42.55,
+  hopOut: 50.85, logoBack: 51.35, fadeOut: 59.45,
+};
+T.fillAt = ORDER.map((_, k) => (k < 3 ? T.addClicks[k] + 0.05 + T.flyDur : T.qaFly + (k - 3) * T.qaFlyStep + T.flyDur));
+T.callouts = [wordT('entry', 1), wordT('entry', 4), wordT('entry', 5), wordT('entry', 9)];
+T.tilt = wordT('collage', 5) - 0.08;
+T.stag = wordT('collage', 6) - 0.08;
+T.honey = wordT('collage', 8) - 0.1;
+T.layoutDur = 0.95;
+T.fonts = [0, 0.55, 1.1, 1.65].map((d) => wordT('style', 3) + 0.05 + d);
+T.colors = [0, 0.55, 1.1].map((d) => T.fonts[3] + 0.55 + d);
+T.qrIn = wordT('qr', 3) - 0.35;
+T.qrBuild = T.qrIn + 0.45;
+T.pdfClick = wordT('pdf', 1) + 0.05;
+T.printerUp = T.pdfClick + 0.35;
+T.sheetOut = T.pdfClick + 0.9;
+T.sheetOutEnd = T.sheetOut + 1.75;
+T.sheetLift = T.sheetOutEnd;
+T.stamp = Math.max(wordT('pdf', 10) + 0.05, T.sheetLift + 0.5);
+T.flip = 47.55;
+T.fold = Math.max(wordT('fold', 2), T.flip + 0.9);
+T.stand = Math.max(wordT('fold', 4) - 0.05, T.fold + 0.85);
+T.heartsA = T.honey + 0.55;
+T.heartsB = wordT('bye', 1) + 0.35;
+
+const CHAPTERS = [
+  [6.0, 14.6, 1, 'Find titles'],
+  [15.3, 23.1, 2, 'Build your list'],
+  [24.1, 32.65, 3, 'Pick a collage'],
+  [33.0, 42.1, 4, 'Style your cover'],
+  [42.55, 50.6, 5, 'Print and fold'],
+];
+
+// Cursor path: [t, x, y]. Moves ease between consecutive waypoints.
+const CURSOR_PATH = [];
+const CURSOR_CLICKS = [];
+const CURSOR_VIS = [];
+function cur(t, x, y) { CURSOR_PATH.push([t, x, y]); }
+function click(t, x, kind) { CURSOR_CLICKS.push(t); sfx(t, kind || 'click', { pan: panOf(x) }); }
+
+(function buildCursor() {
+  // Scene B: search, add three, quick add
+  CURSOR_VIS.push([6.45, 13.75]);
+  cur(6.45, 1190, 640); cur(6.85, 800, 262); click(6.9, 800);
+  cur(7.95, 800, 262); cur(8.22, 712, 322); click(T.searchClick, 712);
+  T.addClicks.forEach((tc, i) => { cur(tc - 0.12, 937, 422 + 76 * i); cur(tc + 0.05, 937, 422 + 76 * i); click(tc, 937); });
+  cur(T.qaClick - 0.1, 888, 322); click(T.qaClick, 888);
+  cur(T.qaClick + 0.25, 888, 322); cur(11.35, 1180, 470);
+  cur(12.45, 1514, 690); click(T.qaGo, 1514);
+  cur(12.8, 1514, 690); cur(13.55, 1580, 820);
+  // Scene C: drag, stars
+  CURSOR_VIS.push([18.95, 22.55]);
+  cur(18.95, 1520, 660); cur(19.4, 1069, 478); cur(T.dragA, 1069, 478); cur(T.dragB, 1069, 338);
+  sfx(T.grab, 'grab', { pan: 0.1 }); sfx(T.drop, 'drop', { pan: 0.1 });
+  const sy = [152.5, 292.3, 432.2, 572.0];
+  T.stars.forEach((ts, i) => { const y = sy[T.starEntries[i]]; cur(ts - 0.14, 1272, y); cur(ts + 0.05, 1272, y); click(ts, 1272); });
+  cur(22.45, 1470, 720);
+  // Scene D: layout picker
+  const rowY = (r) => 275 + 88 * r;
+  CURSOR_VIS.push([25.5, T.honey + 1.0]);
+  cur(25.5, 1760, 760); cur(T.tilt - 0.3, 1600, rowY(5)); cur(T.tilt + 0.05, 1600, rowY(5)); click(T.tilt, 1600);
+  cur(T.stag - 0.3, 1600, rowY(4)); cur(T.stag + 0.05, 1600, rowY(4)); click(T.stag, 1600);
+  cur(T.honey - 0.35, 1600, rowY(1)); cur(T.honey + 0.05, 1600, rowY(1)); click(T.honey, 1600);
+  cur(T.honey + 0.9, 1780, 560);
+  // Scene E: fonts, colors, gradient
+  CURSOR_VIS.push([T.fonts[0] - 0.6, T.colors[2] + 0.8]);
+  cur(T.fonts[0] - 0.6, 1760, 470); cur(T.fonts[0] - 0.12, 1590, 250);
+  T.fonts.forEach((tf) => { cur(tf - 0.05, 1590, 250); cur(tf + 0.04, 1590, 250); click(tf, 1590, 'tick'); });
+  cur(T.colors[0] - 0.12, 1525, 461); click(T.colors[0], 1525);
+  cur(T.colors[1] - 0.12, 1665, 461); click(T.colors[1], 1665);
+  cur(T.colors[2] - 0.12, 1652, 354); click(T.colors[2], 1652, 'toggle');
+  cur(T.colors[2] + 0.7, 1780, 610);
+  // Scene F: Generate PDF
+  CURSOR_VIS.push([42.85, T.pdfClick + 0.55]);
+  cur(42.85, 1520, 640); cur(T.pdfClick - 0.1, 1196, 342); cur(T.pdfClick + 0.05, 1196, 342); click(T.pdfClick, 1196);
+  cur(T.pdfClick + 0.5, 1330, 470);
+  CURSOR_PATH.sort((a, b) => a[0] - b[0]);
+})();
+
+(function buildSfx() {
+  sfx(1.3, 'peek', { pan: 0 });
+  sfx(1.8, 'hop', { pan: 0 }); sfx(2.3, 'land', { pan: 0 });
+  sfx(T.logoIn, 'chime', { pan: 0, notes: [72, 76, 79, 84] });
+  sfx(5.4, 'hop', { pan: -0.3 }); sfx(6.05, 'land', { pan: -0.55 });
+  sfx(T.winIn, 'whoosh', { pan: 0.4 });
+  for (let i = 0; i < T.typeText.length; i++) if (T.typeText[i] !== ' ') sfx(T.typeStart + i * T.typeStep, 'type', { pan: -0.1, seed: i });
+  for (let i = 0; i < 6; i++) sfx(T.resultsAt + i * 0.07, 'pop', { pan: -0.15, pitch: i, gain: 0.55 });
+  T.addClicks.forEach((tc, k) => { sfx(tc + 0.08, 'swish', { pan: 0.1, gain: 0.5 }); sfx(T.fillAt[k], 'pop', { pan: 0.25, pitch: 3 + k }); });
+  sfx(T.qaOpen, 'open', { pan: 0.2 });
+  sfx(T.pasteAt - 0.08, 'keycap', { pan: 0.2 });
+  for (let j = 0; j < 7; j++) sfx(T.pasteAt + j * T.rowStep, 'tick', { pan: 0.2, gain: 0.5, pitch: j });
+  sfx(T.qaClose, 'close', { pan: 0.3 });
+  for (let k = 3; k < 10; k++) sfx(T.fillAt[k], 'pop', { pan: 0.35, pitch: k, gain: 0.7 });
+  sfx(T.stickyIn, 'paper', { pan: 0.7, gain: 0.7 });
+  sfx(T.zoomStart, 'whoosh', { pan: 0 });
+  T.callouts.forEach((tc, i) => sfx(tc, 'pop', { pan: 0.45, pitch: 6 + i, gain: 0.8 }));
+  T.stars.forEach((ts) => sfx(ts + 0.02, 'twinkle', { pan: 0.3 }));
+  sfx(T.panelOut, 'whoosh', { pan: 0.2 });
+  for (let i = 0; i < 16; i++) sfx(T.coverPops + i * 0.055, 'pop', { pan: 0.2, pitch: i % 8, gain: 0.35 });
+  [T.tilt, T.stag, T.honey].forEach((tt) => sfx(tt + 0.05, 'shuffle', { pan: 0.2 }));
+  sfx(T.honey + 0.35, 'sparkle', { pan: 0.2 });
+  sfx(T.heartsA, 'hearts', { pan: -0.6 });
+  sfx(T.toStyle, 'whoosh', { pan: 0.3, gain: 0.7 });
+  sfx(T.colors[2] + 0.05, 'sparkle', { pan: 0.1, gain: 0.5 });
+  sfx(T.qrIn, 'open', { pan: 0.6 });
+  sfx(T.qrBuild, 'qr', { pan: 0.6 });
+  sfx(T.styleOut, 'whoosh', { pan: 0 });
+  sfx(T.pdfIn, 'pop', { pan: 0.25, pitch: 4 });
+  sfx(T.printerUp, 'rise', { pan: 0.25 });
+  sfx(T.sheetOut, 'print', { pan: 0.25, dur: T.sheetOutEnd - T.sheetOut });
+  sfx(T.stamp, 'stamp', { pan: 0.5 });
+  sfx(T.flip, 'flip', { pan: 0.25 });
+  sfx(T.fold, 'fold', { pan: 0.25 });
+  sfx(T.stand, 'land', { pan: 0.3, gain: 0.6 });
+  sfx(T.hopOut, 'hop', { pan: -0.4 }); sfx(T.hopOut + 0.72, 'land', { pan: -0.25 });
+  sfx(T.logoBack, 'chime', { pan: 0.1, notes: [77, 81, 84, 89] });
+  sfx(52.1, 'paper', { pan: 0.5, gain: 0.5 });
+  sfx(T.heartsB, 'hearts', { pan: -0.3 });
+  sfx(T.heartsB + 0.1, 'purr', { pan: -0.25, dur: 2.4 });
+})();
+
+/* =====================================================================
+   COMPONENTS
+   ===================================================================== */
+const $ = (id) => document.getElementById(id);
+const content = $('content');
+const C = {}; // component refs
+
+function makeEntry(parent, k, bookIdx, opts) {
+  const b = BOOKS[bookIdx];
+  const el = div('entry', parent);
+  el.style.top = (22 + k * 152) + 'px';
+  const blank = div('blank', el, '<div class="e-cover"></div><div class="e-text"><div class="e-title">[Enter Title]</div>'
+    + '<div class="e-author">[Enter Author]</div><div class="e-desc">[Enter a description for this title...]</div></div>');
+  const filled = div('filled', el, `<div class="e-cover">${coverSvg(bookIdx)}</div><div class="e-text"><div class="e-title">${b.t}</div>`
+    + `<div class="e-author">By ${b.a}</div><div class="e-desc">${b.d}</div><div class="e-call">${b.c}</div></div>`);
+  const r = { el, blank, filled, cover: filled.querySelector('.e-cover'), k, book: bookIdx };
+  if (opts && opts.stars) {
+    r.grip = div('e-grip', el);
+    r.star = svgEl('svg', { class: 'e-star', viewBox: '0 0 36 36' });
+    el.appendChild(r.star);
+    r.starFill = svgEl('path', { d: STAR_PATH, fill: '#f6b93b', stroke: '#c98a12', 'stroke-width': 2, 'stroke-linejoin': 'round' }, r.star);
+    r.starLine = svgEl('path', { d: STAR_PATH, fill: 'none', stroke: '#a0aec0', 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, r.star);
+  }
+  return r;
+}
+function makePanel(parent, books, opts) {
+  const el = div('panel', parent);
+  const entries = books.map((bi, k) => makeEntry(el, k, bi, opts));
+  return { el, entries };
+}
+
+const qrMatrix = () => window.QR_DATA;
+function qrSvg(qr, size, color) {
+  const s = size / (qr.n + 2);
+  let d = '';
+  qr.cells.forEach(([r, c]) => { d += `M${((c + 1) * s).toFixed(2)} ${((r + 1) * s).toFixed(2)}h${s.toFixed(2)}v${s.toFixed(2)}h-${s.toFixed(2)}z`; });
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="${color}" shape-rendering="crispEdges"/></svg>`;
+}
+
+function buildLogo() {
+  const el = div('logo', content, `<div class="logo-row">${BOOK_ICON}<div class="logo-word">Booklister</div></div>`
+    + '<div class="logo-tag">Printable booklists for library displays</div><div class="logo-url">booklister.org</div>');
+  C.logo = el;
+  C.logoUrl = el.querySelector('.logo-url');
+  C.logoTag = el.querySelector('.logo-tag');
+}
+
+function buildWindow() {
+  const w = div('', content);
+  w.id = 'win';
+  w.innerHTML = `<div class="w-head"><div class="brand">${BOOK_ICON}Booklister</div><div class="spacer"></div>`
+    + '<div class="hbtn">Reset</div><div class="hbtn">Load</div><div class="hbtn">Save</div><div class="hbtn primary">Generate PDF</div></div>'
+    + '<div class="w-side"><div class="w-tabs"><div class="on">Search</div><div>Text Styling</div><div>Front Cover</div><div>Back Cover</div></div>'
+    + '<div class="w-label">Search by keyword</div><div class="w-input"><span class="typed"></span><span class="caret"></span><span class="ph">Keyword...</span></div>'
+    + '<div class="w-btn search">Search</div><div class="w-btn qa">Quick Add</div><div class="w-rhead"></div></div>'
+    + '<div class="w-main"><div class="fold"></div></div>';
+  C.win = w;
+  C.winInput = w.querySelector('.w-input');
+  C.winTyped = w.querySelector('.typed');
+  C.winCaret = w.querySelector('.caret');
+  C.winPh = w.querySelector('.ph');
+  C.winSearchBtn = w.querySelector('.w-btn.search');
+  C.winQaBtn = w.querySelector('.w-btn.qa');
+  C.winRhead = w.querySelector('.w-rhead');
+  const side = w.querySelector('.w-side');
+  C.results = RESULTS.map((bi, i) => {
+    const r = div('w-result', side, `<div class="th">${coverSvg(bi)}</div><div class="t">${BOOKS[bi].t}</div><div class="a">${BOOKS[bi].a}</div><div class="add">Add</div>`);
+    r.style.top = (238 + i * 76) + 'px';
+    return { el: r, add: r.querySelector('.add'), th: r.querySelector('.th') };
+  });
+  const main = w.querySelector('.w-main');
+  C.winPanels = [0, 1].map((p) => {
+    const pn = makePanel(main, ORDER.slice(p * 5, p * 5 + 5));
+    pn.el.style.left = (29.6 + p * 400.4) + 'px';
+    pn.el.style.top = '42.5px';
+    pn.el.style.transform = 'scale(0.77)';
+    return pn;
+  });
+  // Quick Add modal
+  const shade = div('', w); shade.id = 'qaShade';
+  const qa = div('', w); qa.id = 'qa';
+  qa.innerHTML = '<div class="qt">Quick Add</div><div class="qx">×</div><div class="tabs"><div>Single title</div><div class="on">Multiple titles</div></div>'
+    + '<div class="hint">Paste rows from a spreadsheet: title, author, call number.</div><div class="ta"></div>'
+    + '<div class="tc"><i></i>Title Case</div><div class="go">Add 7 titles</div>';
+  C.qa = qa; C.qaShade = shade; C.qaTa = qa.querySelector('.ta'); C.qaGo = qa.querySelector('.go');
+  C.qaRows = ORDER.slice(3).map((bi, j) => {
+    const b = BOOKS[bi];
+    const row = div('row', C.qaTa, `<span style="left:0">${b.t}</span><span class="tabmark" style="left:318px">⇥</span>`
+      + `<span style="left:340px">${b.a}</span><span class="tabmark" style="left:530px">⇥</span><span style="left:552px">${b.c}</span>`);
+    row.style.top = (10 + j * 30) + 'px';
+    return row;
+  });
+  C.keycap = div('keycap', content, 'Ctrl + V');
+  const st = div('', content, '<b>Tip:</b> the Booklister Helper browser extension copies whole lists from your library catalog.');
+  st.id = 'sticky';
+  C.sticky = st;
+}
+
+// Flying covers: [t0, dur, book, from [x,y,w,h], to [x,y,w,h], arc]
+const FLYERS = [];
+function buildFlyers() {
+  const slotCenter = (k) => {
+    const p = k < 5 ? 0 : 1, kk = k % 5;
+    return [610 + 409.6 + p * 400.4 + 65 * 0.77, 96 + 94.5 + (94.5 + 152 * kk) * 0.77];
+  };
+  T.addClicks.forEach((tc, k) => {
+    const [x, y] = slotCenter(k);
+    FLYERS.push({ t0: tc + 0.05, dur: T.flyDur, book: ORDER[k], from: [652, 422 + 76 * k, 44, 66], to: [x, y, 66.2, 99.3], arc: -90 });
+  });
+  for (let k = 3; k < 10; k++) {
+    const [x, y] = slotCenter(k);
+    const j = k - 3;
+    FLYERS.push({ t0: T.qaFly + j * T.qaFlyStep, dur: T.flyDur, book: ORDER[k], from: [1000, 399 + 30 * j, 20, 30], to: [x, y, 66.2, 99.3], arc: -120 });
+  }
+  // Starred covers leave the list page for the collage.
+  const disp = [0, 2, 1, 3, 4];
+  T.starEntries.forEach((k, i) => {
+    const from = [820.8 + 65 * 0.92, 110.2 + (94.5 + 152 * k) * 0.92, 79, 118.7];
+    const cell = COVER_LAYOUTS.classic.cells[i];
+    const to = [883 + cell.x * 0.95, 100.1 + cell.y * 0.95, cell.w * 0.95, cell.h * 0.95];
+    FLYERS.push({ t0: T.panelOut + 0.1 + i * 0.08, dur: 0.75, book: ORDER[disp[k]], from, to, arc: -160, land: true });
+  });
+  C.flyers = FLYERS.map((f) => {
+    const el = div('fly', content, coverSvg(f.book));
+    el.style.cssText = 'position:absolute;left:0;top:0;width:100px;height:150px;border-radius:3px;overflow:hidden;box-shadow:0 10px 20px rgba(0,0,0,.25);transform-origin:0 0;';
+    return el;
+  });
+}
+
+function buildListPanel() {
+  const wrap = div('', content);
+  wrap.style.cssText = 'position:absolute;left:0;top:0;width:520px;height:804px;transform-origin:0 0;border-radius:4px;'
+    + 'box-shadow:0 26px 50px rgba(80,52,24,.22),0 3px 8px rgba(0,0,0,.1);';
+  C.listWrap = wrap;
+  C.list = makePanel(wrap, ORDER.slice(0, 5), { stars: true });
+  C.list.el.style.position = 'absolute';
+  // callouts
+  const lines = svgEl('svg', { class: 'layer', viewBox: '0 0 1920 1080' });
+  content.appendChild(lines);
+  C.callLines = lines;
+  const P = (nx, ny) => [820.8 + nx * 0.92, 110.2 + ny * 0.92];
+  const defs = [
+    { label: 'Title & author', sub: 'click any text to edit it', at: P(300, 42), y: 170 },
+    { label: 'Cover art', sub: 'from Open Library, or upload your own', at: P(66, 120), y: 300 },
+    { label: 'Call number', sub: 'so patrons can find it', at: P(170, 145), y: 430 },
+    { label: 'Description', sub: 'write your own short blurb', at: P(330, 100), y: 560 },
+  ];
+  C.callouts = defs.map((d) => {
+    const el = div('callout', content, `<b>${d.label}</b><span>${d.sub}</span>`);
+    const x0 = 1340;
+    const dd = `M${d.at[0]} ${d.at[1]} C ${d.at[0] + 120} ${d.at[1]}, ${x0 - 140} ${d.y + 38}, ${x0} ${d.y + 38}`;
+    const halo = svgEl('path', { d: dd, fill: 'none', stroke: '#fffaf0', 'stroke-width': 9, 'stroke-linecap': 'round', opacity: 0.9 }, lines);
+    const path = svgEl('path', { d: dd, fill: 'none', stroke: '#4A3020', 'stroke-width': 3, 'stroke-linecap': 'round' }, lines);
+    const dot = svgEl('circle', { cx: d.at[0], cy: d.at[1], r: 8, fill: '#f4a261', stroke: '#4A3020', 'stroke-width': 3 }, lines);
+    return Object.assign({ el, path, halo, dot, len: path.getTotalLength(), x: x0 }, d);
+  });
+  C.dragTip = div('callout', content, '<b>Drag to reorder</b><span>or use the arrow keys</span>');
+  C.starTip = div('callout', content, '<b>★ Starred titles</b><span>go on the front cover</span>');
+}
+
+/* ---------------- collage page ---------------- */
+const PW = 520, PH = 804;
+function hexPts(R) { const s = 0.8660254 * R; return [[0, -R], [s, -R / 2], [s, R / 2], [0, R], [-s, R / 2], [-s, -R / 2]]; }
+function rectPts(w, h) { return [[0, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [0, h / 2], [-w / 2, h / 2], [-w / 2, -h / 2]]; }
+const mod = (a, n) => ((a % n) + n) % n;
+function makeLayouts() {
+  const L = {};
+  { // classic 4x4 under a top bar
+    const cells = [];
+    const cw = 100, ch = 137.5, x0 = 39, y0 = 196;
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+      cells.push({ x: x0 + c * 114 + cw / 2, y: y0 + r * 149.5 + ch / 2, w: cw, h: ch, rot: 0, hex: 0, book: r * 4 + c });
+    }
+    L.classic = { cells, bar: { y: 26, h: 150, inset: 26, strip: 0 } };
+  }
+  { // tilted
+    const cells = [];
+    const rot = -9 * Math.PI / 180, cw = 110, ch = 160, sx = 122, sy = 172;
+    for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) {
+      const lx = i * sx + (mod(j, 2) ? sx / 2 : 0), ly = j * sy;
+      const x = 260 + lx * Math.cos(rot) - ly * Math.sin(rot), y = 402 + lx * Math.sin(rot) + ly * Math.cos(rot);
+      if (x < -70 || x > PW + 70 || y < -90 || y > PH + 90) continue;
+      cells.push({ x, y, w: cw, h: ch, rot: -9, hex: 0, book: mod(i + j * 6 + 3, 16) });
+    }
+    L.tilted = { cells, bar: { y: 327, h: 150, inset: 18, strip: 1 } };
+  }
+  { // staggered
+    const cells = [];
+    const ys = [80, 240, 564, 724], offs = [-42, -96, -18, -70];
+    ys.forEach((y, r) => {
+      for (let c = 0; c < 6; c++) {
+        const x = offs[r] + c * 114 + 52;
+        if (x - 52 > PW) continue;
+        cells.push({ x, y, w: 104, h: 150, rot: 0, hex: 0, book: mod(c + r * 6 + 9, 16) });
+      }
+    });
+    L.staggered = { cells, bar: { y: 327, h: 150, inset: 18, strip: 1 } };
+  }
+  { // honeycomb
+    const cells = [];
+    const R = 72, w = 2 * 0.8660254 * R, ys = [24, 132, 240, 564, 672, 780];
+    ys.forEach((y, r) => {
+      const off = (r % 2) ? w / 2 : 0;
+      for (let c = 0; c < 6; c++) {
+        const x = off + c * w;
+        if (x - w / 2 > PW) continue;
+        cells.push({ x, y, w, h: 2 * R, rot: 0, hex: 1, book: mod(c + r * 6 + 5, 16) });
+      }
+    });
+    L.honeycomb = { cells, bar: { y: 327, h: 150, inset: 18, strip: 1 } };
+  }
+  return L;
+}
+const COVER_LAYOUTS = makeLayouts();
+const INST_N = Math.max(...Object.values(COVER_LAYOUTS).map((l) => l.cells.length));
+
+let coverPageSeq = 0;
+function makeCoverPage(parent) {
+  const id = ++coverPageSeq;
+  const svg = svgEl('svg', { viewBox: `0 0 ${PW} ${PH}`, width: PW, height: PH });
+  svg.style.cssText = 'position:absolute;left:0;top:0;overflow:hidden;display:block;';
+  parent.appendChild(svg);
+  const defs = svgEl('defs', {}, svg);
+  const grad = svgEl('linearGradient', { id: `barg${id}`, x1: 0, y1: 0, x2: 1, y2: 0.3 }, defs);
+  const s0 = svgEl('stop', { offset: 0, 'stop-color': '#3f51b5' }, grad);
+  const s1 = svgEl('stop', { offset: 1, 'stop-color': '#3f51b5' }, grad);
+  svgEl('rect', { width: PW, height: PH, fill: '#fff' }, svg);
+  const inst = [];
+  const ig = svgEl('g', {}, svg);
+  for (let i = 0; i < INST_N; i++) {
+    const cp = svgEl('clipPath', { id: `pc${id}_${i}` }, defs);
+    const poly = svgEl('polygon', { points: '0,0' }, cp);
+    const g = svgEl('g', {}, ig);
+    const cg = svgEl('g', { 'clip-path': `url(#pc${id}_${i})` }, g);
+    const back = svgEl('rect', { fill: 'url(#cg0)' }, cg);
+    const dim = svgEl('rect', { fill: '#1a1410' }, cg);
+    const drop = svgEl('rect', { fill: '#000', rx: 2 }, cg);
+    const use = svgEl('use', { href: '#cov0' }, cg);
+    const shade = svgEl('polygon', { points: '0,0', fill: 'none', stroke: 'rgba(0,0,0,.10)', 'stroke-width': 1 }, g);
+    inst.push({ g, poly, use, shade, back, dim, drop });
+  }
+  const strip = svgEl('rect', { x: 0, width: PW, fill: '#fff' }, svg);
+  const bar = svgEl('g', {}, svg);
+  const barRect = svgEl('rect', { fill: `url(#barg${id})` }, bar);
+  const sub = svgEl('text', { 'text-anchor': 'middle', 'font-family': 'Inter', 'font-weight': 700, 'font-size': 17, 'letter-spacing': 6, fill: '#fff', opacity: 0.85 }, bar);
+  sub.textContent = 'STAFF PICKS';
+  const main = svgEl('text', { 'text-anchor': 'middle', 'font-size': 62, fill: '#fff' }, bar);
+  main.textContent = 'Rainy Day Reads';
+  return { id, svg, inst, strip, bar, barRect, sub, main, s0, s1, fontCache: {} };
+}
+// state: { a, b, u, style:{font, weight, c0, c1, bump}, enter:(i)=>scale|null, hideInst:(i)=>bool }
+function drawCoverPage(P, st) {
+  const A = COVER_LAYOUTS[st.a], B = COVER_LAYOUTS[st.b || st.a];
+  const u = st.u || 0;
+  for (let i = 0; i < INST_N; i++) {
+    const ca = A.cells[i], cb = B.cells[i];
+    const va = ca ? 1 : 0, vb = cb ? 1 : 0;
+    const pa = ca || B.cells[i] || A.cells[i % A.cells.length];
+    const pb = cb || pa;
+    const delay = 0.32 * clamp(pb.x / PW);
+    const ui = clamp((u - delay) / (1 - 0.32));
+    const k = E.inOut(ui);
+    let x = lerp(pa.x, pb.x, k), y = lerp(pa.y, pb.y, k);
+    const w = lerp(pa.w, pb.w, k), h = lerp(pa.h, pb.h, k);
+    const rot = lerp(pa.rot, pb.rot, k), hx = lerp(pa.hex, pb.hex, k);
+    let vis = va === vb ? va : (vb ? E.outBack(clamp(ui * 1.6 - 0.4)) : 1 - E.in(clamp(ui * 1.6)));
+    let sx = 1, book = pa.book;
+    if (va && vb && pa.book !== pb.book) { sx = Math.abs(Math.cos(Math.PI * ui)); book = ui < 0.5 ? pa.book : pb.book; }
+    else if (!va && vb) book = pb.book;
+    if (st.enter) { const e = st.enter(i); if (e !== null) vis *= e; }
+    if (st.hideInst && st.hideInst(i)) vis = 0;
+    const I = P.inst[i];
+    if (vis <= 0.001) { setA(I.g, 'visibility', 'hidden'); continue; }
+    setA(I.g, 'visibility', 'visible');
+    // Hexes are drawn inset so white gutters show between them.
+    const R = h / 2 - 3 * hx;
+    const rp = rectPts(w, h), hp = hexPts(R);
+    const pts = rp.map((p, j) => f1(lerp(p[0], hp[j][0], hx)) + ',' + f1(lerp(p[1], hp[j][1], hx))).join(' ');
+    setA(I.poly, 'points', pts);
+    setA(I.shade, 'points', pts);
+    // Honeycomb frames the whole cover on a wash of its own colors, as the
+    // app's Honeycomb layout does; rectangles show the cover edge to edge.
+    const fitH = 1.444 * R * 0.92, fitW = fitH * 2 / 3;
+    const uw = lerp(w, fitW, hx), uh = lerp(h, fitH, hx);
+    setA(I.use, 'href', '#cov' + book);
+    setA(I.use, 'x', f1(-uw / 2)); setA(I.use, 'y', f1(-uh / 2));
+    setA(I.use, 'width', f1(uw)); setA(I.use, 'height', f1(uh));
+    const showBack = hx > 0.01;
+    setA(I.back, 'visibility', showBack ? 'visible' : 'hidden');
+    setA(I.dim, 'visibility', showBack ? 'visible' : 'hidden');
+    setA(I.drop, 'visibility', showBack ? 'visible' : 'hidden');
+    if (showBack) {
+      setA(I.back, 'fill', `url(#cg${book})`);
+      [I.back, I.dim].forEach((el) => { setA(el, 'x', f1(-w / 2)); setA(el, 'y', f1(-h / 2)); setA(el, 'width', f1(w)); setA(el, 'height', f1(h)); });
+      setA(I.back, 'opacity', hx.toFixed(3)); setA(I.dim, 'opacity', (0.22 * hx).toFixed(3));
+      setA(I.drop, 'x', f1(-uw / 2 + 2)); setA(I.drop, 'y', f1(-uh / 2 + 3)); setA(I.drop, 'width', f1(uw)); setA(I.drop, 'height', f1(uh));
+      setA(I.drop, 'opacity', (0.28 * hx).toFixed(3));
+    }
+    setA(I.g, 'transform', `translate(${f1(x)} ${f1(y)}) rotate(${f1(rot)}) scale(${(sx * vis).toFixed(3)} ${vis.toFixed(3)})`);
+  }
+  // bar
+  const ba = A.bar, bb = B.bar, kb = E.inOut(clamp((u - 0.1) / 0.8));
+  const by = lerp(ba.y, bb.y, kb), bh = lerp(ba.h, bb.h, kb), inset = lerp(ba.inset, bb.inset, kb), strip = lerp(ba.strip, bb.strip, kb);
+  setA(P.strip, 'y', f1(by - 16)); setA(P.strip, 'height', f1(bh + 32)); setA(P.strip, 'opacity', strip.toFixed(3));
+  setA(P.barRect, 'x', f1(inset)); setA(P.barRect, 'y', f1(by)); setA(P.barRect, 'width', f1(PW - 2 * inset)); setA(P.barRect, 'height', f1(bh));
+  const s = st.style;
+  setA(P.s0, 'stop-color', s.c0); setA(P.s1, 'stop-color', s.c1);
+  const key = s.font + '|' + s.weight;
+  if (P.curFont !== key) {
+    P.main.setAttribute('font-family', s.font);
+    P.main.setAttribute('font-weight', s.weight);
+    P.main.setAttribute('font-size', 62);
+    if (!P.fontCache[key]) P.fontCache[key] = P.main.getComputedTextLength();
+    P.curFont = key;
+  }
+  const fs = Math.min(66, 62 * (PW - 2 * inset - 60) / P.fontCache[key]) * (s.sizeK || 1);
+  setA(P.main, 'font-size', f1(fs));
+  setA(P.main, 'x', PW / 2); setA(P.main, 'y', f1(by + bh * 0.5 + fs * 0.36 + 14));
+  setA(P.sub, 'x', PW / 2); setA(P.sub, 'y', f1(by + 36));
+  const bump = s.bump || 0;
+  setA(P.main, 'transform', bump ? `translate(${PW / 2} ${f1(by + bh / 2)}) scale(${(1 + bump).toFixed(3)}) translate(${-PW / 2} ${f1(-(by + bh / 2))})` : '');
+}
+
+function buildCoverScene() {
+  const wrap = div('', content);
+  wrap.style.cssText = `position:absolute;left:0;top:0;width:${PW}px;height:${PH}px;transform-origin:0 0;border-radius:4px;overflow:hidden;`
+    + 'box-shadow:0 26px 50px rgba(80,52,24,.24),0 3px 8px rgba(0,0,0,.1);background:#fff;';
+  C.coverWrap = wrap;
+  C.page = makeCoverPage(wrap);
+  // Layout picker
+  const pk = div('card', content);
+  pk.style.cssText += 'left:1440px;top:150px;width:380px;height:640px;';
+  pk.innerHTML = '<h3 style="position:absolute;left:30px;top:28px">Collage layout</h3>';
+  C.lhi = div('', pk); C.lhi.id = 'lhi';
+  const icons = {
+    Classic: '<rect x="6" y="6" width="46" height="12" rx="2" fill="#5c6bc0"/>' + [0, 1, 2].map((c) => [0, 1].map((r) => `<rect x="${7 + c * 16}" y="${23 + r * 16}" width="12" height="13" rx="1.5" fill="#9aa5d8"/>`).join('')).join(''),
+    Honeycomb: [[18, 16], [40, 16], [7, 34], [29, 34], [51, 34], [18, 52], [40, 52]].map(([x, y]) => `<polygon points="${x},${y - 10} ${x + 9},${y - 5} ${x + 9},${y + 5} ${x},${y + 10} ${x - 9},${y + 5} ${x - 9},${y - 5}" fill="#9aa5d8"/>`).join('') + '<rect x="4" y="29" width="50" height="10" fill="#5c6bc0"/>',
+    Jigsaw: '<rect x="6" y="6" width="46" height="46" rx="3" fill="#9aa5d8"/><path d="M29 6 v14 a5 5 0 1 1 0 8 v24 M6 29 h14 a5 5 0 1 0 8 0 h24" stroke="#fff" stroke-width="3" fill="none"/><rect x="6" y="25" width="46" height="9" fill="#5c6bc0"/>',
+    Masonry: '<rect x="6" y="6" width="14" height="20" rx="1.5" fill="#9aa5d8"/><rect x="22" y="6" width="14" height="14" rx="1.5" fill="#9aa5d8"/><rect x="38" y="6" width="14" height="24" rx="1.5" fill="#9aa5d8"/><rect x="6" y="36" width="46" height="9" fill="#5c6bc0"/><rect x="6" y="48" width="14" height="6" fill="#9aa5d8"/><rect x="22" y="48" width="30" height="6" fill="#9aa5d8"/>',
+    Staggered: [0, 1].map((r) => [0, 1, 2, 3].map((c) => `<rect x="${-4 + c * 16 + r * 8}" y="${6 + r * 36}" width="12" height="16" rx="1.5" fill="#9aa5d8"/>`).join('')).join('') + '<rect x="4" y="26" width="50" height="10" fill="#5c6bc0"/>',
+    Tilted: '<g transform="rotate(-12 29 29)">' + [0, 1, 2].map((c) => [0, 1, 2].map((r) => `<rect x="${4 + c * 18}" y="${2 + r * 20}" width="13" height="17" rx="1.5" fill="#9aa5d8"/>`).join('')).join('') + '</g><rect x="4" y="25" width="50" height="10" fill="#5c6bc0"/>',
+  };
+  C.lrows = Object.keys(icons).map((name, r) => {
+    const row = div('lrow', pk, `<svg viewBox="0 0 58 58"><defs><clipPath id="lic${r}"><rect width="58" height="58" rx="8"/></clipPath></defs><g clip-path="url(#lic${r})"><rect width="58" height="58" fill="#eef0fb"/>${icons[name]}</g></svg>${name}`);
+    row.style.top = (84 + 88 * r) + 'px';
+    return row;
+  });
+  C.picker = pk;
+  // Style panel
+  const sp = div('card', content);
+  sp.style.cssText += 'left:1330px;top:110px;width:500px;height:410px;';
+  sp.innerHTML = '<h3 style="position:absolute;left:30px;top:28px">Cover Header Style</h3>'
+    + '<div class="field-label" style="top:82px">Font</div><div class="dropdown" style="top:104px"><span class="fname"></span><span class="caretdn"></span></div>'
+    + '<div class="field-label" style="top:194px">Size</div><div class="stepper" style="left:30px;top:216px"><div>−</div><div class="v">62</div><div>+</div></div>'
+    + '<div class="field-label" style="top:194px;left:290px">Gradient</div><div class="toggle" style="left:290px;top:226px"><i></i></div>'
+    + '<div class="field-label" style="top:300px">Color</div>';
+  C.fname = sp.querySelector('.fname');
+  C.toggle = sp.querySelector('.toggle');
+  C.toggleKnob = C.toggle.querySelector('i');
+  C.swatchColors = ['#3f51b5', '#37474f', '#2a9d8f', '#e76f51', '#6d4c7d', '#264653'];
+  C.swatchColors.forEach((c, i) => { const s = div('swatch', sp); s.style.cssText += `left:${30 + 70 * i}px;top:324px;background:${c};`; });
+  C.swring = div('', sp); C.swring.id = 'swring';
+  C.style = sp;
+  // QR card
+  const qc = div('card', content);
+  qc.style.cssText += 'left:1330px;top:560px;width:500px;height:300px;';
+  const qr = qrMatrix();
+  C.qrData = qr;
+  const qs = 220, ms = qs / (qr.n + 2);
+  let rects = '';
+  qr.cells.forEach(([r, c], idx) => { rects += `<rect data-i="${idx}" x="${((c + 1) * ms).toFixed(2)}" y="${((r + 1) * ms).toFixed(2)}" width="${(ms + 0.3).toFixed(2)}" height="${(ms + 0.3).toFixed(2)}" fill="#37474f"/>`; });
+  qc.innerHTML = `<svg viewBox="0 0 ${qs} ${qs}" style="position:absolute;left:32px;top:40px;width:${qs}px;height:${qs}px;border-radius:8px;box-shadow:0 0 0 2px #eef0f4" shape-rendering="crispEdges"><rect width="${qs}" height="${qs}" fill="#fff"/>${rects}</svg>`
+    + '<div style="position:absolute;left:280px;top:44px;width:196px;font:700 15px/1 Inter;color:#718096;letter-spacing:.5px;text-transform:uppercase">Back cover</div>'
+    + '<div style="position:absolute;left:280px;top:74px;width:196px;font:600 25px/1.2 Lora;color:#2d3748">Scan to find these titles in our catalog!</div>'
+    + '<div style="position:absolute;left:280px;top:212px;width:190px;height:40px;border-radius:8px;background:#f1f3f8;font:500 15px/40px Inter;color:#546e7a;padding-left:12px;box-sizing:border-box">https://your.library/...</div>';
+  C.qrCard = qc;
+  C.qrMods = Array.from(qc.querySelectorAll('rect[data-i]')).map((el) => {
+    const [r, c] = qr.cells[+el.dataset.i];
+    return { el, d: (r + c) / (2 * qr.n) };
+  });
+}
+
+/* ---------------- export: button, printer, sheet ---------------- */
+function buildPrint() {
+  const ps = $('printStage');
+  const btn = div('', content, `${BOOK_ICON}<span>Generate PDF</span>`);
+  btn.id = 'pdfbtn';
+  C.pdfbtn = btn;
+  C.pdfLabel = btn.querySelector('span');
+  C.pdfIcon = btn.querySelector('svg');
+  const spin = svgEl('svg', { viewBox: '0 0 60 60', width: 60, height: 60 });
+  spin.style.cssText = 'position:absolute;left:0;top:0;';
+  svgEl('circle', { cx: 30, cy: 30, r: 22, fill: 'none', stroke: 'rgba(255,255,255,.3)', 'stroke-width': 6 }, spin);
+  C.spinArc = svgEl('circle', { cx: 30, cy: 30, r: 22, fill: 'none', stroke: '#fff', 'stroke-width': 6, 'stroke-linecap': 'round', 'stroke-dasharray': '40 200' }, spin);
+  content.appendChild(spin);
+  C.spin = spin;
+  // printer back (slot) + shadow + sheet + printer front
+  const pb = svgEl('svg', { class: 'layer', viewBox: '0 0 1920 1080' });
+  ps.appendChild(pb);
+  C.printerBack = svgEl('g', {}, pb);
+  svgEl('rect', { x: 690, y: 748, width: 980, height: 60, rx: 22, fill: '#4b5560' }, C.printerBack);
+  svgEl('rect', { x: 720, y: 772, width: 920, height: 12, rx: 6, fill: '#1f252b' }, C.printerBack);
+  const sh = div('', ps); sh.id = 'sheetShadow'; C.sheetShadow = sh;
+  const sheet = div('', ps); sheet.id = 'sheet'; C.sheet = sheet;
+  // halves: L = page 1 left (back cover) / page 2 right (inside right)
+  //         R = page 1 right (front cover) / page 2 left (inside left)
+  const mkHalf = (x) => { const h = div('half', sheet); h.style.left = x + 'px'; return h; };
+  const hL = mkHalf(0), hR = mkHalf(440);
+  hR.style.transformOrigin = '0 50%';
+  C.halfL = hL; C.halfR = hR;
+  const face = (h, back) => div('face' + (back ? ' back' : ''), h);
+  // front cover (static honeycomb copy)
+  const fcFace = face(hR, false);
+  const fcWrap = div('panel', fcFace);
+  C.frontCopy = makeCoverPage(fcWrap);
+  // back cover
+  const bcFace = face(hL, false);
+  const bc = makePanel(bcFace, [4, 6, 9]);
+  bc.entries.forEach((e) => { setO(e.blank, 0); setO(e.filled, 1); });
+  const bq = div('backqr', bc.el, `<div class="qrbox">${qrSvg(C.qrData, 200, '#37474f')}</div>`
+    + '<div class="qrtext">Scan to find these titles in our catalog!</div>'
+    + `<div class="brand">${BOOK_ICON}Your Library</div>`);
+  C.backQr = bq;
+  // inside pages
+  const inL = face(hR, true), inR = face(hL, true);
+  [[inL, [0, 13, 11, 3, 1]], [inR, [7, 5, 8, 12, 2]]].forEach(([f, books]) => {
+    const pn = makePanel(f, books);
+    pn.entries.forEach((e) => { setO(e.blank, 0); setO(e.filled, 1); });
+  });
+  C.faceShades = Array.from(sheet.querySelectorAll('.face')).map((f) => div('shade', f));
+  const pf = svgEl('svg', { class: 'layer', viewBox: '0 0 1920 1080' });
+  ps.appendChild(pf);
+  C.printerFront = svgEl('g', {}, pf);
+  const P = C.printerFront;
+  svgEl('rect', { x: 700, y: 790, width: 960, height: 150, rx: 26, fill: '#e9edf1', stroke: '#b7c0c9', 'stroke-width': 3 }, P);
+  svgEl('rect', { x: 700, y: 790, width: 960, height: 22, rx: 11, fill: '#d4dbe2' }, P);
+  svgEl('rect', { x: 760, y: 836, width: 260, height: 26, rx: 13, fill: '#cfd6de' }, P);
+  C.printLed = svgEl('circle', { cx: 1590, cy: 849, r: 9, fill: '#43a047' }, P);
+  const lab = svgEl('text', { x: 1080, y: 896, 'font-family': 'Inter', 'font-weight': 700, 'font-size': 20, fill: '#9aa6b2', 'letter-spacing': 3 }, P);
+  lab.textContent = 'BOOKLISTER · 600 DPI';
+  C.stamp = div('', ps, '600<small>DPI</small>'); C.stamp.id = 'stamp';
+  C.takeone = div('', content, 'Take one!'); C.takeone.id = 'takeone';
+}
+/* =====================================================================
+   BACKGROUND, DESK, PROPS
+   ===================================================================== */
+function drawBackground() {
+  const c = $('bg').getContext('2d');
+  const g = c.createLinearGradient(0, 0, 0, 1080);
+  g.addColorStop(0, '#f7ecd6'); g.addColorStop(1, '#ecd8b6');
+  c.fillStyle = g; c.fillRect(0, 0, 1920, 1080);
+  // A bookcase along the back wall, drawn sharp and then blurred so it
+  // reads as depth, not detail.
+  const off = document.createElement('canvas'); off.width = 1920; off.height = 1080;
+  const o = off.getContext('2d');
+  const r = rng(77);
+  const cols = ['#8c5a44', '#5a6f8c', '#7b8f5a', '#a0704a', '#6a5a7c', '#b08a4a', '#4f7470', '#9a5a5a', '#c7a36b', '#5b4a3a', '#3f51b5', '#e76f51'];
+  o.fillStyle = '#c9a57c'; o.fillRect(0, 0, 1920, 1080);
+  [300, 610, 920].forEach((y) => {
+    let x = -10;
+    while (x < 1930) {
+      const w = 16 + r() * 26, h = 150 + r() * 95;
+      if (r() < 0.07) { x += 30 + r() * 40; continue; }
+      o.fillStyle = cols[Math.floor(r() * cols.length)];
+      if (r() < 0.06) { o.save(); o.translate(x, y); o.rotate(-0.25); o.fillRect(0, -h, w, h); o.restore(); x += h * 0.3 + w; continue; }
+      o.fillRect(x, y - h, w, h);
+      o.fillStyle = 'rgba(255,255,255,.18)'; o.fillRect(x + w * 0.2, y - h + 18, w * 0.6, 5); o.fillRect(x + w * 0.2, y - 30, w * 0.6, 4);
+      x += w + 1.5;
+    }
+    o.fillStyle = '#8e6440'; o.fillRect(0, y, 1920, 22);
+    o.fillStyle = 'rgba(0,0,0,.18)'; o.fillRect(0, y + 22, 1920, 10);
+  });
+  c.save(); c.filter = 'blur(9px)'; c.globalAlpha = 0.3; c.drawImage(off, 0, 0); c.restore();
+  // warm bokeh
+  const rb = rng(9);
+  for (let i = 0; i < 18; i++) {
+    const x = rb() * 1920, y = rb() * 760, rad = 30 + rb() * 70;
+    const bg = c.createRadialGradient(x, y, 0, x, y, rad);
+    bg.addColorStop(0, 'rgba(255,236,190,.22)'); bg.addColorStop(1, 'rgba(255,236,190,0)');
+    c.fillStyle = bg; c.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  // wash, so the shelves sit back
+  c.fillStyle = 'rgba(248,238,218,.42)'; c.fillRect(0, 0, 1920, 1080);
+  const v = c.createRadialGradient(960, 480, 300, 960, 540, 1250);
+  v.addColorStop(0, 'rgba(90,60,30,0)'); v.addColorStop(1, 'rgba(90,60,30,.28)');
+  c.fillStyle = v; c.fillRect(0, 0, 1920, 1080);
+  const cs = c.createLinearGradient(0, 850, 0, 900);
+  cs.addColorStop(0, 'rgba(80,50,20,0)'); cs.addColorStop(1, 'rgba(80,50,20,.16)');
+  c.fillStyle = cs; c.fillRect(0, 850, 1920, 50);
+}
+function drawDesk() {
+  const c = $('desk').getContext('2d');
+  const g = c.createLinearGradient(0, 900, 0, 1080);
+  g.addColorStop(0, '#c99b68'); g.addColorStop(0.12, '#b98a58'); g.addColorStop(1, '#8f6238');
+  c.fillStyle = g; c.fillRect(0, 900, 1920, 180);
+  const r = rng(31);
+  c.lineWidth = 1.5;
+  for (let i = 0; i < 46; i++) {
+    const y0 = 918 + r() * 160, a = 2 + r() * 5, ph = r() * 6;
+    c.strokeStyle = `rgba(90,55,25,${(0.08 + r() * 0.12).toFixed(2)})`;
+    c.beginPath();
+    for (let x = 0; x <= 1920; x += 20) { const y = y0 + Math.sin(x / (140 + r() * 4) + ph) * a; if (x) c.lineTo(x, y); else c.moveTo(x, y); }
+    c.stroke();
+  }
+  c.fillStyle = '#e0b886'; c.fillRect(0, 900, 1920, 7);
+  c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(0, 900, 1920, 2);
+  c.fillStyle = 'rgba(60,35,15,.25)'; c.fillRect(0, 907, 1920, 4);
+}
+function buildProps() {
+  const s = $('deskFront');
+  // plant
+  const p = svgEl('g', { transform: 'translate(72 900)' }, s);
+  [[-40, -110, -30], [-10, -130, -8], [18, -118, 18], [36, -92, 38], [-30, -78, -52], [4, -96, 6]].forEach(([x, y, a]) => {
+    svgEl('path', { d: `M0 -40 Q${x * 0.4} ${y * 0.6} ${x} ${y} Q${x * 0.9 + 10} ${y * 0.5} 0 -40Z`, fill: '#5f8f5a', stroke: '#3f6a3b', 'stroke-width': 2 }, p);
+  });
+  svgEl('path', { d: 'M-40 -44 H40 L32 0 H-32 Z', fill: '#d97b54', stroke: '#9c4f30', 'stroke-width': 3, 'stroke-linejoin': 'round' }, p);
+  svgEl('rect', { x: -44, y: -52, width: 88, height: 12, rx: 4, fill: '#e59068', stroke: '#9c4f30', 'stroke-width': 3 }, p);
+  // mug
+  const m = svgEl('g', { transform: 'translate(552 900)' }, s);
+  svgEl('path', { d: 'M22 -50 q24 0 24 18 q0 18 -24 18', fill: 'none', stroke: '#4A3020', 'stroke-width': 9 }, m);
+  svgEl('path', { d: 'M22 -50 q24 0 24 18 q0 18 -24 18', fill: 'none', stroke: '#fbf6ec', 'stroke-width': 4 }, m);
+  svgEl('path', { d: 'M-30 -64 H26 V-6 Q26 0 20 0 H-24 Q-30 0 -30 -6 Z', fill: '#fbf6ec', stroke: '#4A3020', 'stroke-width': 3 }, m);
+  svgEl('ellipse', { cx: -2, cy: -64, rx: 28, ry: 5, fill: '#7a4a2a', stroke: '#4A3020', 'stroke-width': 2 }, m);
+  const ic = svgEl('g', { transform: 'translate(-17 -44) scale(0.052)', fill: '#5c6bc0' }, m);
+  ic.innerHTML = BOOK_ICON.replace(/<\/?svg[^>]*>/g, '');
+  C.steam = [0, 1, 2].map(() => svgEl('path', { fill: 'none', stroke: '#fff', 'stroke-width': 5, 'stroke-linecap': 'round' }, s));
+  // light beam + motes (back layer)
+  const fb = $('fxBack');
+  const defs = svgEl('defs', {}, fb);
+  const lg = svgEl('linearGradient', { id: 'beam', x1: 0, y1: 0, x2: 1, y2: 0 }, defs);
+  [[0, 0], [0.5, 0.5], [1, 0]].forEach(([o, a]) => svgEl('stop', { offset: o, 'stop-color': '#fff8e6', 'stop-opacity': a }, lg));
+  C.beam = svgEl('polygon', { points: '180,-40 720,-40 1580,1080 820,1080', fill: 'url(#beam)', opacity: 0.35 }, fb);
+  const rm = rng(55);
+  C.motes = [];
+  for (let i = 0; i < 44; i++) {
+    C.motes.push({ el: svgEl('circle', { r: (1.2 + rm() * 2.4).toFixed(1), fill: '#fffaf0' }, fb), u: rm(), v: rm(), sp: 0.004 + rm() * 0.01, ph: rm() * 6.28 });
+  }
+}
+
+/* =====================================================================
+   FOLIO
+   ===================================================================== */
+const CAT_SVG = `
+<g id="stack">
+  <g transform="translate(330 900)">
+    <rect x="-158" y="-26" width="316" height="26" rx="4" fill="#3e8e8a" stroke="#4A3020" stroke-width="3"/>
+    <rect x="-150" y="-22" width="12" height="18" fill="#fffaf0" opacity=".85"/>
+    <rect x="-100" y="-26" width="10" height="26" fill="#2c6e6a"/><rect x="92" y="-26" width="10" height="26" fill="#2c6e6a"/>
+    <rect x="-150" y="-52" width="300" height="26" rx="4" fill="#c9774a" stroke="#4A3020" stroke-width="3"/>
+    <rect x="136" y="-48" width="10" height="18" fill="#fffaf0" opacity=".85"/>
+    <rect x="-60" y="-52" width="120" height="8" fill="#a85c34"/>
+    <rect x="-146" y="-78" width="292" height="26" rx="4" fill="#5c6bc0" stroke="#4A3020" stroke-width="3"/>
+    <rect x="-140" y="-74" width="10" height="18" fill="#fffaf0" opacity=".85"/>
+    <text x="0" y="-59" text-anchor="middle" font-family="Inter" font-weight="800" font-size="13" letter-spacing="3" fill="#fff" opacity=".85">BOOKLISTER</text>
+  </g>
+</g>
+<ellipse id="catShadow" cx="0" cy="0" rx="120" ry="14" fill="#4a2c10" opacity=".22"/>
+<g id="catPos"><g id="catBody">
+  <g id="tailG">
+    <path id="tailPath" class="fur-orange"/>
+    <path class="stripe tailStripe" opacity=".8"/><path class="stripe tailStripe" opacity=".8"/><path class="stripe tailStripe" opacity=".8"/>
+  </g>
+  <g id="torso">
+    <path class="fur-orange" d="M 172.6 220 Q 129.6 350 138.2 420 Q 138.2 445 250 445 Q 361.8 445 361.8 420 Q 370.4 350 327.4 220 Z" />
+    <path class="stripe" d="M 155.4 290 L 176.9 295 L 153.7 305 Z" />
+    <path class="stripe" d="M 146.8 320 L 168.3 325 L 145.1 335 Z" />
+    <path class="stripe" d="M 344.6 290 L 323.1 295 L 346.3 305 Z" />
+    <path class="stripe" d="M 353.2 320 L 331.7 325 L 354.9 335 Z" />
+    <path class="fur-cream no-stroke" d="M 189.8 230 Q 189.8 350 250 380 Q 310.2 350 310.2 230 Z" />
+    <g id="backFeet">
+      <path class="fur-cream" d="M 146 445 C 141 438, 148 426, 164 425 C 180 426, 187 438, 182 445 Z" />
+      <path class="fur-cream" d="M 354 445 C 359 438, 352 426, 336 425 C 320 426, 313 438, 318 445 Z" />
+      <path class="outline-only" d="M 158 445 Q 157 441 159 437 M 170 445 Q 170 441 171 437 M 342 445 Q 343 441 341 437 M 330 445 Q 330 441 329 437" stroke-width="2" />
+    </g>
+    <g id="frontLegs">
+      <path class="fur-orange" d="M 190 380 C 190 410, 195 445, 205 445 L 248 445 L 248 380" />
+      <path class="fur-orange" d="M 310 380 C 310 410, 305 445, 295 445 L 252 445 L 252 380" />
+      <line x1="250" y1="380" x2="250" y2="445" stroke="#4A3020" stroke-width="2" opacity="0.2" />
+      <path class="fur-cream" d="M 202 445 C 198 439, 200 427, 212 424 Q 229 419 246 424 C 249 427, 249 440, 248 445 Z" />
+      <path class="fur-cream" d="M 298 445 C 302 439, 300 427, 288 424 Q 271 419 254 424 C 251 427, 251 440, 252 445 Z" />
+      <path class="outline-only" d="M 219 445 Q 218 440 220 436 M 233 445 Q 233 440 234 436 M 281 445 Q 282 440 280 436 M 267 445 Q 267 440 266 436" stroke-width="2" />
+    </g>
+  </g>
+  <g id="head">
+    <g id="earL">
+      <path class="fur-orange" d="M 138 150 L 140 56 Q 142 42 154 49 L 212 100 Z" />
+      <path class="nose-pink" d="M 149 138 L 150 68 L 195 106 Z" stroke="none" opacity="0.85"/>
+    </g>
+    <g id="earR">
+      <path class="fur-orange" d="M 362 150 L 360 56 Q 358 42 346 49 L 288 100 Z" />
+      <path class="nose-pink" d="M 351 138 L 350 68 L 305 106 Z" stroke="none" opacity="0.85"/>
+    </g>
+    <ellipse class="fur-orange" cx="250" cy="200" rx="130" ry="115" />
+    <g id="mask"><path class="fur-cream no-stroke" d="M 130 220 Q 125 180 150 180 Q 180 180 190 200 L 250 130 L 310 200 Q 320 180 350 180 Q 375 180 370 220 Q 360 300 250 300 Q 140 300 130 220 Z" /></g>
+    <path class="stripe-outline" d="M 125 190 L 155 195" stroke-width="4" />
+    <path class="stripe-outline" d="M 125 210 L 155 215" stroke-width="4" />
+    <path class="stripe-outline" d="M 375 190 L 345 195" stroke-width="4" />
+    <path class="stripe-outline" d="M 375 210 L 345 215" stroke-width="4" />
+    <g id="face">
+      <g transform="translate(250, 110)">
+        <path class="stripe-outline" d="M 0 -20 L 0 15" />
+        <path class="stripe-outline" d="M -20 -15 L -10 15" />
+        <path class="stripe-outline" d="M 20 -15 L 10 15" />
+      </g>
+      <ellipse id="blushL" cx="168" cy="244" rx="20" ry="11" fill="#ff8f8f" opacity=".28"/>
+      <ellipse id="blushR" cx="332" cy="244" rx="20" ry="11" fill="#ff8f8f" opacity=".28"/>
+      <g id="eyeL"><g id="eyeLin">
+        <circle class="eye-dark" cx="190" cy="200" r="22" />
+        <circle id="hlL1" fill="white" cx="182" cy="192" r="8" />
+        <circle id="hlL2" fill="white" cx="195" cy="210" r="4" />
+      </g></g>
+      <g id="eyeR"><g id="eyeRin">
+        <circle class="eye-dark" cx="310" cy="200" r="22" />
+        <circle id="hlR1" fill="white" cx="302" cy="192" r="8" />
+        <circle id="hlR2" fill="white" cx="315" cy="210" r="4" />
+      </g></g>
+      <path id="eyesClosed" class="outline-only" d="M 170 202 Q 190 214 210 202 M 290 202 Q 310 214 330 202" stroke-width="5" opacity="0"/>
+      <path id="eyesHappy" class="outline-only" d="M 170 208 Q 190 186 210 208 M 290 208 Q 310 186 330 208" stroke-width="5.5" opacity="0"/>
+      <g id="nose"><path class="nose-pink" d="M 240 235 Q 250 225 260 235 Q 250 255 240 235 Z" /></g>
+      <g id="mouth">
+        <ellipse id="mouthOpen" cx="250" cy="258" rx="9" ry="8" fill="#8a3f3a" stroke="#4A3020" stroke-width="2.5" />
+        <ellipse id="tongue" cx="250" cy="263" rx="5" ry="3" fill="#ff8f8f"/>
+        <path class="outline-only" d="M 250 248 Q 230 265 220 250 M 250 248 Q 270 265 280 250" stroke-width="3" />
+      </g>
+      <g id="glasses">
+        <circle cx="190" cy="200" r="28" fill="none" stroke="#8a5a28" stroke-width="2.5" />
+        <circle cx="310" cy="200" r="28" fill="none" stroke="#8a5a28" stroke-width="2.5" />
+        <path d="M 218 196 C 230 188, 270 188, 282 196" stroke="#8a5a28" stroke-width="2.5" fill="none" />
+        <path d="M 162 198 C 148 194, 134 198, 124 208" stroke="#8a5a28" stroke-width="2" fill="none" />
+        <path d="M 338 198 C 352 194, 366 198, 376 208" stroke="#8a5a28" stroke-width="2" fill="none" />
+        <g clip-path="url(#lensClip)"><rect id="glint" x="-20" y="150" width="14" height="110" fill="#fff" opacity=".75" transform="rotate(28 190 200)"/></g>
+      </g>
+    </g>
+  </g>
+</g></g>`;
+
+function buildCat() {
+  const s = $('catLayer');
+  const defs = svgEl('defs', {}, s);
+  defs.innerHTML = `<style>
+    .fur-orange { fill: #F4A261; stroke: #4A3020; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .fur-cream { fill: #FEFAE0; stroke: #4A3020; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .stripe { fill: #D67D3E; stroke: none; }
+    .stripe-outline { stroke: #D67D3E; stroke-width: 5; stroke-linecap: round; fill: none; }
+    .nose-pink { fill: #FF9999; stroke: #4A3020; stroke-width: 3; stroke-linejoin: round; }
+    .eye-dark { fill: #3D2B1F; }
+    .outline-only { fill: none; stroke: #4A3020; stroke-width: 4; stroke-linecap: round; }
+    .no-stroke { stroke: none; }
+  </style><clipPath id="lensClip"><circle cx="190" cy="200" r="26"/><circle cx="310" cy="200" r="26"/></clipPath>`;
+  const g = svgEl('g', {}, s);
+  g.innerHTML = CAT_SVG;
+  ['stack', 'catShadow', 'catPos', 'catBody', 'tailG', 'tailPath', 'torso', 'head', 'earL', 'earR', 'mask', 'face', 'eyeLin', 'eyeRin', 'eyeL', 'eyeR',
+    'eyesClosed', 'eyesHappy', 'mouthOpen', 'tongue', 'glint', 'blushL', 'blushR', 'frontLegs', 'hlL1', 'hlL2', 'hlR1', 'hlR2'].forEach((id) => { C[id] = $(id); });
+  C.tailStripes = Array.from(s.querySelectorAll('.tailStripe'));
+}
+
+/* ---------- Folio's choreography ---------- */
+const HOPS = [
+  { t0: 1.78, t1: 2.36, from: [960, 1150, 1.15], to: [960, 900, 1.15], h: 150 },
+  { t0: 5.38, t1: 6.06, from: [960, 900, 1.15], to: [330, 822, 0.95], h: 170 },
+  { t0: T.honey + 0.08, t1: T.honey + 0.5, from: [330, 822, 0.95], to: [330, 822, 0.95], h: 46 },
+  { t0: T.hopOut, t1: T.hopOut + 0.72, from: [330, 822, 0.95], to: [770, 900, 1.1], h: 150 },
+];
+const peekY = track([[0, 1520], [0.25, 1520], [1.1, 1152, 'out'], [1.5, 1146, 'sine'], [1.62, 1152, 'sine']]);
+const TILTS = [
+  [2.6, 4.0, 7], [wordT('collage', 4) - 0.1, wordT('collage', 4) + 0.55, 8], [wordT('collage', 5) - 0.1, wordT('collage', 5) + 0.55, -8],
+  [wordT('collage', 6) - 0.1, wordT('collage', 6) + 0.6, 9], [wordT('collage', 7) - 0.15, wordT('collage', 7) + 0.6, -5],
+  [T.fonts[0] - 0.2, T.fonts[3] + 0.4, 6], [T.printerUp, T.sheetOutEnd, -9], [T.flip, T.flip + 0.9, 7], [wordT('bye', 0) - 0.1, 58.4, 8],
+  [T.resultsAt, T.resultsAt + 0.8, 6], [T.pasteAt, T.pasteAt + 0.7, -6], [T.callouts[1], T.callouts[1] + 0.8, -5],
+];
+const MOODS = [
+  [0, 'searching'], [1.7, 'excited'], [2.6, 'greeting'], [5.2, 'idle'], [6.2, 'evaluating'], [T.resultsAt, 'excited'], [9.7, 'idle'],
+  [T.pasteAt, 'excited'], [12.9, 'content'], [15.4, 'evaluating'], [20.9, 'excited'], [22.4, 'idle'], [T.honey - 0.1, 'excited'],
+  [T.honey + 2.0, 'content'], [33.4, 'evaluating'], [T.qrIn, 'idle'], [T.printerUp, 'searching'], [T.stamp - 0.1, 'excited'],
+  [T.stand + 0.3, 'content'], [T.hopOut - 0.1, 'greeting'], [T.heartsB - 0.4, 'content'],
+];
+const EAR_FLICKS = [[1.62, 1], [9.05, -1], [14.25, 1], [18.3, -1], [27.4, 1], [36.9, -1], [45.4, 1], [53.9, -1]];
+const SLOW_BLINKS = [[4.75, 1.0], [T.heartsB - 0.25, 1.3]];
+const SQUINTS = [[T.honey + 0.28, T.honey + 1.9], [T.heartsB + 1.1, 59.3]];
+const BLINKS = (() => {
+  const r = rng(12); const out = []; let t = 0.9;
+  while (t < DURATION) { out.push(t); t += 2.6 + r() * 2.6; }
+  return out.filter((b) => !SLOW_BLINKS.some(([s, d]) => b > s - 0.6 && b < s + d + 0.4) && !SQUINTS.some(([a, bb]) => b > a - 0.3 && b < bb));
+})();
+
+function hopState(t) {
+  // Returns position/scale plus squash, stretch and lean for the current hop.
+  let base = [960, 1520, 1.15];
+  let sy = 1, rot = 0, air = 0, ground = 900;
+  if (t < HOPS[0].t0) { base = [960, peekY(t), 1.15]; ground = 900; }
+  for (const h of HOPS) {
+    if (t >= h.t0 - 0.24 && t < h.t0) {
+      const c = E.inOut(seg(t, h.t0 - 0.24, h.t0));
+      base = h.from.slice(); sy = 1 - 0.13 * c; ground = h.from[1];
+    } else if (t >= h.t0 && t < h.t1) {
+      const u = (t - h.t0) / (h.t1 - h.t0);
+      const ux = E.sine(u);
+      base = [lerp(h.from[0], h.to[0], ux), lerp(h.from[1], h.to[1], u) - h.h * 4 * u * (1 - u), lerp(h.from[2], h.to[2], ux)];
+      sy = 1 + 0.12 * Math.abs(Math.cos(Math.PI * u)) - 0.04;
+      const dir = Math.sign(h.to[0] - h.from[0]);
+      rot = dir * 9 * Math.cos(Math.PI * u);
+      air = Math.sin(Math.PI * u);
+      ground = lerp(h.from[1], h.to[1], u);
+    } else if (t >= h.t1) {
+      base = h.to.slice(); ground = h.to[1];
+      const l = seg(t, h.t1, h.t1 + 0.34);
+      if (l < 1) sy = 1 - 0.15 * Math.sin(Math.PI * l) * (1 - l * 0.4);
+    }
+  }
+  return { x: base[0], y: base[1], s: base[2], sy, sx: 1 / Math.sqrt(sy), rot, air, ground };
+}
+const talkWeight = (t) => {
+  let w = 0;
+  LINES.forEach((L) => { w = Math.max(w, Math.min(seg(t, L.t - 0.35, L.t), 1 - seg(t, L.speechEnd + 0.2, L.speechEnd + 0.7))); });
+  return E.sine(w);
+};
+function mouthOpen(t) {
+  let m = 0;
+  for (const s of SYL) {
+    if (s.t > t) break;
+    const u = (t - s.t) / (s.dur + 0.03);
+    if (u < 1) m = Math.max(m, Math.sin(Math.PI * u) * (0.55 + 0.45 * (s.vowel === 'a' || s.vowel === 'o' ? 1 : 0.6)));
+  }
+  return m;
+}
+function blinkAmt(t) {
+  let b = 0;
+  BLINKS.forEach((bt) => { const u = t - bt; if (u >= 0 && u < 0.2) b = Math.max(b, u < 0.06 ? u / 0.06 : u < 0.1 ? 1 : 1 - (u - 0.1) / 0.1); });
+  SLOW_BLINKS.forEach(([s, d]) => {
+    const u = (t - s) / d;
+    if (u >= 0 && u < 1) b = Math.max(b, u < 0.35 ? E.sine(u / 0.35) : u < 0.62 ? 1 : 1 - E.sine((u - 0.62) / 0.38));
+  });
+  return b;
+}
+const squintAmt = (t) => SQUINTS.reduce((m, [a, b]) => Math.max(m, Math.min(E.sine(seg(t, a, a + 0.25)), 1 - E.sine(seg(t, b - 0.3, b)))), 0);
+function tiltAmt(t) {
+  let d = 0;
+  TILTS.forEach(([a, b, deg]) => { d += deg * Math.min(E.sine(seg(t, a, a + 0.3)), 1 - E.sine(seg(t, b - 0.3, b))); });
+  return d;
+}
+
+/* ---------- the tail: jointed springs, ported from folio.js ---------- */
+const TAIL_REST = [
+  [153, 416], [137, 400], [128, 380], [122, 358], [118, 336], [114, 314],
+  [109, 292], [102, 270], [94, 249], [85, 230], [77, 212], [73, 197], [74, 184],
+];
+const TAIL_SEGS = TAIL_REST.length - 1;
+const TAIL_STRIPE_AT = [5.2, 7.2, 9.1];
+const TAIL_MAX_LAG = 0.24;
+const TAIL_MOODS = {
+  idle: { amp: 1.4, period: 3.8, curl: 1.0, bend: 1.0, lean: 0, sweep: 0, quiver: 0 },
+  searching: { amp: 0.4, period: 2.4, curl: 1.15, bend: 0.95, lean: -14, sweep: 0, quiver: 0 },
+  excited: { amp: 0.6, period: 1.8, curl: 1.35, bend: 0.45, lean: 12, sweep: 0, quiver: 1.6 },
+  evaluating: { amp: 1.2, period: 5.0, curl: 1.25, bend: 1.0, lean: 2, sweep: 3, quiver: 0 },
+  greeting: { amp: 0.8, period: 2.2, curl: 1.4, bend: 0.5, lean: 10, sweep: 0, quiver: 1.2 },
+  content: { amp: 1.0, period: 2.8, curl: 1.45, bend: 0.7, lean: 6, sweep: 2, quiver: 0.6 },
+};
+const tailLen = [], tailRel = [];
+let tailRootRest = 0;
+for (let i = 0; i < TAIL_SEGS; i++) {
+  const [x0, y0] = TAIL_REST[i], [x1, y1] = TAIL_REST[i + 1];
+  tailLen.push(Math.hypot(x1 - x0, y1 - y0));
+  const ang = Math.atan2(y1 - y0, x1 - x0);
+  if (i === 0) { tailRootRest = ang; tailRel.push(0); } else {
+    const [px, py] = TAIL_REST[i - 1];
+    let rel = ang - Math.atan2(y0 - py, x0 - px);
+    if (rel > Math.PI) rel -= 2 * Math.PI;
+    if (rel < -Math.PI) rel += 2 * Math.PI;
+    tailRel.push(rel);
+  }
+}
+const TAIL_FLICKS = (() => { const r = rng(99); const out = []; let t = 2; while (t < DURATION) { out.push([t, (r() < 0.5 ? -1 : 1) * (1.6 + r() * 1.6)]); t += 3.5 + r() * 4; } return out; })();
+const tail = { t: -1, ang: [], vel: [], cur: null, phase: 0, qphase: 0, inert: 0, flick: 0 };
+function moodAt(t) { let m = 'idle'; MOODS.forEach(([mt, name]) => { if (t >= mt) m = name; }); return m; }
+function tailWidthAt(k) { return 24 + 8 * Math.pow(k / TAIL_SEGS, 1.6); }
+function tailCurlAt(i, curl, bend) { const u = clamp((i - (TAIL_SEGS - 5)) / 4); return bend * (1 - u) + curl * u; }
+function tailTarget(i, parentAng) {
+  const c = tail.cur;
+  const wave = (c.amp * Math.PI / 180) * Math.sin(tail.phase - i * 0.55) * (0.35 + 0.65 * i / TAIL_SEGS);
+  return parentAng + tailRel[i] * tailCurlAt(i, c.curl, c.bend) + wave;
+}
+function tailBase(root) {
+  const c = tail.cur;
+  const deg = c.lean + c.sweep * Math.sin(tail.phase) + c.quiver * Math.sin(tail.qphase);
+  return root + tailRootRest + deg * Math.PI / 180;
+}
+function tailRoot(t) {
+  const a = hopState(t), b = hopState(t - 1 / 60);
+  const vx = (a.x - b.x) * 60, vy = (a.y - b.y) * 60;
+  return { rot: a.rot * Math.PI / 180, inertTarget: clamp(-vx * 0.00045 + vy * 0.0005, -0.55, 0.55) };
+}
+function resetTail() {
+  tail.t = 0; tail.phase = 0; tail.qphase = 0; tail.inert = 0;
+  tail.cur = Object.assign({}, TAIL_MOODS[moodAt(0)]);
+  const { rot } = tailRoot(0);
+  tail.ang[0] = tailBase(rot);
+  tail.vel = new Array(TAIL_SEGS).fill(0);
+  for (let i = 1; i < TAIL_SEGS; i++) tail.ang[i] = tailTarget(i, tail.ang[i - 1]);
+}
+function stepTail(dt) {
+  const t = tail.t + dt;
+  const target = TAIL_MOODS[moodAt(t)];
+  const blend = 1 - Math.exp(-dt / 0.35);
+  for (const k in target) tail.cur[k] += (target[k] - tail.cur[k]) * blend;
+  tail.phase += dt * 2 * Math.PI / tail.cur.period;
+  tail.qphase += dt * 2 * Math.PI * 7;
+  const { rot, inertTarget } = tailRoot(t);
+  tail.inert += (inertTarget - tail.inert) * (1 - Math.exp(-dt / 0.1));
+  TAIL_FLICKS.forEach(([ft, kick]) => { if (ft > tail.t && ft <= t) for (let i = TAIL_SEGS - 3; i < TAIL_SEGS; i++) tail.vel[i] += kick; });
+  const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
+  const h = dt / steps;
+  for (let s = 0; s < steps; s++) {
+    tail.ang[0] = tailBase(rot + tail.inert);
+    for (let i = 1; i < TAIL_SEGS; i++) {
+      const k = 260 * (1 - 0.6 * i / TAIL_SEGS);
+      const c = 2 * 0.62 * Math.sqrt(k);
+      const want = tailTarget(i, tail.ang[i - 1]);
+      tail.vel[i] += (k * (want - tail.ang[i]) - c * tail.vel[i]) * h;
+      tail.ang[i] += tail.vel[i] * h;
+      const lag = tail.ang[i] - want;
+      if (Math.abs(lag) > TAIL_MAX_LAG) { tail.ang[i] = want + Math.sign(lag) * TAIL_MAX_LAG; tail.vel[i] *= 0.5; }
+    }
+  }
+  tail.t = t;
+}
+function simulateTail(t) {
+  if (tail.t < 0 || t < tail.t - 1e-6) resetTail();
+  while (tail.t < t - 1e-9) stepTail(Math.min(1 / 60, t - tail.t));
+}
+function smoothThrough(pts) {
+  let d = '';
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+    d += ' C ' + f1(p1[0] + (p2[0] - p0[0]) / 6) + ' ' + f1(p1[1] + (p2[1] - p0[1]) / 6)
+      + ', ' + f1(p2[0] - (p3[0] - p1[0]) / 6) + ' ' + f1(p2[1] - (p3[1] - p1[1]) / 6) + ', ' + f1(p2[0]) + ' ' + f1(p2[1]);
+  }
+  return d;
+}
+function renderTail(rootRot) {
+  const pts = [TAIL_REST[0].slice()], segAng = [];
+  for (let i = 0; i < TAIL_SEGS; i++) {
+    const a = tail.ang[i] - rootRot;
+    segAng.push(a);
+    const p = pts[i];
+    pts.push([p[0] + tailLen[i] * Math.cos(a), p[1] + tailLen[i] * Math.sin(a)]);
+  }
+  const tan = pts.map((_, k) => {
+    const a = segAng[Math.max(0, k - 1)], b = segAng[Math.min(TAIL_SEGS - 1, k)];
+    return Math.atan2(Math.sin(a) + Math.sin(b), Math.cos(a) + Math.cos(b));
+  });
+  const left = [], right = [];
+  pts.forEach((p, k) => {
+    const hw = tailWidthAt(k) / 2, nx = -Math.sin(tan[k]), ny = Math.cos(tan[k]);
+    left.push([p[0] + nx * hw, p[1] + ny * hw]);
+    right.push([p[0] - nx * hw, p[1] - ny * hw]);
+  });
+  const lt = left[TAIL_SEGS], rt = right[TAIL_SEGS];
+  const cap = tailWidthAt(TAIL_SEGS) * 0.667;
+  const tx = Math.cos(tan[TAIL_SEGS]) * cap, ty = Math.sin(tan[TAIL_SEGS]) * cap;
+  const d = 'M ' + f1(left[0][0]) + ' ' + f1(left[0][1]) + smoothThrough(left)
+    + ' C ' + f1(lt[0] + tx) + ' ' + f1(lt[1] + ty) + ', ' + f1(rt[0] + tx) + ' ' + f1(rt[1] + ty) + ', ' + f1(rt[0]) + ' ' + f1(rt[1])
+    + smoothThrough(right.slice().reverse()) + ' Z';
+  C.tailPath.setAttribute('d', d);
+  C.tailStripes.forEach((el, n) => {
+    const at = TAIL_STRIPE_AT[n];
+    const band = (s) => {
+      const k = Math.min(TAIL_SEGS - 1, Math.floor(s)), f = s - k;
+      const x = pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f, y = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f;
+      const a = segAng[k], hw = tailWidthAt(s) / 2 - 2.5, nx = -Math.sin(a), ny = Math.cos(a);
+      return { l: [x + nx * hw, y + ny * hw], r: [x - nx * hw, y - ny * hw], c: [x - Math.cos(a) * 3, y - Math.sin(a) * 3] };
+    };
+    const a = band(at), b = band(at + 0.2);
+    const f = (p) => f1(p[0]) + ' ' + f1(p[1]);
+    el.setAttribute('d', 'M ' + f(a.l) + ' Q ' + f(a.c) + ' ' + f(a.r) + ' L ' + f(b.r) + ' Q ' + f(b.c) + ' ' + f(b.l) + ' Z');
+  });
+}
+
+function renderCat(t) {
+  const h = hopState(t);
+  const breath = Math.sin(t * 2 * Math.PI / 3.4);
+  // stack of books, slid in for the narrator's nook
+  const stackIn = E.outBack(seg(t, 4.95, 5.4)), stackOut = E.in(seg(t, T.hopOut + 0.5, T.hopOut + 1.0));
+  const sx = lerp(-420, 0, stackIn) - 480 * stackOut;
+  setA(C.stack, 'transform', `translate(${f1(sx)} 0)`);
+  setA(C.stack, 'visibility', stackIn > 0 && stackOut < 1 ? 'visible' : 'hidden');
+  // shadow on whatever surface he is over
+  const lift = clamp((h.ground - h.y) / 220);
+  setA(C.catShadow, 'cx', f1(h.x)); setA(C.catShadow, 'cy', f1(h.ground - 2));
+  setA(C.catShadow, 'rx', f1(118 * h.s * (1 - 0.45 * lift))); setA(C.catShadow, 'ry', f1(13 * h.s * (1 - 0.4 * lift)));
+  setA(C.catShadow, 'opacity', (0.22 * (1 - 0.6 * lift) * (h.y > 1000 ? 0 : 1)).toFixed(3));
+  setA(C.catPos, 'transform', `translate(${f1(h.x)} ${f1(h.y)}) scale(${h.s.toFixed(4)}) translate(-250 -445)`);
+  setA(C.catBody, 'transform', `rotate(${f1(h.rot)} 250 330) translate(250 445) scale(${h.sx.toFixed(4)} ${h.sy.toFixed(4)}) translate(-250 -445)`);
+  // breathing: the torso swells a little, the head rides it
+  setA(C.torso, 'transform', `translate(250 445) scale(${(1 + breath * 0.006).toFixed(4)} ${(1 + breath * 0.012).toFixed(4)}) translate(-250 -445)`);
+  // head: tilt, bob on talking, look toward content or viewer
+  const talk = talkWeight(t);
+  const mo = mouthOpen(t);
+  let faceDX, lookX, lookY = 0;
+  if (t < 5.3) {
+    const look = track([[0, [0, 0]], [1.12, [0, 0]], [1.22, [-13, -0.9], 'out'], [1.44, [-13, -0.9]], [1.56, [13, 0.9], 'out'], [1.78, [13, 0.9]], [1.95, [0, 0]]])(t);
+    faceDX = look[0]; lookX = look[1];
+  } else {
+    // In the nook the content is to his right; he faces it and turns to us to talk.
+    const toContent = h.x < 600 ? 1 : 0.4;
+    faceDX = lerp(11 * toContent, 2, talk); lookX = lerp(0.75 * toContent, 0.1, talk);
+    if (t > T.printerUp && t < T.stand) lookY = 0.25;
+  }
+  const tilt = tiltAmt(t) + Math.sin(t * 0.9) * 1.2;
+  const bob = -breath * 2 - mo * 3;
+  setA(C.head, 'transform', `translate(0 ${f1(bob)}) rotate(${f1(tilt)} 250 300)`);
+  setA(C.face, 'transform', `translate(${f1(faceDX)} ${f1(lookY * 6)})`);
+  setA(C.mask, 'transform', `translate(${f1(faceDX * 0.55)} 0)`);
+  // ears: flicks, perk when excited, fold back a touch in the air
+  let eL = -h.air * 12, eR = h.air * 12;
+  EAR_FLICKS.forEach(([ft, side]) => {
+    const u = seg(t, ft, ft + 0.32);
+    if (u > 0 && u < 1) { const a = Math.sin(Math.PI * u) * 16; if (side > 0) eL -= a; else eR += a; }
+  });
+  const perk = moodAt(t) === 'excited' ? 1 : 0;
+  eL += perk * 4; eR -= perk * 4;
+  setA(C.earL, 'transform', `translate(${f1(-faceDX * 0.25)} 0) rotate(${f1(eL)} 170 150)`);
+  setA(C.earR, 'transform', `translate(${f1(-faceDX * 0.25)} 0) rotate(${f1(eR)} 330 150)`);
+  // eyes
+  const bl = blinkAmt(t), sq = squintAmt(t);
+  const shut = Math.max(bl, sq);
+  const ey = 1 - 0.94 * shut;
+  const lx = lookX * 6, ly = lookY * 4;
+  setA(C.eyeLin, 'transform', `translate(${f1(lx)} ${f1(ly)}) translate(190 200) scale(1 ${ey.toFixed(3)}) translate(-190 -200)`);
+  setA(C.eyeRin, 'transform', `translate(${f1(lx)} ${f1(ly)}) translate(310 200) scale(1 ${ey.toFixed(3)}) translate(-310 -200)`);
+  const hl = `translate(${f1(lookX * 2)} 0)`;
+  setA(C.hlL1, 'transform', hl); setA(C.hlR1, 'transform', hl);
+  setA(C.eyesClosed, 'opacity', (bl > 0.75 && sq < 0.5 ? 1 : 0).toString());
+  setA(C.eyesHappy, 'opacity', (sq > 0.6 ? 1 : 0).toString());
+  const blush = 0.28 + 0.3 * sq;
+  setA(C.blushL, 'opacity', blush.toFixed(3)); setA(C.blushR, 'opacity', blush.toFixed(3));
+  // mouth
+  setA(C.mouthOpen, 'transform', `translate(250 250) scale(${(0.8 + mo * 0.3).toFixed(3)} ${mo.toFixed(3)}) translate(-250 -250)`);
+  setA(C.mouthOpen, 'visibility', mo > 0.03 ? 'visible' : 'hidden');
+  setA(C.tongue, 'visibility', mo > 0.35 ? 'visible' : 'hidden');
+  // glasses glint
+  const gl = [3.55, 30.4, 57.7].reduce((m, gt) => { const u = seg(t, gt, gt + 0.55); return u > 0 && u < 1 ? u : m; }, -1);
+  setA(C.glint, 'transform', gl >= 0 ? `translate(${f1(lerp(140, 350, E.inOut(gl)))} 0) rotate(28 0 200)` : 'translate(-500 0)');
+  // tail
+  simulateTail(t);
+  renderTail(h.rot * Math.PI / 180);
+  C.catState = h;
+}
+/* =====================================================================
+   PARTICLES
+   ===================================================================== */
+const BURSTS = [];
+function burst(t, kind, x, y, n, o) { BURSTS.push(Object.assign({ t, kind, x, y, n, seed: BURSTS.length * 17 + 3 }, o || {})); }
+const LIFE = { sparkle: 0.75, dust: 0.6, heart: 2.0, confetti: 1.3 };
+function buildParticles() {
+  burst(T.logoIn + 0.1, 'sparkle', 960, 150, 14, { spread: 360 });
+  burst(2.36, 'dust', 960, 900, 8);
+  burst(6.06, 'dust', 330, 822, 7);
+  T.stars.forEach((ts, i) => burst(ts + 0.02, 'sparkle', 1272, [152.5, 292.3, 432.2, 572.0][T.starEntries[i]], 10, { spread: 70 }));
+  burst(T.honey + 0.35, 'confetti', 1130, 300, 26, { spread: 330 });
+  burst(T.heartsA, 'heart', 330, 400, 4);
+  burst(T.qrBuild + 1.15, 'sparkle', 1472, 710, 12, { spread: 150 });
+  burst(T.colors[2] + 0.05, 'sparkle', 1010, 400, 10, { spread: 260 });
+  burst(T.stamp + 0.1, 'dust', 1560, 180, 14);
+  burst(T.fold + 0.8, 'sparkle', 1400, 480, 10, { spread: 260 });
+  burst(T.hopOut + 0.72, 'dust', 770, 900, 8);
+  burst(T.logoBack + 0.1, 'sparkle', 1270, 160, 16, { spread: 420 });
+  burst(T.heartsB, 'heart', 930, 520, 6);
+  const fx = $('fxFront');
+  C.parts = [];
+  for (let i = 0; i < 140; i++) C.parts.push(svgEl('path', { d: '', visibility: 'hidden' }, fx));
+}
+function renderParticles(t) {
+  let used = 0;
+  BURSTS.forEach((b) => {
+    const life = LIFE[b.kind];
+    const span = b.kind === 'heart' ? life + b.n * 0.22 : life;
+    if (t < b.t || t > b.t + span) return;
+    const r = rng(b.seed);
+    for (let i = 0; i < b.n; i++) {
+      const a = r(), c = r(), d = r(), e = r();
+      const t0 = b.kind === 'heart' ? i * 0.22 : 0;
+      const u = (t - b.t - t0) / life;
+      if (u < 0 || u > 1 || used >= C.parts.length) continue;
+      const el = C.parts[used++];
+      let x = b.x, y = b.y, sc = 1, rot = 0, op = 1, dpath, fill;
+      if (b.kind === 'sparkle') {
+        const ang = (a * (b.spread || 360) - (b.spread || 360) / 2 - 90) * Math.PI / 180;
+        const dist = (40 + c * 90) * E.out(u);
+        x += Math.cos(ang) * dist; y += Math.sin(ang) * dist;
+        sc = (0.6 + d * 0.9) * Math.sin(Math.PI * Math.min(1, u * 1.3));
+        rot = u * 180 * (e < 0.5 ? -1 : 1);
+        dpath = 'M0 -12 Q2 -2 12 0 Q2 2 0 12 Q-2 2 -12 0 Q-2 -2 0 -12Z';
+        fill = ['#ffd166', '#fff3b0', '#f4a261', '#ffffff'][Math.floor(d * 4)];
+      } else if (b.kind === 'dust') {
+        const ang = (a < 0.5 ? 180 + a * 60 : -a * 60 + 30) * Math.PI / 180;
+        x += Math.cos(ang) * (30 + c * 50) * E.out(u); y += -10 * E.out(u) - d * 14 * u;
+        sc = 0.5 + u * 1.2; op = 0.45 * (1 - u);
+        dpath = 'M-8 0 A8 8 0 1 0 8 0 A8 8 0 1 0 -8 0Z'; fill = '#d9c3a0';
+      } else if (b.kind === 'heart') {
+        x += (a - 0.5) * 120 + Math.sin(u * 6 + c * 6) * 14; y -= 40 + u * 170;
+        sc = (0.9 + d * 0.6) * E.outBack(clamp(u * 4)); op = 1 - E.in(clamp((u - 0.6) / 0.4));
+        rot = Math.sin(u * 5 + e * 6) * 12;
+        dpath = HEART_PATH; fill = ['#ff6b8b', '#ff8fa3', '#f25c7a'][Math.floor(e * 3)];
+      } else {
+        const ang = (a * (b.spread || 360) - (b.spread || 360) / 2 - 90) * Math.PI / 180;
+        const v = 260 + c * 380;
+        x += Math.cos(ang) * v * u; y += Math.sin(ang) * v * u + 520 * u * u;
+        rot = u * 720 * (e - 0.5); op = 1 - E.in(u);
+        dpath = 'M-6 -3.5h12v7h-12z'; fill = ['#5c6bc0', '#f4a261', '#2a9d8f', '#e76f51', '#ffd166'][Math.floor(d * 5)];
+      }
+      setA(el, 'd', dpath); setA(el, 'fill', fill);
+      setA(el, 'stroke', b.kind === 'heart' ? '#4A3020' : 'none'); setA(el, 'stroke-width', b.kind === 'heart' ? 2.5 : 0);
+      setA(el, 'transform', `translate(${f1(x)} ${f1(y)}) rotate(${f1(rot)}) scale(${Math.max(0, sc).toFixed(3)})`);
+      setA(el, 'opacity', clamp(op).toFixed(3));
+      setA(el, 'visibility', 'visible');
+    }
+  });
+  for (let i = used; i < C.parts.length; i++) setA(C.parts[i], 'visibility', 'hidden');
+}
+
+/* =====================================================================
+   CURSOR
+   ===================================================================== */
+function buildCursor() {
+  const s = $('cursorLayer');
+  C.ripple = svgEl('circle', { r: 10, fill: 'none', stroke: '#5c6bc0', 'stroke-width': 4 }, s);
+  C.cursor = svgEl('g', {}, s);
+  svgEl('path', { d: 'M0 0 L0 30 L7.5 23 L13 35.5 L18.5 33 L13 21 L23 21 Z', fill: '#000', opacity: 0.18, transform: 'translate(3 4)' }, C.cursor);
+  svgEl('path', { d: 'M0 0 L0 30 L7.5 23 L13 35.5 L18.5 33 L13 21 L23 21 Z', fill: '#fff', stroke: '#1f2430', 'stroke-width': 2.4, 'stroke-linejoin': 'round' }, C.cursor);
+}
+function cursorPos(t) {
+  const P = CURSOR_PATH;
+  if (t <= P[0][0]) return [P[0][1], P[0][2]];
+  for (let i = 1; i < P.length; i++) {
+    if (t < P[i][0]) {
+      const u = E.inOut((t - P[i - 1][0]) / (P[i][0] - P[i - 1][0]));
+      return [lerp(P[i - 1][1], P[i][1], u), lerp(P[i - 1][2], P[i][2], u)];
+    }
+  }
+  const l = P[P.length - 1];
+  return [l[1], l[2]];
+}
+function renderCursor(t) {
+  let vis = 0;
+  CURSOR_VIS.forEach(([a, b]) => { vis = Math.max(vis, Math.min(seg(t, a, a + 0.2), 1 - seg(t, b - 0.25, b))); });
+  const [x, y] = cursorPos(t);
+  let press = 0, rip = -1;
+  CURSOR_CLICKS.forEach((c) => { const u = t - c; if (u > -0.07 && u < 0.12) press = Math.max(press, 1 - Math.abs(u) / 0.1); if (u >= 0 && u < 0.4) rip = u / 0.4; });
+  if (t > T.grab && t < T.drop) press = Math.max(press, 0.6);
+  setA(C.cursor, 'transform', `translate(${f1(x)} ${f1(y)}) scale(${(1.35 * (1 - 0.14 * press)).toFixed(3)})`);
+  setA(C.cursor, 'opacity', vis.toFixed(3));
+  setA(C.ripple, 'visibility', rip >= 0 && vis > 0 ? 'visible' : 'hidden');
+  if (rip >= 0) { setA(C.ripple, 'cx', f1(x)); setA(C.ripple, 'cy', f1(y)); setA(C.ripple, 'r', f1(8 + 30 * E.out(rip))); setA(C.ripple, 'opacity', (0.7 * (1 - rip)).toFixed(3)); }
+}
+
+/* =====================================================================
+   SCENE RENDERERS
+   ===================================================================== */
+function renderAmbient(t) {
+  setA(C.beam, 'opacity', (0.3 + 0.06 * Math.sin(t * 0.7)).toFixed(3));
+  C.motes.forEach((m) => {
+    const u = mod(m.u - t * m.sp, 1), v = clamp(m.v + 0.04 * Math.sin(t * 0.4 + m.ph));
+    const x = lerp(lerp(180, 720, v), lerp(820, 1580, v), u), y = lerp(-40, 1080, u);
+    setA(m.el, 'cx', f1(x)); setA(m.el, 'cy', f1(y));
+    setA(m.el, 'opacity', ((0.25 + 0.5 * Math.pow(Math.sin(t * 1.3 + m.ph), 2)) * (1 - Math.abs(v - 0.5) * 1.6) * Math.sin(Math.PI * u)).toFixed(3));
+  });
+  C.steam.forEach((el, i) => {
+    const ph = t * 1.4 + i * 2.1;
+    const x0 = 538 + i * 14;
+    let d = `M${x0} 826`;
+    for (let k = 1; k <= 6; k++) d += ` L${f1(x0 + Math.sin(ph - k * 0.8) * (3 + k * 1.6))} ${826 - k * 13}`;
+    setA(el, 'd', d);
+    setA(el, 'opacity', (0.28 + 0.2 * Math.sin(t * 1.1 + i * 1.7)).toFixed(3));
+  });
+}
+
+function renderLogo(t) {
+  const L = C.logo;
+  const introIn = E.outBack(seg(t, T.logoIn, T.logoIn + 0.55)), introOut = E.in(seg(t, T.logoOut, T.logoOut + 0.45));
+  const outroIn = E.outBack(seg(t, T.logoBack, T.logoBack + 0.6));
+  let x = 960, y = 46, s = 1, o = 0;
+  if (t < 30) { s = lerp(0.7, 1, introIn); o = Math.min(seg(t, T.logoIn, T.logoIn + 0.25), 1 - introOut); y = 46 - 70 * introOut; }
+  else { x = 1270; y = 70; s = lerp(0.7, 0.9, outroIn); o = seg(t, T.logoBack, T.logoBack + 0.25); }
+  setO(C.logoUrl, t < 30 ? 0 : E.out(seg(t, T.logoBack + 0.35, T.logoBack + 0.75)));
+  setO(C.logoTag, t < 30 ? seg(t, T.logoIn + 0.3, T.logoIn + 0.7) : 1);
+  const glow = t > T.heartsB ? 1 + 0.04 * Math.sin((t - T.heartsB) * 5) * (1 - seg(t, 58, 59)) : 1;
+  setT(C.logoUrl, `scale(${glow.toFixed(3)})`);
+  setT(L, `translate(${f1(x - C.logoW / 2)}px, ${f1(y)}px) scale(${s.toFixed(3)})`);
+  L.style.transformOrigin = `${C.logoW / 2}px 60px`;
+  setO(L, o);
+}
+
+function renderChapter(t) {
+  const ch = CHAPTERS.find(([a, b]) => t >= a && t < b);
+  if (!ch) { setO($('chapter'), 0); return; }
+  const [a, b, n, label] = ch;
+  setH($('chapter').querySelector('.num'), String(n));
+  setH($('chapter').querySelector('.lbl'), label);
+  const k = env(t, a, b, 0.45, 0.3);
+  setT($('chapter'), `translateX(${f1(-30 * (1 - Math.min(1, k)))}px) scale(${(0.6 + 0.4 * k).toFixed(3)})`);
+  setO($('chapter'), Math.min(1, k * 1.5));
+}
+
+const zoomK = (t) => E.inOut(seg(t, T.zoomStart, T.zoomEnd));
+function renderWindow(t) {
+  const W = C.win;
+  const inK = E.outQuint(seg(t, T.winIn, T.winIn + 0.75));
+  const z = zoomK(t);
+  const Z = lerp(1, 0.92 / 0.77, z), tx = lerp(0, 820.8 - 610 - 409.6 * 0.92 / 0.77, z), ty = lerp(0, 110.2 - 96 - 94.5 * 0.92 / 0.77, z);
+  const visible = t > T.winIn && t < T.zoomEnd + 0.05;
+  if (!visible) { setO(W, 0); } else {
+    setO(W, Math.min(seg(t, T.winIn, T.winIn + 0.3), 1 - seg(t, T.zoomStart + 0.35, T.zoomEnd)));
+    setT(W, `translate(${f1(tx + 700 * (1 - inK))}px, ${f1(ty)}px) scale(${Z.toFixed(4)})`);
+  }
+  // search box
+  const focused = t > 6.9;
+  C.winInput.classList.toggle('focus', focused && t < 8.4);
+  const n = clamp(Math.floor((t - T.typeStart) / T.typeStep) + 1, 0, T.typeText.length);
+  setH(C.winTyped, T.typeText.slice(0, t < T.typeStart ? 0 : n));
+  setO(C.winPh, focused ? 0 : 1);
+  const typing = t > T.typeStart && t < T.typeStart + T.typeText.length * T.typeStep + 0.2;
+  setO(C.winCaret, focused && t < 8.4 && (typing || Math.floor(t * 2.2) % 2 === 0) ? 1 : 0);
+  const pressS = (tc) => 1 - 0.06 * Math.max(0, 1 - Math.abs(t - tc - 0.02) / 0.1);
+  setT(C.winSearchBtn, `scale(${pressS(T.searchClick).toFixed(3)})`);
+  setT(C.winQaBtn, `scale(${pressS(T.qaClick).toFixed(3)})`);
+  setH(C.winRhead, t > T.resultsAt ? 'Results for “the sea”' : '');
+  C.results.forEach((r, i) => {
+    const k = E.outBack(seg(t, T.resultsAt + i * 0.07, T.resultsAt + i * 0.07 + 0.35));
+    setO(r.el, seg(t, T.resultsAt + i * 0.07, T.resultsAt + i * 0.07 + 0.15));
+    setT(r.el, `translateY(${f1(14 * (1 - k))}px) scale(${(0.92 + 0.08 * k).toFixed(3)})`);
+    const added = i < 3 && t > T.addClicks[i];
+    setH(r.add, added ? 'Added' : 'Add');
+    r.add.style.background = added ? '#c8e6c9' : '#43a047';
+    r.add.style.color = added ? '#2e7d32' : '#fff';
+    setT(r.add, `scale(${(i < 3 ? pressS(T.addClicks[i]) : 1).toFixed(3)})`);
+    setO(r.th, i < 3 && t > T.addClicks[i] && t < T.fillAt[i] ? 0.35 : 1);
+  });
+  C.winPanels.forEach((pn, p) => pn.entries.forEach((e, kk) => {
+    const k = p * 5 + kk;
+    const f = seg(t, T.fillAt[k], T.fillAt[k] + 0.25);
+    setO(e.blank, 1 - f); setO(e.filled, f);
+    setT(e.cover, `scale(${(0.7 + 0.3 * E.outBack(seg(t, T.fillAt[k], T.fillAt[k] + 0.35))).toFixed(3)})`);
+  }));
+  // Quick Add modal
+  const qin = E.outBack(seg(t, T.qaOpen, T.qaOpen + 0.35)), qout = E.in(seg(t, T.qaClose, T.qaClose + 0.2));
+  const qv = t > T.qaOpen && t < T.qaClose + 0.2;
+  setO(C.qa, qv ? Math.min(seg(t, T.qaOpen, T.qaOpen + 0.15), 1 - qout) : 0);
+  setO(C.qaShade, qv ? 0.8 * Math.min(seg(t, T.qaOpen, T.qaOpen + 0.25), 1 - qout) : 0);
+  setT(C.qa, `scale(${(0.9 + 0.1 * qin - 0.05 * qout).toFixed(3)})`);
+  C.qaTa.classList.toggle('focus', t > 11.3);
+  C.qaRows.forEach((row, j) => {
+    const k = seg(t, T.pasteAt + j * T.rowStep, T.pasteAt + j * T.rowStep + 0.12);
+    setO(row, k); setT(row, `translateX(${f1(-12 * (1 - k))}px)`);
+  });
+  setT(C.qaGo, `scale(${pressS(T.qaGo).toFixed(3)})`);
+  // keycap
+  const kc = env(t, T.pasteAt - 0.2, T.pasteAt + 0.55, 0.2, 0.2);
+  setO(C.keycap, Math.min(1, kc)); setT(C.keycap, `translate(1236px, 486px) scale(${(0.7 + 0.3 * kc).toFixed(3)})`);
+  // sticky note
+  const sk = E.outBack(seg(t, T.stickyIn, T.stickyIn + 0.45));
+  setO(C.sticky, t > T.stickyIn ? Math.min(seg(t, T.stickyIn, T.stickyIn + 0.2), 1 - seg(t, T.zoomStart, T.zoomStart + 0.35)) : 0);
+  setT(C.sticky, `translateY(${f1(-60 * (1 - sk))}px) rotate(${f1(4 + 6 * (1 - sk))}deg)`);
+}
+
+function renderFlyers(t) {
+  FLYERS.forEach((f, i) => {
+    const el = C.flyers[i];
+    const u = (t - f.t0) / f.dur;
+    if (u < 0 || u >= 1) { setO(el, 0); return; }
+    const k = E.inOut(u);
+    const x = lerp(f.from[0], f.to[0], k), y = lerp(f.from[1], f.to[1], k) + f.arc * 4 * k * (1 - k);
+    const w = lerp(f.from[2], f.to[2], k), h = lerp(f.from[3], f.to[3], k);
+    const rot = Math.sin(Math.PI * u) * 10;
+    setO(el, 1);
+    setT(el, `translate(${f1(x - w / 2)}px, ${f1(y - h / 2)}px) rotate(${f1(rot)}deg) scale(${(w / 100).toFixed(4)}, ${(h / 150).toFixed(4)})`);
+  });
+}
+
+const DISP = [0, 2, 1, 3, 4]; // display position -> entry index, after the drag
+function renderList(t) {
+  const z = zoomK(t);
+  const Z = lerp(1, 0.92 / 0.77, z), tx = lerp(0, 820.8 - 610 - 409.6 * 0.92 / 0.77, z), ty = lerp(0, 110.2 - 96 - 94.5 * 0.92 / 0.77, z);
+  const x = 610 + tx + 409.6 * Z, y = 96 + ty + 94.5 * Z, s = 0.77 * Z;
+  const out = E.inOut(seg(t, T.panelOut, T.panelOut + 0.6));
+  const vis = t > T.zoomStart && t < T.panelOut + 0.62;
+  setO(C.listWrap, vis ? Math.min(seg(t, T.zoomStart + 0.05, T.zoomStart + 0.45), 1 - out) : 0);
+  setT(C.listWrap, `translate(${f1(x - 300 * out)}px, ${f1(y)}px) scale(${s.toFixed(4)})`);
+  // entries: filled; drag swap of entries 1 and 2
+  const ents = C.list.entries;
+  const du = E.inOut(seg(t, T.dragA, T.dragB)), mu = E.inOut(seg(t, T.dragA + 0.15, T.dragB + 0.05));
+  const lifted = env(t, T.grab, T.drop + 0.1, 0.12, 0.15, 'out', 'out');
+  ents.forEach((e, k) => {
+    setO(e.blank, 0); setO(e.filled, 1);
+    let dy = 0, sc = 1;
+    if (k === 2) { dy = -152 * du; sc = 1 + 0.035 * lifted; }
+    if (k === 1) dy = 152 * mu;
+    setT(e.el, `translateY(${f1(dy)}px) scale(${sc.toFixed(3)})`);
+    e.el.style.zIndex = k === 2 ? 2 : 1;
+    e.el.style.boxShadow = k === 2 && lifted > 0 ? `0 ${f1(14 * lifted)}px ${f1(28 * lifted)}px rgba(0,0,0,${(0.2 * lifted).toFixed(3)})` : 'none';
+    e.el.style.background = k === 2 && lifted > 0 ? '#fff' : 'transparent';
+    setO(e.grip, env(t, 19.25, 20.6, 0.2, 0.3));
+    // stars
+    const di = DISP.indexOf(k);
+    const si = T.starEntries.indexOf(di);
+    const on = si >= 0 && t > T.stars[si];
+    const pop = si >= 0 ? E.outBack(seg(t, T.stars[si], T.stars[si] + 0.35)) : 0;
+    setA(e.starFill, 'visibility', on ? 'visible' : 'hidden');
+    setA(e.starLine, 'visibility', on ? 'hidden' : 'visible');
+    setT(e.star, `scale(${on ? (0.4 + 0.6 * pop + 0.25 * Math.sin(Math.PI * seg(t, T.stars[si], T.stars[si] + 0.35))).toFixed(3) : 1})`);
+    setO(e.star, env(t, T.zoomStart + 0.2, T.panelOut + 0.2, 0.4, 0.2, 'out', 'in'));
+  });
+  // callouts
+  C.callouts.forEach((c, i) => {
+    const a = T.callouts[i];
+    const k = env(t, a, T.calloutOut + 0.3 + i * 0.05, 0.45, 0.3);
+    const draw = E.out(seg(t, a - 0.1, a + 0.3));
+    [c.path, c.halo].forEach((el) => {
+      setA(el, 'stroke-dasharray', `${f1(c.len * draw)} ${f1(c.len)}`);
+      setA(el, 'opacity', Math.min(1, k * 2).toFixed(3));
+    });
+    setA(c.dot, 'opacity', Math.min(1, k * 2).toFixed(3));
+    setA(c.dot, 'r', f1(8 * E.outBack(seg(t, a - 0.1, a + 0.2))));
+    setO(c.el, Math.min(1, k * 1.5));
+    setT(c.el, `translate(${c.x}px, ${c.y}px) scale(${(0.6 + 0.4 * k).toFixed(3)})`);
+  });
+  const dk = env(t, 19.55, 20.95, 0.4, 0.3);
+  setO(C.dragTip, Math.min(1, dk * 1.5)); setT(C.dragTip, `translate(1330px, 380px) scale(${(0.6 + 0.4 * dk).toFixed(3)})`);
+  const sk = env(t, T.stars[0] + 0.1, T.panelOut, 0.45, 0.3);
+  setO(C.starTip, Math.min(1, sk * 1.5)); setT(C.starTip, `translate(1360px, 250px) scale(${(0.6 + 0.4 * sk).toFixed(3)})`);
+}
+
+const FONTS = [["'Playfair Display'", 900, 'Playfair Display'], ["'Bebas Neue'", 400, 'Bebas Neue'], ["'Pacifico'", 400, 'Pacifico'],
+  ["'Fredoka'", 600, 'Fredoka'], ["'Abril Fatface'", 400, 'Abril Fatface']];
+function coverStyleAt(t) {
+  let fi = 0;
+  T.fonts.forEach((tf, i) => { if (t >= tf) fi = i + 1; });
+  const since = fi > 0 ? t - T.fonts[fi - 1] : 9;
+  const bump = since < 0.3 ? 0.07 * Math.sin(Math.PI * since / 0.3) : 0;
+  const k1 = seg(t, T.colors[0], T.colors[0] + 0.3), k2 = seg(t, T.colors[1], T.colors[1] + 0.3), k3 = seg(t, T.colors[2], T.colors[2] + 0.4);
+  let c0 = mixHex('#3f51b5', '#2a9d8f', k1);
+  c0 = mixHex(c0, '#6d4c7d', k2);
+  const c1 = mixHex(c0, '#e76f51', k3);
+  return { font: FONTS[fi][0], weight: FONTS[fi][1], label: FONTS[fi][2], c0, c1, bump, fi };
+}
+function layoutAt(t) {
+  const steps = [['classic', 'tilted', T.tilt], ['tilted', 'staggered', T.stag], ['staggered', 'honeycomb', T.honey]];
+  let a = 'classic', b = 'classic', u = 0;
+  steps.forEach(([from, to, ts]) => {
+    if (t >= ts) { a = from; b = to; u = seg(t, ts, ts + T.layoutDur); }
+  });
+  return { a, b, u };
+}
+function renderCover(t) {
+  const inK = E.outBack(seg(t, T.pageIn, T.pageIn + 0.55));
+  const sh = E.inOut(seg(t, T.toStyle, T.toStyle + 0.65));
+  const outK = E.inOut(seg(t, T.styleOut, T.styleOut + 0.5));
+  const vis = t > T.pageIn && t < T.styleOut + 0.5;
+  const cx = lerp(1130, 1010, sh), s = 0.95 * (0.85 + 0.15 * inK) * (1 - 0.15 * outK);
+  const ox = cx - PW * s / 2, oy = 482 - PH * s / 2 - 90 * outK;
+  setO(C.coverWrap, vis ? Math.min(seg(t, T.pageIn, T.pageIn + 0.2), 1 - outK) : 0);
+  setT(C.coverWrap, `translate(${f1(ox)}px, ${f1(oy)}px) scale(${s.toFixed(4)})`);
+  if (vis) {
+    const L = layoutAt(t);
+    const style = coverStyleAt(t);
+    drawCoverPage(C.page, {
+      a: L.a, b: L.b, u: L.u, style,
+      enter: (i) => {
+        if (L.a !== 'classic' || L.b !== 'classic') return null;
+        if (i < 3) { const f = FLYERS[FLYERS.length - 3 + i]; return t >= f.t0 + f.dur ? 1 : 0; }
+        const tp = T.coverPops + (i - 3) * 0.055;
+        return E.outBack(seg(t, tp, tp + 0.35));
+      },
+    });
+    setH(C.fname, style.label);
+    C.fname.style.fontFamily = style.font;
+    C.fname.style.fontWeight = style.weight;
+    const ring = style.fi >= 0 ? (t < T.colors[0] ? 0 : t < T.colors[1] ? 2 : 4) : 0;
+    setT(C.swring, `translate(${24 + 70 * ring}px, 318px)`);
+    const tg = E.out(seg(t, T.colors[2], T.colors[2] + 0.2));
+    setT(C.toggleKnob, `translateX(${f1(28 * tg)}px)`);
+    C.toggle.style.background = mixHex('#cfd6e0', '#5c6bc0', tg);
+  }
+  // layout picker
+  const pk = env(t, T.pickerIn, T.toStyle + 0.3, 0.5, 0.35, 'outQuint', 'in');
+  setO(C.picker, Math.min(1, pk * 1.5));
+  setT(C.picker, `translateX(${f1(80 * (1 - pk))}px)`);
+  const rowOf = { classic: 0, honeycomb: 1, staggered: 4, tilted: 5 };
+  const L2 = layoutAt(t);
+  const fromR = rowOf[L2.a], toR = rowOf[L2.b];
+  const hr = lerp(fromR, toR, E.out(clamp(L2.u * 4)));
+  setT(C.lhi, `translateY(${f1(84 + 88 * hr)}px)`);
+  C.lrows.forEach((row, r) => { row.style.color = Math.abs(hr - r) < 0.5 ? '#3f51b5' : '#546e7a'; });
+  // style panel + QR card
+  const sp = env(t, T.toStyle + 0.2, T.styleOut + 0.3, 0.5, 0.3, 'outQuint', 'in');
+  setO(C.style, Math.min(1, sp * 1.5)); setT(C.style, `translateX(${f1(90 * (1 - sp))}px)`);
+  const qk = env(t, T.qrIn, T.styleOut + 0.35, 0.5, 0.3, 'outQuint', 'in');
+  setO(C.qrCard, Math.min(1, qk * 1.5)); setT(C.qrCard, `translateY(${f1(80 * (1 - qk))}px)`);
+  if (t > T.qrIn - 0.1 && t < T.qrBuild + 1.6) {
+    const q = (t - T.qrBuild) / 1.1;
+    C.qrMods.forEach((m) => setA(m.el, 'opacity', clamp((q - m.d * 0.85) * 8).toFixed(2)));
+  }
+}
+
+function renderPrint(t) {
+  // Generate PDF button
+  const bIn = E.outBack(seg(t, T.pdfIn, T.pdfIn + 0.45));
+  const morph = E.inOut(seg(t, T.pdfClick + 0.05, T.pdfClick + 0.35));
+  const bOut = E.in(seg(t, T.sheetOut - 0.25, T.sheetOut + 0.05));
+  const bw = lerp(430, 96, morph);
+  const bv = t > T.pdfIn && t < T.sheetOut + 0.05;
+  const press = 1 - 0.06 * Math.max(0, 1 - Math.abs(t - T.pdfClick - 0.02) / 0.1);
+  C.pdfbtn.style.width = f1(bw) + 'px';
+  setO(C.pdfbtn, bv ? Math.min(seg(t, T.pdfIn, T.pdfIn + 0.15), 1 - bOut) : 0);
+  setT(C.pdfbtn, `translate(${f1(1180 - bw / 2)}px, ${f1(282)}px) scale(${(bIn * press * (1 - 0.6 * bOut)).toFixed(3)})`);
+  setO(C.pdfLabel, 1 - morph); setO(C.pdfIcon, 1 - morph);
+  setO(C.spin, bv && morph > 0.9 ? 1 - bOut : 0);
+  setT(C.spin, `translate(1150px, 300px) rotate(${f1((t - T.pdfClick) * 540)}deg)`);
+  C.spin.style.transformOrigin = '30px 30px';
+  setA(C.spinArc, 'stroke-dasharray', `${f1(30 + 40 * Math.sin((t - T.pdfClick) * 6) ** 2)} 200`);
+  // printer
+  const up = E.outBack(seg(t, T.printerUp, T.printerUp + 0.55)), down = E.in(seg(t, T.sheetLift + 0.35, T.sheetLift + 0.9));
+  const py = 300 * (1 - up) + 320 * down;
+  const pv = t > T.printerUp && t < T.sheetLift + 0.9;
+  setA(C.printerBack, 'transform', `translate(0 ${f1(py)})`); setA(C.printerFront, 'transform', `translate(0 ${f1(py)})`);
+  setA(C.printerBack, 'visibility', pv ? 'visible' : 'hidden'); setA(C.printerFront, 'visibility', pv ? 'visible' : 'hidden');
+  setA(C.printLed, 'fill', t > T.sheetOut && t < T.sheetOutEnd && Math.floor(t * 6) % 2 ? '#a5d6a7' : '#43a047');
+  // sheet
+  const p = seg(t, T.sheetOut, T.sheetOutEnd);
+  const printing = t < T.sheetOutEnd;
+  const lift = E.inOut(seg(t, T.sheetLift, T.sheetLift + 0.5));
+  const flip = E.inOut(seg(t, T.flip, T.flip + 0.8));
+  const fold = E.inOut(seg(t, T.fold, T.fold + 0.8));
+  const stand = E.inOut(seg(t, T.stand, T.stand + 0.8));
+  const outro = E.inOut(seg(t, T.hopOut, T.hopOut + 0.9));
+  let dy = printing ? (778 - 680 * E.sine(p)) - 140 : lerp(778 - 680 - 140, 10, lift);
+  let dx = 0, sc = printing ? 1 : lerp(1, 0.94, lift);
+  const ry = 180 * flip - 16 * stand + 6 * outro;
+  const rx = 4 * stand;
+  // Once folded, the booklet is the viewer-right half: re-centre it.
+  const bookX = lerp(lerp(0, -220, stand), 1590 - 1180 - 220 * 0.62, outro);
+  const bookY = lerp(lerp(dy, 50, stand), 690 - 480, outro);
+  if (t >= T.stand) { dx = bookX; dy = bookY; sc = lerp(lerp(0.94, 0.92, stand), 0.62, outro); }
+  const zlift = 140 * Math.sin(Math.PI * flip);
+  let shake = 0;
+  if (t > T.stamp && t < T.stamp + 0.2) shake = Math.sin((t - T.stamp) * 90) * 5 * (1 - (t - T.stamp) / 0.2);
+  const sv = t > T.sheetOut;
+  setO(C.sheet, sv ? 1 : 0);
+  setT(C.sheet, `translate3d(${f1(dx + shake)}px, ${f1(dy)}px, ${f1(zlift)}px) rotateY(${f1(ry)}deg) rotateX(${f1(rx)}deg) scale(${sc.toFixed(4)})`);
+  setT(C.halfR, `translateZ(-2px) rotateY(${f1(180 * fold)}deg)`);
+  // light falloff as the pages turn
+  const shadeFlip = 0.35 * Math.abs(Math.sin(Math.PI * flip)), shadeFold = 0.3 * Math.abs(Math.sin(Math.PI * fold));
+  C.faceShades.forEach((s, i) => setO(s, i % 2 === 0 ? shadeFlip : Math.max(shadeFlip, shadeFold)));
+  // shadow under the standing booklet
+  const shV = t > T.stand ? E.out(seg(t, T.stand + 0.3, T.stand + 0.8)) : 0;
+  const shX = lerp(1180, 1590, outro), shW = lerp(420, 300, outro);
+  C.sheetShadow.style.cssText = `left:${f1(shX - shW / 2)}px;top:${f1(lerp(842, 884, outro))}px;width:${f1(shW)}px;height:34px;opacity:${shV.toFixed(3)}`;
+  // 600 DPI stamp
+  const st = seg(t, T.stamp, T.stamp + 0.22);
+  const stOut = seg(t, T.flip - 0.1, T.flip + 0.15);
+  setO(C.stamp, t > T.stamp ? Math.min(st * 3, 1 - stOut) : 0);
+  setT(C.stamp, `translate(1455px, 72px) rotate(-14deg) scale(${lerp(2.4, 1, E.outBack(st)).toFixed(3)})`);
+  // take one card
+  const tk = E.outBack(seg(t, 52.0, 52.4));
+  setO(C.takeone, t > 52.0 ? 1 : 0);
+  setT(C.takeone, `translate(1640px, 408px) rotate(${f1(-6 + Math.sin(t * 2) * 1.5)}deg) scale(${tk.toFixed(3)})`);
+}
+
+/* ---------------- speech bubble ---------------- */
+function renderBubble(t) {
+  const B = $('bubble');
+  const L = LINES.find((l) => t >= l.t - 0.12 && t < l.end);
+  if (!L) { setO(B, 0); C.bubbleLine = null; return; }
+  if (C.bubbleLine !== L.id) {
+    B.innerHTML = L.words.map((w, i) => `<span class="w">${i ? ' ' : ''}${w.html}</span>`).join('');
+    C.bubbleSpans = Array.from(B.querySelectorAll('.w'));
+    C.bubbleLine = L.id;
+    C.bubbleW = B.offsetWidth; C.bubbleH = B.offsetHeight;
+  }
+  L.words.forEach((w, i) => {
+    const k = seg(t, w.t - 0.02, w.t + 0.13);
+    setO(C.bubbleSpans[i], k);
+    setT(C.bubbleSpans[i], `translateY(${f1(8 * (1 - E.out(k)))}px)`);
+  });
+  const h = C.catState;
+  const headTop = h.y - 432 * h.s;
+  const bx = clamp(h.x, 30 + C.bubbleW / 2, 1890 - C.bubbleW / 2);
+  const tailOff = clamp(h.x - bx, -C.bubbleW / 2 + 50, C.bubbleW / 2 - 50);
+  B.style.setProperty('--tail', f1(tailOff) + 'px');
+  const inK = E.outBack(seg(t, L.t - 0.12, L.t + 0.2)), outK = E.in(seg(t, L.end - 0.22, L.end));
+  const s = (0.55 + 0.45 * inK) * (1 - 0.15 * outK);
+  B.style.transformOrigin = `${f1(C.bubbleW / 2 + tailOff)}px ${C.bubbleH + 30}px`;
+  setT(B, `translate(${f1(bx - C.bubbleW / 2)}px, ${f1(headTop - 28 - C.bubbleH)}px) scale(${s.toFixed(3)})`);
+  setO(B, Math.min(seg(t, L.t - 0.12, L.t + 0.02), 1 - outK));
+}
+
+/* =====================================================================
+   FRAME
+   ===================================================================== */
+function renderAt(t) {
+  renderAmbient(t);
+  renderLogo(t);
+  renderChapter(t);
+  renderWindow(t);
+  renderList(t);
+  renderFlyers(t);
+  renderCover(t);
+  renderPrint(t);
+  renderCat(t);
+  renderBubble(t);
+  renderCursor(t);
+  renderParticles(t);
+  setO($('fade'), Math.max(1 - seg(t, 0, 0.5), E.inOut(seg(t, T.fadeOut, DURATION))));
+}
+
+function getCues() {
+  return {
+    duration: DURATION,
+    syllables: SYL.map((s) => ({ t: +s.t.toFixed(4), dur: +s.dur.toFixed(4), pitch: +s.pitch.toFixed(3), vowel: s.vowel, glide: s.glide })),
+    sfx: SFX.slice().sort((a, b) => a.t - b.t),
+    transitions: [T.winIn, T.zoomStart, T.panelOut, T.toStyle, T.styleOut, T.hopOut],
+    lines: LINES.map((l) => ({ id: l.id, t: l.t, speechEnd: l.speechEnd, end: l.end })),
+  };
+}
+
+async function init() {
+  buildCoverSymbols();
+  drawBackground();
+  drawDesk();
+  buildProps();
+  buildLogo();
+  buildWindow();
+  buildListPanel();
+  buildCoverScene();
+  buildPrint();
+  buildFlyers();
+  buildCat();
+  buildParticles();
+  buildCursor();
+  const faces = ['600 40px Caveat', '700 40px Caveat', '400 20px Inter', '500 20px Inter', '600 20px Inter', '700 20px Inter', '800 20px Inter',
+    'italic 500 20px "EB Garamond"', '700 20px "Playfair Display"', '900 20px "Playfair Display"', '700 20px Lora', '600 20px Lora', 'italic 400 20px Lora',
+    '400 20px "Bebas Neue"', '400 20px Pacifico', '400 20px "Abril Fatface"', '600 20px Fredoka', '700 20px "Josefin Sans"', '600 20px Oswald',
+    '700 20px Cinzel', '400 20px "Special Elite"', '700 20px "Libre Baskerville"'];
+  await Promise.all(faces.map((f) => document.fonts.load(f)));
+  await document.fonts.ready;
+  C.logoW = C.logo.offsetWidth;
+  drawCoverPage(C.frontCopy, { a: 'honeycomb', b: 'honeycomb', u: 1, style: coverStyleAt(DURATION) });
+  renderAt(0);
+  window.sceneReady = true;
+}
+window.renderAt = renderAt;
+window.getCues = getCues;
+window.SCENE_DURATION = DURATION;
+init();
+</script>
+</body>
+</html>
