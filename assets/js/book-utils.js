@@ -10,11 +10,14 @@
 
   // Returns true if the given string looks like a placeholder image URL.
   // Case-insensitive and whitespace-tolerant.
+  // Embedded image bytes (a data: URL) are never a placeholder, and are
+  // skipped first: covers run to hundreds of KB, and lowercasing a copy of
+  // each on every call cost ~30ms per collage rebuild.
   function isPlaceholderUrl(value) {
     if (!value || typeof value !== 'string') return true;
-    const trimmed = value.trim();
-    if (!trimmed) return true;
-    return trimmed.toLowerCase().includes('placehold.co');
+    if (/^\s*data:/i.test(value)) return false;
+    if (!value.trim()) return true;
+    return /placehold\.co/i.test(value);
   }
 
   const BookUtils = {
