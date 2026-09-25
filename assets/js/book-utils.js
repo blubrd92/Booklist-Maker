@@ -1003,8 +1003,9 @@
             const cx = W / 2 + (k + off) * dx;
             if (cx < -hw || cx > W + hw || cy < -hh || cy > H + hh) continue;
             const clear = cy + hh <= zoneTop || cy - hh >= zoneBot;
-            // Cells hidden under the bar's white strip are left out entirely.
-            if (!clear && cy - hh * 0.5 >= zoneTop && cy + hh * 0.5 <= zoneBot) continue;
+            // Every cell is kept, even one mostly under the bar: the white
+            // strip covers what it hides, and leaving cells out used to
+            // leave their points missing just past the strip.
             const full = clear && cx - hw >= pad && cx + hw <= W - pad && cy - hh >= pad && cy + hh <= H - pad;
             cells.push({ cx: cx, cy: cy, j: j, k: k, full: full });
           }

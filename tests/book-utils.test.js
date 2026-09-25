@@ -1806,6 +1806,25 @@ describe('BookUtils.planHoneycomb and assignHoneycombTitles', () => {
     }
   });
 
+  // Hexagons of circumradius r tile the plane, so every point sits within r
+  // of some cell's centre. A point outside the bar's zone that doesn't means
+  // a cell was left out that would have shown past the bar.
+  const coverage = [];
+  ['top', 'classic', 'center', 'lower', 'bottom'].forEach((pos) => [1, 0.75, 0.5].forEach((sc) => coverage.push([pos, sc])));
+  it.each(coverage)('bar %s, Cover Size %s: every spot outside the bar is covered by a cell', (pos, sc) => {
+    const zone = barZone(pos);
+    const plan = globalThis.BookUtils.planHoneycomb({ width: CANVAS_W, height: CANVAS_H, count: 12, gutter: GUTTER, ...zone, scale: sc });
+    const holes = [];
+    for (let y = 0; y <= CANVAS_H; y += 25) {
+      if (y > zone.zoneTop && y < zone.zoneBottom) continue;
+      for (let x = 0; x <= CANVAS_W; x += 25) {
+        const d = Math.min(...plan.cells.map((c) => Math.hypot(c.cx - x, c.cy - y)));
+        if (d > plan.r * 1.001) holes.push([x, y]);
+      }
+    }
+    expect(holes).toEqual([]);
+  });
+
   it('treats a missing or out-of-range Cover Size as 100, and clamps below 50', () => {
     const opts = { width: CANVAS_W, height: CANVAS_H, count: 12, gutter: GUTTER, ...barZone('classic') };
     const base = globalThis.BookUtils.planHoneycomb(opts);
