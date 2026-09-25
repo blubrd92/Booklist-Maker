@@ -1810,7 +1810,7 @@ describe('BookUtils.planHoneycomb and assignHoneycombTitles', () => {
   // of some cell's centre. A point outside the bar's zone that doesn't means
   // a cell was left out that would have shown past the bar.
   const coverage = [];
-  ['top', 'classic', 'center', 'lower', 'bottom'].forEach((pos) => [1, 0.75, 0.5].forEach((sc) => coverage.push([pos, sc])));
+  ['top', 'classic', 'center', 'lower', 'bottom'].forEach((pos) => [1.1, 1, 0.75, 0.5].forEach((sc) => coverage.push([pos, sc])));
   it.each(coverage)('bar %s, Cover Size %s: every spot outside the bar is covered by a cell', (pos, sc) => {
     const zone = barZone(pos);
     const plan = globalThis.BookUtils.planHoneycomb({ width: CANVAS_W, height: CANVAS_H, count: 12, gutter: GUTTER, ...zone, scale: sc });
@@ -1825,11 +1825,37 @@ describe('BookUtils.planHoneycomb and assignHoneycombTitles', () => {
     expect(holes).toEqual([]);
   });
 
-  it('treats a missing or out-of-range Cover Size as 100, and clamps below 50', () => {
+  it('treats a missing Cover Size as 100, and clamps to 50 through 110', () => {
     const opts = { width: CANVAS_W, height: CANVAS_H, count: 12, gutter: GUTTER, ...barZone('classic') };
     const base = globalThis.BookUtils.planHoneycomb(opts);
-    expect(globalThis.BookUtils.planHoneycomb({ ...opts, scale: 1.4 }).r).toBe(base.r);
+    expect(globalThis.BookUtils.planHoneycomb({ ...opts, scale: 1 }).r).toBe(base.r);
+    expect(globalThis.BookUtils.planHoneycomb({ ...opts, scale: 1.4 }).r).toBeCloseTo(base.r * 1.1, 6);
     expect(globalThis.BookUtils.planHoneycomb({ ...opts, scale: 0.2 }).r).toBeCloseTo(base.r * 0.5, 6);
+  });
+
+  // Above 100% there are fewer whole cells than titles; the rest take the
+  // most visible cut cells, so every title still leads somewhere on the page.
+  const enlarged = [];
+  [12, 16, 20].forEach((n) => ['none', 'top', 'classic', 'center', 'bottom'].forEach((pos) => enlarged.push([n, pos])));
+  it.each(enlarged)('%i covers, bar %s, Cover Size 110: every title leads once, mostly showing', (n, pos) => {
+    const zone = pos === 'none' ? { zoneTop: -1, zoneBottom: -1 } : barZone(pos);
+    const opts = { width: CANVAS_W, height: CANVAS_H, count: n, gutter: GUTTER, ...zone };
+    const base = globalThis.BookUtils.planHoneycomb(opts);
+    const plan = globalThis.BookUtils.planHoneycomb({ ...opts, scale: 1.1 });
+    expect(plan.r).toBeCloseTo(base.r * 1.1, 6);
+    const { titles, whole, lead } = globalThis.BookUtils.assignHoneycombTitles(plan.cells, n, plan.dx);
+    expect(titles.filter((_, i) => lead[i]).sort((a, b) => a - b)).toEqual(Array.from({ length: n }, (_, i) => i));
+    lead.forEach((l, i) => {
+      if (!l) return;
+      expect(whole[i]).toBe(plan.cells[i].full);
+      expect(plan.cells[i].vis).toBeGreaterThanOrEqual(0.8);
+    });
+    for (let a = 0; a < plan.cells.length; a++) {
+      for (let b = a + 1; b < plan.cells.length; b++) {
+        const d = Math.hypot(plan.cells[a].cx - plan.cells[b].cx, plan.cells[a].cy - plan.cells[b].cy);
+        if (d < plan.dx * 1.1) expect(titles[a]).not.toBe(titles[b]);
+      }
+    }
   });
 
   it('keeps whole titles in list order down the page', () => {

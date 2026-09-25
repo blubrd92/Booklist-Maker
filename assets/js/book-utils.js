@@ -977,13 +977,16 @@
      * clear of the title bar's zone. A region tall enough to hold a cell must
      * get at least one whole cell (or the comb reads lopsided); up to 15%
      * smaller cells are accepted to achieve that, unless it would leave a
-     * comb full of spares. o.scale (0.5 to 1, the Cover Size setting) then
-     * shrinks those cells and re-lays the comb, so smaller settings mean more,
-     * smaller hexagons; the smaller comb keeps both guarantees.
+     * comb full of spares. o.scale (0.5 to 1.1, the Cover Size setting) then
+     * resizes those cells and re-lays the comb. Below 1 that means more,
+     * smaller hexagons and the smaller comb keeps both guarantees. Above 1
+     * there are fewer whole cells than titles, so every cell carries `vis`
+     * (the share of it left showing) and the titles without a whole cell
+     * take the most visible cut ones (see assignHoneycombTitles).
      * @param {Object} o - { width, height, count, zoneTop, zoneBottom, gutter, scale }
      *   Pass zoneTop = zoneBottom = -1 when there is no title bar.
      * @returns {{r:number, dx:number, dy:number, cells:Array}|null}
-     *   cells: { cx, cy, j (row), k (column), full }
+     *   cells: { cx, cy, j (row), k (column), full, vis (scale > 1 only) }
      */
     planHoneycomb: function(o) {
       const W = o.width, H = o.height, n = o.count;
@@ -1038,12 +1041,44 @@
         if (best) { base = best.fullCount - n > Math.max(3, n * 0.2) && first ? first : best; break; }
       }
       if (!base) base = first;
-      const scale = Math.max(0.5, Math.min(1, o.scale || 1));
-      if (!base || scale >= 1) return base;
-      // Smaller cells at the same phases; a balanced comb is preferred, as
-      // above. Shrinking only adds whole cells, so every title still fits.
+      const scale = Math.max(0.5, Math.min(1.1, o.scale || 1));
+      if (!base || scale === 1) return base;
       const r2 = base.r * scale;
       let pick = null;
+      if (scale > 1) {
+        // Larger than the size at which every title fits whole, so some
+        // titles take a cell cut by an edge or the bar. Each cell carries
+        // the share of it left showing (vis), and the phase whose n-th
+        // most visible cell shows the most wins: the worst-shown title
+        // is shown as fully as this size allows.
+        const hw2 = SQ3 * r2 / 2, G = 12;
+        const visible = function(c) {
+          let inside = 0, shown = 0;
+          for (let a = 0; a <= G; a++) {
+            for (let b = 0; b <= G; b++) {
+              const x = -hw2 + 2 * hw2 * a / G, y = -r2 + 2 * r2 * b / G;
+              if (Math.abs(y) > r2 - Math.abs(x) / SQ3) continue;
+              inside++;
+              const px = c.cx + x, py = c.cy + y;
+              if (px >= 0 && px <= W && py >= 0 && py <= H && !(hasBar && py > zoneTop && py < zoneBot)) shown++;
+            }
+          }
+          return inside ? shown / inside : 0;
+        };
+        [0, 0.5].forEach(function(px) {
+          [0, 0.25, 0.5, 0.75].forEach(function(f) {
+            const plan = cellsFor(r2, px, f * 3 * r2);
+            plan.cells.forEach(function(c) { c.vis = c.full ? 1 : visible(c); });
+            const lead = plan.cells.map(function(c) { return c.vis; }).sort(function(a, b) { return b - a; });
+            plan.worst = lead.length >= n ? lead[n - 1] : 0;
+            plan.fullCount = plan.cells.filter(function(c) { return c.full; }).length;
+            if (!pick || plan.worst > pick.worst + 1e-9 || (Math.abs(plan.worst - pick.worst) <= 1e-9 && plan.fullCount > pick.fullCount)) pick = plan;
+          });
+        });
+        return pick || base;
+      }
+      // Smaller cells at the same phases; a balanced comb is preferred, as
+      // above. Shrinking only adds whole cells, so every title still fits.
       [0, 0.5].forEach(function(px) {
         [0, 0.25, 0.5, 0.75].forEach(function(f) {
           const plan = cellsFor(r2, px, f * 3 * r2);
@@ -1060,27 +1095,39 @@
     /**
      * Deals titles into a planned honeycomb. Every title gets one whole cell,
      * in list order across the page (spare whole cells are the outermost).
+     * Above 100% Cover Size there are too few, and the most visible cut
+     * cells stand in for the missing whole ones.
      * Every other cell repeats titles in Staggered's rhythm: each row of the
      * comb reads through the list in order, starting further along than the
      * row above, stepping past any title within ~two cells of itself.
      * @param {Array} cells - from planHoneycomb
      * @param {number} count - number of titles
      * @param {number} dx - horizontal cell pitch (planHoneycomb's dx)
-     * @returns {{titles:number[], whole:boolean[]}} parallel to cells
+     * @returns {{titles:number[], whole:boolean[], lead:boolean[]}} parallel
+     *   to cells; lead marks each title's first placement, whole the leads
+     *   that are whole cells (all of them unless Cover Size is above 100%)
      */
     assignHoneycombTitles: function(cells, count, dx) {
       const titles = new Array(cells.length).fill(-1);
       const whole = new Array(cells.length).fill(false);
       const idx = cells.map(function(_, i) { return i; });
-      const fullIdx = idx.filter(function(i) { return cells[i].full; })
-        .sort(function(a, b) { return cells[a].cy - cells[b].cy || cells[a].cx - cells[b].cx; });
+      let fullIdx = idx.filter(function(i) { return cells[i].full; });
+      if (fullIdx.length < count) {
+        // Cover Size above 100%: too few whole cells, so the most visible
+        // cut cells (planHoneycomb's vis) take the remaining titles.
+        const cut = idx.filter(function(i) { return !cells[i].full && cells[i].vis > 0; })
+          .sort(function(a, b) { return cells[b].vis - cells[a].vis; });
+        fullIdx = fullIdx.concat(cut.slice(0, count - fullIdx.length));
+      }
+      fullIdx.sort(function(a, b) { return cells[a].cy - cells[b].cy || cells[a].cx - cells[b].cx; });
       const W2 = cells.length ? (Math.min.apply(null, cells.map(function(c) { return c.cx; })) + Math.max.apply(null, cells.map(function(c) { return c.cx; }))) / 2 : 0;
       const H2 = cells.length ? (Math.min.apply(null, cells.map(function(c) { return c.cy; })) + Math.max.apply(null, cells.map(function(c) { return c.cy; }))) / 2 : 0;
       const spare = new Set(fullIdx.slice().sort(function(a, b) {
         return Math.abs(cells[b].cx - W2) - Math.abs(cells[a].cx - W2) || Math.abs(cells[b].cy - H2) - Math.abs(cells[a].cy - H2);
       }).slice(0, Math.max(0, fullIdx.length - count)));
       let t = 0;
-      fullIdx.forEach(function(i) { if (!spare.has(i) && t < count) { titles[i] = t++; whole[i] = true; } });
+      const lead = new Array(cells.length).fill(false);
+      fullIdx.forEach(function(i) { if (!spare.has(i) && t < count) { titles[i] = t++; lead[i] = true; whole[i] = cells[i].full; } });
 
       // Row anchors: title = anchor + column, so a row reads the list in order.
       const rows = new Map();
@@ -1088,28 +1135,28 @@
       const js = Array.from(rows.keys()).sort(function(a, b) { return a - b; });
       const anchor = new Map(), perRow = [];
       js.forEach(function(j) {
-        const w = rows.get(j).filter(function(i) { return whole[i]; }).sort(function(a, b) { return cells[a].k - cells[b].k; });
+        const w = rows.get(j).filter(function(i) { return lead[i]; }).sort(function(a, b) { return cells[a].k - cells[b].k; });
         if (w.length) { anchor.set(j, titles[w[0]] - cells[w[0]].k); perRow.push(w.length); }
       });
       const stepRows = perRow.length ? Math.max(2, Math.round(perRow.reduce(function(a, v) { return a + v; }, 0) / perRow.length)) : 3;
       const firstIdx = js.findIndex(function(j) { return anchor.has(j); });
-      if (firstIdx < 0) return { titles: titles, whole: whole };
+      if (firstIdx < 0) return { titles: titles, whole: whole, lead: lead };
       for (let i = firstIdx + 1; i < js.length; i++) if (!anchor.has(js[i])) anchor.set(js[i], anchor.get(js[i - 1]) + stepRows);
       for (let i = firstIdx - 1; i >= 0; i--) if (!anchor.has(js[i])) anchor.set(js[i], anchor.get(js[i + 1]) - stepRows);
 
       const placed = [];
-      idx.forEach(function(i) { if (whole[i]) placed.push({ cx: cells[i].cx, cy: cells[i].cy, t: titles[i] }); });
+      idx.forEach(function(i) { if (lead[i]) placed.push({ cx: cells[i].cx, cy: cells[i].cy, t: titles[i] }); });
       const self = this;
       js.forEach(function(j) {
         rows.get(j).slice().sort(function(a, b) { return cells[a].k - cells[b].k; }).forEach(function(i) {
-          if (whole[i]) return;
+          if (lead[i]) return;
           const c = cells[i];
           const pick = self.pickRhythmTitle(placed, count, c.cx, c.cy, anchor.get(j) + c.k, 1, dx * 1.9);
           titles[i] = pick;
           placed.push({ cx: c.cx, cy: c.cy, t: pick });
         });
       });
-      return { titles: titles, whole: whole };
+      return { titles: titles, whole: whole, lead: lead };
     },
 
     /**

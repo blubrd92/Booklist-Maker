@@ -3132,11 +3132,11 @@ const BooklistApp = (function() {
     // Tilted layout specific settings
     const tiltDegree = parseFloat(elements.tiltDegree?.value ?? '-25');
     const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
-    // Cover Size slider is a percentage (50–100). Convert to the
-    // 0.5–1.0 multiplier used by drawLayoutTilted. Default 100% =
-    // 1.0 = no shrink.
+    // Cover Size slider is a percentage (50–110). Convert to the
+    // 0.5–1.1 multiplier used by drawLayoutTilted. Default 100% =
+    // 1.0 = no shrink; above 100 the covers grow.
     const tiltCoverSizePct = parseFloat(elements.tiltCoverSize?.value ?? '100');
-    const tiltCoverSize = Math.max(0.5, Math.min(1.0, (isFinite(tiltCoverSizePct) ? tiltCoverSizePct : 100) / 100));
+    const tiltCoverSize = Math.max(0.5, Math.min(1.1, (isFinite(tiltCoverSizePct) ? tiltCoverSizePct : 100) / 100));
     
     // Read the active cover count (12 / 16 / 20)
     const collageCoverCount = getCollageCoverCount();
@@ -4061,7 +4061,7 @@ const BooklistApp = (function() {
     // a uniform post-scale that tightens every cover in both
     // dimensions — 0.95 = 5% smaller per dimension (~9.75% smaller
     // in area), 1.0 = full size. The user exposes this as a "Cover
-    // Size (%)" setting in the Tilted Layout Settings panel (50–100
+    // Size (%)" setting in the Tilted Layout Settings panel (50–110
     // percent, default 100). Shrinking can help maximize the number
     // of unique books visible in the rotated grid since smaller
     // slots mean more cells fit on screen at a given tilt angle.
@@ -4730,10 +4730,10 @@ const BooklistApp = (function() {
     };
   }
 
-  // Honeycomb's Cover Size, clamped exactly as Tilted's is (50 to 100).
+  // Honeycomb's Cover Size, clamped exactly as Tilted's is (50 to 110).
   function readHoneycombCoverSizePct() {
     const raw = parseFloat(elements.honeycombCoverSize?.value ?? '100');
-    return isFinite(raw) ? Math.max(50, Math.min(100, raw)) : 100;
+    return isFinite(raw) ? Math.max(50, Math.min(110, raw)) : 100;
   }
 
   // Shows the Color backdrop's controls only when they apply.
@@ -4763,7 +4763,7 @@ const BooklistApp = (function() {
     const n = images.length;
     const backdrop = options.honeycombBackdrop || 'soft';
     const fill = options.honeycombFill || { color: styles.bgColor };
-    const coverSize = Math.max(0.5, Math.min(1, options.honeycombCoverSize || 1));
+    const coverSize = Math.max(0.5, Math.min(1.1, options.honeycombCoverSize || 1));
 
     const { bgH } = drawTitleBarAt(ctx, styles, W, 0);
     ctx.fillStyle = '#FFFFFF';
@@ -7650,7 +7650,7 @@ const BooklistApp = (function() {
     const tiltOffsetDirection = elements.tiltOffsetDirection?.value || 'vertical';
     const tiltCoverSizePctRaw = parseFloat(elements.tiltCoverSize?.value ?? '100');
     const tiltCoverSizePct = isFinite(tiltCoverSizePctRaw)
-      ? Math.max(50, Math.min(100, tiltCoverSizePctRaw))
+      ? Math.max(50, Math.min(110, tiltCoverSizePctRaw))
       : 100;
     
     // Get list name (used for filename)
@@ -7987,7 +7987,7 @@ const BooklistApp = (function() {
       // 100 (no shrink) so existing drafts open unchanged.
       const loadedPct = loaded.ui?.tiltCoverSizePct;
       const pct = (typeof loadedPct === 'number' && isFinite(loadedPct))
-        ? Math.max(50, Math.min(100, loadedPct))
+        ? Math.max(50, Math.min(110, loadedPct))
         : 100;
       elements.tiltCoverSize.value = pct;
     }
@@ -8014,7 +8014,7 @@ const BooklistApp = (function() {
     // Honeycomb's Cover Size; older saves have none, so 100 (no shrink).
     if (elements.honeycombCoverSize) {
       const pct = loaded.ui?.honeycombCoverSizePct;
-      elements.honeycombCoverSize.value = (typeof pct === 'number' && isFinite(pct)) ? Math.max(50, Math.min(100, pct)) : 100;
+      elements.honeycombCoverSize.value = (typeof pct === 'number' && isFinite(pct)) ? Math.max(50, Math.min(110, pct)) : 100;
     }
 
     // Restore the Jigsaw cut. Older saves have no seed; 1 is the default cut.
@@ -8871,7 +8871,7 @@ const BooklistApp = (function() {
         if (!isFinite(raw)) {
           elements.tiltCoverSize.value = 100;
         } else {
-          elements.tiltCoverSize.value = Math.max(50, Math.min(100, raw));
+          elements.tiltCoverSize.value = Math.max(50, Math.min(110, raw));
         }
       });
       elements.tiltCoverSize.addEventListener('input', () => {
