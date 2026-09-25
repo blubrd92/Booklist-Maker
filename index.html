@@ -784,8 +784,46 @@
                 <select id="honeycomb-backdrop" aria-label="What fills each hexagon behind its cover">
                   <option value="soft" selected>Softened cover</option>
                   <option value="sharp">Sharp cover</option>
-                  <option value="bar">Title bar color</option>
+                  <option value="color">Color</option>
                 </select>
+              </div>
+              <!-- Shown for "Color". Plain wrapper divs carry [hidden]: a
+                   .control-row's display: flex would beat the attribute. -->
+              <div id="honeycomb-color-settings" hidden>
+                <div class="control-row checkbox-row">
+                  <input id="honeycomb-color-match" type="checkbox" checked aria-label="Use the title bar's background"/>
+                  <label for="honeycomb-color-match">Match the title bar</label>
+                </div>
+                <div id="honeycomb-color-custom" hidden>
+                  <div class="control-row" style="margin-top: 6px;">
+                    <div class="mini-label">Color:</div>
+                    <input id="honeycomb-color" class="color-picker" type="color" value="#1a202c" aria-label="Honeycomb cell color"/>
+                  </div>
+                  <div class="control-row checkbox-row" style="margin-top: 2px;">
+                    <input id="honeycomb-gradient-toggle" type="checkbox" aria-label="Gradient in each cell"/>
+                    <label for="honeycomb-gradient-toggle">Gradient</label>
+                  </div>
+                  <div id="honeycomb-gradient-settings" hidden>
+                    <div class="control-row" style="margin-top: 2px;">
+                      <div class="mini-label">End color:</div>
+                      <input id="honeycomb-color2" class="color-picker" type="color" value="#333333" aria-label="Honeycomb gradient end color"/>
+                    </div>
+                    <div class="control-row" style="margin-top: 2px;">
+                      <label for="honeycomb-gradient-direction" class="mini-label" style="white-space: nowrap;">Direction:</label>
+                      <!-- No .font-select here: populateFontSelects() would fill it with fonts. -->
+                      <select id="honeycomb-gradient-direction" aria-label="Honeycomb gradient direction">
+                        <option value="to-bottom" selected>Top to bottom</option>
+                        <option value="to-top">Bottom to top</option>
+                        <option value="to-right">Left to right</option>
+                        <option value="to-left">Right to left</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="control-row" style="margin-top: 6px;">
+                <label for="honeycomb-cover-size" class="mini-label" style="white-space: nowrap;">Cover Size (%):</label>
+                <input id="honeycomb-cover-size" class="font-size-input" type="number" min="50" max="100" value="100" step="5" aria-label="Honeycomb cover size percentage"/>
               </div>
             </div>
 
@@ -1413,7 +1451,7 @@
 
   <script src="assets/js/config.js?v=5ef66a821c"></script>
   <script src="assets/js/book-utils.js?v=9923a9614f"></script>
-  <script src="assets/js/app.js?v=9800429b7d"></script>
+  <script src="assets/js/app.js?v=87aac10ec0"></script>
   <script src="assets/js/folio.js?v=53cc556a8d"></script>
   <script src="assets/js/tour.js?v=3af3f0da57"></script>
   <script src="assets/js/preview-helper.js?v=7c1be5e5c1"></script>

@@ -401,6 +401,15 @@ const BooklistApp = (function() {
       tiltedSettings: document.getElementById('tilted-settings'),
       honeycombSettings: document.getElementById('honeycomb-settings'),
       honeycombBackdrop: document.getElementById('honeycomb-backdrop'),
+      honeycombColorSettings: document.getElementById('honeycomb-color-settings'),
+      honeycombColorMatch: document.getElementById('honeycomb-color-match'),
+      honeycombColorCustom: document.getElementById('honeycomb-color-custom'),
+      honeycombColor: document.getElementById('honeycomb-color'),
+      honeycombGradientToggle: document.getElementById('honeycomb-gradient-toggle'),
+      honeycombGradientSettings: document.getElementById('honeycomb-gradient-settings'),
+      honeycombColor2: document.getElementById('honeycomb-color2'),
+      honeycombGradientDirection: document.getElementById('honeycomb-gradient-direction'),
+      honeycombCoverSize: document.getElementById('honeycomb-cover-size'),
       jigsawSettings: document.getElementById('jigsaw-settings'),
       jigsawRecutButton: document.getElementById('jigsaw-recut-button'),
       tiltDegree: document.getElementById('tilt-degree'),
@@ -2680,6 +2689,8 @@ const BooklistApp = (function() {
       '#cover-title-style-group .color-picker',
       '#cover-title-bg-color',
       '#cover-title-bg-color2',
+      '#honeycomb-color',
+      '#honeycomb-color2',
     ];
     const skipIds = new Set();
     const seen = new Set();
@@ -3197,6 +3208,8 @@ const BooklistApp = (function() {
       tiltCoverSize,
       jigsawSeed: _jigsawSeed,
       honeycombBackdrop: elements.honeycombBackdrop?.value || 'soft',
+      honeycombFill: readHoneycombFill(styles),
+      honeycombCoverSize: readHoneycombCoverSizePct() / 100,
       coverCount: coversToDraw.length
     };
     
@@ -4678,10 +4691,13 @@ const BooklistApp = (function() {
   const _softCoverCache = new WeakMap();
   function softenedCover(img) {
     if (_softCoverCache.has(img)) return _softCoverCache.get(img);
+    // 18px across: half the blur of the first version (10px), which washed
+    // out too much of the cover's color. Much past ~24px the cover's own
+    // title starts to show through as a ghost in the neighbouring cells.
     const a = collageImageAspect(img);
     const t = document.createElement('canvas');
-    t.width = Math.max(4, Math.round(10 * Math.min(1, a)));
-    t.height = Math.max(4, Math.round(10 / Math.max(1, a)));
+    t.width = Math.max(4, Math.round(18 * Math.min(1, a)));
+    t.height = Math.max(4, Math.round(18 / Math.max(1, a)));
     const tctx = t.getContext('2d');
     tctx.imageSmoothingQuality = 'high';
     tctx.drawImage(img, 0, 0, t.width, t.height);
@@ -4689,12 +4705,53 @@ const BooklistApp = (function() {
     return t;
   }
 
+  // A linear gradient across a box, in the title bar's four directions.
+  function linearGradientForBox(ctx, x, y, w, h, direction) {
+    switch (direction) {
+      case 'to-top': return ctx.createLinearGradient(x, y + h, x, y);
+      case 'to-right': return ctx.createLinearGradient(x, y, x + w, y);
+      case 'to-left': return ctx.createLinearGradient(x + w, y, x, y);
+      default: return ctx.createLinearGradient(x, y, x, y + h);
+    }
+  }
+
+  // The fill for Honeycomb's Color backdrop. By default it follows the title
+  // bar's background, gradient included; unchecking Match the title bar
+  // hands it to its own color and gradient controls.
+  function readHoneycombFill(styles) {
+    if (elements.honeycombColorMatch?.checked !== false) {
+      return { color: styles.bgColor, gradient: !!styles.bgGradient, color2: styles.bgColor2, direction: styles.bgGradientDirection };
+    }
+    return {
+      color: elements.honeycombColor?.value || '#1a202c',
+      gradient: !!elements.honeycombGradientToggle?.checked,
+      color2: elements.honeycombColor2?.value || '#333333',
+      direction: elements.honeycombGradientDirection?.value || 'to-bottom',
+    };
+  }
+
+  // Honeycomb's Cover Size, clamped exactly as Tilted's is (50 to 100).
+  function readHoneycombCoverSizePct() {
+    const raw = parseFloat(elements.honeycombCoverSize?.value ?? '100');
+    return isFinite(raw) ? Math.max(50, Math.min(100, raw)) : 100;
+  }
+
+  // Shows the Color backdrop's controls only when they apply.
+  function updateHoneycombColorControls() {
+    const isColor = elements.honeycombBackdrop?.value === 'color';
+    const match = elements.honeycombColorMatch?.checked !== false;
+    if (elements.honeycombColorSettings) elements.honeycombColorSettings.hidden = !isColor;
+    if (elements.honeycombColorCustom) elements.honeycombColorCustom.hidden = match;
+    if (elements.honeycombGradientSettings) elements.honeycombGradientSettings.hidden = !elements.honeycombGradientToggle?.checked;
+  }
+
   /**
    * Layout: Honeycomb
    * A comb of hexagons running off every edge. Each cell holds a whole cover,
    * framed on a backdrop chosen by options.honeycombBackdrop: 'soft' (default,
    * a softened, darkened wash of that cover), 'sharp' (the cover itself,
-   * enlarged and lightly darkened) or 'bar' (the title bar's color). Every
+   * enlarged and lightly darkened) or 'color' (options.honeycombFill, which
+   * follows the title bar unless the user sets its own). Every
    * title gets one whole cell; every other cell repeats titles in Staggered's
    * rhythm. The title bar floats at Tilted's heights on a white strip.
    */
@@ -4705,6 +4762,8 @@ const BooklistApp = (function() {
     const margin = styles.outerMarginPx;
     const n = images.length;
     const backdrop = options.honeycombBackdrop || 'soft';
+    const fill = options.honeycombFill || { color: styles.bgColor };
+    const coverSize = Math.max(0.5, Math.min(1, options.honeycombCoverSize || 1));
 
     const { bgH } = drawTitleBarAt(ctx, styles, W, 0);
     ctx.fillStyle = '#FFFFFF';
@@ -4729,7 +4788,7 @@ const BooklistApp = (function() {
           const tile = document.createElement('canvas');
           tile.width = tw;
           tile.height = th;
-          drawHoneycombCell(tile.getContext('2d'), images[t], tw / 2, th / 2, ri, backdrop, styles.bgColor, S);
+          drawHoneycombCell(tile.getContext('2d'), images[t], tw / 2, th / 2, ri, backdrop, fill, coverSize, S);
           tiles.set(t, tile);
         }
         return tiles.get(t);
@@ -4748,24 +4807,37 @@ const BooklistApp = (function() {
   }
 
   // One Honeycomb cell centred on (cx, cy): the backdrop clipped to the
-  // hexagon, then the whole cover on top with a soft shadow.
-  function drawHoneycombCell(ctx, img, cx, cy, ri, backdrop, barColor, S) {
+  // hexagon, then the whole cover on top with a soft shadow. fill is
+  // { color, gradient, color2, direction } for the 'color' backdrop
+  // ('bar' is the same thing under the name it had before it could be set).
+  function drawHoneycombCell(ctx, img, cx, cy, ri, backdrop, fill, coverSize, S) {
     const SQ3 = Math.sqrt(3);
     const bx = cx - (SQ3 / 2) * ri, by = cy - ri, bw = SQ3 * ri, bh = 2 * ri;
     ctx.save();
     hexagonPath(ctx, cx, cy, ri);
     ctx.clip();
-    if (backdrop === 'bar') {
-      ctx.fillStyle = barColor;
+    if (backdrop === 'color' || backdrop === 'bar') {
+      if (fill.gradient) {
+        const g = linearGradientForBox(ctx, bx, by, bw, bh, fill.direction);
+        g.addColorStop(0, fill.color);
+        g.addColorStop(1, fill.color2);
+        ctx.fillStyle = g;
+      } else {
+        ctx.fillStyle = fill.color;
+      }
       ctx.fillRect(bx, by, bw, bh);
     } else {
+      ctx.imageSmoothingQuality = 'high';
       drawCoverCropped(ctx, backdrop === 'sharp' ? img : softenedCover(img), bx, by, bw, bh);
-      ctx.fillStyle = backdrop === 'sharp' ? 'rgba(12,14,22,0.18)' : 'rgba(12,14,22,0.28)';
+      // Softened is darkened about half as much as it first was, so more of
+      // the cover's own color reaches the cell.
+      ctx.fillStyle = backdrop === 'sharp' ? 'rgba(12,14,22,0.18)' : 'rgba(12,14,22,0.15)';
       ctx.fillRect(bx, by, bw, bh);
     }
-    // Largest rectangle of the cover's shape whose corners stay inside the hexagon.
+    // Largest rectangle of the cover's shape whose corners stay inside the
+    // hexagon, scaled by the Cover Size setting.
     const a = collageImageAspect(img);
-    const p = Math.min((SQ3 / 2) * ri, ri / (1 / a + 1 / SQ3)) * 0.95;
+    const p = Math.min((SQ3 / 2) * ri, ri / (1 / a + 1 / SQ3)) * 0.95 * coverSize;
     const q = p / a;
     ctx.shadowColor = 'rgba(0,0,0,0.38)';
     ctx.shadowBlur = 8 * S;
@@ -7638,6 +7710,14 @@ const BooklistApp = (function() {
         tiltCoverSizePct,
         jigsawSeed: _jigsawSeed,
         honeycombBackdrop: elements.honeycombBackdrop?.value || 'soft',
+        honeycombFill: {
+          match: elements.honeycombColorMatch?.checked !== false,
+          color: elements.honeycombColor?.value || '#1a202c',
+          gradient: !!elements.honeycombGradientToggle?.checked,
+          color2: elements.honeycombColor2?.value || '#333333',
+          direction: elements.honeycombGradientDirection?.value || 'to-bottom',
+        },
+        honeycombCoverSizePct: readHoneycombCoverSizePct(),
         collageCoverCount: getCollageCoverCount(),
         qrCodeUrl: elements.qrUrlInput?.value || '',
         qrCodeText: qrTextContent,
@@ -7913,9 +7993,28 @@ const BooklistApp = (function() {
     }
 
     // Restore what fills each Honeycomb cell behind its cover (older saves: softened).
+    // 'bar' is the Color backdrop's name from before its color could be set.
     if (elements.honeycombBackdrop) {
-      const backdrop = loaded.ui?.honeycombBackdrop;
-      elements.honeycombBackdrop.value = ['soft', 'sharp', 'bar'].includes(backdrop) ? backdrop : 'soft';
+      const backdrop = loaded.ui?.honeycombBackdrop === 'bar' ? 'color' : loaded.ui?.honeycombBackdrop;
+      elements.honeycombBackdrop.value = ['soft', 'sharp', 'color'].includes(backdrop) ? backdrop : 'soft';
+    }
+    // The Color backdrop's own fill; older saves match the title bar.
+    {
+      const f = loaded.ui?.honeycombFill || {};
+      const hex = (v, d) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
+      if (elements.honeycombColorMatch) elements.honeycombColorMatch.checked = f.match !== false;
+      if (elements.honeycombColor) elements.honeycombColor.value = hex(f.color, '#1a202c');
+      if (elements.honeycombGradientToggle) elements.honeycombGradientToggle.checked = !!f.gradient;
+      if (elements.honeycombColor2) elements.honeycombColor2.value = hex(f.color2, '#333333');
+      if (elements.honeycombGradientDirection) {
+        elements.honeycombGradientDirection.value = ['to-bottom', 'to-top', 'to-right', 'to-left'].includes(f.direction) ? f.direction : 'to-bottom';
+      }
+      updateHoneycombColorControls();
+    }
+    // Honeycomb's Cover Size; older saves have none, so 100 (no shrink).
+    if (elements.honeycombCoverSize) {
+      const pct = loaded.ui?.honeycombCoverSizePct;
+      elements.honeycombCoverSize.value = (typeof pct === 'number' && isFinite(pct)) ? Math.max(50, Math.min(100, pct)) : 100;
     }
 
     // Restore the Jigsaw cut. Older saves have no seed; 1 is the default cut.
@@ -8657,9 +8756,63 @@ const BooklistApp = (function() {
     if (elements.honeycombBackdrop) {
       bindPreChangeCapture(elements.honeycombBackdrop, 'change-style');
       elements.honeycombBackdrop.addEventListener('change', () => {
+        updateHoneycombColorControls();
         debouncedSave();
         autoRegenerateCoverIfAble();
       });
+    }
+
+    // Honeycomb's Color backdrop. Unchecking Match the title bar starts the
+    // cells' own controls from the bar's current background, so nothing jumps.
+    if (elements.honeycombColorMatch) {
+      bindPreChangeCapture(elements.honeycombColorMatch, 'change-style');
+      elements.honeycombColorMatch.addEventListener('change', () => {
+        if (!elements.honeycombColorMatch.checked) {
+          const bar = getCoverTitleStyles();
+          if (elements.honeycombColor) elements.honeycombColor.value = bar.bgColor;
+          if (elements.honeycombGradientToggle) elements.honeycombGradientToggle.checked = !!bar.bgGradient;
+          if (elements.honeycombColor2) elements.honeycombColor2.value = bar.bgColor2;
+          if (elements.honeycombGradientDirection) elements.honeycombGradientDirection.value = bar.bgGradientDirection;
+        }
+        updateHoneycombColorControls();
+        debouncedSave();
+        autoRegenerateCoverIfAble();
+      });
+    }
+    [elements.honeycombGradientToggle, elements.honeycombGradientDirection].forEach((el) => {
+      if (!el) return;
+      bindPreChangeCapture(el, 'change-style');
+      el.addEventListener('change', () => {
+        updateHoneycombColorControls();
+        debouncedSave();
+        autoRegenerateCoverIfAble();
+      });
+    });
+    // Color inputs change before input fires: the pre-edit snapshot pattern.
+    [elements.honeycombColor, elements.honeycombColor2].forEach((el) => {
+      if (!el) return;
+      el.addEventListener('focus', capturePreEditSnapshot);
+      el.addEventListener('blur', clearPreEditSnapshot);
+      el.addEventListener('input', () => {
+        commitPreEditSnapshot('change-style');
+        debouncedSave();
+        debouncedCoverRegen();
+      });
+      el.addEventListener('change', autoRegenerateCoverIfAble);
+    });
+    // Honeycomb Cover Size: the same control, clamping and snapshot
+    // pattern as Tilted's.
+    if (elements.honeycombCoverSize) {
+      elements.honeycombCoverSize.addEventListener('focus', capturePreEditSnapshot);
+      elements.honeycombCoverSize.addEventListener('blur', () => {
+        clearPreEditSnapshot();
+        elements.honeycombCoverSize.value = readHoneycombCoverSizePct();
+      });
+      ['input', 'change'].forEach((type) => elements.honeycombCoverSize.addEventListener(type, () => {
+        commitPreEditSnapshot('change-style');
+        debouncedSave();
+        debouncedCoverRegen();
+      }));
     }
 
     // Jigsaw: Recut cuts a new set of tabs (the repeats follow the pattern and stay put)
@@ -10352,6 +10505,13 @@ const BooklistApp = (function() {
     if (elements.tiltCoverSize) elements.tiltCoverSize.value = 100;
     _jigsawSeed = 1;
     if (elements.honeycombBackdrop) elements.honeycombBackdrop.value = 'soft';
+    if (elements.honeycombColorMatch) elements.honeycombColorMatch.checked = true;
+    if (elements.honeycombColor) elements.honeycombColor.value = '#1a202c';
+    if (elements.honeycombGradientToggle) elements.honeycombGradientToggle.checked = false;
+    if (elements.honeycombColor2) elements.honeycombColor2.value = '#333333';
+    if (elements.honeycombGradientDirection) elements.honeycombGradientDirection.value = 'to-bottom';
+    if (elements.honeycombCoverSize) elements.honeycombCoverSize.value = 100;
+    updateHoneycombColorControls();
     updateTiltedSettingsVisibility();
 
     // Clear front cover and branding images
