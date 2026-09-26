@@ -6571,11 +6571,13 @@ const BooklistApp = (function() {
       const title = useTitleCase ? BookUtils.toTitleCase(row.title) : row.title;
       const author = BookUtils.flipAuthorName(row.author);
       const callNumber = row.callNumber || CONFIG.PLACEHOLDERS.callNumber;
-      // row.coverUrl is set by the Booklister Helper browser extension
-      // (which emits a 4-column TSV with the BiblioCommons cover URL).
-      // Plain spreadsheet pastes leave it empty, in which case we fall
-      // back to the cover-pending placeholder. The URL is already
-      // sanitized to http/https by parseQuickAddTsv.
+      // row.coverUrl comes from an optional 4th column. The Booklister
+      // Helper browser extension fills it with the cover embedded as a
+      // data:image URL; a hand-made spreadsheet can put a plain http(s)
+      // image link there instead. Plain 3-column pastes leave it empty,
+      // in which case we fall back to the cover-pending placeholder.
+      // parseQuickAddTsv has already reduced it to http(s) or
+      // data:image, or empty.
       const coverUrl = row.coverUrl || CONFIG.PLACEHOLDER_COVER_URL;
       const include = starred < CONFIG.MIN_COVERS_FOR_COLLAGE;
       if (include) starred++;
