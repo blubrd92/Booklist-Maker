@@ -1202,13 +1202,16 @@ const TAIL_REST = [
 const TAIL_SEGS = TAIL_REST.length - 1;
 const TAIL_STRIPE_AT = [5.2, 7.2, 9.1];
 const TAIL_MAX_LAG = 0.24;
+// No quiver here, unlike folio.js: its 7 Hz tremble at the tail's base
+// gets about four frames per cycle at 30 fps and reads as jitter. The
+// happy moods still stand tall with a curled tip.
 const TAIL_MOODS = {
-  idle: { amp: 1.4, period: 3.8, curl: 1.0, bend: 1.0, lean: 0, sweep: 0, quiver: 0 },
-  searching: { amp: 0.4, period: 2.4, curl: 1.15, bend: 0.95, lean: -14, sweep: 0, quiver: 0 },
-  excited: { amp: 0.6, period: 1.8, curl: 1.35, bend: 0.45, lean: 12, sweep: 0, quiver: 1.6 },
-  evaluating: { amp: 1.2, period: 5.0, curl: 1.25, bend: 1.0, lean: 2, sweep: 3, quiver: 0 },
-  greeting: { amp: 0.8, period: 2.2, curl: 1.4, bend: 0.5, lean: 10, sweep: 0, quiver: 1.2 },
-  content: { amp: 1.0, period: 2.8, curl: 1.45, bend: 0.7, lean: 6, sweep: 2, quiver: 0.6 },
+  idle: { amp: 1.4, period: 3.8, curl: 1.0, bend: 1.0, lean: 0, sweep: 0 },
+  searching: { amp: 0.4, period: 2.4, curl: 1.15, bend: 0.95, lean: -14, sweep: 0 },
+  excited: { amp: 0.6, period: 1.8, curl: 1.35, bend: 0.45, lean: 12, sweep: 0 },
+  evaluating: { amp: 1.2, period: 5.0, curl: 1.25, bend: 1.0, lean: 2, sweep: 3 },
+  greeting: { amp: 0.8, period: 2.2, curl: 1.4, bend: 0.5, lean: 10, sweep: 0 },
+  content: { amp: 1.0, period: 2.8, curl: 1.45, bend: 0.7, lean: 6, sweep: 2 },
 };
 const tailLen = [], tailRel = [];
 let tailRootRest = 0;
@@ -1225,7 +1228,7 @@ for (let i = 0; i < TAIL_SEGS; i++) {
   }
 }
 const TAIL_FLICKS = (() => { const r = rng(99); const out = []; let t = 2; while (t < DURATION) { out.push([t, (r() < 0.5 ? -1 : 1) * (1.6 + r() * 1.6)]); t += 3.5 + r() * 4; } return out; })();
-const tail = { t: -1, ang: [], vel: [], cur: null, phase: 0, qphase: 0, inert: 0, flick: 0 };
+const tail = { t: -1, ang: [], vel: [], cur: null, phase: 0, inert: 0, flick: 0 };
 function moodAt(t) { let m = 'idle'; MOODS.forEach(([mt, name]) => { if (t >= mt) m = name; }); return m; }
 function tailWidthAt(k) { return 24 + 8 * Math.pow(k / TAIL_SEGS, 1.6); }
 function tailCurlAt(i, curl, bend) { const u = clamp((i - (TAIL_SEGS - 5)) / 4); return bend * (1 - u) + curl * u; }
@@ -1236,7 +1239,7 @@ function tailTarget(i, parentAng) {
 }
 function tailBase(root) {
   const c = tail.cur;
-  const deg = c.lean + c.sweep * Math.sin(tail.phase) + c.quiver * Math.sin(tail.qphase);
+  const deg = c.lean + c.sweep * Math.sin(tail.phase);
   return root + tailRootRest + deg * Math.PI / 180;
 }
 function tailRoot(t) {
@@ -1245,7 +1248,7 @@ function tailRoot(t) {
   return { rot: a.rot * Math.PI / 180, inertTarget: clamp(-vx * 0.00045 + vy * 0.0005, -0.55, 0.55) };
 }
 function resetTail() {
-  tail.t = 0; tail.phase = 0; tail.qphase = 0; tail.inert = 0;
+  tail.t = 0; tail.phase = 0; tail.inert = 0;
   tail.cur = Object.assign({}, TAIL_MOODS[moodAt(0)]);
   const { rot } = tailRoot(0);
   tail.ang[0] = tailBase(rot);
@@ -1258,7 +1261,6 @@ function stepTail(dt) {
   const blend = 1 - Math.exp(-dt / 0.35);
   for (const k in target) tail.cur[k] += (target[k] - tail.cur[k]) * blend;
   tail.phase += dt * 2 * Math.PI / tail.cur.period;
-  tail.qphase += dt * 2 * Math.PI * 7;
   const { rot, inertTarget } = tailRoot(t);
   tail.inert += (inertTarget - tail.inert) * (1 - Math.exp(-dt / 0.1));
   TAIL_FLICKS.forEach(([ft, kick]) => { if (ft > tail.t && ft <= t) for (let i = TAIL_SEGS - 3; i < TAIL_SEGS; i++) tail.vel[i] += kick; });
