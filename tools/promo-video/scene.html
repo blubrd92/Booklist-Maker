@@ -70,6 +70,10 @@ svg { overflow: visible; }
 
 /* ---------- export (print and fold) ---------- */
 #printStage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; perspective: 2600px; perspective-origin: 1180px 420px; }
+/* The booklet fades through this wrapper, never through #sheet itself:
+   opacity below 1 flattens a preserve-3d element, which painted the
+   folded-back inside panel flat and mirrored for the length of the fade. */
+#sheetFade { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; perspective: 2600px; perspective-origin: 1180px 420px; }
 #sheet { position: absolute; left: 740px; top: 140px; width: 880px; height: 680px; transform-style: preserve-3d; transform-origin: 440px 340px; }
 .half { position: absolute; top: 0; width: 440px; height: 680px; transform-style: preserve-3d; }
 .face { position: absolute; left: 0; top: 0; width: 440px; height: 680px; backface-visibility: hidden; overflow: hidden;
@@ -821,7 +825,8 @@ function buildPrint() {
   svgEl('rect', { x: 690, y: 748, width: 980, height: 60, rx: 22, fill: '#4b5560' }, C.printerBack);
   svgEl('rect', { x: 720, y: 772, width: 920, height: 12, rx: 6, fill: '#1f252b' }, C.printerBack);
   const sh = div('', ps); sh.id = 'sheetShadow'; C.sheetShadow = sh;
-  const sheet = div('', ps); sheet.id = 'sheet'; C.sheet = sheet;
+  const sheetFade = div('', ps); sheetFade.id = 'sheetFade'; C.sheetFade = sheetFade;
+  const sheet = div('', sheetFade); sheet.id = 'sheet'; C.sheet = sheet;
   // One sheet, printed both sides, as the PDF lays it out:
   //   page 1: back cover | front cover      page 2: inside left | inside right
   // Half L carries page 1's left and, behind it, page 2's right; half R
@@ -1626,7 +1631,7 @@ function renderPrint(t) {
   const zlift = 140 * Math.sin(Math.PI * flip);
   let shake = 0;
   if (t > T.stamp && t < T.stamp + 0.2) shake = Math.sin((t - T.stamp) * 90) * 5 * (1 - (t - T.stamp) / 0.2);
-  setO(C.sheet, t > T.sheetOut ? (1 - away) * Math.min(1, back * 2) : 0);
+  setO(C.sheetFade, t > T.sheetOut ? (1 - away) * Math.min(1, back * 2) : 0);
   setT(C.sheet, `translate3d(${f1(dx + shake)}px, ${f1(dy)}px, ${f1(zlift)}px) rotateY(${f1(ry)}deg) rotateX(${f1(rx)}deg) scale(${sc.toFixed(4)})`);
   setT(C.halfR, `translateZ(-2px) rotateY(${f1(180 * fold)}deg)`);
   const shadeFlip = 0.35 * Math.abs(Math.sin(Math.PI * flip)), shadeFold = 0.3 * Math.abs(Math.sin(Math.PI * fold));
