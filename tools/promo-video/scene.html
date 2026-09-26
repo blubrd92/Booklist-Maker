@@ -359,7 +359,7 @@ const LINES = [
   { id: 'edit', t: 21.3, end: 27.3, text: 'Click any text on the page to *edit* it.', pitch: 0 },
   { id: 'star', t: 28.7, end: 33.3, text: 'Stars choose which covers go on the *front cover.*', pitch: 1 },
   { id: 'collage', t: 35.2, end: 47.0, text: 'Now make the cover. {1.1} *Classic?* {1.2} *Tilted?* {1.2} *Staggered?* {1.3} Ooh... {0.35} *Honeycomb!*', pitch: 1 },
-  { id: 'style', t: 48.2, end: 54.5, text: 'Try on new *fonts* {0.3} and *colors...*', pitch: 0 },
+  { id: 'style', t: 47.5, end: 54.5, text: 'Try on new *fonts* {0.3} and *colors...*', pitch: 0 },
   { id: 'qr', t: 55.0, end: 62.8, text: "...then add a *QR code* for your catalog, and your library's *logo.*", pitch: 0 },
   { id: 'pdf', t: 63.4, end: 68.9, text: 'Click *Generate PDF* for a print-ready file, at a crisp *600 DPI.*', pitch: 0 },
   { id: 'fold', t: 69.3, end: 73.6, text: 'Print it, {0.15} fold it, {0.15} set it out!', pitch: 2 },
@@ -486,7 +486,8 @@ const T = {
   qaClick: 15.0, pasteAt: 16.6, qaGo: 18.4,
   edit: 20.4, skip: 27.5, stars: [30.3, 31.3],
   fcTab: 34.0, create: 36.9,
-  toStyle: 47.3, fontOpen: 48.9, fontPick: 50.1, palette: 51.3, swatch: 52.3, gradient: 53.4,
+  toStyle: 46.7, font1Open: 47.8, font1Pick: 48.7, fontOpen: 49.5, fontPick: 50.4,
+  palette: 51.2, swatch: 51.9, gradient: 52.7, palette2: 53.4, swatch2: 54.1,
   backTab: 55.0, qrUpdate: 59.0, logo: 61.5,
   hopOut: 74.0, tourIn: 74.4, tourOut: 81.0, logoBack: 81.5, outroIn: 81.6,
   fadeOut: DURATION - 0.7,
@@ -494,7 +495,7 @@ const T = {
 T.tilt = wordT('collage', 5) - 0.08;
 T.stag = wordT('collage', 6) - 0.08;
 T.honey = wordT('collage', 8) - 0.1;
-T.fonts = [T.fontOpen, T.fontPick, T.palette, T.gradient];
+T.fonts = [T.font1Open, T.fontPick, T.palette, T.swatch2];
 T.callouts = [22.0, 23.9];
 T.qrIn = T.backTab;
 T.pdfClick = wordT('pdf', 1) + 0.1;
@@ -639,31 +640,40 @@ const KEYCAPS = [];
   CALLOUTS.push([T.tilt - 0.4, T.tilt + 1.9, 'pre-tilted', 'target', 0.5, 0, -60, -120, 'Six collage layouts', 'made from your starred covers']);
   cur(T.honey + 1.0, [700, 640]);
 
-  // ---- 4. Style: a font, a color, a gradient, a QR code, a logo -----
+  // ---- 4. Style: two fonts, a rainy-sky gradient, a QR code, a logo --
   cut(T.toStyle, 'st-scrolled');
   sfx(T.toStyle, 'whoosh', { pan: 0.3, gain: 0.5 });
-  const font2 = ctr(rectOf('st-scrolled', 'font2'));
   camHold(T.toStyle); cam(T.toStyle + 0.6, 600, 330, 1.12);
-  CURSOR_VIS.push([T.toStyle + 0.4, T.gradient + 0.9]);
-  cur(T.toStyle + 0.4, [640, 560]); cur(T.fontOpen - 0.15, font2); click(T.fontOpen, font2);
-  cut(T.fontOpen + 0.08, 'st-fontlist');
-  sfx(T.fontOpen + 0.08, 'open', { pan: -0.1, gain: 0.7 });
-  const opt = ctr(rectOf('st-fontlist', 'option'), 0.3);
-  cur(T.fontPick - 0.2, opt); click(T.fontPick, opt);
-  cut(T.fontPick + 0.35, 'st-font');
-  sfx(T.fontPick + 0.35, 'shuffle', { pan: 0.4, gain: 0.7 });
-  const pal = ctr(rectOf('st-palette', 'bgTrigger'));
-  cur(T.palette - 0.2, pal); click(T.palette, pal);
-  cut(T.palette + 0.08, 'st-palette');
-  sfx(T.palette + 0.08, 'open', { pan: -0.1, gain: 0.7 });
-  const sw = ctr(rectOf('st-palette', 'swatch'));
-  cur(T.swatch - 0.2, sw); click(T.swatch, sw, 'tick');
-  cut(T.swatch + 0.3, 'st-color');
+  CURSOR_VIS.push([T.toStyle + 0.4, T.swatch2 + 0.9]);
+  cur(T.toStyle + 0.4, [640, 560]);
+  // a font for each line, through the real dropdown
+  [['font1', T.font1Open, T.font1Pick, 'st-scrolled', '1'], ['font2', T.fontOpen, T.fontPick, 'st-font1', '']].forEach(([rect, open, pick, from, id]) => {
+    const trig = ctr(rectOf(from, rect));
+    cur(open - 0.15, trig); click(open, trig);
+    cut(open + 0.08, `st-fontlist${id}`);
+    sfx(open + 0.08, 'open', { pan: -0.1, gain: 0.7 });
+    const opt = ctr(rectOf(`st-fontlist${id}`, 'option'), 0.3);
+    cur(pick - 0.2, opt); click(pick, opt);
+    cut(pick + 0.35, `st-font${id}`);
+    sfx(pick + 0.35, 'shuffle', { pan: 0.4, gain: 0.7 });
+  });
+  // Sky Blue, the gradient, then Marine Blue at its far end
+  const swatchStep = (open, pick, id) => {
+    const pal = ctr(rectOf(`st-palette${id}`, 'bgTrigger'));
+    cur(open - 0.2, pal); click(open, pal);
+    cut(open + 0.08, `st-palette${id}`);
+    sfx(open + 0.08, 'open', { pan: -0.1, gain: 0.7 });
+    const sw = ctr(rectOf(`st-palette${id}`, 'swatch'));
+    cur(pick - 0.2, sw); click(pick, sw, 'tick');
+    cut(pick + 0.3, `st-color${id}`);
+  };
+  swatchStep(T.palette, T.swatch, '');
   cut(T.gradient - 0.35, 'pre-gradient');
   const gr = ctr(rectOf('pre-gradient', 'target'));
   cur(T.gradient - 0.15, gr); click(T.gradient, gr, 'toggle');
   cut(T.gradient + 0.3, 'st-gradient');
-  sfx(T.gradient + 0.35, 'sparkle', { pan: 0.4, gain: 0.5 });
+  swatchStep(T.palette2, T.swatch2, '2');
+  sfx(T.swatch2 + 0.35, 'sparkle', { pan: 0.4, gain: 0.5 });
   // back cover: the blurb, the QR code, the logo
   const btab = ctr(rectOf('bc-tab', 'tab'));
   CURSOR_VIS.push([T.backTab - 0.6, T.logo + 0.9]);
@@ -1384,7 +1394,7 @@ function buildParticles() {
   burst(T.honey + 0.35, 'confetti', ...at(T.honey + 0.35, 'fc-honeycomb', 'cover'), 26, { spread: 330 });
   burst(T.heartsA, 'heart', 330, 400, 4);
   burst(T.qrUpdate + 0.7, 'sparkle', ...at(T.qrUpdate + 0.7, 'bc-qr', 'qr'), 12, { spread: 150 });
-  burst(T.gradient + 0.3, 'sparkle', ...at(T.gradient + 0.3, 'st-gradient', 'cover'), 10, { spread: 260 });
+  burst(T.swatch2 + 0.3, 'sparkle', ...at(T.swatch2 + 0.3, 'st-color2', 'cover'), 10, { spread: 260 });
   burst(T.stamp + 0.1, 'dust', 1560, 180, 14);
   burst(T.fold + 0.8, 'sparkle', 1400, 480, 10, { spread: 260 });
   burst(T.hopOut + 0.72, 'dust', 700, 900, 8);
@@ -1602,6 +1612,9 @@ function renderOverlays(t) {
 
 // The finale's centre line: the logo and the finished booklet share it.
 const OUTRO_X = 1270;
+// The finished booklet's size on the shelf; it grows upward from the
+// shelf, so its bottom edge stays put whatever this is.
+const OUTRO_SCALE = 0.72;
 function renderPrint(t) {
   // printer
   const up = E.outBack(seg(t, T.printerUp, T.printerUp + 0.55)), down = E.in(seg(t, T.sheetLift + 0.35, T.sheetLift + 0.9));
@@ -1625,9 +1638,9 @@ function renderPrint(t) {
   const ry = 180 * flip - 16 * stand + 6 * outro;
   const rx = 4 * stand;
   // Once folded, the booklet is the viewer-right half: re-centre it.
-  const bookX = lerp(lerp(0, -220, stand), OUTRO_X - 1180 - 220 * 0.62, outro);
-  const bookY = lerp(lerp(dy, 50, stand), 690 - 480, outro);
-  if (t >= T.stand) { dx = bookX; dy = bookY; sc = lerp(lerp(0.94, 0.92, stand), 0.62, outro) * (0.8 + 0.2 * back); }
+  const bookX = lerp(lerp(0, -220, stand), OUTRO_X - 1180 - 220 * OUTRO_SCALE, outro);
+  const bookY = lerp(lerp(dy, 50, stand), 901 - 340 * OUTRO_SCALE - 480, outro);
+  if (t >= T.stand) { dx = bookX; dy = bookY; sc = lerp(lerp(0.94, 0.92, stand), OUTRO_SCALE, outro) * (0.8 + 0.2 * back); }
   const zlift = 140 * Math.sin(Math.PI * flip);
   let shake = 0;
   if (t > T.stamp && t < T.stamp + 0.2) shake = Math.sin((t - T.stamp) * 90) * 5 * (1 - (t - T.stamp) / 0.2);
@@ -1637,7 +1650,7 @@ function renderPrint(t) {
   const shadeFlip = 0.35 * Math.abs(Math.sin(Math.PI * flip)), shadeFold = 0.3 * Math.abs(Math.sin(Math.PI * fold));
   C.faceShades.forEach((s, i) => setO(s, i % 2 === 0 ? shadeFlip : Math.max(shadeFlip, shadeFold)));
   const shV = (t > T.stand ? E.out(seg(t, T.stand + 0.3, T.stand + 0.8)) : 0) * (1 - away) * Math.min(1, back);
-  const shX = lerp(1180, OUTRO_X, outro), shW = lerp(420, 300, outro);
+  const shX = lerp(1180, OUTRO_X, outro), shW = lerp(420, 480 * OUTRO_SCALE, outro);
   C.sheetShadow.style.cssText = `left:${f1(shX - shW / 2)}px;top:${f1(lerp(842, 884, outro))}px;width:${f1(shW)}px;height:34px;opacity:${shV.toFixed(3)}`;
   const st = seg(t, T.stamp, T.stamp + 0.22);
   const stOut = seg(t, T.flip - 0.1, T.flip + 0.15);
@@ -1645,7 +1658,7 @@ function renderPrint(t) {
   setT(C.stamp, `translate(1455px, 72px) rotate(-14deg) scale(${lerp(2.4, 1, E.outBack(st)).toFixed(3)})`);
   const tk = E.outBack(seg(t, T.outroIn + 0.5, T.outroIn + 0.9));
   setO(C.takeone, t > T.outroIn + 0.5 ? 1 : 0);
-  setT(C.takeone, `translate(${OUTRO_X + 95}px, 408px) rotate(${f1(-6 + Math.sin(t * 2) * 1.5)}deg) scale(${tk.toFixed(3)})`);
+  setT(C.takeone, `translate(${OUTRO_X + 120}px, 352px) rotate(${f1(-6 + Math.sin(t * 2) * 1.5)}deg) scale(${tk.toFixed(3)})`);
 }
 
 /* ---------------- speech bubble ---------------- */

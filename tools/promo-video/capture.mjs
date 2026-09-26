@@ -21,6 +21,7 @@
  * - placehold.co (the empty-slot placeholder) is drawn locally.
  */
 
+import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
@@ -39,6 +40,24 @@ const CDN = {
 };
 
 export const VIEWPORT = { width: 1280, height: 756, dpr: 2 };
+
+// Google Fonts, fetched by curl and cached. Headless Chromium doesn't
+// use this machine's HTTPS proxy, so left to itself it never reached
+// Google Fonts and every web font on the cover fell back to a generic
+// face: a font picked on camera changed nothing, or changed to the
+// wrong thing. curl honours the proxy.
+const FONT_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+const fontCache = new Map();
+function googleFont(url) {
+  if (!fontCache.has(url)) {
+    try {
+      fontCache.set(url, execFileSync('curl', ['-sSfL', '-A', FONT_UA, url], { maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }));
+    } catch {
+      fontCache.set(url, null);
+    }
+  }
+  return fontCache.get(url);
+}
 
 function serveRepo(root, port, fontCss) {
   const server = createServer((req, res) => {
@@ -115,7 +134,11 @@ export async function captureApp(browser, opts) {
       const name = u.pathname.split('/').pop();
       if (CDN[name]) return route.fulfill({ body: cdnBody(root, name), contentType: name.endsWith('.css') ? 'text/css' : 'text/javascript', headers: cors });
     }
-    if (u.hostname === 'fonts.googleapis.com' || u.hostname === 'fonts.gstatic.com') return route.continue();
+    if (u.hostname === 'fonts.googleapis.com' || u.hostname === 'fonts.gstatic.com') {
+      const body = googleFont(u.href);
+      if (body) return route.fulfill({ body, contentType: u.hostname === 'fonts.gstatic.com' ? 'font/woff2' : 'text/css; charset=utf-8', headers: cors });
+      return route.abort();
+    }
     if (u.hostname === 'placehold.co') return route.fulfill({ body: placeholderSvg(u), contentType: 'image/svg+xml', headers: cors });
     if (u.hostname === 'openlibrary.org' && u.pathname === '/search.json') {
       const docs = search.map((bi) => ({ key: `/works/OLDEMO${bi}W`, title: books[bi].t, author_name: [books[bi].a], cover_i: 900000 + bi }));
@@ -195,12 +218,19 @@ export async function captureApp(browser, opts) {
     return shots[shots.length - 1].rects.target;
   }
   const clickRect = (r) => page.mouse.click(r[0] + r[2] / 2, r[1] + r[3] / 2);
-  const coverSrc = () => page.evaluate(() => document.querySelector('#front-cover-uploader img')?.src.slice(-80) || '');
+  // A fingerprint of the whole cover image: a change near the top (the
+  // title bar) can leave the end of the JPEG data identical.
+  const coverSrc = () => page.evaluate(() => {
+    const src = document.querySelector('#front-cover-uploader img')?.src || '';
+    let h = 0;
+    for (let i = 0; i < src.length; i++) h = (h * 31 + src.charCodeAt(i)) | 0;
+    return `${src.length}:${h}`;
+  });
   async function waitForCollage(prev) {
     for (let i = 0; i < 80; i++) {
       await wait(150);
       const s = await coverSrc();
-      if (s && s !== prev && s.length > 40) { await wait(250); return; }
+      if (s !== prev && parseInt(s, 10) > 40) { await wait(250); return; }
     }
     const why = await page.evaluate(() => ({
       note: document.getElementById('notification')?.innerText,
@@ -363,56 +393,76 @@ export async function captureApp(browser, opts) {
   }
 
   // ---- Header style -----------------------------------------------
+  // Both line fonts, then a Sky Blue to Marine Blue gradient, each
+  // picked through the tool's own dropdowns and palette. The title reads
+  // "Rainy Day Reads", so the bar is a rainy sky.
   const lineTrig = '.line-style-group .custom-font-dropdown-trigger';
   const st = Object.assign({}, fc, {
-    font2: [lineTrig, 1], bg: '#cover-title-bg-color', bgPal: ['.color-palette-trigger', 0], grad: '#cover-title-gradient-toggle',
-    stylebox: '#cover-title-style-group, .cover-style-section', lineGroup: ['.line-style-group', 1],
+    font1: [lineTrig, 0], font2: [lineTrig, 1], bg: '#cover-title-bg-color', grad: '#cover-title-gradient-toggle',
+    stylebox: '#cover-title-style-group, .cover-style-section', lineGroup: ['.line-style-group', 0],
   });
   await page.evaluate(() => {
-    const g = document.querySelectorAll('.line-style-group')[1];
+    const g = document.querySelectorAll('.line-style-group')[0];
     window.__reveal(g, 'start', -60);
   });
   await wait(300);
   await shot('st-scrolled', st);
-  await page.locator(lineTrig).nth(1).click();
-  await wait(300);
-  const option = page.locator('.custom-font-dropdown-list:visible >> text="Playfair Display"').first();
-  await option.scrollIntoViewIfNeeded();
-  await wait(200);
-  await shot('st-fontlist', Object.assign({}, st, { option: '.custom-font-dropdown-list [data-value*="Playfair"], .custom-font-dropdown-list .selected' }));
-  const optRect = await option.boundingBox();
-  shots[shots.length - 1].rects.option = [optRect.x, optRect.y, optRect.width, optRect.height];
-  prev = await coverSrc();
-  await option.click();
-  await waitForCollage(prev);
-  await shot('st-font', st);
-  // background color, through the palette popover
-  const bgWrap = await page.evaluate(() => {
-    const w = document.getElementById('cover-title-bg-color').closest('.color-palette-wrap');
-    const t = w.querySelector('.color-palette-trigger');
-    const r = t.getBoundingClientRect();
-    return [r.x, r.y, r.width, r.height];
-  });
-  await page.mouse.click(bgWrap[0] + bgWrap[2] / 2, bgWrap[1] + bgWrap[3] / 2);
-  await wait(300);
-  const swatches = await page.evaluate(() => [...document.querySelectorAll('.color-palette-popover.open [style*="background"], .color-palette-popover.open button')]
-    .map((el) => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height, window.getComputedStyle(el).backgroundColor]; }).filter((s) => s[2] > 6 && s[2] < 40));
-  await shot('st-palette', Object.assign({}, st, { bgTrig: '.color-palette-popover.open' }));
-  shots[shots.length - 1].rects.bgTrigger = bgWrap;
-  // Marine Blue, from the app's own presets: a rainy sky for "Rainy Day
-  // Reads", which the gradient's default grey end turns stormy.
-  const pick = swatches.find((s) => s[4] === 'rgb(43, 108, 176)') || swatches[Math.min(5, swatches.length - 1)];
-  shots[shots.length - 1].rects.swatch = pick.slice(0, 4);
-  prev = await coverSrc();
-  await page.mouse.click(pick[0] + pick[2] / 2, pick[1] + pick[3] / 2);
-  await waitForCollage(prev);
-  await page.mouse.click(5, VIEWPORT.height - 5);
-  await wait(200);
-  await shot('st-color', st);
+  async function pickFont(line, label, id) {
+    await page.locator(lineTrig).nth(line).click();
+    await wait(300);
+    const option = page.locator(`.custom-font-dropdown-list:visible >> text="${label}"`).first();
+    await option.scrollIntoViewIfNeeded();
+    await wait(200);
+    await shot(`st-fontlist${id}`, st);
+    const r = await option.boundingBox();
+    shots[shots.length - 1].rects.option = [r.x, r.y, r.width, r.height];
+    // Hovering an option already previews it on the cover, so the cover
+    // can change before the click lands: note it before the hover, then
+    // let the rebuild after the click settle.
+    const before = await coverSrc();
+    await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2);
+    await wait(250);
+    await page.mouse.click(r.x + r.width / 2, r.y + r.height / 2);
+    await waitForCollage(before);
+    let last = await coverSrc();
+    for (let i = 0; i < 20; i++) {
+      await wait(400);
+      const now = await coverSrc();
+      if (now === last) break;
+      last = now;
+    }
+    await shot(`st-font${id}`, st);
+  }
+  await pickFont(0, 'Josefin Sans', '1');
+  await pickFont(1, 'Dancing Script', '');
+  // a color from a palette popover, found by its exact preset value
+  async function pickSwatch(inputId, rgb, id) {
+    const trig = await page.evaluate((iid) => {
+      const w = document.getElementById(iid).closest('.color-palette-wrap');
+      const r = w.querySelector('.color-palette-trigger').getBoundingClientRect();
+      return [r.x, r.y, r.width, r.height];
+    }, inputId);
+    await page.mouse.click(trig[0] + trig[2] / 2, trig[1] + trig[3] / 2);
+    await wait(300);
+    const swatches = await page.evaluate(() => [...document.querySelectorAll('.color-palette-popover.open .color-palette-swatch')]
+      .map((el) => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height, window.getComputedStyle(el).backgroundColor]; }));
+    await shot(`st-palette${id}`, st);
+    const pick = swatches.filter((sw) => sw[4] === rgb).pop();
+    if (!pick) throw new Error(`no ${rgb} swatch in the palette`);
+    Object.assign(shots[shots.length - 1].rects, { bgTrigger: trig, swatch: pick.slice(0, 4) });
+    const before = await coverSrc();
+    await page.mouse.click(pick[0] + pick[2] / 2, pick[1] + pick[3] / 2);
+    await waitForCollage(before);
+    await page.mouse.click(5, VIEWPORT.height - 5);
+    await wait(200);
+    await shot(`st-color${id}`, st);
+  }
+  await pickSwatch('cover-title-bg-color', 'rgb(99, 179, 237)', '');
   prev = await coverSrc();
   await clickRect(await pre('pre-gradient', '#cover-title-gradient-toggle', 0, st));
   await waitForCollage(prev).catch(() => {});
   await shot('st-gradient', st);
+  await pickSwatch('cover-title-bg-color2', 'rgb(43, 108, 176)', '2');
 
   // ---- Back cover: QR code ----------------------------------------
   await page.click('[aria-controls="tab-back-cover"]');
