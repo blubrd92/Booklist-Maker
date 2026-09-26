@@ -399,8 +399,9 @@ export async function captureApp(browser, opts) {
     .map((el) => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height, window.getComputedStyle(el).backgroundColor]; }).filter((s) => s[2] > 6 && s[2] < 40));
   await shot('st-palette', Object.assign({}, st, { bgTrig: '.color-palette-popover.open' }));
   shots[shots.length - 1].rects.bgTrigger = bgWrap;
-  // pick a plum-ish swatch if there is one, else the fifth
-  const pick = swatches.find((s) => /rgb\((9\d|1[0-2]\d), (4\d|5\d|6\d), (1[0-4]\d)\)/.test(s[4])) || swatches[Math.min(5, swatches.length - 1)];
+  // Marine Blue, from the app's own presets: a rainy sky for "Rainy Day
+  // Reads", which the gradient's default grey end turns stormy.
+  const pick = swatches.find((s) => s[4] === 'rgb(43, 108, 176)') || swatches[Math.min(5, swatches.length - 1)];
   shots[shots.length - 1].rects.swatch = pick.slice(0, 4);
   prev = await coverSrc();
   await page.mouse.click(pick[0] + pick[2] / 2, pick[1] + pick[3] / 2);
