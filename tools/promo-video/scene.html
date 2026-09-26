@@ -1342,8 +1342,13 @@ function renderCat(t) {
   setA(C.eyeRin, 'transform', `translate(${f1(lx)} ${f1(ly)}) translate(310 200) scale(1 ${ey.toFixed(3)}) translate(-310 -200)`);
   const hl = `translate(${f1(lookX * 2)} 0)`;
   setA(C.hlL1, 'transform', hl); setA(C.hlR1, 'transform', hl);
-  setA(C.eyesClosed, 'opacity', (bl > 0.75 && sq < 0.5 ? 1 : 0).toString());
+  // Once the closed or happy arcs are drawn, the open eyes must go
+  // entirely: squashed to a sliver they still read as a second pair.
+  const arcs = sq > 0.6 || bl > 0.75;
+  setA(C.eyesClosed, 'opacity', (bl > 0.75 && sq <= 0.6 ? 1 : 0).toString());
   setA(C.eyesHappy, 'opacity', (sq > 0.6 ? 1 : 0).toString());
+  setA(C.eyeLin, 'visibility', arcs ? 'hidden' : 'visible');
+  setA(C.eyeRin, 'visibility', arcs ? 'hidden' : 'visible');
   const blush = 0.28 + 0.3 * sq;
   setA(C.blushL, 'opacity', blush.toFixed(3)); setA(C.blushR, 'opacity', blush.toFixed(3));
   // mouth
@@ -1496,7 +1501,7 @@ function renderLogo(t) {
   const outroIn = E.outBack(seg(t, T.logoBack, T.logoBack + 0.6));
   let x = 960, y = 46, s = 1, o = 0;
   if (t < T.logoBack - 1) { s = lerp(0.7, 1, introIn); o = Math.min(seg(t, T.logoIn, T.logoIn + 0.25), 1 - introOut); y = 46 - 70 * introOut; }
-  else { x = 1270; y = 70; s = lerp(0.7, 0.9, outroIn); o = seg(t, T.logoBack, T.logoBack + 0.25); }
+  else { x = OUTRO_X; y = 70; s = lerp(0.7, 0.9, outroIn); o = seg(t, T.logoBack, T.logoBack + 0.25); }
   setO(C.logoUrl, t < T.logoBack - 1 ? 0 : E.out(seg(t, T.logoBack + 0.35, T.logoBack + 0.75)));
   setO(C.logoTag, t < T.logoBack - 1 ? seg(t, T.logoIn + 0.3, T.logoIn + 0.7) : 1);
   const glow = t > T.heartsB ? 1 + 0.04 * Math.sin((t - T.heartsB) * 5) * (1 - seg(t, DURATION - 3, DURATION - 2)) : 1;
@@ -1590,6 +1595,8 @@ function renderOverlays(t) {
   });
 }
 
+// The finale's centre line: the logo and the finished booklet share it.
+const OUTRO_X = 1270;
 function renderPrint(t) {
   // printer
   const up = E.outBack(seg(t, T.printerUp, T.printerUp + 0.55)), down = E.in(seg(t, T.sheetLift + 0.35, T.sheetLift + 0.9));
@@ -1613,7 +1620,7 @@ function renderPrint(t) {
   const ry = 180 * flip - 16 * stand + 6 * outro;
   const rx = 4 * stand;
   // Once folded, the booklet is the viewer-right half: re-centre it.
-  const bookX = lerp(lerp(0, -220, stand), 1590 - 1180 - 220 * 0.62, outro);
+  const bookX = lerp(lerp(0, -220, stand), OUTRO_X - 1180 - 220 * 0.62, outro);
   const bookY = lerp(lerp(dy, 50, stand), 690 - 480, outro);
   if (t >= T.stand) { dx = bookX; dy = bookY; sc = lerp(lerp(0.94, 0.92, stand), 0.62, outro) * (0.8 + 0.2 * back); }
   const zlift = 140 * Math.sin(Math.PI * flip);
@@ -1625,7 +1632,7 @@ function renderPrint(t) {
   const shadeFlip = 0.35 * Math.abs(Math.sin(Math.PI * flip)), shadeFold = 0.3 * Math.abs(Math.sin(Math.PI * fold));
   C.faceShades.forEach((s, i) => setO(s, i % 2 === 0 ? shadeFlip : Math.max(shadeFlip, shadeFold)));
   const shV = (t > T.stand ? E.out(seg(t, T.stand + 0.3, T.stand + 0.8)) : 0) * (1 - away) * Math.min(1, back);
-  const shX = lerp(1180, 1590, outro), shW = lerp(420, 300, outro);
+  const shX = lerp(1180, OUTRO_X, outro), shW = lerp(420, 300, outro);
   C.sheetShadow.style.cssText = `left:${f1(shX - shW / 2)}px;top:${f1(lerp(842, 884, outro))}px;width:${f1(shW)}px;height:34px;opacity:${shV.toFixed(3)}`;
   const st = seg(t, T.stamp, T.stamp + 0.22);
   const stOut = seg(t, T.flip - 0.1, T.flip + 0.15);
@@ -1633,7 +1640,7 @@ function renderPrint(t) {
   setT(C.stamp, `translate(1455px, 72px) rotate(-14deg) scale(${lerp(2.4, 1, E.outBack(st)).toFixed(3)})`);
   const tk = E.outBack(seg(t, T.outroIn + 0.5, T.outroIn + 0.9));
   setO(C.takeone, t > T.outroIn + 0.5 ? 1 : 0);
-  setT(C.takeone, `translate(1640px, 408px) rotate(${f1(-6 + Math.sin(t * 2) * 1.5)}deg) scale(${tk.toFixed(3)})`);
+  setT(C.takeone, `translate(${OUTRO_X + 95}px, 408px) rotate(${f1(-6 + Math.sin(t * 2) * 1.5)}deg) scale(${tk.toFixed(3)})`);
 }
 
 /* ---------------- speech bubble ---------------- */

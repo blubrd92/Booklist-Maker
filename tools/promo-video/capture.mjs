@@ -123,6 +123,21 @@ export async function captureApp(browser, opts) {
     return route.fulfill({ status: 404, body: '' });
   });
 
+  // scrollIntoView scrolls every ancestor, including the app's fixed
+  // layout boxes (overflow: hidden), which slides the whole tool up and
+  // opens an empty band above the footer. Reveal things by scrolling only
+  // their real scroll panel, then put any other ancestor back at zero.
+  await ctx.addInitScript(() => {
+    window.__reveal = (el, block, offset) => {
+      el.scrollIntoView({ block: block || 'center', behavior: 'instant' });
+      for (let p = el.parentElement; p; p = p.parentElement) {
+        const oy = window.getComputedStyle(p).overflowY;
+        if (p.scrollTop && oy !== 'auto' && oy !== 'scroll') p.scrollTop = 0;
+        if (offset && (oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) { p.scrollTop += offset; offset = 0; }
+      }
+      window.scrollTo(0, 0);
+    };
+  });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -136,6 +151,16 @@ export async function captureApp(browser, opts) {
   }, [sel, nth]);
   async function shot(id, targets) {
     await page.evaluate(() => document.fonts.ready);
+    // Playwright's own clicks auto-scroll to reach their target and can
+    // nudge the same fixed layout boxes; settle them before every frame.
+    await page.evaluate(() => {
+      document.querySelectorAll('*').forEach((el) => {
+        if (!el.scrollTop) return;
+        const oy = window.getComputedStyle(el).overflowY;
+        if (oy !== 'auto' && oy !== 'scroll') el.scrollTop = 0;
+      });
+      window.scrollTo(0, 0);
+    });
     const file = `shot-${String(shots.length).padStart(3, '0')}-${id}.jpg`;
     await page.screenshot({ path: join(outDir, file), type: 'jpeg', quality: 90 });
     const rects = {};
@@ -159,7 +184,7 @@ export async function captureApp(browser, opts) {
     await page.evaluate(([q, n]) => {
       const el = document.querySelectorAll(q)[n];
       const r = el.getBoundingClientRect();
-      if (r.top < 60 || r.bottom > window.innerHeight - 20) el.scrollIntoView({ block: 'center', behavior: 'instant' });
+      if (r.top < 60 || r.bottom > window.innerHeight - 20) window.__reveal(el, 'center');
     }, [sel, nth]);
     await wait(200);
     await shot(id, Object.assign({}, targets || {}, { target: [sel, nth] }));
@@ -180,7 +205,7 @@ export async function captureApp(browser, opts) {
     await page.screenshot({ path: join(outDir, 'collage-fail.png') });
     throw new Error('collage did not regenerate: ' + JSON.stringify(why));
   }
-  const scrollTo = (id, block = 'start') => page.evaluate(([i, b]) => document.getElementById(i).scrollIntoView({ block: b }), [id, block]);
+  const scrollTo = (id, block = 'start') => page.evaluate(([i, b]) => window.__reveal(document.getElementById(i), b), [id, block]);
   const item = (n) => ['#print-page-2 .list-item, #print-page-1 .list-item', n];
 
   await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'load' });
@@ -200,7 +225,7 @@ export async function captureApp(browser, opts) {
   const resTargets = Object.assign({}, common, { add0: [addSel, 0], add1: [addSel, 1], add2: [addSel, 2], results: '#results' });
   await shot('results', resTargets);
   // The cards are tall; scroll the results the way a person would.
-  await page.evaluate((s) => document.querySelectorAll(s)[0].scrollIntoView({ block: 'center', behavior: 'instant' }), addSel);
+  await page.evaluate((s) => window.__reveal(document.querySelectorAll(s)[0], 'center'), addSel);
   await wait(250);
   await shot('results-scrolled', resTargets);
   for (let i = 0; i < 3; i++) {
@@ -341,8 +366,7 @@ export async function captureApp(browser, opts) {
   });
   await page.evaluate(() => {
     const g = document.querySelectorAll('.line-style-group')[1];
-    g.scrollIntoView({ block: 'start' });
-    document.querySelector('.tab-content.active, #tab-front-cover')?.scrollBy(0, -60);
+    window.__reveal(g, 'start', -60);
   });
   await wait(300);
   await shot('st-scrolled', st);
@@ -451,7 +475,7 @@ export async function captureApp(browser, opts) {
     document.getElementById('preview-area').classList.remove('print-mode');
     ['zoom-controls'].forEach((id) => { const el = document.getElementById(id); if (el) el.style.display = ''; });
     document.querySelectorAll('.app-header, .site-footer').forEach((el) => { el.style.visibility = ''; });
-    document.getElementById('print-page-1').scrollIntoView({ block: 'start' });
+    window.__reveal(document.getElementById('print-page-1'), 'start');
   });
   await wait(400);
   await page.mouse.move(640, 500);
