@@ -355,7 +355,7 @@ function buildCoverSymbols() {
 const LINES = [
   { id: 'hi', t: 2.5, end: 6.0, text: "Hi! I'm *Folio.* Let me show you *Booklister!*", pitch: 2 },
   { id: 'search', t: 7.4, end: 13.4, text: 'Search *Open Library* for any title you want on your list...', pitch: 0 },
-  { id: 'paste', t: 14.3, end: 19.6, text: '...or paste a whole list at once with *Quick Add.*', pitch: 0 },
+  { id: 'paste', t: 14.1, end: 19.6, text: '...or paste a whole list at once with *Quick Add.*', pitch: 0 },
   { id: 'edit', t: 21.3, end: 27.3, text: 'Click any text on the page to *edit* it.', pitch: 0 },
   { id: 'star', t: 28.7, end: 33.3, text: 'Stars choose which covers go on the *front cover.*', pitch: 1 },
   { id: 'collage', t: 35.2, end: 47.0, text: 'Now make the cover. {1.1} *Classic?* {1.2} *Tilted?* {1.2} *Staggered?* {1.3} Ooh... {0.35} *Honeycomb!*', pitch: 1 },
@@ -483,7 +483,7 @@ const T = {
   typeStart: 8.1, typeStep: 0.16,
   searchClick: 9.8, resultsAt: 9.95,
   addClicks: [11.9, 12.8, 13.7],
-  qaClick: 15.0, pasteAt: 16.6, qaGo: 18.4,
+  qaClick: 14.6, pasteAt: 16.0, qaGo: 19.3,
   edit: 20.4, skip: 27.5, stars: [30.3, 31.3],
   fcTab: 34.0, create: 36.9,
   toStyle: 46.7, font1Open: 47.8, font1Pick: 48.7, fontOpen: 49.5, fontPick: 50.4,
@@ -566,13 +566,17 @@ const KEYCAPS = [];
   cut(T.pasteAt, 'qa-pasted');
   sfx(T.pasteAt + 0.02, 'paper', { pan: 0.2, gain: 0.8 });
   const go = ctr(rectOf('qa-pasted', 'submit'));
-  camHold(17.5); cam(18.0, go[0] - 150, go[1] - 60, 1.4);
+  // A tip for BiblioCommons libraries, pointing at the tool's own link
+  // to the Helper extension, which copies titles in this paste format.
+  CALLOUTS.push([T.pasteAt + 0.7, T.qaGo - 0.2, 'qa-pasted', 'helper', 0.8, -0.6, -190, -125,
+    'Tip: the Booklister Helper extension', 'grabs titles from BiblioCommons, ready to paste']);
+  camHold(T.qaGo - 0.9); cam(T.qaGo - 0.4, go[0] - 150, go[1] - 60, 1.4);
   cur(T.qaGo - 0.25, go); click(T.qaGo, go);
   cut(T.qaGo + 0.1, 'qa-done');
   sfx(T.qaGo + 0.1, 'close', { pan: 0.3 });
   for (let k = 0; k < 10; k++) sfx(T.qaGo + 0.2 + k * 0.06, 'pop', { pan: 0.35, pitch: k, gain: 0.45 });
-  cam(19.1, ...full);
-  cur(19.6, [1150, 640]);
+  cam(T.qaGo + 0.6, ...full);
+  cur(T.qaGo + 0.8, [1150, 640]);
 
   // ---- 2. Edit: a call number, a blurb, the stars ------------------
   const item0 = rectOf('hover0', 'item0');

@@ -271,7 +271,8 @@ export async function captureApp(browser, opts) {
   // ---- Quick Add --------------------------------------------------
   await page.click('#quickAddBtn');
   await wait(500);
-  const qa = { modal: '#quick-add-modal .modal-content, #quick-add-modal', textarea: '#quick-add-multi-text', submit: '#quick-add-submit-btn' };
+  const qa = { modal: '#quick-add-modal .modal-content, #quick-add-modal', textarea: '#quick-add-multi-text', submit: '#quick-add-submit-btn',
+    helper: '#quick-add-modal a[href*="extension"]' };
   await shot('qa-open', qa);
   const tsv = pasted.map((bi) => {
     const b = books[bi];
