@@ -40,14 +40,17 @@ const CDN = {
 
 export const VIEWPORT = { width: 1280, height: 756, dpr: 2 };
 
-function serveRepo(root, port) {
+function serveRepo(root, port, fontCss) {
   const server = createServer((req, res) => {
     let rel = decodeURIComponent(req.url.split('?')[0]);
     if (rel.endsWith('/')) rel += 'index.html';
     const file = join(root, rel);
     if (!file.startsWith(root) || !existsSync(file)) { res.writeHead(404).end(); return; }
     let body = readFileSync(file);
-    if (extname(file) === '.html') body = Buffer.from(body.toString().replace(/\s(integrity|crossorigin)="[^"]*"/g, ''));
+    if (extname(file) === '.html') {
+      body = Buffer.from(body.toString().replace(/\s(integrity|crossorigin)="[^"]*"/g, '')
+        .replace('</head>', () => (fontCss ? `<style>${fontCss}</style></head>` : '</head>')));
+    }
     res.writeHead(200, { 'Content-Type': MIME[extname(file)] || 'application/octet-stream' });
     res.end(body);
   });
@@ -89,6 +92,7 @@ function placeholderSvg(u) {
  * @param opts.books     [{t, a, c, d}] the invented titles
  * @param opts.covers    Buffer[] JPEG cover art, same order as books
  * @param opts.logo      PNG Buffer, an invented library's branding image
+ * @param opts.fontCss   @font-face rules standing in for Calibri and Georgia
  * @param opts.search    indexes into books returned by the search
  * @param opts.pasted    indexes into books pasted into Quick Add
  * @param opts.log       progress logger
@@ -98,7 +102,7 @@ export async function captureApp(browser, opts) {
   const log = opts.log || (() => {});
   readdirSync(outDir).filter((f) => /^(shot-.*\.jpg|print-page-\d\.png|collage-fail\.png)$/.test(f)).forEach((f) => rmSync(join(outDir, f)));
   const port = 8741;
-  const server = await serveRepo(root, port);
+  const server = await serveRepo(root, port, opts.fontCss);
   const ctx = await browser.newContext({
     viewport: { width: VIEWPORT.width, height: VIEWPORT.height },
     deviceScaleFactor: VIEWPORT.dpr,

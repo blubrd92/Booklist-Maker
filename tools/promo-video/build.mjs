@@ -97,6 +97,29 @@ function fontFaces() {
   return inlined;
 }
 
+// The tool's default fonts are Calibri (authors, descriptions, the QR
+// blurb) and Georgia (titles). They ship with Windows, Office and macOS,
+// not with Linux, where the browser falls back to wider faces and the
+// filmed pages stop matching what most people see: text runs longer and
+// spills out of its boxes. Carlito and Gelasio are free fonts drawn to
+// the same letter widths, so the capture registers them under the
+// original names. Only the filmed page gets them; the site is untouched.
+function systemFontStandIns() {
+  const cache = join(OUT_DIR, 'fonts-standins.css');
+  if (existsSync(cache)) return readFileSync(cache, 'utf8');
+  const out = [];
+  for (const [family, as] of [['Carlito', 'Calibri'], ['Gelasio', 'Georgia']]) {
+    const css = curl(`https://fonts.googleapis.com/css2?family=${family}:ital,wght@0,400;0,700;1,400;1,700&display=block`, false);
+    css.split(/(?=\/\* [a-z-]+ \*\/)/).filter((b) => b.startsWith('/* latin */')).forEach((b) => {
+      out.push(b.replace(/font-family: '[^']+'/, `font-family: '${as}'`)
+        .replace(/url\((https:[^)]+)\)/g, (_, url) => `url(data:font/woff2;base64,${curl(url, true).toString('base64')})`));
+    });
+  }
+  const css = out.join('\n');
+  writeFileSync(cache, css);
+  return css;
+}
+
 function findFfmpeg() {
   const candidates = [process.env.FFMPEG, 'ffmpeg'].filter(Boolean);
   for (const bin of candidates) {
@@ -164,6 +187,7 @@ async function main() {
     console.log('filming the real app...');
     manifest = await captureApp(browser, {
       root: REPO_ROOT, outDir: CAP_DIR, books: data.books, covers, logo, search: data.search, pasted: data.pasted,
+      fontCss: systemFontStandIns(),
       log: (m) => console.log(m),
     });
   }

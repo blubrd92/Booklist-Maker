@@ -360,8 +360,8 @@ const LINES = [
   { id: 'pdf', t: 63.4, end: 68.9, text: 'Click *Generate PDF* for a print-ready file, at a crisp *600 DPI.*', pitch: 0 },
   { id: 'fold', t: 69.3, end: 73.6, text: 'Print it, {0.15} fold it, {0.15} set it out!', pitch: 2 },
   { id: 'tour', t: 75.2, end: 81.0, text: "Want the full tour? {0.25} Click the *question mark,* and I'll show you around.", pitch: 1 },
-  { id: 'free', t: 82.2, end: 87.1, text: "It's *free,* {0.15} and your lists stay private: {0.2} no account, nothing uploaded.", pitch: 0 },
-  { id: 'bye', t: 87.4, end: 91.4, text: 'Happy displaying!', pitch: 3 },
+  { id: 'free', t: 81.9, end: 86.0, text: "It's *free,* {0.15} and your lists stay private: {0.2} no account, nothing uploaded.", pitch: 0 },
+  { id: 'bye', t: 86.2, end: 89.3, text: 'Happy displaying!', pitch: 3 },
 ];
 
 function countSyl(tok) {
@@ -440,7 +440,7 @@ const wordT = (id, i) => LINE[id].words[i].t;
    rectangles, never from hand-placed numbers, so the cursor lands where
    the real button is.
    ===================================================================== */
-const DURATION = 92;
+const DURATION = 90;
 const SFX = [];
 function sfx(t, type, o) { SFX.push(Object.assign({ t, type, pan: 0, gain: 1 }, o || {})); }
 const panOf = (x) => clamp((x - 960) / 960, -1, 1) * 0.7;
