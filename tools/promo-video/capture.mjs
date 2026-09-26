@@ -88,12 +88,13 @@ function placeholderSvg(u) {
  * @param opts.outDir    where shots are written
  * @param opts.books     [{t, a, c, d}] the invented titles
  * @param opts.covers    Buffer[] JPEG cover art, same order as books
+ * @param opts.logo      PNG Buffer, an invented library's branding image
  * @param opts.search    indexes into books returned by the search
  * @param opts.pasted    indexes into books pasted into Quick Add
  * @param opts.log       progress logger
  */
 export async function captureApp(browser, opts) {
-  const { root, outDir, books, covers, search, pasted } = opts;
+  const { root, outDir, books, covers, search, pasted, logo } = opts;
   const log = opts.log || (() => {});
   readdirSync(outDir).filter((f) => /^(shot-.*\.jpg|print-page-\d\.png|collage-fail\.png)$/.test(f)).forEach((f) => rmSync(join(outDir, f)));
   const port = 8741;
@@ -389,23 +390,52 @@ export async function captureApp(browser, opts) {
   await wait(300);
   const bc = { tab: '[aria-controls="tab-back-cover"]', url: '#qr-url-input', update: '#generate-qr-button', qr: '#qr-code-area, .qr-code-uploader', back: '#back-cover-panel', blurb: '#qr-code-text' };
   await shot('bc-tab', bc);
+  // The blurb first: once it has text, its long instructional
+  // placeholder is gone and the close-up of the QR code reads cleanly.
+  await clickRect(await pre('pre-blurb', '#qr-code-text', 0, bc));
+  await wait(200);
+  const blurb = 'Scan to find these titles in our catalog!';
+  for (let i = 0; i < blurb.length; i++) {
+    await page.keyboard.type(blurb[i]);
+    if (i % 7 === 6 || i === blurb.length - 1) { await wait(20); await shot(`blurb-${i}`, bc); }
+  }
+  await page.mouse.click(5, VIEWPORT.height - 5);
+  await wait(300);
   await typeWithShots('#qr-url-input', 'https://booklister.org', 'bc-url', 3, bc);
   await page.click('#generate-qr-button');
   await wait(700);
-  await shot('bc-qr', bc);
-  await page.click('#qr-code-text');
-  await page.keyboard.type('Scan to find these titles in our catalog!');
   await page.mouse.click(5, VIEWPORT.height - 5);
-  await wait(300);
-  await shot('bc-blurb', bc);
+  await wait(200);
+  await shot('bc-qr', bc);
+  // A library logo, through the real branding uploader.
+  await pre('pre-logo', '#branding-uploader', 0, Object.assign({}, bc, { branding: '#branding-uploader' }));
+  // The uploader's own file input: the same change event and handler a
+  // person picking a file fires.
+  await page.setInputFiles('#branding-uploader input[type="file"]', { name: 'library-logo.png', mimeType: 'image/png', buffer: logo });
+  await page.waitForFunction(() => {
+    const im = document.querySelector('#branding-uploader img');
+    return im && im.dataset.isPlaceholder !== 'true' && im.naturalWidth > 10;
+  }, null, { timeout: 15000 }).catch(async (e) => {
+    const st = await page.evaluate(() => { const im = document.querySelector('#branding-uploader img'); return [im.dataset.isPlaceholder, im.naturalWidth, im.src.slice(0, 40), document.getElementById('notification')?.innerText]; });
+    throw new Error('logo did not load: ' + JSON.stringify(st) + ' ' + e.message);
+  });
+  await wait(500);
+  await page.mouse.click(5, VIEWPORT.height - 5);
+  await wait(200);
+  await shot('bc-logo', Object.assign({}, bc, { branding: '#branding-uploader' }));
   await page.hover('#export-pdf-button');
   await wait(200);
   await shot('export-hover', { pdf: '#export-pdf-button' });
 
   // ---- The printed pages, as the PDF renders them -------------------
+  // The app's header and footer are fixed bars; at this zoom a page is
+  // taller than the space between them, and an element screenshot would
+  // pick them up as dark bands along the page's edges. Hide them while
+  // the pages are photographed.
   await page.evaluate(() => {
     document.getElementById('preview-area').classList.add('print-mode');
     ['zoom-controls', 'folio-container', 'notification'].forEach((id) => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    document.querySelectorAll('.app-header, .site-footer').forEach((el) => { el.style.visibility = 'hidden'; });
   });
   await wait(500);
   const print = {};
@@ -416,6 +446,21 @@ export async function captureApp(browser, opts) {
     await (await page.$(`#${id}`)).screenshot({ path: join(outDir, file) });
     print[id] = file;
   }
+  // ---- The guided tour, one click away --------------------------------
+  await page.evaluate(() => {
+    document.getElementById('preview-area').classList.remove('print-mode');
+    ['zoom-controls'].forEach((id) => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+    document.querySelectorAll('.app-header, .site-footer').forEach((el) => { el.style.visibility = ''; });
+    document.getElementById('print-page-1').scrollIntoView({ block: 'start' });
+  });
+  await wait(400);
+  await page.mouse.move(640, 500);
+  const tourBtn = await pre('tour-pre', '#tour-button', 0);
+  await clickRect(tourBtn);
+  await wait(700);
+  await page.mouse.move(tourBtn[0] + 60, tourBtn[1] + 200);
+  await wait(200);
+  await shot('tour-picker', { modal: '.tour-modal', button: '#tour-button', card: ['.tour-section-card', 0] });
   if (errors.length) log('  app errors: ' + errors.join(' | '));
   const manifest = { viewport: VIEWPORT, shots, print };
   writeFileSync(join(outDir, 'shots.json'), JSON.stringify(manifest, null, 1));

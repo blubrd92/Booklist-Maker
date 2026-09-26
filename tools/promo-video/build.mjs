@@ -158,10 +158,12 @@ async function main() {
       await prep.evaluate((n) => window.showCoverForCapture(n), i);
       covers.push(await prep.screenshot({ type: 'jpeg', quality: 92, clip: { x: 0, y: 0, width: 600, height: 900 } }));
     }
+    await prep.evaluate(() => window.showLogoForCapture());
+    const logo = await prep.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 1500, height: 450 } });
     await prep.close();
     console.log('filming the real app...');
     manifest = await captureApp(browser, {
-      root: REPO_ROOT, outDir: CAP_DIR, books: data.books, covers, search: data.search, pasted: data.pasted,
+      root: REPO_ROOT, outDir: CAP_DIR, books: data.books, covers, logo, search: data.search, pasted: data.pasted,
       log: (m) => console.log(m),
     });
   }

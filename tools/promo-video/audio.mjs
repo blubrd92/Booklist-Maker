@@ -9,9 +9,9 @@
  *   soft pad, a plucked (Karplus-Strong) bass walking F-A-Bb-C, brushed
  *   percussion, and a final Fmaj9 roll timed to land as the video ends.
  *   It ducks a little whenever Folio talks.
- * - Folio's voice: each syllable is a short pitched "mrr" built from
- *   harmonics shaped by vowel formants, so he babbles in the rhythm of the
- *   words on screen rather than reading them in a synthetic human voice.
+ * - Folio's voice: a soft marimba note on each word, in the music's key,
+ *   so his lines play as a small melody in the rhythm of the words on
+ *   screen instead of a synthetic voice.
  * - Effects: clicks, pops, whooshes, the printer, the paper flip and fold.
  */
 
@@ -161,41 +161,35 @@ function sweepTone(bus, t0, dur, f0, f1, amp, o) {
 /* Folio's voice                                                       */
 /* ------------------------------------------------------------------ */
 
-// Formants raised a little over an adult's, for a small voice.
-const VOWELS = {
-  a: [[950, 130], [1550, 160], [3000, 300]],
-  e: [[620, 110], [2250, 180], [3100, 300]],
-  i: [[400, 90], [2800, 200], [3400, 300]],
-  o: [[640, 110], [1100, 140], [2900, 300]],
-  u: [[460, 90], [1000, 140], [2700, 300]],
-  y: [[420, 90], [2600, 200], [3300, 300]],
-};
-function formantGain(fr, vowel) {
-  let g = 0.06;
-  VOWELS[vowel].forEach(([F, B], i) => { g += (i === 0 ? 1 : i === 1 ? 0.7 : 0.35) / (1 + ((fr - F) / B) ** 2); });
-  return g;
-}
-function syllable(bus, s, pan) {
-  const f0 = 470 * Math.pow(2, s.pitch / 12);
-  const dur = s.dur + 0.05;
-  const start = Math.round(s.t * SR), n = Math.round(dur * SR);
-  const vowel = VOWELS[s.vowel] ? s.vowel : 'a';
-  const K = Math.floor(5200 / (f0 * 1.3));
-  const gains = [];
-  for (let k = 1; k <= K; k++) gains.push(formantGain(k * f0, vowel) / k);
-  let ph = 0;
+// Folio "speaks" in soft marimba notes, one per word, so his lines are a
+// little melody instead of a synthetic voice. The notes come from F major
+// pentatonic, the lullaby's own key, so whatever chord is under him they
+// sit inside the music. His mouth still moves on every syllable.
+const VOICE_SCALE = [60, 62, 65, 67, 69, 72, 74, 77, 79];
+function voiceNote(bus, t0, midi, amp, pan) {
+  const f = mtof(midi);
+  const start = Math.round(t0 * SR), n = Math.round(0.7 * SR);
   for (let i = 0; i < n; i++) {
-    const t = i / SR, u = Math.min(1, t / s.dur);
-    const arc = 1 + 0.07 * Math.sin(Math.PI * u) + (s.glide ? s.glide * 0.28 * u * u : -0.04 * u);
-    const vib = 1 + 0.012 * Math.sin(2 * Math.PI * 6.5 * t);
-    ph += 2 * Math.PI * f0 * arc * vib / SR;
-    // Starts nasal, like an "m", and opens into the vowel: the "mrrp".
-    const open = Math.min(1, t / 0.028);
-    let v = 0;
-    for (let k = 1; k <= K; k++) v += Math.sin(k * ph) * gains[k - 1] * (k === 1 ? 1 : open);
-    const env = Math.min(1, t / 0.012) * (t > s.dur ? Math.exp(-(t - s.dur) / 0.018) : 1);
-    mix(bus, start + i, v * env * 0.34, pan, 0.16);
+    const t = i / SR;
+    const env = (1 - Math.exp(-t / 0.004)) * Math.exp(-t / 0.24);
+    const v = Math.sin(2 * Math.PI * f * t)
+      + 0.16 * Math.sin(2 * Math.PI * 2 * f * t) * Math.exp(-t / 0.07)
+      + 0.05 * Math.sin(2 * Math.PI * 3.93 * f * t) * Math.exp(-t / 0.025);
+    mix(bus, start + i, v * env * amp, pan, 0.3);
   }
+}
+function folioVoice(bus, syllables, panAt) {
+  const noteFor = (s, shift) => {
+    let idx = Math.round(4 + s.pitch * 0.55) + (shift || 0);
+    if (s.glide) idx += 2;
+    return VOICE_SCALE[Math.max(0, Math.min(VOICE_SCALE.length - 1, idx))];
+  };
+  syllables.forEach((s) => {
+    const amp = 0.19 * (s.emph ? 1.2 : 1);
+    if (s.w) voiceNote(bus, s.t, noteFor(s), amp, panAt(s.t));
+    // longer words get a quiet grace note on their second syllable
+    else if (s.k === 1 && s.n >= 3) voiceNote(bus, s.t, noteFor(s, s.pitch > 0 ? -1 : 1), amp * 0.45, panAt(s.t));
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -319,7 +313,8 @@ function sfx(bus, e) {
       break;
     }
     case 'peek':
-      syllable(bus, { t, dur: 0.16, pitch: 3, vowel: 'e', glide: 1 }, pan);
+      voiceNote(bus, t, 72, 0.08, pan);
+      voiceNote(bus, t + 0.13, 77, 0.08, pan);
       break;
     case 'hop':
       noiseHit(bus, t, 0.2, 0.07 * g, { type: 'bp', f0: 600, f1: 2200, q: 1.2, pan, shape: 'sin' });
@@ -469,8 +464,9 @@ export function renderAudio(cues) {
   const mus = makeBus(n), voice = makeBus(n), fx = makeBus(n);
 
   music(mus, duration);
-  const folioPan = (t) => (t < 5.4 ? 0 : t < 50.9 ? -0.45 : -0.15);
-  cues.syllables.forEach((s) => syllable(voice, s, folioPan(s.t)));
+  const pans = cues.folioPan || [[0, 0]];
+  const folioPan = (t) => pans.reduce((p, [pt, v]) => (t >= pt ? v : p), 0);
+  folioVoice(voice, cues.syllables, folioPan);
   cues.sfx.forEach((e) => sfx(fx, e));
   // a soft swell of shimmer into each scene change
   cues.transitions.forEach((t) => noiseHit(fx, t - 0.3, 0.7, 0.025, { type: 'bp', f0: 3000, f1: 7000, q: 0.7, shape: 'sin', send: 0.4 }));
@@ -478,7 +474,7 @@ export function renderAudio(cues) {
   const duck = speechEnvelope(cues.syllables, n);
   const send = new Float32Array(n);
   for (let i = 0; i < n; i++) {
-    const d = 1 - 0.32 * duck[i];
+    const d = 1 - 0.3 * duck[i];
     mus.L[i] *= d; mus.R[i] *= d;
     send[i] = mus.S[i] * d + voice.S[i] + fx.S[i];
   }

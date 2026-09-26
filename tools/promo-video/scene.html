@@ -47,7 +47,7 @@ svg { overflow: visible; }
 
 /* ---------- the real app, in a browser window ---------- */
 #appwin { position: absolute; left: 600px; top: 88px; width: 1260px; height: 780px; border-radius: 14px; overflow: hidden;
-  background: #fff; transform-origin: 50% 100%;
+  background: #fff; transform-origin: 0 0;
   box-shadow: 0 30px 60px rgba(80,52,24,.24), 0 3px 10px rgba(0,0,0,.12), 0 0 0 1px rgba(74,48,32,.12); }
 #appbar { position: absolute; left: 0; top: 0; width: 100%; height: 36px; background: #ece6dc; display: flex; align-items: center;
   gap: 8px; padding: 0 14px; box-sizing: border-box; border-bottom: 1px solid #d9d0c2; }
@@ -349,18 +349,19 @@ function buildCoverSymbols() {
    "{0.4}" in a line is a pause in seconds; *word* is emphasized.
    ===================================================================== */
 const LINES = [
-  { id: 'hi', t: 2.5, end: 5.5, text: "Hi! I'm *Folio.* Let me show you *Booklister!*", pitch: 2 },
-  { id: 'search', t: 6.85, end: 10.7, text: 'Search *Open Library* for any title you want on your list...', pitch: 0 },
-  { id: 'paste', t: 10.9, end: 14.45, text: '...or paste a whole list at once with *Quick Add.*', pitch: 0 },
-  { id: 'edit', t: 15.3, end: 19.3, text: 'Click any text on the page to *edit* it.', pitch: 0 },
-  { id: 'star', t: 20.45, end: 23.2, text: 'Stars choose which covers go on the *front.*', pitch: 1 },
-  { id: 'collage', t: 25.25, end: 32.55, text: 'Now make the cover. {0.35} *Classic?* {0.75} *Tilted?* {0.75} *Staggered?* {0.9} Ooh... {0.25} *Honeycomb!*', pitch: 1 },
-  { id: 'style', t: 33.3, end: 37.75, text: 'Try on new *fonts* {0.2} and *colors...*', pitch: 0 },
-  { id: 'qr', t: 37.95, end: 42.25, text: '...and add a *QR code* that links to your catalog.', pitch: 0 },
-  { id: 'pdf', t: 42.85, end: 47.45, text: 'Click *Generate PDF* for a print-ready file, at a crisp *600 DPI.*', pitch: 0 },
-  { id: 'fold', t: 47.75, end: 50.7, text: 'Print it, {0.1} fold it, {0.1} set it out!', pitch: 2 },
-  { id: 'free', t: 52.2, end: 55.5, text: "It's *free,* {0.1} and your lists stay right in your browser.", pitch: 0 },
-  { id: 'bye', t: 55.75, end: 59.1, text: 'Happy displaying!', pitch: 3 },
+  { id: 'hi', t: 2.5, end: 6.0, text: "Hi! I'm *Folio.* Let me show you *Booklister!*", pitch: 2 },
+  { id: 'search', t: 7.4, end: 13.4, text: 'Search *Open Library* for any title you want on your list...', pitch: 0 },
+  { id: 'paste', t: 14.3, end: 19.6, text: '...or paste a whole list at once with *Quick Add.*', pitch: 0 },
+  { id: 'edit', t: 21.3, end: 27.3, text: 'Click any text on the page to *edit* it.', pitch: 0 },
+  { id: 'star', t: 28.7, end: 33.3, text: 'Stars choose which covers go on the *front cover.*', pitch: 1 },
+  { id: 'collage', t: 35.2, end: 47.0, text: 'Now make the cover. {1.1} *Classic?* {1.2} *Tilted?* {1.2} *Staggered?* {1.3} Ooh... {0.35} *Honeycomb!*', pitch: 1 },
+  { id: 'style', t: 48.2, end: 54.5, text: 'Try on new *fonts* {0.3} and *colors...*', pitch: 0 },
+  { id: 'qr', t: 55.0, end: 62.8, text: "...then add a *QR code* for your catalog, and your library's *logo.*", pitch: 0 },
+  { id: 'pdf', t: 63.4, end: 68.9, text: 'Click *Generate PDF* for a print-ready file, at a crisp *600 DPI.*', pitch: 0 },
+  { id: 'fold', t: 69.3, end: 73.6, text: 'Print it, {0.15} fold it, {0.15} set it out!', pitch: 2 },
+  { id: 'tour', t: 75.2, end: 81.0, text: "Want the full tour? {0.25} Click the *question mark,* and I'll show you around.", pitch: 1 },
+  { id: 'free', t: 82.2, end: 87.1, text: "It's *free,* {0.15} and your lists stay private: {0.2} no account, nothing uploaded.", pitch: 0 },
+  { id: 'bye', t: 87.4, end: 91.4, text: 'Happy displaying!', pitch: 3 },
 ];
 
 function countSyl(tok) {
@@ -388,13 +389,18 @@ function scheduleLines() {
     L.words = [];
     L.syl = [];
     const toks = L.text.split(/\s+/);
+    let inEm = false;
     toks.forEach((tok) => {
       const pm = tok.match(/^\{([\d.]+)\}$/);
       if (pm) { t += parseFloat(pm[1]); return; }
       const n = countSyl(tok);
       const vs = vowelsOf(tok);
       const plain = tok.replace(/\*/g, '');
-      const emph = tok.startsWith('*');
+      // *Quick Add.* is one highlight across two words: stay emphasized
+      // from the opening asterisk to the closing one.
+      if (tok.startsWith('*')) inEm = true;
+      const emph = inEm;
+      if (tok.replace(/^\*/, '').includes('*')) inEm = false;
       const q = /\?\*?$/.test(tok), ex = /!\*?$/.test(tok);
       const w = { html: emph ? `<em>${plain}</em>` : plain, t, first: L.words.length === 0 };
       for (let k = 0; k < n; k++) {
@@ -404,7 +410,7 @@ function scheduleLines() {
         let glide = 0;
         if (k === n - 1 && q) { glide = 1; p += 1; }
         if (k === n - 1 && ex) glide = 0.6;
-        const s = { t, dur: d, pitch: p, vowel: vs[k % vs.length], glide, line: li };
+        const s = { t, dur: d, pitch: p, vowel: vs[k % vs.length], glide, line: li, w: k === 0, k, n, emph };
         L.syl.push(s);
         all.push(s);
         t += d + 0.018;
@@ -434,7 +440,7 @@ const wordT = (id, i) => LINE[id].words[i].t;
    rectangles, never from hand-placed numbers, so the cursor lands where
    the real button is.
    ===================================================================== */
-const DURATION = 60;
+const DURATION = 92;
 const SFX = [];
 function sfx(t, type, o) { SFX.push(Object.assign({ t, type, pan: 0, gain: 1 }, o || {})); }
 const panOf = (x) => clamp((x - 960) / 960, -1, 1) * 0.7;
@@ -469,42 +475,45 @@ function click(t, p, kind) { CURSOR_CLICKS.push(t); sfx(t, kind || 'click', { pa
 function typeSfx(t0, t1, n, x) { for (let i = 0; i < n; i++) sfx(t0 + (t1 - t0) * i / Math.max(1, n), 'type', { pan: panOf(WIN.x + x * APP_S), seed: i, gain: 0.8 }); }
 
 const T = {
-  logoIn: 1.9, logoOut: 5.35, winIn: 5.7,
-  typeStart: 7.0, typeStep: 0.11,
-  searchClick: 8.3, resultsAt: 8.45,
-  addClicks: [9.45, 9.95, 10.5],
-  qaClick: 11.0, pasteAt: 11.75, qaGo: 12.65,
-  edit: 14.6, skip: 19.45, stars: [21.05, 21.75],
-  fcTab: 23.4, create: 25.0,
-  toStyle: 32.75, fontOpen: 33.9, fontPick: 34.7, palette: 35.5, swatch: 36.1, gradient: 36.9,
-  backTab: 37.9, qrUpdate: 39.35, blurb: 40.35,
-  hopOut: 50.85, logoBack: 51.35, fadeOut: 59.45,
+  logoIn: 1.9, logoOut: 5.9, hopNook: 6.0, winIn: 6.6,
+  typeStart: 8.1, typeStep: 0.16,
+  searchClick: 9.8, resultsAt: 9.95,
+  addClicks: [11.9, 12.8, 13.7],
+  qaClick: 15.0, pasteAt: 16.6, qaGo: 18.4,
+  edit: 20.4, skip: 27.5, stars: [30.3, 31.3],
+  fcTab: 34.0, create: 36.9,
+  toStyle: 47.3, fontOpen: 48.9, fontPick: 50.1, palette: 51.3, swatch: 52.3, gradient: 53.4,
+  backTab: 55.0, qrUpdate: 59.0, logo: 61.5,
+  hopOut: 74.0, tourIn: 74.4, tourOut: 81.0, logoBack: 81.5, outroIn: 81.6,
+  fadeOut: DURATION - 0.7,
 };
 T.tilt = wordT('collage', 5) - 0.08;
 T.stag = wordT('collage', 6) - 0.08;
 T.honey = wordT('collage', 8) - 0.1;
 T.fonts = [T.fontOpen, T.fontPick, T.palette, T.gradient];
-T.callouts = [15.7, 17.0];
+T.callouts = [22.0, 23.9];
 T.qrIn = T.backTab;
-T.pdfClick = wordT('pdf', 0) + 0.1;
-T.winOut = T.pdfClick + 0.3;
-T.printerUp = T.pdfClick + 0.5;
-T.sheetOut = T.pdfClick + 1.0;
-T.sheetOutEnd = T.sheetOut + 1.75;
+T.pdfClick = wordT('pdf', 1) + 0.1;
+T.winOut = T.pdfClick + 0.35;
+T.printerUp = T.pdfClick + 0.55;
+T.sheetOut = T.pdfClick + 1.05;
+T.sheetOutEnd = T.sheetOut + 2.0;
 T.sheetLift = T.sheetOutEnd;
 T.stamp = Math.max(wordT('pdf', 11) + 0.05, T.sheetLift + 0.5);
-T.flip = 47.55;
+T.flip = Math.max(T.stamp + 0.9, wordT('fold', 0));
 T.fold = Math.max(wordT('fold', 2), T.flip + 0.9);
 T.stand = Math.max(wordT('fold', 4) - 0.05, T.fold + 0.85);
+T.tourClick = wordT('tour', 6) + 0.05;
 T.heartsA = T.honey + 0.55;
 T.heartsB = wordT('bye', 1) + 0.35;
 
 const CHAPTERS = [
-  [6.0, 14.4, 1, 'Find titles'],
-  [14.7, 23.1, 2, 'Edit your list'],
-  [23.3, 32.65, 3, 'Make a cover'],
-  [32.8, 42.4, 4, 'Style it'],
-  [42.6, 50.6, 5, 'Print and fold'],
+  [6.4, 20.2, '1', 'Find titles'],
+  [20.4, 33.4, '2', 'Edit your list'],
+  [33.6, 47.1, '3', 'Make a cover'],
+  [47.3, 62.9, '4', 'Style it'],
+  [63.1, 73.6, '5', 'Print and fold'],
+  [74.5, 81.0, '?', 'Take the tour'],
 ];
 
 // Callouts pinned to real controls: [t0, t1, shotId, rectName, fx, fy, dx, dy, title, sub]
@@ -518,177 +527,196 @@ const KEYCAPS = [];
   const full = [APP.w / 2, APP.h / 2, 1];
   // ---- 1. Find titles: search, add three, paste the rest ----------
   cut(T.winIn, 'start');
-  cam(6.35, ...full);
+  cam(7.2, ...full);
   const search = ctr(rectOf('start', 'search'));
-  cam(6.95, search[0] + 60, 330, 1.75);
-  CURSOR_VIS.push([6.45, 13.95]);
-  cur(6.45, [520, 520]); cur(6.85, search); click(6.9, search);
+  cam(7.9, search[0] + 60, 330, 1.75);
+  CURSOR_VIS.push([7.0, 19.9]);
+  cur(7.0, [520, 520]); cur(7.8, search); click(7.9, search);
   const typed = idsWith('type-');
   typed.forEach((id, i) => cut(T.typeStart + i * T.typeStep, id));
   typeSfx(T.typeStart, T.typeStart + typed.length * T.typeStep, 6, search[0]);
   const sbtn = ctr(rectOf('start', 'searchBtn'));
-  cur(7.95, search); cur(8.2, sbtn); click(T.searchClick, sbtn);
+  cur(9.4, search); cur(9.7, sbtn); click(T.searchClick, sbtn);
   cut(T.resultsAt, 'results');
-  for (let i = 0; i < 6; i++) sfx(T.resultsAt + 0.1 + i * 0.07, 'pop', { pan: -0.2, pitch: i, gain: 0.5 });
-  camHold(8.6); cam(9.05, 330, 430, 1.4);
+  for (let i = 0; i < 6; i++) sfx(T.resultsAt + 0.1 + i * 0.08, 'pop', { pan: -0.2, pitch: i, gain: 0.5 });
+  camHold(10.4); cam(11.1, 330, 430, 1.4);
   T.addClicks.forEach((tc, i) => {
     const id = `pre-add-${i}`;
-    cut(tc - 0.42, id);
+    cut(tc - 0.45, id);
     const p = ctr(rectOf(id, 'target'));
-    cur(tc - 0.15, p); cur(tc + 0.05, p); click(tc, p);
+    cur(tc - 0.2, p); cur(tc + 0.05, p); click(tc, p);
     cut(tc + 0.06, `added-${i}`);
     sfx(tc + 0.12, 'pop', { pan: 0.2, pitch: 3 + i });
   });
-  cam(9.3, 330, 430, 1.4); cam(9.75, ...full);
+  camHold(12.1); cam(12.7, ...full);
   const qa = ctr(rectOf('added-2', 'quickAdd'));
-  cur(T.qaClick - 0.25, qa); click(T.qaClick, qa);
+  cur(T.qaClick - 0.35, qa); click(T.qaClick, qa);
   cut(T.qaClick + 0.08, 'qa-open');
   sfx(T.qaClick + 0.08, 'open', { pan: 0.2 });
   const ta = ctr(rectOf('qa-open', 'textarea'));
-  camHold(T.qaClick + 0.15); cam(T.qaClick + 0.6, ta[0], ta[1] - 20, 1.55);
-  cur(T.pasteAt - 0.35, ta);
-  KEYCAPS.push([T.pasteAt - 0.2, T.pasteAt + 0.55, 'Ctrl + V', 'qa-open', 'textarea', 40, -10]);
-  sfx(T.pasteAt - 0.08, 'keycap', { pan: 0.2 });
+  camHold(T.qaClick + 0.2); cam(T.qaClick + 0.9, ta[0], ta[1] - 20, 1.55);
+  cur(T.pasteAt - 0.5, ta);
+  KEYCAPS.push([T.pasteAt - 0.35, T.pasteAt + 0.6, 'Ctrl + V', 'qa-open', 'textarea', 150, 40]);
+  sfx(T.pasteAt - 0.1, 'keycap', { pan: 0.2 });
   cut(T.pasteAt, 'qa-pasted');
   sfx(T.pasteAt + 0.02, 'paper', { pan: 0.2, gain: 0.8 });
   const go = ctr(rectOf('qa-pasted', 'submit'));
-  camHold(12.2); cam(12.55, go[0] - 150, go[1] - 60, 1.4);
-  cur(T.qaGo - 0.2, go); click(T.qaGo, go);
+  camHold(17.5); cam(18.0, go[0] - 150, go[1] - 60, 1.4);
+  cur(T.qaGo - 0.25, go); click(T.qaGo, go);
   cut(T.qaGo + 0.1, 'qa-done');
   sfx(T.qaGo + 0.1, 'close', { pan: 0.3 });
-  for (let k = 0; k < 10; k++) sfx(T.qaGo + 0.2 + k * 0.05, 'pop', { pan: 0.35, pitch: k, gain: 0.45 });
-  cam(13.1, ...full);
-  cur(13.7, [1150, 640]);
+  for (let k = 0; k < 10; k++) sfx(T.qaGo + 0.2 + k * 0.06, 'pop', { pan: 0.35, pitch: k, gain: 0.45 });
+  cam(19.1, ...full);
+  cur(19.6, [1150, 640]);
 
   // ---- 2. Edit: a call number, a blurb, the stars ------------------
   const item0 = rectOf('hover0', 'item0');
-  const zEdit = 2.0;
-  camHold(T.edit); cam(T.edit + 0.6, item0[0] + item0[2] / 2 - 20, item0[1] + item0[3] / 2 + 10, zEdit);
+  camHold(T.edit); cam(T.edit + 0.7, item0[0] + item0[2] / 2 - 20, item0[1] + item0[3] / 2 + 10, 2.0);
   cut(T.edit + 0.2, 'hover0');
-  CURSOR_VIS.push([T.edit + 0.3, 22.7]);
+  CURSOR_VIS.push([T.edit + 0.3, 33.2]);
   const a0 = rectOf('hover0', 'author0');
   const callEnd = [a0[0] + a0[2] - 6, a0[1] + a0[3] / 2];
-  cur(T.edit + 0.3, [860, 330]); cur(15.6, callEnd); click(15.7, callEnd);
-  cut(15.75, 'call-cleared');
-  sfx(15.8, 'type', { gain: 0.6 });
+  cur(T.edit + 0.3, [860, 330]); cur(21.8, callEnd); click(21.9, callEnd);
+  cut(21.95, 'call-cleared');
+  sfx(22.0, 'type', { gain: 0.6 });
   const calls = idsWith('call-').filter((id) => id !== 'call-cleared');
-  calls.forEach((id, i) => cut(15.95 + i * 0.16, id));
-  typeSfx(15.95, 15.95 + calls.length * 0.16, 13, callEnd[0]);
+  calls.forEach((id, i) => cut(22.2 + i * 0.24, id));
+  typeSfx(22.2, 22.2 + calls.length * 0.24, 13, callEnd[0]);
   const d0 = rectOf('hover0', 'desc0');
   const descAt = [d0[0] + 40, d0[1] + d0[3] / 2];
-  cur(16.95, descAt); click(17.05, descAt);
-  cut(17.1, 'desc-focus');
+  cur(T.callouts[1] - 0.1, descAt); click(T.callouts[1], descAt);
+  cut(T.callouts[1] + 0.05, 'desc-focus');
   const descs = idsWith('desc-').filter((id) => id !== 'desc-focus');
-  descs.forEach((id, i) => cut(17.25 + i * 0.145, id));
-  const descEnd = 17.25 + descs.length * 0.145;
-  typeSfx(17.25, descEnd, Math.round(descs.length * 4.5), descAt[0] + 100);
-  CALLOUTS.push([15.75, 19.3, 'hover0', 'author0', 1, 0.5, 70, -150, 'Click any text to edit it', 'titles, authors, call numbers, blurbs']);
+  descs.forEach((id, i) => cut(24.1 + i * 0.21, id));
+  typeSfx(24.1, 24.1 + descs.length * 0.21, Math.round(descs.length * 4.5), descAt[0] + 100);
+  CALLOUTS.push([22.0, 27.1, 'hover0', 'author0', 1, 0.5, 70, -150, 'Click any text to edit it', 'titles, authors, call numbers, blurbs']);
   // a time skip: the rest of the blurbs, written the same way
   cut(T.skip, 'filled');
-  CHIPS.push([T.skip, T.skip + 1.0, '...a few blurbs later']);
+  CHIPS.push([T.skip, T.skip + 1.3, '...a few blurbs later']);
   sfx(T.skip, 'paper', { pan: 0.2, gain: 0.9 });
   const p2 = rectOf('filled', 'item0');
   cam(T.skip + 0.05, p2[0] + 180, 330, 1.25, 'out');
   const rail = rectOf('star-hover', 'rail2');
-  cut(20.4, 'star-hover');
-  camHold(20.4); cam(20.85, rail[0] + 120, rail[1] + rail[3] / 2, 1.9);
+  cut(29.1, 'star-hover');
+  camHold(29.1); cam(29.7, rail[0] + 120, rail[1] + rail[3] / 2, 1.9);
   const star = ctr(rectOf('star-hover', 'star2'));
-  cur(20.85, star);
+  cur(29.8, star);
   click(T.stars[0], star, 'tick'); cut(T.stars[0] + 0.05, 'star-off');
   click(T.stars[1], star); cut(T.stars[1] + 0.05, 'star-on');
   sfx(T.stars[1] + 0.03, 'twinkle', { pan: 0.1 });
-  CALLOUTS.push([T.stars[0] + 0.1, 23.0, 'star-hover', 'star2', 1, 0.5, 190, -190, '★ Starred titles go on the cover', 'the first twelve are starred for you']);
-  cam(22.75, ...full);
+  CALLOUTS.push([T.stars[0] + 0.1, 33.1, 'star-hover', 'star2', 1, 0.5, 190, -190, '★ Starred titles go on the cover', 'the first twelve are starred for you']);
+  cam(33.6, ...full);
 
   // ---- 3. Make a cover ------------------------------------------------
   const tab = ctr(rectOf('fc-tab', 'tab'));
-  CURSOR_VIS.push([22.8, T.honey + 0.9]);
-  cur(22.8, [700, 420]); cur(T.fcTab - 0.1, tab); click(T.fcTab, tab);
+  CURSOR_VIS.push([33.4, T.honey + 1.2]);
+  cur(33.4, [700, 420]); cur(T.fcTab - 0.15, tab); click(T.fcTab, tab);
   cut(T.fcTab + 0.08, 'fc-tab');
   const txt = ctr(rectOf('fc-tab', 'text'));
-  camHold(T.fcTab + 0.1); cam(T.fcTab + 0.5, txt[0] + 230, txt[1] + 80, 1.45);
-  cur(23.85, txt); click(23.95, txt);
+  camHold(T.fcTab + 0.1); cam(T.fcTab + 0.6, txt[0] + 230, txt[1] + 80, 1.45);
+  cur(34.9, txt); click(35.0, txt);
   const fcTyped = idsWith('fc-type-');
-  fcTyped.forEach((id, i) => cut(24.0 + i * 0.12, id));
-  typeSfx(24.0, 24.0 + fcTyped.length * 0.12, 16, txt[0]);
-  cut(T.create - 0.12, 'pre-create');
+  fcTyped.forEach((id, i) => cut(35.15 + i * 0.17, id));
+  typeSfx(35.15, 35.15 + fcTyped.length * 0.17, 16, txt[0]);
+  cut(T.create - 0.15, 'pre-create');
   const create = ctr(rectOf('pre-create', 'target'));
-  cur(T.create - 0.12, create); click(T.create, create);
-  cut(T.create + 0.3, 'fc-classic');
-  sfx(T.create + 0.3, 'shuffle', { pan: 0.4 });
-  camHold(T.create + 0.1); cam(T.create + 0.6, 660, APP.h / 2, 1.02);
+  cur(T.create - 0.15, create); click(T.create, create);
+  cut(T.create + 0.35, 'fc-classic');
+  sfx(T.create + 0.35, 'shuffle', { pan: 0.4 });
+  camHold(T.create + 0.1); cam(T.create + 0.7, 660, APP.h / 2, 1.02);
   [['tilted', T.tilt], ['staggered', T.stag], ['honeycomb', T.honey]].forEach(([layout, tt]) => {
-    cut(tt - 0.4, `pre-${layout}`);
+    cut(tt - 0.45, `pre-${layout}`);
     const p = ctr(rectOf(`pre-${layout}`, 'target'));
-    cur(tt - 0.12, p); cur(tt + 0.05, p); click(tt, p);
-    cut(tt + 0.25, `fc-${layout}`);
-    sfx(tt + 0.25, 'shuffle', { pan: 0.4 });
+    cur(tt - 0.15, p); cur(tt + 0.05, p); click(tt, p);
+    cut(tt + 0.3, `fc-${layout}`);
+    sfx(tt + 0.3, 'shuffle', { pan: 0.4 });
   });
-  sfx(T.honey + 0.35, 'sparkle', { pan: 0.4 });
-  CALLOUTS.push([T.tilt - 0.35, T.tilt + 1.4, 'pre-tilted', 'target', 0.5, 0, -60, -120, 'Six collage layouts', 'made from your starred covers']);
-  cur(T.honey + 0.8, [700, 640]);
+  sfx(T.honey + 0.4, 'sparkle', { pan: 0.4 });
+  CALLOUTS.push([T.tilt - 0.4, T.tilt + 1.9, 'pre-tilted', 'target', 0.5, 0, -60, -120, 'Six collage layouts', 'made from your starred covers']);
+  cur(T.honey + 1.0, [700, 640]);
 
-  // ---- 4. Style: a font, a color, a gradient, a QR code -------------
+  // ---- 4. Style: a font, a color, a gradient, a QR code, a logo -----
   cut(T.toStyle, 'st-scrolled');
   sfx(T.toStyle, 'whoosh', { pan: 0.3, gain: 0.5 });
   const font2 = ctr(rectOf('st-scrolled', 'font2'));
-  camHold(T.toStyle); cam(T.toStyle + 0.5, 600, 330, 1.12);
-  CURSOR_VIS.push([T.toStyle + 0.3, T.gradient + 0.6]);
-  cur(T.toStyle + 0.3, [640, 560]); cur(T.fontOpen - 0.12, font2); click(T.fontOpen, font2);
+  camHold(T.toStyle); cam(T.toStyle + 0.6, 600, 330, 1.12);
+  CURSOR_VIS.push([T.toStyle + 0.4, T.gradient + 0.9]);
+  cur(T.toStyle + 0.4, [640, 560]); cur(T.fontOpen - 0.15, font2); click(T.fontOpen, font2);
   cut(T.fontOpen + 0.08, 'st-fontlist');
   sfx(T.fontOpen + 0.08, 'open', { pan: -0.1, gain: 0.7 });
   const opt = ctr(rectOf('st-fontlist', 'option'), 0.3);
-  cur(T.fontPick - 0.14, opt); click(T.fontPick, opt);
-  cut(T.fontPick + 0.3, 'st-font');
-  sfx(T.fontPick + 0.3, 'shuffle', { pan: 0.4, gain: 0.7 });
+  cur(T.fontPick - 0.2, opt); click(T.fontPick, opt);
+  cut(T.fontPick + 0.35, 'st-font');
+  sfx(T.fontPick + 0.35, 'shuffle', { pan: 0.4, gain: 0.7 });
   const pal = ctr(rectOf('st-palette', 'bgTrigger'));
-  cur(T.palette - 0.14, pal); click(T.palette, pal);
+  cur(T.palette - 0.2, pal); click(T.palette, pal);
   cut(T.palette + 0.08, 'st-palette');
   sfx(T.palette + 0.08, 'open', { pan: -0.1, gain: 0.7 });
   const sw = ctr(rectOf('st-palette', 'swatch'));
-  cur(T.swatch - 0.14, sw); click(T.swatch, sw, 'tick');
-  cut(T.swatch + 0.25, 'st-color');
-  cut(T.gradient - 0.3, 'pre-gradient');
+  cur(T.swatch - 0.2, sw); click(T.swatch, sw, 'tick');
+  cut(T.swatch + 0.3, 'st-color');
+  cut(T.gradient - 0.35, 'pre-gradient');
   const gr = ctr(rectOf('pre-gradient', 'target'));
-  cur(T.gradient - 0.12, gr); click(T.gradient, gr, 'toggle');
-  cut(T.gradient + 0.25, 'st-gradient');
-  sfx(T.gradient + 0.3, 'sparkle', { pan: 0.4, gain: 0.5 });
-  // back cover
+  cur(T.gradient - 0.15, gr); click(T.gradient, gr, 'toggle');
+  cut(T.gradient + 0.3, 'st-gradient');
+  sfx(T.gradient + 0.35, 'sparkle', { pan: 0.4, gain: 0.5 });
+  // back cover: the blurb, the QR code, the logo
   const btab = ctr(rectOf('bc-tab', 'tab'));
-  CURSOR_VIS.push([T.backTab - 0.5, T.blurb + 0.7]);
-  camHold(T.backTab - 0.3); cam(T.backTab + 0.3, APP.w / 2, APP.h / 2, 1);
-  cur(T.backTab - 0.5, [640, 500]); cur(T.backTab - 0.1, btab); click(T.backTab, btab);
+  CURSOR_VIS.push([T.backTab - 0.6, T.logo + 0.9]);
+  camHold(T.backTab - 0.3); cam(T.backTab + 0.3, ...full);
+  cur(T.backTab - 0.6, [640, 500]); cur(T.backTab - 0.15, btab); click(T.backTab, btab);
   cut(T.backTab + 0.08, 'bc-tab');
+  cut(55.6, 'pre-blurb');
+  const bl = ctr(rectOf('pre-blurb', 'target'));
+  cur(55.6, bl); click(55.75, bl);
+  const blurbs = idsWith('blurb-');
+  blurbs.forEach((id, i) => cut(55.9 + i * 0.17, id));
+  typeSfx(55.9, 55.9 + blurbs.length * 0.17, 20, bl[0]);
   const url = ctr(rectOf('bc-tab', 'url'));
-  cur(38.2, url); click(38.3, url);
+  cur(57.25, url); click(57.4, url);
   const urls = idsWith('bc-url-');
-  urls.forEach((id, i) => cut(38.4 + i * 0.1, id));
-  typeSfx(38.4, 38.4 + urls.length * 0.1, 22, url[0]);
+  urls.forEach((id, i) => cut(57.55 + i * 0.13, id));
+  typeSfx(57.55, 57.55 + urls.length * 0.13, 22, url[0]);
   const upd = ctr(rectOf('bc-qr', 'update'));
-  cur(T.qrUpdate - 0.15, upd); click(T.qrUpdate, upd);
+  cur(T.qrUpdate - 0.2, upd); click(T.qrUpdate, upd);
   cut(T.qrUpdate + 0.1, 'bc-qr');
   sfx(T.qrUpdate + 0.12, 'qr', { pan: 0.2 });
   const qrr = rectOf('bc-qr', 'qr');
-  camHold(T.qrUpdate + 0.1); cam(T.qrUpdate + 0.6, qrr[0] + qrr[2] / 2, qrr[1] + qrr[3] / 2, 1.9);
-  const blurb = ctr(rectOf('bc-qr', 'blurb'));
-  cur(T.blurb - 0.1, blurb); click(T.blurb, blurb);
-  typeSfx(T.blurb + 0.1, T.blurb + 0.5, 8, blurb[0]);
-  cut(T.blurb + 0.55, 'bc-blurb');
-  CALLOUTS.push([T.qrUpdate + 0.5, 41.9, 'bc-qr', 'qr', 0.88, 0.1, 40, -150, 'A real QR code', 'point it at your catalog list']);
+  camHold(T.qrUpdate + 0.1); cam(T.qrUpdate + 0.7, qrr[0] + qrr[2] / 2, qrr[1] + qrr[3] / 2, 1.9);
+  CALLOUTS.push([T.qrUpdate + 0.6, 60.7, 'bc-qr', 'qr', 0.88, 0.1, 40, -150, 'A real QR code', 'point it at your catalog list']);
+  const br = rectOf('bc-logo', 'branding');
+  camHold(60.5); cam(61.1, br[0] + br[2] / 2, br[1] + br[3] / 2 - 60, 1.55);
+  const brc = ctr(br);
+  cur(60.9, brc); click(61.05, brc);
+  KEYCAPS.push([61.05, 61.55, 'library-logo.png', 'bc-logo', 'branding', 60, -40]);
+  cut(T.logo, 'bc-logo');
+  sfx(T.logo, 'pop', { pan: 0.2, pitch: 5 });
 
   // ---- 5. Generate PDF ---------------------------------------------
   const pdf = ctr(rectOf('export-hover', 'pdf'));
-  camHold(41.95); cam(42.5, pdf[0] - 200, 210, 1.6);
-  cut(42.3, 'export-hover');
-  CURSOR_VIS.push([42.2, T.pdfClick + 0.35]);
-  cur(42.2, [900, 330]); cur(T.pdfClick - 0.12, pdf); click(T.pdfClick, pdf);
+  cut(62.9, 'export-hover');
+  camHold(62.9); cam(63.5, pdf[0] - 200, 210, 1.6);
+  CURSOR_VIS.push([62.9, T.pdfClick + 0.4]);
+  cur(62.9, [900, 330]); cur(T.pdfClick - 0.15, pdf); click(T.pdfClick, pdf);
+
+  // ---- 6. The guided tour ----------------------------------------------
+  cut(T.tourIn, 'tour-pre');
+  const tb = ctr(rectOf('tour-pre', 'target'));
+  cam(T.tourIn, ...full); camHold(T.tourIn + 0.4); cam(T.tourIn + 1.0, tb[0] - 150, 220, 1.7);
+  CURSOR_VIS.push([T.tourIn + 0.6, T.tourClick + 1.2]);
+  cur(T.tourIn + 0.6, [900, 420]); cur(T.tourClick - 0.2, tb); click(T.tourClick, tb);
+  cut(T.tourClick + 0.12, 'tour-picker');
+  sfx(T.tourClick + 0.12, 'open', { pan: 0.4 });
+  const md = ctr(rectOf('tour-picker', 'modal'));
+  camHold(T.tourClick + 0.2); cam(T.tourClick + 0.8, md[0], md[1] - 40, 1.3);
+  cur(T.tourClick + 1.0, [tb[0] + 40, tb[1] + 260]);
 })();
 
 (function buildSfx() {
   sfx(1.3, 'peek', { pan: 0 });
   sfx(1.8, 'hop', { pan: 0 }); sfx(2.3, 'land', { pan: 0 });
   sfx(T.logoIn, 'chime', { pan: 0, notes: [72, 76, 79, 84] });
-  sfx(5.4, 'hop', { pan: -0.3 }); sfx(6.05, 'land', { pan: -0.55 });
+  sfx(T.hopNook, 'hop', { pan: -0.3 }); sfx(T.hopNook + 0.68, 'land', { pan: -0.55 });
   sfx(T.winIn, 'whoosh', { pan: 0.4 });
   sfx(T.edit, 'whoosh', { pan: 0.1, gain: 0.5 });
   sfx(T.heartsA, 'hearts', { pan: -0.6 });
@@ -700,8 +728,10 @@ const KEYCAPS = [];
   sfx(T.fold, 'fold', { pan: 0.25 });
   sfx(T.stand, 'land', { pan: 0.3, gain: 0.6 });
   sfx(T.hopOut, 'hop', { pan: -0.4 }); sfx(T.hopOut + 0.72, 'land', { pan: -0.25 });
+  sfx(T.tourIn, 'whoosh', { pan: 0.5, gain: 0.7 });
+  sfx(T.tourOut, 'whoosh', { pan: 0.6, gain: 0.6 });
   sfx(T.logoBack, 'chime', { pan: 0.1, notes: [77, 81, 84, 89] });
-  sfx(52.1, 'paper', { pan: 0.5, gain: 0.5 });
+  sfx(T.outroIn + 0.5, 'paper', { pan: 0.5, gain: 0.5 });
   sfx(T.heartsB, 'hearts', { pan: -0.3 });
   sfx(T.heartsB + 0.1, 'purr', { pan: -0.25, dur: 2.4 });
 })();
@@ -722,13 +752,26 @@ function camAt(t) {
 // App coordinates to stage coordinates, through the camera and the window.
 function toStage(t, ax, ay) {
   const [cx, cy, z] = camAt(t);
-  const off = winOffset(t);
-  return [WIN.x + off[0] + WIN.w / 2 + (ax - cx) * APP_S * z, WIN.y + WIN.bar + off[1] + (WIN.h - WIN.bar) / 2 + (ay - cy) * APP_S * z];
+  const w = winPlace(t);
+  return [WIN.x + w.dx + w.s * (WIN.w / 2 + (ax - cx) * APP_S * z),
+    WIN.y + w.dy + w.s * (WIN.bar + (WIN.h - WIN.bar) / 2 + (ay - cy) * APP_S * z)];
 }
-function winOffset(t) {
+// Where the window is: offset from its home and scale (about its top
+// left), and how visible. Two appearances: the main tour of the tool,
+// and later a smaller one beside Folio for the guided-tour beat.
+const TOUR_WIN = { x: 975, y: 300, s: 0.72 };
+function winPlace(t) {
+  if (t >= T.tourIn - 0.05) {
+    const inK = E.outQuint(seg(t, T.tourIn, T.tourIn + 0.75));
+    const outK = E.in(seg(t, T.tourOut, T.tourOut + 0.5));
+    return { dx: TOUR_WIN.x - WIN.x + 700 * (1 - inK) + 900 * outK, dy: TOUR_WIN.y - WIN.y, s: TOUR_WIN.s,
+      o: t < T.tourOut + 0.5 ? Math.min(seg(t, T.tourIn, T.tourIn + 0.25), 1 - outK) : 0 };
+  }
   const inK = E.outQuint(seg(t, T.winIn, T.winIn + 0.75));
   const outK = E.in(seg(t, T.winOut, T.winOut + 0.5));
-  return [700 * (1 - inK), 120 * outK];
+  const sc = 1 - 0.08 * outK;
+  return { dx: 700 * (1 - inK) + (1 - sc) * WIN.w / 2, dy: 120 * outK + (1 - sc) * WIN.h, s: sc,
+    o: t >= T.winIn && t < T.winOut + 0.5 ? Math.min(seg(t, T.winIn, T.winIn + 0.25), 1 - outK) : 0 };
 }
 FOOT.sort((a, b) => a[0] - b[0]);
 
@@ -1026,26 +1069,27 @@ function buildCat() {
 /* ---------- Folio's choreography ---------- */
 const HOPS = [
   { t0: 1.78, t1: 2.36, from: [960, 1150, 1.15], to: [960, 900, 1.15], h: 150 },
-  { t0: 5.38, t1: 6.06, from: [960, 900, 1.15], to: [330, 822, 0.95], h: 170 },
+  { t0: T.hopNook, t1: T.hopNook + 0.68, from: [960, 900, 1.15], to: [330, 822, 0.95], h: 170 },
   { t0: T.honey + 0.08, t1: T.honey + 0.5, from: [330, 822, 0.95], to: [330, 822, 0.95], h: 46 },
-  { t0: T.hopOut, t1: T.hopOut + 0.72, from: [330, 822, 0.95], to: [770, 900, 1.1], h: 150 },
+  { t0: T.hopOut, t1: T.hopOut + 0.72, from: [330, 822, 0.95], to: [700, 900, 1.1], h: 150 },
 ];
 const peekY = track([[0, 1520], [0.25, 1520], [1.1, 1152, 'out'], [1.5, 1146, 'sine'], [1.62, 1152, 'sine']]);
 const TILTS = [
   [2.6, 4.0, 7], [wordT('collage', 4) - 0.1, wordT('collage', 4) + 0.55, 8], [wordT('collage', 5) - 0.1, wordT('collage', 5) + 0.55, -8],
   [wordT('collage', 6) - 0.1, wordT('collage', 6) + 0.6, 9], [wordT('collage', 7) - 0.15, wordT('collage', 7) + 0.6, -5],
-  [T.fonts[0] - 0.2, T.fonts[3] + 0.4, 6], [T.printerUp, T.sheetOutEnd, -9], [T.flip, T.flip + 0.9, 7], [wordT('bye', 0) - 0.1, 58.4, 8],
+  [T.fonts[0] - 0.2, T.fonts[3] + 0.4, 6], [T.printerUp, T.sheetOutEnd, -9], [T.flip, T.flip + 0.9, 7], [wordT('bye', 0) - 0.1, DURATION - 1.6, 8], [wordT('tour', 3) - 0.3, wordT('tour', 3) + 0.7, 8],
   [T.resultsAt, T.resultsAt + 0.8, 6], [T.pasteAt, T.pasteAt + 0.7, -6], [T.callouts[1], T.callouts[1] + 0.8, -5],
 ];
 const MOODS = [
-  [0, 'searching'], [1.7, 'excited'], [2.6, 'greeting'], [5.2, 'idle'], [6.2, 'evaluating'], [T.resultsAt, 'excited'], [9.7, 'idle'],
-  [T.pasteAt, 'excited'], [12.9, 'content'], [15.4, 'evaluating'], [20.9, 'excited'], [22.4, 'idle'], [T.honey - 0.1, 'excited'],
-  [T.honey + 2.0, 'content'], [33.4, 'evaluating'], [T.qrIn, 'idle'], [T.printerUp, 'searching'], [T.stamp - 0.1, 'excited'],
-  [T.stand + 0.3, 'content'], [T.hopOut - 0.1, 'greeting'], [T.heartsB - 0.4, 'content'],
+  [0, 'searching'], [1.7, 'excited'], [2.6, 'greeting'], [5.6, 'idle'], [T.winIn + 0.2, 'evaluating'], [T.resultsAt, 'excited'],
+  [T.resultsAt + 1.4, 'idle'], [T.pasteAt, 'excited'], [T.qaGo + 0.3, 'content'], [T.edit + 1.0, 'evaluating'], [T.stars[1] - 0.1, 'excited'],
+  [T.stars[1] + 1.5, 'idle'], [T.honey - 0.1, 'excited'], [T.honey + 2.0, 'content'], [T.toStyle + 0.5, 'evaluating'], [T.qrIn, 'idle'],
+  [T.logo, 'excited'], [T.logo + 1.3, 'idle'], [T.printerUp, 'searching'], [T.stamp - 0.1, 'excited'], [T.stand + 0.3, 'content'],
+  [T.hopOut - 0.1, 'greeting'], [T.tourIn + 0.8, 'evaluating'], [T.tourClick, 'excited'], [T.tourOut, 'greeting'], [T.heartsB - 0.4, 'content'],
 ];
-const EAR_FLICKS = [[1.62, 1], [9.05, -1], [14.25, 1], [18.3, -1], [27.4, 1], [36.9, -1], [45.4, 1], [53.9, -1]];
+const EAR_FLICKS = [[1.62, 1], [10.6, -1], [17.3, 1], [24.9, -1], [35.6, 1], [45.9, -1], [52.8, 1], [60.3, -1], [66.2, 1], [78.4, -1], [84.6, 1]];
 const SLOW_BLINKS = [[4.75, 1.0], [T.heartsB - 0.25, 1.3]];
-const SQUINTS = [[T.honey + 0.28, T.honey + 1.9], [T.heartsB + 1.1, 59.3]];
+const SQUINTS = [[T.honey + 0.28, T.honey + 1.9], [T.heartsB + 1.1, DURATION - 0.7]];
 const BLINKS = (() => {
   const r = rng(12); const out = []; let t = 0.9;
   while (t < DURATION) { out.push(t); t += 2.6 + r() * 2.6; }
@@ -1248,7 +1292,7 @@ function renderCat(t) {
   const h = hopState(t);
   const breath = Math.sin(t * 2 * Math.PI / 3.4);
   // stack of books, slid in for the narrator's nook
-  const stackIn = E.outBack(seg(t, 4.95, 5.4)), stackOut = E.in(seg(t, T.hopOut + 0.5, T.hopOut + 1.0));
+  const stackIn = E.outBack(seg(t, T.hopNook - 0.5, T.hopNook - 0.05)), stackOut = E.in(seg(t, T.hopOut + 0.5, T.hopOut + 1.0));
   const sx = lerp(-420, 0, stackIn) - 480 * stackOut;
   setA(C.stack, 'transform', `translate(${f1(sx)} 0)`);
   setA(C.stack, 'visibility', stackIn > 0 && stackOut < 1 ? 'visible' : 'hidden');
@@ -1265,12 +1309,12 @@ function renderCat(t) {
   const talk = talkWeight(t);
   const mo = mouthOpen(t);
   let faceDX, lookX, lookY = 0;
-  if (t < 5.3) {
+  if (t < T.hopNook - 0.1) {
     const look = track([[0, [0, 0]], [1.12, [0, 0]], [1.22, [-13, -0.9], 'out'], [1.44, [-13, -0.9]], [1.56, [13, 0.9], 'out'], [1.78, [13, 0.9]], [1.95, [0, 0]]])(t);
     faceDX = look[0]; lookX = look[1];
   } else {
     // In the nook the content is to his right; he faces it and turns to us to talk.
-    const toContent = h.x < 600 ? 1 : 0.4;
+    const toContent = h.x < 600 || (t > T.tourIn && t < T.tourOut) ? 1 : 0.4;
     faceDX = lerp(11 * toContent, 2, talk); lookX = lerp(0.75 * toContent, 0.1, talk);
     if (t > T.printerUp && t < T.stand) lookY = 0.25;
   }
@@ -1307,7 +1351,7 @@ function renderCat(t) {
   setA(C.mouthOpen, 'visibility', mo > 0.03 ? 'visible' : 'hidden');
   setA(C.tongue, 'visibility', mo > 0.35 ? 'visible' : 'hidden');
   // glasses glint
-  const gl = [3.55, 30.4, 57.7].reduce((m, gt) => { const u = seg(t, gt, gt + 0.55); return u > 0 && u < 1 ? u : m; }, -1);
+  const gl = [3.55, T.honey + 1.2, 84.2].reduce((m, gt) => { const u = seg(t, gt, gt + 0.55); return u > 0 && u < 1 ? u : m; }, -1);
   setA(C.glint, 'transform', gl >= 0 ? `translate(${f1(lerp(140, 350, E.inOut(gl)))} 0) rotate(28 0 200)` : 'translate(-500 0)');
   // tail
   simulateTail(t);
@@ -1323,7 +1367,7 @@ const LIFE = { sparkle: 0.75, dust: 0.6, heart: 2.0, confetti: 1.3 };
 function buildParticles() {
   burst(T.logoIn + 0.1, 'sparkle', 960, 150, 14, { spread: 360 });
   burst(2.36, 'dust', 960, 900, 8);
-  burst(6.06, 'dust', 330, 822, 7);
+  burst(T.hopNook + 0.68, 'dust', 330, 822, 7);
   // Bursts over the real app sit on the control, through the camera.
   const at = (t, id, name) => { const r = rectOf(id, name); return toStage(t, r[0] + r[2] / 2, r[1] + r[3] / 2); };
   burst(T.stars[1] + 0.02, 'sparkle', ...at(T.stars[1], 'star-hover', 'star2'), 10, { spread: 70 });
@@ -1333,9 +1377,10 @@ function buildParticles() {
   burst(T.gradient + 0.3, 'sparkle', ...at(T.gradient + 0.3, 'st-gradient', 'cover'), 10, { spread: 260 });
   burst(T.stamp + 0.1, 'dust', 1560, 180, 14);
   burst(T.fold + 0.8, 'sparkle', 1400, 480, 10, { spread: 260 });
-  burst(T.hopOut + 0.72, 'dust', 770, 900, 8);
+  burst(T.hopOut + 0.72, 'dust', 700, 900, 8);
+  burst(T.logo + 0.05, 'sparkle', ...at(T.logo + 0.05, 'bc-logo', 'branding'), 12, { spread: 200 });
   burst(T.logoBack + 0.1, 'sparkle', 1270, 160, 16, { spread: 420 });
-  burst(T.heartsB, 'heart', 930, 520, 6);
+  burst(T.heartsB, 'heart', 860, 520, 6);
   const fx = $('fxFront');
   C.parts = [];
   for (let i = 0; i < 140; i++) C.parts.push(svgEl('path', { d: '', visibility: 'hidden' }, fx));
@@ -1450,11 +1495,11 @@ function renderLogo(t) {
   const introIn = E.outBack(seg(t, T.logoIn, T.logoIn + 0.55)), introOut = E.in(seg(t, T.logoOut, T.logoOut + 0.45));
   const outroIn = E.outBack(seg(t, T.logoBack, T.logoBack + 0.6));
   let x = 960, y = 46, s = 1, o = 0;
-  if (t < 30) { s = lerp(0.7, 1, introIn); o = Math.min(seg(t, T.logoIn, T.logoIn + 0.25), 1 - introOut); y = 46 - 70 * introOut; }
+  if (t < T.logoBack - 1) { s = lerp(0.7, 1, introIn); o = Math.min(seg(t, T.logoIn, T.logoIn + 0.25), 1 - introOut); y = 46 - 70 * introOut; }
   else { x = 1270; y = 70; s = lerp(0.7, 0.9, outroIn); o = seg(t, T.logoBack, T.logoBack + 0.25); }
-  setO(C.logoUrl, t < 30 ? 0 : E.out(seg(t, T.logoBack + 0.35, T.logoBack + 0.75)));
-  setO(C.logoTag, t < 30 ? seg(t, T.logoIn + 0.3, T.logoIn + 0.7) : 1);
-  const glow = t > T.heartsB ? 1 + 0.04 * Math.sin((t - T.heartsB) * 5) * (1 - seg(t, 58, 59)) : 1;
+  setO(C.logoUrl, t < T.logoBack - 1 ? 0 : E.out(seg(t, T.logoBack + 0.35, T.logoBack + 0.75)));
+  setO(C.logoTag, t < T.logoBack - 1 ? seg(t, T.logoIn + 0.3, T.logoIn + 0.7) : 1);
+  const glow = t > T.heartsB ? 1 + 0.04 * Math.sin((t - T.heartsB) * 5) * (1 - seg(t, DURATION - 3, DURATION - 2)) : 1;
   setT(C.logoUrl, `scale(${glow.toFixed(3)})`);
   setT(L, `translate(${f1(x - C.logoW / 2)}px, ${f1(y)}px) scale(${s.toFixed(3)})`);
   L.style.transformOrigin = `${C.logoW / 2}px 60px`;
@@ -1482,12 +1527,10 @@ function footAt(t) {
 // 70ms of dissolve only takes the hard edge off.
 const DISSOLVE = 0.07;
 async function renderApp(t) {
-  const off = winOffset(t);
-  const vis = t >= T.winIn && t < T.winOut + 0.5;
-  const outK = E.in(seg(t, T.winOut, T.winOut + 0.5));
-  setO(C.appwin, vis ? Math.min(seg(t, T.winIn, T.winIn + 0.25), 1 - outK) : 0);
-  setT(C.appwin, `translate(${f1(off[0])}px, ${f1(off[1])}px) scale(${(1 - 0.08 * outK).toFixed(3)})`);
-  if (!vis) return;
+  const w = winPlace(t);
+  setO(C.appwin, w.o);
+  setT(C.appwin, `translate(${f1(w.dx)}px, ${f1(w.dy)}px) scale(${w.s.toFixed(4)})`);
+  if (w.o <= 0) return;
   const i = footAt(t);
   if (i < 0) return;
   const [cx, cy, z] = camAt(t);
@@ -1562,7 +1605,9 @@ function renderPrint(t) {
   const flip = E.inOut(seg(t, T.flip, T.flip + 0.8));
   const fold = E.inOut(seg(t, T.fold, T.fold + 0.8));
   const stand = E.inOut(seg(t, T.stand, T.stand + 0.8));
-  const outro = E.inOut(seg(t, T.hopOut, T.hopOut + 0.9));
+  const outro = t >= T.outroIn ? 1 : 0;
+  const away = t >= T.hopOut && t < T.outroIn ? E.in(seg(t, T.hopOut, T.hopOut + 0.4)) : 0;
+  const back = t >= T.outroIn ? E.outBack(seg(t, T.outroIn, T.outroIn + 0.5)) : 1;
   let dy = printing ? (778 - 680 * E.sine(p)) - 140 : lerp(778 - 680 - 140, 10, lift);
   let dx = 0, sc = printing ? 1 : lerp(1, 0.94, lift);
   const ry = 180 * flip - 16 * stand + 6 * outro;
@@ -1570,24 +1615,24 @@ function renderPrint(t) {
   // Once folded, the booklet is the viewer-right half: re-centre it.
   const bookX = lerp(lerp(0, -220, stand), 1590 - 1180 - 220 * 0.62, outro);
   const bookY = lerp(lerp(dy, 50, stand), 690 - 480, outro);
-  if (t >= T.stand) { dx = bookX; dy = bookY; sc = lerp(lerp(0.94, 0.92, stand), 0.62, outro); }
+  if (t >= T.stand) { dx = bookX; dy = bookY; sc = lerp(lerp(0.94, 0.92, stand), 0.62, outro) * (0.8 + 0.2 * back); }
   const zlift = 140 * Math.sin(Math.PI * flip);
   let shake = 0;
   if (t > T.stamp && t < T.stamp + 0.2) shake = Math.sin((t - T.stamp) * 90) * 5 * (1 - (t - T.stamp) / 0.2);
-  setO(C.sheet, t > T.sheetOut ? 1 : 0);
+  setO(C.sheet, t > T.sheetOut ? (1 - away) * Math.min(1, back * 2) : 0);
   setT(C.sheet, `translate3d(${f1(dx + shake)}px, ${f1(dy)}px, ${f1(zlift)}px) rotateY(${f1(ry)}deg) rotateX(${f1(rx)}deg) scale(${sc.toFixed(4)})`);
   setT(C.halfR, `translateZ(-2px) rotateY(${f1(180 * fold)}deg)`);
   const shadeFlip = 0.35 * Math.abs(Math.sin(Math.PI * flip)), shadeFold = 0.3 * Math.abs(Math.sin(Math.PI * fold));
   C.faceShades.forEach((s, i) => setO(s, i % 2 === 0 ? shadeFlip : Math.max(shadeFlip, shadeFold)));
-  const shV = t > T.stand ? E.out(seg(t, T.stand + 0.3, T.stand + 0.8)) : 0;
+  const shV = (t > T.stand ? E.out(seg(t, T.stand + 0.3, T.stand + 0.8)) : 0) * (1 - away) * Math.min(1, back);
   const shX = lerp(1180, 1590, outro), shW = lerp(420, 300, outro);
   C.sheetShadow.style.cssText = `left:${f1(shX - shW / 2)}px;top:${f1(lerp(842, 884, outro))}px;width:${f1(shW)}px;height:34px;opacity:${shV.toFixed(3)}`;
   const st = seg(t, T.stamp, T.stamp + 0.22);
   const stOut = seg(t, T.flip - 0.1, T.flip + 0.15);
   setO(C.stamp, t > T.stamp ? Math.min(st * 3, 1 - stOut) : 0);
   setT(C.stamp, `translate(1455px, 72px) rotate(-14deg) scale(${lerp(2.4, 1, E.outBack(st)).toFixed(3)})`);
-  const tk = E.outBack(seg(t, 52.0, 52.4));
-  setO(C.takeone, t > 52.0 ? 1 : 0);
+  const tk = E.outBack(seg(t, T.outroIn + 0.5, T.outroIn + 0.9));
+  setO(C.takeone, t > T.outroIn + 0.5 ? 1 : 0);
   setT(C.takeone, `translate(1640px, 408px) rotate(${f1(-6 + Math.sin(t * 2) * 1.5)}deg) scale(${tk.toFixed(3)})`);
 }
 
@@ -1639,9 +1684,11 @@ async function renderAt(t) {
 function getCues() {
   return {
     duration: DURATION,
-    syllables: SYL.map((s) => ({ t: +s.t.toFixed(4), dur: +s.dur.toFixed(4), pitch: +s.pitch.toFixed(3), vowel: s.vowel, glide: s.glide })),
+    syllables: SYL.map((s) => ({ t: +s.t.toFixed(4), dur: +s.dur.toFixed(4), pitch: +s.pitch.toFixed(3), vowel: s.vowel, glide: s.glide, w: s.w, k: s.k, n: s.n, emph: s.emph })),
+    // where Folio sits, for panning his voice: [time, pan]
+    folioPan: [[0, 0], [T.hopNook + 0.3, -0.45], [T.hopOut + 0.4, -0.2]],
     sfx: SFX.slice().sort((a, b) => a.t - b.t),
-    transitions: [T.winIn, T.edit, T.fcTab, T.toStyle, T.winOut, T.hopOut],
+    transitions: [T.winIn, T.edit, T.fcTab, T.toStyle, T.winOut, T.tourIn, T.logoBack],
     lines: LINES.map((l) => ({ id: l.id, t: l.t, speechEnd: l.speechEnd, end: l.end })),
   };
 }
@@ -1682,6 +1729,26 @@ window.showCoverForCapture = (i) => {
     document.body.appendChild(host);
   }
   host.innerHTML = `<svg viewBox="0 0 300 450" width="600" height="900" preserveAspectRatio="xMidYMid slice"><use href="#cov${i}"/></svg>`;
+};
+// An invented library's branding image for the back cover. "Anytown" is
+// the stock placeholder town, so the logo cannot pass for a real one.
+window.showLogoForCapture = () => {
+  let host = document.getElementById('coverCapture');
+  if (!host) { host = document.createElement('div'); host.id = 'coverCapture'; document.body.appendChild(host); }
+  host.style.cssText = 'position:fixed;left:0;top:0;width:1500px;height:450px;z-index:99999;background:#fff';
+  host.innerHTML = `<svg viewBox="0 0 1500 450" width="1500" height="450">
+    <rect width="1500" height="450" fill="#ffffff"/>
+    <g transform="translate(250 225)">
+      <circle r="165" fill="#2a6f6a"/>
+      <circle r="140" fill="none" stroke="#f4e3c1" stroke-width="6"/>
+      <path d="M-95 45 Q-50 20 0 45 Q50 20 95 45 V75 Q50 50 0 75 Q-50 50 -95 75 Z" fill="#f4e3c1"/>
+      <rect x="-9" y="-40" width="18" height="90" fill="#f4e3c1"/>
+      <circle cx="0" cy="-60" r="58" fill="#8fc49a"/><circle cx="-38" cy="-35" r="38" fill="#8fc49a"/><circle cx="40" cy="-38" r="40" fill="#8fc49a"/>
+    </g>
+    <text x="470" y="215" font-family="Lora" font-weight="700" font-size="112" fill="#1f4f4b">Anytown</text>
+    <text x="474" y="305" font-family="Inter" font-weight="700" font-size="54" letter-spacing="10" fill="#2a6f6a">PUBLIC LIBRARY</text>
+    <text x="476" y="370" font-family="EB Garamond" font-style="italic" font-weight="500" font-size="40" fill="#6b5a48">Read, gather, discover</text>
+  </svg>`;
 };
 window.renderAt = renderAt;
 window.getCues = getCues;
