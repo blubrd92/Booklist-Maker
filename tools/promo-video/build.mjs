@@ -4,28 +4,40 @@
  * narrated by Folio, to dist/promo-video/booklister-tour.mp4.
  *
  * Run with:
- *   npm install --no-save playwright-core qrcode-generator
+ *   npm install --no-save playwright-core sortablejs@1.15.0 jspdf@2.5.1 \
+ *     html2canvas@1.4.1 qrcodejs@1.0.0 @fortawesome/fontawesome-free@6.4.0
  *   FFMPEG=/path/to/ffmpeg node tools/promo-video/build.mjs
  *
  * Options:
  *   --stills 3.2,18,41.5   write PNG stills at those times and stop
  *   --audio-only           write soundtrack.wav (and cues.json) and stop
+ *   --capture-only         film the real app into dist/promo-video/capture/ and stop
+ *   --reuse-capture        skip filming and use the last capture
  *   --no-audio             skip the soundtrack
  *
  * NOTHING ON THE SITE NEEDS THIS. Like tools/og-image it is an on-demand
  * utility, kept out of package.json so a clean checkout never pays for
- * it. It needs playwright-core and qrcode-generator (npm install
- * --no-save), a Chromium binary, an ffmpeg built with libx264 and aac
- * (the one Playwright bundles is VP8-only), and the network once, to
+ * it. It needs the npm packages above (installed --no-save; all but
+ * playwright-core are the app's own CDN libraries, at the versions
+ * index.html pins), a Chromium binary, an ffmpeg built with libx264 and
+ * aac (the one Playwright bundles is VP8-only), and the network once, to
  * fetch fonts.
  *
- * How it works: scene.html is a single page whose window.renderAt(t)
- * draws the frame at time t with no CSS animation anywhere, so every
- * frame is deterministic. This script steps t at 30 fps, screenshots
- * each frame and pipes the JPEGs into ffmpeg. The page also reports its
- * own cue sheet (every syllable Folio "says", every click, pop and
- * whoosh), which audio.mjs turns into the soundtrack, so picture and
- * sound come from one timeline and cannot drift apart.
+ * How it works, in three passes:
+ * 1. Film. capture.mjs drives the real tool (index.html from this
+ *    checkout) through the story with real clicks and keystrokes and
+ *    saves a screenshot after each change, plus the position of every
+ *    control it used. Every screen of the app in the video is one of
+ *    these; none is redrawn.
+ * 2. Compose. scene.html plays that footage in a window beside Folio,
+ *    with a camera, a cursor and callouts placed from the recorded
+ *    positions. window.renderAt(t) draws the frame at time t with no CSS
+ *    animation anywhere, so every frame is deterministic.
+ * 3. Render. This script steps t at 30 fps, screenshots each frame and
+ *    pipes the JPEGs into ffmpeg. The page also reports its own cue
+ *    sheet (every syllable Folio "says", every click, pop and whoosh),
+ *    which audio.mjs turns into the soundtrack, so picture and sound
+ *    come from one timeline and cannot drift apart.
  *
  * The books are invented and the cover art is abstract, on purpose, for
  * the same reason as the share card: no fabricated jackets for real
@@ -37,6 +49,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { renderAudio } from './audio.mjs';
+import { captureApp } from './capture.mjs';
 
 const TOOL_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(TOOL_DIR, '..', '..');
@@ -56,7 +69,6 @@ const FONT_CSS_URL = 'https://fonts.googleapis.com/css2'
   + '&family=Oswald:wght@500;600&family=Cinzel:wght@600;700'
   + '&family=Special+Elite&family=Libre+Baskerville:wght@700'
   + '&display=block';
-const QR_TEXT = 'https://booklister.org';
 const CHROME_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
   + '(KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
@@ -83,25 +95,6 @@ function fontFaces() {
   })).join('\n');
   writeFileSync(cache, inlined);
   return inlined;
-}
-
-// The QR code on the back-cover card is real and scans to booklister.org.
-// Its module matrix is computed here and handed to the page as data.
-async function qrData() {
-  let qrcode;
-  try {
-    ({ default: qrcode } = await import('qrcode-generator'));
-  } catch {
-    console.error('\nqrcode-generator is not installed. Run:\n  npm install --no-save qrcode-generator\n');
-    process.exit(1);
-  }
-  const q = qrcode(0, 'M');
-  q.addData(QR_TEXT);
-  q.make();
-  const n = q.getModuleCount();
-  const cells = [];
-  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) cells.push([r, c]);
-  return { n, cells };
 }
 
 function findFfmpeg() {
@@ -136,20 +129,49 @@ async function main() {
   const stillsArg = args.includes('--stills') ? args[args.indexOf('--stills') + 1] : null;
   const withAudio = !args.includes('--no-audio');
   const audioOnly = args.includes('--audio-only');
-  mkdirSync(OUT_DIR, { recursive: true });
+  const captureOnly = args.includes('--capture-only');
+  const reuseCapture = args.includes('--reuse-capture');
+  const CAP_DIR = join(OUT_DIR, 'capture');
+  mkdirSync(CAP_DIR, { recursive: true });
 
-  const qr = await qrData();
-  const html = readFileSync(join(TOOL_DIR, 'scene.html'), 'utf8')
-    .replace('/*__FONT_FACES__*/', () => fontFaces())
-    .replace('/*__QR_DATA__*/', () => `window.QR_DATA = ${JSON.stringify(qr)};`);
-  const built = join(OUT_DIR, 'scene.built.html');
-  writeFileSync(built, html);
-
+  const template = readFileSync(join(TOOL_DIR, 'scene.html'), 'utf8')
+    .replace('/*__FONT_FACES__*/', () => fontFaces());
+  // The scene page is written into the capture folder so it can load the
+  // shots by relative path.
+  const built = join(CAP_DIR, 'scene.built.html');
   const browser = await launch();
+
+  // 1. Film the real app, using covers drawn by the scene's own art.
+  let manifest;
+  const manifestFile = join(CAP_DIR, 'shots.json');
+  if (reuseCapture && existsSync(manifestFile)) {
+    manifest = JSON.parse(readFileSync(manifestFile, 'utf8'));
+  } else {
+    writeFileSync(built, template.replace('/*__SHOTS__*/', 'window.SHOTS = null;'));
+    const prep = await browser.newPage({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 1 });
+    prep.on('pageerror', (e) => console.error('page error:', e.message));
+    await prep.goto(pathToFileURL(built).href);
+    await prep.waitForFunction(() => window.sceneReady === true, null, { timeout: 30000 });
+    const data = await prep.evaluate(() => window.getCastData());
+    const covers = [];
+    for (let i = 0; i < data.books.length; i++) {
+      await prep.evaluate((n) => window.showCoverForCapture(n), i);
+      covers.push(await prep.screenshot({ type: 'jpeg', quality: 92, clip: { x: 0, y: 0, width: 600, height: 900 } }));
+    }
+    await prep.close();
+    console.log('filming the real app...');
+    manifest = await captureApp(browser, {
+      root: REPO_ROOT, outDir: CAP_DIR, books: data.books, covers, search: data.search, pasted: data.pasted,
+      log: (m) => console.log(m),
+    });
+  }
+  if (captureOnly) { await browser.close(); return; }
+  writeFileSync(built, template.replace('/*__SHOTS__*/', () => `window.SHOTS = ${JSON.stringify(manifest)};`));
+
   const page = await browser.newPage({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => console.error('page error:', e.message));
   await page.goto(pathToFileURL(built).href);
-  await page.waitForFunction(() => window.sceneReady === true, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.sceneReady === true, null, { timeout: 60000 });
   const duration = await page.evaluate(() => window.SCENE_DURATION);
 
   if (stillsArg) {

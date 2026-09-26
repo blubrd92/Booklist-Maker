@@ -7,8 +7,8 @@
   same timeline the picture uses.
 
   Tokens replaced by build.mjs: the font-face comment in <style> and the
-  QR data comment in the first <script> (the module matrix for a real,
-  scannable code to booklister.org).
+  shots comment in the first <script> (the manifest of real app frames
+  filmed by capture.mjs).
 
   Folio's drawing is the one in index.html (same paths, colors and
   proportions); only the rig is new. Everything that moves is posed per
@@ -45,144 +45,35 @@ svg { overflow: visible; }
 #chapter .num { width: 46px; height: 46px; border-radius: 50%; background: #f4a261; color: #fff;
   display: flex; align-items: center; justify-content: center; font: 800 26px/1 'Inter'; }
 
-/* ---------- generic cards ---------- */
-.card { position: absolute; background: #fff; border-radius: 20px;
-  box-shadow: 0 22px 44px rgba(80,52,24,.18), 0 3px 8px rgba(0,0,0,.08); }
-.card h3 { margin: 0; font: 700 26px/1 'Inter'; color: #37474f; }
-.card .sub { font: 500 15px/1.3 'Inter'; color: #718096; }
+/* ---------- the real app, in a browser window ---------- */
+#appwin { position: absolute; left: 600px; top: 88px; width: 1260px; height: 780px; border-radius: 14px; overflow: hidden;
+  background: #fff; transform-origin: 50% 100%;
+  box-shadow: 0 30px 60px rgba(80,52,24,.24), 0 3px 10px rgba(0,0,0,.12), 0 0 0 1px rgba(74,48,32,.12); }
+#appbar { position: absolute; left: 0; top: 0; width: 100%; height: 36px; background: #ece6dc; display: flex; align-items: center;
+  gap: 8px; padding: 0 14px; box-sizing: border-box; border-bottom: 1px solid #d9d0c2; }
+#appbar i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+#appbar .url { margin-left: 16px; width: 440px; height: 24px; border-radius: 8px; background: #fffdf8; box-sizing: border-box;
+  padding-left: 12px; font: 500 14px/24px 'Inter'; color: #546e7a; display: flex; align-items: center; gap: 7px; }
+#appbar .url svg { width: 11px; height: 11px; fill: #8a9aa6; }
+#appview { position: absolute; left: 0; top: 36px; width: 1260px; height: 744px; overflow: hidden; background: #f5f7fa; }
+#appview img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#skipchip { position: absolute; left: 0; top: 0; background: #37474f; color: #fff; border-radius: 999px; padding: 10px 22px;
+  font: 600 28px/1 'Caveat'; letter-spacing: .3px; box-shadow: 0 8px 18px rgba(0,0,0,.2); white-space: nowrap; }
+.keycap { position: absolute; left: 0; top: 0; font: 700 22px/1 'Inter'; color: #37474f; background: #fff; border: 2px solid #cfd6e0;
+  border-bottom-width: 5px; border-radius: 10px; padding: 10px 14px; box-shadow: 0 8px 18px rgba(0,0,0,.15); white-space: nowrap; }
 
-/* ---------- app window (scene B) ---------- */
-#win { position: absolute; left: 610px; top: 96px; width: 1240px; height: 756px; border-radius: 16px;
-  overflow: hidden; background: #fff; transform-origin: 0 0;
-  box-shadow: 0 30px 60px rgba(80,52,24,.22), 0 3px 10px rgba(0,0,0,.1); }
-.w-head { position: absolute; left: 0; top: 0; width: 100%; height: 52px; background: #37474f; color: #fff;
-  display: flex; align-items: center; padding: 0 18px; box-sizing: border-box; gap: 10px; }
-.w-head .brand { display: flex; align-items: center; gap: 9px; font: 700 20px/1 'Inter'; }
-.w-head .brand svg { width: 24px; fill: #fff; }
-.w-head .hbtn { font: 600 14px/1 'Inter'; padding: 9px 14px; border-radius: 7px; background: rgba(255,255,255,.1); }
-.w-head .hbtn.primary { background: #5c6bc0; }
-.w-head .spacer { flex: 1; }
-.w-side { position: absolute; left: 0; top: 52px; width: 380px; height: 704px; background: #fff;
-  border-right: 1px solid #e1e5eb; }
-.w-tabs { display: flex; height: 48px; border-bottom: 1px solid #e1e5eb; }
-.w-tabs div { flex: 1; display: flex; align-items: center; justify-content: center; font: 600 13px/1 'Inter';
-  color: #718096; }
-.w-tabs div.on { color: #5c6bc0; box-shadow: inset 0 -3px 0 #5c6bc0; background: #f5f6fd; }
-.w-label { position: absolute; left: 20px; top: 66px; font: 600 13px/1 'Inter'; color: #546e7a; }
-.w-input { position: absolute; left: 20px; top: 88px; width: 340px; height: 46px; box-sizing: border-box;
-  border: 2px solid #e1e5eb; border-radius: 8px; font: 500 18px/42px 'Inter'; padding: 0 14px; color: #2d3748; }
-.w-input.focus { border-color: #5c6bc0; box-shadow: 0 0 0 4px rgba(92,107,192,.15); }
-.w-input .ph { color: #a0aec0; }
-.w-input .caret { display: inline-block; width: 2px; height: 22px; background: #2d3748; vertical-align: -4px; margin-left: 1px; }
-.w-btn { position: absolute; top: 150px; height: 44px; border-radius: 8px; font: 700 16px/44px 'Inter';
-  text-align: center; box-sizing: border-box; }
-.w-btn.search { left: 20px; width: 164px; background: #5c6bc0; color: #fff; }
-.w-btn.qa { left: 196px; width: 164px; border: 2px solid #5c6bc0; color: #5c6bc0; line-height: 40px; }
-.w-rhead { position: absolute; left: 20px; top: 214px; font: 600 13px/1 'Inter'; color: #718096; }
-.w-result { position: absolute; left: 12px; width: 356px; height: 68px; border-radius: 10px; }
-.w-result .th { position: absolute; left: 8px; top: 1px; width: 44px; height: 66px; border-radius: 3px; overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0,0,0,.2); }
-.w-result .th svg, .fly svg, .e-cover svg { width: 100%; height: 100%; display: block; }
-.w-result .t { position: absolute; left: 64px; top: 12px; width: 200px; font: 700 15px/1.2 'Inter'; color: #2d3748;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.w-result .a { position: absolute; left: 64px; top: 34px; width: 200px; font: 500 13px/1.2 'Inter'; color: #718096;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.w-result .add { position: absolute; left: 282px; top: 17px; width: 66px; height: 34px; border-radius: 7px;
-  background: #43a047; color: #fff; font: 700 14px/34px 'Inter'; text-align: center; }
-.w-main { position: absolute; left: 380px; top: 52px; width: 860px; height: 704px; background: #eef1f5; }
-.w-main .fold { position: absolute; left: 429.6px; top: 42px; width: 1px; height: 619px; background: rgba(0,0,0,.07); }
-
-/* quick add modal */
-#qa { position: absolute; left: 220px; top: 130px; width: 800px; height: 520px; background: #fff; border-radius: 16px;
-  box-shadow: 0 30px 70px rgba(0,0,0,.28); transform-origin: 50% 50%; }
-#qaShade { position: absolute; left: 0; top: 0; width: 1240px; height: 756px; background: rgba(30,40,50,.35); }
-#qa .qt { position: absolute; left: 28px; top: 24px; font: 800 26px/1 'Inter'; color: #37474f; }
-#qa .qx { position: absolute; right: 26px; top: 20px; font: 400 32px/1 'Inter'; color: #a0aec0; }
-#qa .tabs { position: absolute; left: 28px; top: 70px; display: flex; gap: 26px; font: 600 16px/1 'Inter'; color: #718096; }
-#qa .tabs .on { color: #5c6bc0; box-shadow: 0 3px 0 #5c6bc0; padding-bottom: 8px; }
-#qa .hint { position: absolute; left: 28px; top: 116px; font: 500 15px/1.3 'Inter'; color: #546e7a; }
-#qa .ta { position: absolute; left: 28px; top: 148px; width: 744px; height: 262px; border: 2px solid #e1e5eb; border-radius: 10px;
-  box-sizing: border-box; overflow: hidden; background: #fbfcfe; }
-#qa .ta.focus { border-color: #5c6bc0; }
-#qa .row { position: absolute; left: 14px; height: 30px; font: 500 17px/30px 'Inter'; color: #2d3748; white-space: nowrap; }
-#qa .row span { position: absolute; top: 0; }
-#qa .row .tabmark { color: #c3cad8; font-size: 13px; }
-#qa .tc { position: absolute; left: 28px; top: 452px; font: 600 16px/1 'Inter'; color: #37474f; display: flex; gap: 10px; align-items: center; }
-#qa .tc i { display: inline-block; width: 20px; height: 20px; border-radius: 5px; background: #5c6bc0; position: relative; }
-#qa .tc i::after { content: ''; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px; border: solid #fff;
-  border-width: 0 3px 3px 0; transform: rotate(45deg); }
-#qa .go { position: absolute; left: 596px; top: 438px; width: 176px; height: 48px; border-radius: 9px; background: #5c6bc0;
-  color: #fff; font: 700 17px/48px 'Inter'; text-align: center; }
-.keycap { position: absolute; font: 700 22px/1 'Inter'; color: #37474f; background: #fff; border: 2px solid #cfd6e0;
-  border-bottom-width: 5px; border-radius: 10px; padding: 10px 14px; box-shadow: 0 8px 18px rgba(0,0,0,.15); }
-#sticky { position: absolute; left: 1596px; top: 682px; width: 250px; height: 172px; background: #ffe98f;
-  box-shadow: 0 14px 22px rgba(90,70,10,.25); padding: 22px 22px; box-sizing: border-box;
-  font: 600 25px/1.18 'Caveat'; color: #4a3b12; transform-origin: 50% 0; }
-#sticky b { font-weight: 700; color: #6b4b00; }
-#sticky::before { content: ''; position: absolute; left: 90px; top: -12px; width: 70px; height: 26px;
-  background: rgba(255,255,255,.55); transform: rotate(-3deg); }
-
-/* ---------- print panels (list pages) ---------- */
-.panel { position: absolute; left: 0; top: 0; width: 520px; height: 804px; background: #fff; transform-origin: 0 0; overflow: hidden; }
-.entry { position: absolute; left: 0; width: 520px; height: 144px; }
-.entry .filled, .entry .blank { position: absolute; left: 0; top: 0; width: 520px; height: 144px; }
-.e-cover { position: absolute; left: 22px; top: 8px; width: 86px; height: 129px; border-radius: 3px; overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,.28); transform-origin: 50% 50%; }
-.e-text { position: absolute; left: 126px; top: 6px; width: 340px; }
-.e-title { font: 700 21px/1.22 'Lora'; color: #1f2430; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.e-author { font: italic 400 16px/1.3 'Lora'; color: #4a5160; margin-top: 2px; }
-.e-desc { font: 400 13.5px/1.36 'Inter'; color: #3d4452; margin-top: 6px; height: 55px; overflow: hidden; }
-.e-call { font: 700 11px/1 'Inter'; letter-spacing: 1.6px; color: #9a6b2f; margin-top: 7px; }
-.blank .e-cover { background: #e9edf3; box-shadow: none; border: 2px dashed #cfd6e0; box-sizing: border-box; }
-.blank .e-title, .blank .e-author, .blank .e-desc { color: #b4bfcd; }
-.e-star { position: absolute; left: 472px; top: 6px; width: 36px; height: 36px; transform-origin: 50% 50%; }
-.e-grip { position: absolute; left: 4px; top: 56px; width: 12px; height: 30px;
-  background-image: radial-gradient(circle, #a0aec0 2px, transparent 2.5px); background-size: 6px 7.5px; }
-.backqr { position: absolute; left: 22px; top: 488px; width: 476px; height: 290px; }
-.backqr .qrbox { position: absolute; left: 0; top: 0; width: 200px; height: 200px; }
-.backqr .qrtext { position: absolute; left: 222px; top: 18px; width: 250px; font: 600 20px/1.3 'Lora'; color: #2d3748; }
-.backqr .brand { position: absolute; left: 0; top: 222px; width: 476px; height: 62px; border-radius: 10px;
-  background: #f1f3f8; display: flex; align-items: center; justify-content: center; gap: 12px;
-  font: 700 22px/1 'Inter'; color: #5c6bc0; }
-.backqr .brand svg { width: 34px; fill: #5c6bc0; }
-
-/* ---------- callouts (scene C) ---------- */
+/* ---------- callouts ---------- */
 .callout { position: absolute; left: 0; top: 0; background: #fffaf0; border: 3px solid #4A3020; border-radius: 16px;
-  padding: 12px 20px 13px; box-shadow: 0 6px 0 rgba(74,48,32,.15); transform-origin: 0 50%; white-space: nowrap; }
-.callout b { display: block; font: 800 25px/1.1 'Inter'; color: #37474f; }
-.callout span { display: block; font: 600 27px/1.1 'Caveat'; color: #8a5a28; margin-top: 3px; }
+  padding: 11px 18px 12px; box-shadow: 0 6px 0 rgba(74,48,32,.15); white-space: nowrap; }
+.callout b { display: block; font: 800 23px/1.1 'Inter'; color: #37474f; }
+.callout span { display: block; font: 600 26px/1.1 'Caveat'; color: #8a5a28; margin-top: 3px; }
 
-/* ---------- layout picker / style panel / qr card ---------- */
-.lrow { position: absolute; left: 20px; width: 340px; height: 82px; display: flex; align-items: center; gap: 18px;
-  font: 700 23px/1 'Inter'; color: #546e7a; }
-.lrow svg { width: 58px; height: 58px; flex: none; }
-#lhi { position: absolute; left: 12px; width: 356px; height: 82px; border-radius: 14px; background: #eef0fb;
-  box-shadow: inset 4px 0 0 #5c6bc0; }
-.field-label { position: absolute; left: 30px; font: 700 15px/1 'Inter'; color: #718096; letter-spacing: .5px; text-transform: uppercase; }
-.dropdown { position: absolute; left: 30px; width: 440px; height: 62px; border: 2px solid #e1e5eb; border-radius: 10px;
-  box-sizing: border-box; display: flex; align-items: center; padding: 0 18px; font-size: 28px; color: #2d3748; overflow: hidden; }
-.dropdown .caretdn { margin-left: auto; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent;
-  border-top: 10px solid #718096; }
-.swatch { position: absolute; width: 50px; height: 50px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(0,0,0,.08); }
-#swring { position: absolute; width: 62px; height: 62px; border-radius: 50%; border: 3px solid #37474f; box-sizing: border-box; }
-.toggle { position: absolute; width: 64px; height: 36px; border-radius: 18px; background: #cfd6e0; }
-.toggle i { position: absolute; left: 4px; top: 4px; width: 28px; height: 28px; border-radius: 50%; background: #fff;
-  box-shadow: 0 2px 4px rgba(0,0,0,.2); }
-.stepper { position: absolute; display: flex; align-items: center; gap: 0; border: 2px solid #e1e5eb; border-radius: 10px; overflow: hidden;
-  font: 700 22px/56px 'Inter'; color: #2d3748; height: 58px; box-sizing: border-box; }
-.stepper div { width: 58px; text-align: center; }
-.stepper .v { width: 76px; border-left: 2px solid #e1e5eb; border-right: 2px solid #e1e5eb; }
-
-/* ---------- export (scene F) ---------- */
-#pdfbtn { position: absolute; left: 0; top: 0; height: 96px; border-radius: 48px; background: #5c6bc0; color: #fff;
-  display: flex; align-items: center; justify-content: center; gap: 16px; font: 800 36px/1 'Inter'; overflow: hidden;
-  box-shadow: 0 16px 34px rgba(63,81,181,.35); transform-origin: 50% 50%; white-space: nowrap; }
-#pdfbtn svg { width: 38px; fill: #fff; flex: none; }
+/* ---------- export (print and fold) ---------- */
 #printStage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; perspective: 2600px; perspective-origin: 1180px 420px; }
 #sheet { position: absolute; left: 740px; top: 140px; width: 880px; height: 680px; transform-style: preserve-3d; transform-origin: 440px 340px; }
 .half { position: absolute; top: 0; width: 440px; height: 680px; transform-style: preserve-3d; }
-.face { position: absolute; left: 0; top: 0; width: 440px; height: 680px; backface-visibility: hidden; overflow: hidden; background: #fff; }
-.face .panel { transform: scale(0.84615); }
+.face { position: absolute; left: 0; top: 0; width: 440px; height: 680px; backface-visibility: hidden; overflow: hidden;
+  background-color: #fff; background-size: 880px 680px; background-repeat: no-repeat; }
 .face.back { transform: rotateY(180deg); }
 .face .shade { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: #000; opacity: 0; }
 #sheetShadow { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, rgba(70,45,20,.35), rgba(70,45,20,0)); }
@@ -194,7 +85,7 @@ svg { overflow: visible; }
   font: 700 30px/1 'Caveat'; color: #4A3020; transform-origin: 50% 100%; }
 
 /* ---------- speech bubble ---------- */
-#bubble { position: absolute; left: 0; top: 0; max-width: 560px; background: #fffdf7; border: 4px solid #4A3020;
+#bubble { position: absolute; left: 0; top: 0; max-width: 530px; background: #fffdf7; border: 4px solid #4A3020;
   border-radius: 34px; padding: 16px 30px 20px; box-sizing: border-box; transform-origin: 50% 100%;
   font: 600 46px/1.1 'Caveat'; color: #3a2a1e; text-wrap: balance; text-align: center;
   filter: drop-shadow(0 8px 0 rgba(74,48,32,.16)); }
@@ -227,7 +118,7 @@ svg { overflow: visible; }
   <div id="fade"></div>
 </div>
 <script>
-/*__QR_DATA__*/
+/*__SHOTS__*/
 </script>
 <script>
 'use strict';
@@ -237,6 +128,7 @@ svg { overflow: visible; }
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const lerp = (a, b, t) => a + (b - a) * t;
 const seg = (t, a, b) => clamp((t - a) / (b - a));
+const mod = (a, n) => ((a % n) + n) % n;
 const E = {
   lin: (t) => t,
   inOut: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
@@ -301,13 +193,7 @@ function div(cls, parent, html) {
   if (parent) parent.appendChild(el);
   return el;
 }
-function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
-function mixHex(a, b, t) {
-  const A = hexToRgb(a), B = hexToRgb(b);
-  return '#' + A.map((x, i) => Math.round(lerp(x, B[i], t)).toString(16).padStart(2, '0')).join('');
-}
 const BOOK_ICON = '<svg viewBox="0 0 576 512"><path d="M249.6 471.5c10.8 3.8 22.4-4.1 22.4-15.5V78.6c0-4.2-1.6-8.4-5-11C247.4 52 202.4 32 144 32C93.5 32 46.3 45.3 18.1 56.1C6.8 60.5 0 71.7 0 83.8V454.1c0 11.9 12.8 20.2 24.1 16.5C55.6 460.1 105.5 448 144 448c33.9 0 79 14 105.6 23.5zm76.8 0C353 462 398.1 448 432 448c38.5 0 88.4 12.1 119.9 22.6c11.3 3.8 24.1-4.6 24.1-16.5V83.8c0-12.1-6.8-23.3-18.1-27.6C529.7 45.3 482.5 32 432 32c-58.4 0-103.4 20-123 35.6c-3.3 2.6-5 6.8-5 11V456c0 11.4 11.7 19.3 22.4 15.5z"/></svg>';
-const STAR_PATH = 'M18 2.5 L22.6 12.4 L33.4 13.6 L25.3 20.9 L27.6 31.6 L18 26.1 L8.4 31.6 L10.7 20.9 L2.6 13.6 L13.4 12.4 Z';
 const HEART_PATH = 'M0 6 C0 -2 -12 -4 -12 4 C-12 11 -4 15 0 20 C4 15 12 11 12 4 C12 -4 0 -2 0 6 Z';
 
 /* =====================================================================
@@ -456,7 +342,6 @@ function buildCoverSymbols() {
   });
   defs.innerHTML = html;
 }
-const coverSvg = (i) => `<svg viewBox="0 0 300 450" preserveAspectRatio="xMidYMid slice"><use href="#cov${i}"/></svg>`;
 
 /* =====================================================================
    SPEECH: Folio's lines, split into syllables. Word reveal times, mouth
@@ -465,14 +350,14 @@ const coverSvg = (i) => `<svg viewBox="0 0 300 450" preserveAspectRatio="xMidYMi
    ===================================================================== */
 const LINES = [
   { id: 'hi', t: 2.5, end: 5.5, text: "Hi! I'm *Folio.* Let me show you *Booklister!*", pitch: 2 },
-  { id: 'search', t: 6.85, end: 10.6, text: 'Search *Open Library* for any title you want on your list...', pitch: 0 },
-  { id: 'paste', t: 10.8, end: 14.55, text: '...or paste a whole list at once with *Quick Add.*', pitch: 0 },
-  { id: 'entry', t: 15.45, end: 19.3, text: 'Every title gets its *cover,* {0.1} *call number,* {0.1} and a *description.*', pitch: 0 },
-  { id: 'star', t: 20.75, end: 23.55, text: 'Star your favorites for the *front cover.*', pitch: 1 },
-  { id: 'collage', t: 24.9, end: 32.4, text: 'Then pick a collage. {0.35} *Classic?* {0.75} *Tilted?* {0.75} *Staggered?* {0.9} Ooh... {0.25} *Honeycomb!*', pitch: 1 },
-  { id: 'style', t: 33.4, end: 37.9, text: 'Try on new *fonts* {0.2} and *colors...*', pitch: 0 },
-  { id: 'qr', t: 38.1, end: 42.2, text: '...and add a *QR code* that links to your catalog.', pitch: 0 },
-  { id: 'pdf', t: 42.85, end: 47.5, text: 'One click makes a *print-ready PDF,* {0.15} at a crisp *600 DPI.*', pitch: 0 },
+  { id: 'search', t: 6.85, end: 10.7, text: 'Search *Open Library* for any title you want on your list...', pitch: 0 },
+  { id: 'paste', t: 10.9, end: 14.45, text: '...or paste a whole list at once with *Quick Add.*', pitch: 0 },
+  { id: 'edit', t: 15.3, end: 19.3, text: 'Click any text on the page to *edit* it.', pitch: 0 },
+  { id: 'star', t: 20.45, end: 23.2, text: 'Stars choose which covers go on the *front.*', pitch: 1 },
+  { id: 'collage', t: 25.25, end: 32.55, text: 'Now make the cover. {0.35} *Classic?* {0.75} *Tilted?* {0.75} *Staggered?* {0.9} Ooh... {0.25} *Honeycomb!*', pitch: 1 },
+  { id: 'style', t: 33.3, end: 37.75, text: 'Try on new *fonts* {0.2} and *colors...*', pitch: 0 },
+  { id: 'qr', t: 37.95, end: 42.25, text: '...and add a *QR code* that links to your catalog.', pitch: 0 },
+  { id: 'pdf', t: 42.85, end: 47.45, text: 'Click *Generate PDF* for a print-ready file, at a crisp *600 DPI.*', pitch: 0 },
   { id: 'fold', t: 47.75, end: 50.7, text: 'Print it, {0.1} fold it, {0.1} set it out!', pitch: 2 },
   { id: 'free', t: 52.2, end: 55.5, text: "It's *free,* {0.1} and your lists stay right in your browser.", pitch: 0 },
   { id: 'bye', t: 55.75, end: 59.1, text: 'Happy displaying!', pitch: 3 },
@@ -541,50 +426,73 @@ const LINE = Object.fromEntries(LINES.map((L) => [L.id, L]));
 const wordT = (id, i) => LINE[id].words[i].t;
 /* =====================================================================
    TIMELINE
+   The middle of the video is footage of the real tool, filmed by
+   capture.mjs: SHOTS lists every frame it saved and the on-screen
+   rectangle of each control it used. Below, the story is laid out as
+   cuts between those frames, a camera over them, and a cursor that
+   clicks the controls the capture clicked. Positions come from the
+   rectangles, never from hand-placed numbers, so the cursor lands where
+   the real button is.
    ===================================================================== */
 const DURATION = 60;
 const SFX = [];
 function sfx(t, type, o) { SFX.push(Object.assign({ t, type, pan: 0, gain: 1 }, o || {})); }
 const panOf = (x) => clamp((x - 960) / 960, -1, 1) * 0.7;
 
-// Slot k of the booklist (display order) holds book ORDER[k].
-const ORDER = [0, 11, 13, 3, 1, 7, 5, 8, 12, 2];
-const RESULTS = [0, 11, 13, 5, 9, 14];
+// Filming the real app: what the search returns (the first three get
+// added) and the ten rows pasted into Quick Add.
+const SEARCH = [0, 11, 13, 5, 9, 14];
+const PASTED = [3, 1, 7, 8, 12, 10, 4, 6, 15, 2];
+
+const SHOTS = window.SHOTS || { viewport: { width: 1280, height: 756, dpr: 2 }, shots: [], print: {} };
+const SH = {};
+SHOTS.shots.forEach((s, i) => { SH[s.id] = Object.assign({ i }, s); });
+const rectOf = (id, name) => (SH[id] && SH[id].rects[name]) || [640, 378, 0, 0];
+const ctr = (r, fx = 0.5, fy = 0.5) => [r[0] + r[2] * fx, r[1] + r[3] * fy];
+const idsWith = (prefix) => SHOTS.shots.filter((s) => s.id.startsWith(prefix)).map((s) => s.id);
+
+// The window the footage plays in, and the app's own size inside it.
+const WIN = { x: 600, y: 88, w: 1260, h: 780, bar: 36 };
+const APP = { w: SHOTS.viewport.width, h: SHOTS.viewport.height, dpr: SHOTS.viewport.dpr };
+const APP_S = WIN.w / APP.w;
+
+const FOOT = [];                     // [t, shotId]: hard cuts, softened by a short dissolve
+const CAMK = [[0, [APP.w / 2, APP.h / 2, 1]]];
+const CURSOR_PATH = [];              // [t, appX, appY]
+const CURSOR_CLICKS = [];
+const CURSOR_VIS = [];
+function cut(t, id) { if (SH[id]) FOOT.push([t, id]); }
+function cam(t, cx, cy, z, e) { CAMK.push([t, [cx, cy, z], e || 'inOut']); }
+function camHold(t) { CAMK.push([t, null]); }
+function cur(t, p) { CURSOR_PATH.push([t, p[0], p[1]]); }
+function click(t, p, kind) { CURSOR_CLICKS.push(t); sfx(t, kind || 'click', { pan: panOf(WIN.x + p[0] * APP_S) }); }
+function typeSfx(t0, t1, n, x) { for (let i = 0; i < n; i++) sfx(t0 + (t1 - t0) * i / Math.max(1, n), 'type', { pan: panOf(WIN.x + x * APP_S), seed: i, gain: 0.8 }); }
 
 const T = {
-  logoIn: 1.9, logoOut: 5.35,
-  winIn: 5.7, typeStart: 7.0, typeText: 'the sea', typeStep: 0.105,
+  logoIn: 1.9, logoOut: 5.35, winIn: 5.7,
+  typeStart: 7.0, typeStep: 0.11,
   searchClick: 8.3, resultsAt: 8.45,
-  addClicks: [9.35, 9.8, 10.25], flyDur: 0.55,
-  qaClick: 10.75, qaOpen: 10.85, pasteAt: 11.55, rowStep: 0.075,
-  qaGo: 12.6, qaClose: 12.68, qaFly: 12.78, qaFlyStep: 0.085,
-  stickyIn: 13.3, zoomStart: 14.55, zoomEnd: 15.35,
-  calloutOut: 19.0,
-  grab: 19.45, dragA: 19.55, dragB: 20.25, drop: 20.3,
-  stars: [21.05, 21.45, 21.85], starEntries: [0, 1, 3],
-  panelOut: 23.15, pageIn: 23.35, coverPops: 24.05,
-  pickerIn: 24.25,
-  toStyle: 32.75,
-  qrIn: 0, // set below
-  styleOut: 42.2, pdfIn: 42.55,
+  addClicks: [9.45, 9.95, 10.5],
+  qaClick: 11.0, pasteAt: 11.75, qaGo: 12.65,
+  edit: 14.6, skip: 19.45, stars: [21.05, 21.75],
+  fcTab: 23.4, create: 25.0,
+  toStyle: 32.75, fontOpen: 33.9, fontPick: 34.7, palette: 35.5, swatch: 36.1, gradient: 36.9,
+  backTab: 37.9, qrUpdate: 39.35, blurb: 40.35,
   hopOut: 50.85, logoBack: 51.35, fadeOut: 59.45,
 };
-T.fillAt = ORDER.map((_, k) => (k < 3 ? T.addClicks[k] + 0.05 + T.flyDur : T.qaFly + (k - 3) * T.qaFlyStep + T.flyDur));
-T.callouts = [wordT('entry', 1), wordT('entry', 4), wordT('entry', 5), wordT('entry', 9)];
 T.tilt = wordT('collage', 5) - 0.08;
 T.stag = wordT('collage', 6) - 0.08;
 T.honey = wordT('collage', 8) - 0.1;
-T.layoutDur = 0.95;
-T.fonts = [0, 0.55, 1.1, 1.65].map((d) => wordT('style', 3) + 0.05 + d);
-T.colors = [0, 0.55, 1.1].map((d) => T.fonts[3] + 0.55 + d);
-T.qrIn = wordT('qr', 3) - 0.35;
-T.qrBuild = T.qrIn + 0.45;
-T.pdfClick = wordT('pdf', 1) + 0.05;
-T.printerUp = T.pdfClick + 0.35;
-T.sheetOut = T.pdfClick + 0.9;
+T.fonts = [T.fontOpen, T.fontPick, T.palette, T.gradient];
+T.callouts = [15.7, 17.0];
+T.qrIn = T.backTab;
+T.pdfClick = wordT('pdf', 0) + 0.1;
+T.winOut = T.pdfClick + 0.3;
+T.printerUp = T.pdfClick + 0.5;
+T.sheetOut = T.pdfClick + 1.0;
 T.sheetOutEnd = T.sheetOut + 1.75;
 T.sheetLift = T.sheetOutEnd;
-T.stamp = Math.max(wordT('pdf', 10) + 0.05, T.sheetLift + 0.5);
+T.stamp = Math.max(wordT('pdf', 11) + 0.05, T.sheetLift + 0.5);
 T.flip = 47.55;
 T.fold = Math.max(wordT('fold', 2), T.flip + 0.9);
 T.stand = Math.max(wordT('fold', 4) - 0.05, T.fold + 0.85);
@@ -592,57 +500,188 @@ T.heartsA = T.honey + 0.55;
 T.heartsB = wordT('bye', 1) + 0.35;
 
 const CHAPTERS = [
-  [6.0, 14.6, 1, 'Find titles'],
-  [15.3, 23.1, 2, 'Build your list'],
-  [24.1, 32.65, 3, 'Pick a collage'],
-  [33.0, 42.1, 4, 'Style your cover'],
-  [42.55, 50.6, 5, 'Print and fold'],
+  [6.0, 14.4, 1, 'Find titles'],
+  [14.7, 23.1, 2, 'Edit your list'],
+  [23.3, 32.65, 3, 'Make a cover'],
+  [32.8, 42.4, 4, 'Style it'],
+  [42.6, 50.6, 5, 'Print and fold'],
 ];
 
-// Cursor path: [t, x, y]. Moves ease between consecutive waypoints.
-const CURSOR_PATH = [];
-const CURSOR_CLICKS = [];
-const CURSOR_VIS = [];
-function cur(t, x, y) { CURSOR_PATH.push([t, x, y]); }
-function click(t, x, kind) { CURSOR_CLICKS.push(t); sfx(t, kind || 'click', { pan: panOf(x) }); }
+// Callouts pinned to real controls: [t0, t1, shotId, rectName, fx, fy, dx, dy, title, sub]
+const CALLOUTS = [];
+// Short captions over the window: [t0, t1, text]
+const CHIPS = [];
+// Overlays like the keycap: [t0, t1, text, shotId, rectName, dx, dy]
+const KEYCAPS = [];
 
-(function buildCursor() {
-  // Scene B: search, add three, quick add
-  CURSOR_VIS.push([6.45, 13.75]);
-  cur(6.45, 1190, 640); cur(6.85, 800, 262); click(6.9, 800);
-  cur(7.95, 800, 262); cur(8.22, 712, 322); click(T.searchClick, 712);
-  T.addClicks.forEach((tc, i) => { cur(tc - 0.12, 937, 422 + 76 * i); cur(tc + 0.05, 937, 422 + 76 * i); click(tc, 937); });
-  cur(T.qaClick - 0.1, 888, 322); click(T.qaClick, 888);
-  cur(T.qaClick + 0.25, 888, 322); cur(11.35, 1180, 470);
-  cur(12.45, 1514, 690); click(T.qaGo, 1514);
-  cur(12.8, 1514, 690); cur(13.55, 1580, 820);
-  // Scene C: drag, stars
-  CURSOR_VIS.push([18.95, 22.55]);
-  cur(18.95, 1520, 660); cur(19.4, 1069, 478); cur(T.dragA, 1069, 478); cur(T.dragB, 1069, 338);
-  sfx(T.grab, 'grab', { pan: 0.1 }); sfx(T.drop, 'drop', { pan: 0.1 });
-  const sy = [152.5, 292.3, 432.2, 572.0];
-  T.stars.forEach((ts, i) => { const y = sy[T.starEntries[i]]; cur(ts - 0.14, 1272, y); cur(ts + 0.05, 1272, y); click(ts, 1272); });
-  cur(22.45, 1470, 720);
-  // Scene D: layout picker
-  const rowY = (r) => 275 + 88 * r;
-  CURSOR_VIS.push([25.5, T.honey + 1.0]);
-  cur(25.5, 1760, 760); cur(T.tilt - 0.3, 1600, rowY(5)); cur(T.tilt + 0.05, 1600, rowY(5)); click(T.tilt, 1600);
-  cur(T.stag - 0.3, 1600, rowY(4)); cur(T.stag + 0.05, 1600, rowY(4)); click(T.stag, 1600);
-  cur(T.honey - 0.35, 1600, rowY(1)); cur(T.honey + 0.05, 1600, rowY(1)); click(T.honey, 1600);
-  cur(T.honey + 0.9, 1780, 560);
-  // Scene E: fonts, colors, gradient
-  CURSOR_VIS.push([T.fonts[0] - 0.6, T.colors[2] + 0.8]);
-  cur(T.fonts[0] - 0.6, 1760, 470); cur(T.fonts[0] - 0.12, 1590, 250);
-  T.fonts.forEach((tf) => { cur(tf - 0.05, 1590, 250); cur(tf + 0.04, 1590, 250); click(tf, 1590, 'tick'); });
-  cur(T.colors[0] - 0.12, 1525, 461); click(T.colors[0], 1525);
-  cur(T.colors[1] - 0.12, 1665, 461); click(T.colors[1], 1665);
-  cur(T.colors[2] - 0.12, 1652, 354); click(T.colors[2], 1652, 'toggle');
-  cur(T.colors[2] + 0.7, 1780, 610);
-  // Scene F: Generate PDF
-  CURSOR_VIS.push([42.85, T.pdfClick + 0.55]);
-  cur(42.85, 1520, 640); cur(T.pdfClick - 0.1, 1196, 342); cur(T.pdfClick + 0.05, 1196, 342); click(T.pdfClick, 1196);
-  cur(T.pdfClick + 0.5, 1330, 470);
-  CURSOR_PATH.sort((a, b) => a[0] - b[0]);
+(function storyboard() {
+  const full = [APP.w / 2, APP.h / 2, 1];
+  // ---- 1. Find titles: search, add three, paste the rest ----------
+  cut(T.winIn, 'start');
+  cam(6.35, ...full);
+  const search = ctr(rectOf('start', 'search'));
+  cam(6.95, search[0] + 60, 330, 1.75);
+  CURSOR_VIS.push([6.45, 13.95]);
+  cur(6.45, [520, 520]); cur(6.85, search); click(6.9, search);
+  const typed = idsWith('type-');
+  typed.forEach((id, i) => cut(T.typeStart + i * T.typeStep, id));
+  typeSfx(T.typeStart, T.typeStart + typed.length * T.typeStep, 6, search[0]);
+  const sbtn = ctr(rectOf('start', 'searchBtn'));
+  cur(7.95, search); cur(8.2, sbtn); click(T.searchClick, sbtn);
+  cut(T.resultsAt, 'results');
+  for (let i = 0; i < 6; i++) sfx(T.resultsAt + 0.1 + i * 0.07, 'pop', { pan: -0.2, pitch: i, gain: 0.5 });
+  camHold(8.6); cam(9.05, 330, 430, 1.4);
+  T.addClicks.forEach((tc, i) => {
+    const id = `pre-add-${i}`;
+    cut(tc - 0.42, id);
+    const p = ctr(rectOf(id, 'target'));
+    cur(tc - 0.15, p); cur(tc + 0.05, p); click(tc, p);
+    cut(tc + 0.06, `added-${i}`);
+    sfx(tc + 0.12, 'pop', { pan: 0.2, pitch: 3 + i });
+  });
+  cam(9.3, 330, 430, 1.4); cam(9.75, ...full);
+  const qa = ctr(rectOf('added-2', 'quickAdd'));
+  cur(T.qaClick - 0.25, qa); click(T.qaClick, qa);
+  cut(T.qaClick + 0.08, 'qa-open');
+  sfx(T.qaClick + 0.08, 'open', { pan: 0.2 });
+  const ta = ctr(rectOf('qa-open', 'textarea'));
+  camHold(T.qaClick + 0.15); cam(T.qaClick + 0.6, ta[0], ta[1] - 20, 1.55);
+  cur(T.pasteAt - 0.35, ta);
+  KEYCAPS.push([T.pasteAt - 0.2, T.pasteAt + 0.55, 'Ctrl + V', 'qa-open', 'textarea', 40, -10]);
+  sfx(T.pasteAt - 0.08, 'keycap', { pan: 0.2 });
+  cut(T.pasteAt, 'qa-pasted');
+  sfx(T.pasteAt + 0.02, 'paper', { pan: 0.2, gain: 0.8 });
+  const go = ctr(rectOf('qa-pasted', 'submit'));
+  camHold(12.2); cam(12.55, go[0] - 150, go[1] - 60, 1.4);
+  cur(T.qaGo - 0.2, go); click(T.qaGo, go);
+  cut(T.qaGo + 0.1, 'qa-done');
+  sfx(T.qaGo + 0.1, 'close', { pan: 0.3 });
+  for (let k = 0; k < 10; k++) sfx(T.qaGo + 0.2 + k * 0.05, 'pop', { pan: 0.35, pitch: k, gain: 0.45 });
+  cam(13.1, ...full);
+  cur(13.7, [1150, 640]);
+
+  // ---- 2. Edit: a call number, a blurb, the stars ------------------
+  const item0 = rectOf('hover0', 'item0');
+  const zEdit = 2.0;
+  camHold(T.edit); cam(T.edit + 0.6, item0[0] + item0[2] / 2 - 20, item0[1] + item0[3] / 2 + 10, zEdit);
+  cut(T.edit + 0.2, 'hover0');
+  CURSOR_VIS.push([T.edit + 0.3, 22.7]);
+  const a0 = rectOf('hover0', 'author0');
+  const callEnd = [a0[0] + a0[2] - 6, a0[1] + a0[3] / 2];
+  cur(T.edit + 0.3, [860, 330]); cur(15.6, callEnd); click(15.7, callEnd);
+  cut(15.75, 'call-cleared');
+  sfx(15.8, 'type', { gain: 0.6 });
+  const calls = idsWith('call-').filter((id) => id !== 'call-cleared');
+  calls.forEach((id, i) => cut(15.95 + i * 0.16, id));
+  typeSfx(15.95, 15.95 + calls.length * 0.16, 13, callEnd[0]);
+  const d0 = rectOf('hover0', 'desc0');
+  const descAt = [d0[0] + 40, d0[1] + d0[3] / 2];
+  cur(16.95, descAt); click(17.05, descAt);
+  cut(17.1, 'desc-focus');
+  const descs = idsWith('desc-').filter((id) => id !== 'desc-focus');
+  descs.forEach((id, i) => cut(17.25 + i * 0.145, id));
+  const descEnd = 17.25 + descs.length * 0.145;
+  typeSfx(17.25, descEnd, Math.round(descs.length * 4.5), descAt[0] + 100);
+  CALLOUTS.push([15.75, 19.3, 'hover0', 'author0', 1, 0.5, 70, -150, 'Click any text to edit it', 'titles, authors, call numbers, blurbs']);
+  // a time skip: the rest of the blurbs, written the same way
+  cut(T.skip, 'filled');
+  CHIPS.push([T.skip, T.skip + 1.0, '...a few blurbs later']);
+  sfx(T.skip, 'paper', { pan: 0.2, gain: 0.9 });
+  const p2 = rectOf('filled', 'item0');
+  cam(T.skip + 0.05, p2[0] + 180, 330, 1.25, 'out');
+  const rail = rectOf('star-hover', 'rail2');
+  cut(20.4, 'star-hover');
+  camHold(20.4); cam(20.85, rail[0] + 120, rail[1] + rail[3] / 2, 1.9);
+  const star = ctr(rectOf('star-hover', 'star2'));
+  cur(20.85, star);
+  click(T.stars[0], star, 'tick'); cut(T.stars[0] + 0.05, 'star-off');
+  click(T.stars[1], star); cut(T.stars[1] + 0.05, 'star-on');
+  sfx(T.stars[1] + 0.03, 'twinkle', { pan: 0.1 });
+  CALLOUTS.push([T.stars[0] + 0.1, 23.0, 'star-hover', 'star2', 1, 0.5, 190, -190, '★ Starred titles go on the cover', 'the first twelve are starred for you']);
+  cam(22.75, ...full);
+
+  // ---- 3. Make a cover ------------------------------------------------
+  const tab = ctr(rectOf('fc-tab', 'tab'));
+  CURSOR_VIS.push([22.8, T.honey + 0.9]);
+  cur(22.8, [700, 420]); cur(T.fcTab - 0.1, tab); click(T.fcTab, tab);
+  cut(T.fcTab + 0.08, 'fc-tab');
+  const txt = ctr(rectOf('fc-tab', 'text'));
+  camHold(T.fcTab + 0.1); cam(T.fcTab + 0.5, txt[0] + 230, txt[1] + 80, 1.45);
+  cur(23.85, txt); click(23.95, txt);
+  const fcTyped = idsWith('fc-type-');
+  fcTyped.forEach((id, i) => cut(24.0 + i * 0.12, id));
+  typeSfx(24.0, 24.0 + fcTyped.length * 0.12, 16, txt[0]);
+  cut(T.create - 0.12, 'pre-create');
+  const create = ctr(rectOf('pre-create', 'target'));
+  cur(T.create - 0.12, create); click(T.create, create);
+  cut(T.create + 0.3, 'fc-classic');
+  sfx(T.create + 0.3, 'shuffle', { pan: 0.4 });
+  camHold(T.create + 0.1); cam(T.create + 0.6, 660, APP.h / 2, 1.02);
+  [['tilted', T.tilt], ['staggered', T.stag], ['honeycomb', T.honey]].forEach(([layout, tt]) => {
+    cut(tt - 0.4, `pre-${layout}`);
+    const p = ctr(rectOf(`pre-${layout}`, 'target'));
+    cur(tt - 0.12, p); cur(tt + 0.05, p); click(tt, p);
+    cut(tt + 0.25, `fc-${layout}`);
+    sfx(tt + 0.25, 'shuffle', { pan: 0.4 });
+  });
+  sfx(T.honey + 0.35, 'sparkle', { pan: 0.4 });
+  CALLOUTS.push([T.tilt - 0.35, T.tilt + 1.4, 'pre-tilted', 'target', 0.5, 0, -60, -120, 'Six collage layouts', 'made from your starred covers']);
+  cur(T.honey + 0.8, [700, 640]);
+
+  // ---- 4. Style: a font, a color, a gradient, a QR code -------------
+  cut(T.toStyle, 'st-scrolled');
+  sfx(T.toStyle, 'whoosh', { pan: 0.3, gain: 0.5 });
+  const font2 = ctr(rectOf('st-scrolled', 'font2'));
+  camHold(T.toStyle); cam(T.toStyle + 0.5, 600, 330, 1.12);
+  CURSOR_VIS.push([T.toStyle + 0.3, T.gradient + 0.6]);
+  cur(T.toStyle + 0.3, [640, 560]); cur(T.fontOpen - 0.12, font2); click(T.fontOpen, font2);
+  cut(T.fontOpen + 0.08, 'st-fontlist');
+  sfx(T.fontOpen + 0.08, 'open', { pan: -0.1, gain: 0.7 });
+  const opt = ctr(rectOf('st-fontlist', 'option'), 0.3);
+  cur(T.fontPick - 0.14, opt); click(T.fontPick, opt);
+  cut(T.fontPick + 0.3, 'st-font');
+  sfx(T.fontPick + 0.3, 'shuffle', { pan: 0.4, gain: 0.7 });
+  const pal = ctr(rectOf('st-palette', 'bgTrigger'));
+  cur(T.palette - 0.14, pal); click(T.palette, pal);
+  cut(T.palette + 0.08, 'st-palette');
+  sfx(T.palette + 0.08, 'open', { pan: -0.1, gain: 0.7 });
+  const sw = ctr(rectOf('st-palette', 'swatch'));
+  cur(T.swatch - 0.14, sw); click(T.swatch, sw, 'tick');
+  cut(T.swatch + 0.25, 'st-color');
+  cut(T.gradient - 0.3, 'pre-gradient');
+  const gr = ctr(rectOf('pre-gradient', 'target'));
+  cur(T.gradient - 0.12, gr); click(T.gradient, gr, 'toggle');
+  cut(T.gradient + 0.25, 'st-gradient');
+  sfx(T.gradient + 0.3, 'sparkle', { pan: 0.4, gain: 0.5 });
+  // back cover
+  const btab = ctr(rectOf('bc-tab', 'tab'));
+  CURSOR_VIS.push([T.backTab - 0.5, T.blurb + 0.7]);
+  camHold(T.backTab - 0.3); cam(T.backTab + 0.3, APP.w / 2, APP.h / 2, 1);
+  cur(T.backTab - 0.5, [640, 500]); cur(T.backTab - 0.1, btab); click(T.backTab, btab);
+  cut(T.backTab + 0.08, 'bc-tab');
+  const url = ctr(rectOf('bc-tab', 'url'));
+  cur(38.2, url); click(38.3, url);
+  const urls = idsWith('bc-url-');
+  urls.forEach((id, i) => cut(38.4 + i * 0.1, id));
+  typeSfx(38.4, 38.4 + urls.length * 0.1, 22, url[0]);
+  const upd = ctr(rectOf('bc-qr', 'update'));
+  cur(T.qrUpdate - 0.15, upd); click(T.qrUpdate, upd);
+  cut(T.qrUpdate + 0.1, 'bc-qr');
+  sfx(T.qrUpdate + 0.12, 'qr', { pan: 0.2 });
+  const qrr = rectOf('bc-qr', 'qr');
+  camHold(T.qrUpdate + 0.1); cam(T.qrUpdate + 0.6, qrr[0] + qrr[2] / 2, qrr[1] + qrr[3] / 2, 1.9);
+  const blurb = ctr(rectOf('bc-qr', 'blurb'));
+  cur(T.blurb - 0.1, blurb); click(T.blurb, blurb);
+  typeSfx(T.blurb + 0.1, T.blurb + 0.5, 8, blurb[0]);
+  cut(T.blurb + 0.55, 'bc-blurb');
+  CALLOUTS.push([T.qrUpdate + 0.5, 41.9, 'bc-qr', 'qr', 0.88, 0.1, 40, -150, 'A real QR code', 'point it at your catalog list']);
+
+  // ---- 5. Generate PDF ---------------------------------------------
+  const pdf = ctr(rectOf('export-hover', 'pdf'));
+  camHold(41.95); cam(42.5, pdf[0] - 200, 210, 1.6);
+  cut(42.3, 'export-hover');
+  CURSOR_VIS.push([42.2, T.pdfClick + 0.35]);
+  cur(42.2, [900, 330]); cur(T.pdfClick - 0.12, pdf); click(T.pdfClick, pdf);
 })();
 
 (function buildSfx() {
@@ -651,29 +690,9 @@ function click(t, x, kind) { CURSOR_CLICKS.push(t); sfx(t, kind || 'click', { pa
   sfx(T.logoIn, 'chime', { pan: 0, notes: [72, 76, 79, 84] });
   sfx(5.4, 'hop', { pan: -0.3 }); sfx(6.05, 'land', { pan: -0.55 });
   sfx(T.winIn, 'whoosh', { pan: 0.4 });
-  for (let i = 0; i < T.typeText.length; i++) if (T.typeText[i] !== ' ') sfx(T.typeStart + i * T.typeStep, 'type', { pan: -0.1, seed: i });
-  for (let i = 0; i < 6; i++) sfx(T.resultsAt + i * 0.07, 'pop', { pan: -0.15, pitch: i, gain: 0.55 });
-  T.addClicks.forEach((tc, k) => { sfx(tc + 0.08, 'swish', { pan: 0.1, gain: 0.5 }); sfx(T.fillAt[k], 'pop', { pan: 0.25, pitch: 3 + k }); });
-  sfx(T.qaOpen, 'open', { pan: 0.2 });
-  sfx(T.pasteAt - 0.08, 'keycap', { pan: 0.2 });
-  for (let j = 0; j < 7; j++) sfx(T.pasteAt + j * T.rowStep, 'tick', { pan: 0.2, gain: 0.5, pitch: j });
-  sfx(T.qaClose, 'close', { pan: 0.3 });
-  for (let k = 3; k < 10; k++) sfx(T.fillAt[k], 'pop', { pan: 0.35, pitch: k, gain: 0.7 });
-  sfx(T.stickyIn, 'paper', { pan: 0.7, gain: 0.7 });
-  sfx(T.zoomStart, 'whoosh', { pan: 0 });
-  T.callouts.forEach((tc, i) => sfx(tc, 'pop', { pan: 0.45, pitch: 6 + i, gain: 0.8 }));
-  T.stars.forEach((ts) => sfx(ts + 0.02, 'twinkle', { pan: 0.3 }));
-  sfx(T.panelOut, 'whoosh', { pan: 0.2 });
-  for (let i = 0; i < 16; i++) sfx(T.coverPops + i * 0.055, 'pop', { pan: 0.2, pitch: i % 8, gain: 0.35 });
-  [T.tilt, T.stag, T.honey].forEach((tt) => sfx(tt + 0.05, 'shuffle', { pan: 0.2 }));
-  sfx(T.honey + 0.35, 'sparkle', { pan: 0.2 });
+  sfx(T.edit, 'whoosh', { pan: 0.1, gain: 0.5 });
   sfx(T.heartsA, 'hearts', { pan: -0.6 });
-  sfx(T.toStyle, 'whoosh', { pan: 0.3, gain: 0.7 });
-  sfx(T.colors[2] + 0.05, 'sparkle', { pan: 0.1, gain: 0.5 });
-  sfx(T.qrIn, 'open', { pan: 0.6 });
-  sfx(T.qrBuild, 'qr', { pan: 0.6 });
-  sfx(T.styleOut, 'whoosh', { pan: 0 });
-  sfx(T.pdfIn, 'pop', { pan: 0.25, pitch: 4 });
+  sfx(T.winOut, 'whoosh', { pan: 0.2 });
   sfx(T.printerUp, 'rise', { pan: 0.25 });
   sfx(T.sheetOut, 'print', { pan: 0.25, dur: T.sheetOutEnd - T.sheetOut });
   sfx(T.stamp, 'stamp', { pan: 0.5 });
@@ -687,44 +706,38 @@ function click(t, x, kind) { CURSOR_CLICKS.push(t); sfx(t, kind || 'click', { pa
   sfx(T.heartsB + 0.1, 'purr', { pan: -0.25, dur: 2.4 });
 })();
 
+// Camera: keys hold their framing until the next key starts moving.
+const CAM_KEYS = (() => {
+  const out = [];
+  let last = CAMK[0][1];
+  CAMK.slice().sort((a, b) => a[0] - b[0]).forEach(([t, v, e]) => { const val = v || last; out.push([t, val, e || 'inOut']); last = val; });
+  return out;
+})();
+const camTrack = track(CAM_KEYS);
+function camAt(t) {
+  const [cx, cy, z] = camTrack(t);
+  const hw = APP.w / 2 / z, hh = APP.h / 2 / z;
+  return [clamp(cx, hw, APP.w - hw), clamp(cy, hh, APP.h - hh), z];
+}
+// App coordinates to stage coordinates, through the camera and the window.
+function toStage(t, ax, ay) {
+  const [cx, cy, z] = camAt(t);
+  const off = winOffset(t);
+  return [WIN.x + off[0] + WIN.w / 2 + (ax - cx) * APP_S * z, WIN.y + WIN.bar + off[1] + (WIN.h - WIN.bar) / 2 + (ay - cy) * APP_S * z];
+}
+function winOffset(t) {
+  const inK = E.outQuint(seg(t, T.winIn, T.winIn + 0.75));
+  const outK = E.in(seg(t, T.winOut, T.winOut + 0.5));
+  return [700 * (1 - inK), 120 * outK];
+}
+FOOT.sort((a, b) => a[0] - b[0]);
+
 /* =====================================================================
    COMPONENTS
    ===================================================================== */
 const $ = (id) => document.getElementById(id);
 const content = $('content');
 const C = {}; // component refs
-
-function makeEntry(parent, k, bookIdx, opts) {
-  const b = BOOKS[bookIdx];
-  const el = div('entry', parent);
-  el.style.top = (22 + k * 152) + 'px';
-  const blank = div('blank', el, '<div class="e-cover"></div><div class="e-text"><div class="e-title">[Enter Title]</div>'
-    + '<div class="e-author">[Enter Author]</div><div class="e-desc">[Enter a description for this title...]</div></div>');
-  const filled = div('filled', el, `<div class="e-cover">${coverSvg(bookIdx)}</div><div class="e-text"><div class="e-title">${b.t}</div>`
-    + `<div class="e-author">By ${b.a}</div><div class="e-desc">${b.d}</div><div class="e-call">${b.c}</div></div>`);
-  const r = { el, blank, filled, cover: filled.querySelector('.e-cover'), k, book: bookIdx };
-  if (opts && opts.stars) {
-    r.grip = div('e-grip', el);
-    r.star = svgEl('svg', { class: 'e-star', viewBox: '0 0 36 36' });
-    el.appendChild(r.star);
-    r.starFill = svgEl('path', { d: STAR_PATH, fill: '#f6b93b', stroke: '#c98a12', 'stroke-width': 2, 'stroke-linejoin': 'round' }, r.star);
-    r.starLine = svgEl('path', { d: STAR_PATH, fill: 'none', stroke: '#a0aec0', 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, r.star);
-  }
-  return r;
-}
-function makePanel(parent, books, opts) {
-  const el = div('panel', parent);
-  const entries = books.map((bi, k) => makeEntry(el, k, bi, opts));
-  return { el, entries };
-}
-
-const qrMatrix = () => window.QR_DATA;
-function qrSvg(qr, size, color) {
-  const s = size / (qr.n + 2);
-  let d = '';
-  qr.cells.forEach(([r, c]) => { d += `M${((c + 1) * s).toFixed(2)} ${((r + 1) * s).toFixed(2)}h${s.toFixed(2)}v${s.toFixed(2)}h-${s.toFixed(2)}z`; });
-  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="${color}" shape-rendering="crispEdges"/></svg>`;
-}
 
 function buildLogo() {
   const el = div('logo', content, `<div class="logo-row">${BOOK_ICON}<div class="logo-word">Booklister</div></div>`
@@ -734,356 +747,31 @@ function buildLogo() {
   C.logoTag = el.querySelector('.logo-tag');
 }
 
-function buildWindow() {
+function buildAppWindow() {
   const w = div('', content);
-  w.id = 'win';
-  w.innerHTML = `<div class="w-head"><div class="brand">${BOOK_ICON}Booklister</div><div class="spacer"></div>`
-    + '<div class="hbtn">Reset</div><div class="hbtn">Load</div><div class="hbtn">Save</div><div class="hbtn primary">Generate PDF</div></div>'
-    + '<div class="w-side"><div class="w-tabs"><div class="on">Search</div><div>Text Styling</div><div>Front Cover</div><div>Back Cover</div></div>'
-    + '<div class="w-label">Search by keyword</div><div class="w-input"><span class="typed"></span><span class="caret"></span><span class="ph">Keyword...</span></div>'
-    + '<div class="w-btn search">Search</div><div class="w-btn qa">Quick Add</div><div class="w-rhead"></div></div>'
-    + '<div class="w-main"><div class="fold"></div></div>';
-  C.win = w;
-  C.winInput = w.querySelector('.w-input');
-  C.winTyped = w.querySelector('.typed');
-  C.winCaret = w.querySelector('.caret');
-  C.winPh = w.querySelector('.ph');
-  C.winSearchBtn = w.querySelector('.w-btn.search');
-  C.winQaBtn = w.querySelector('.w-btn.qa');
-  C.winRhead = w.querySelector('.w-rhead');
-  const side = w.querySelector('.w-side');
-  C.results = RESULTS.map((bi, i) => {
-    const r = div('w-result', side, `<div class="th">${coverSvg(bi)}</div><div class="t">${BOOKS[bi].t}</div><div class="a">${BOOKS[bi].a}</div><div class="add">Add</div>`);
-    r.style.top = (238 + i * 76) + 'px';
-    return { el: r, add: r.querySelector('.add'), th: r.querySelector('.th') };
-  });
-  const main = w.querySelector('.w-main');
-  C.winPanels = [0, 1].map((p) => {
-    const pn = makePanel(main, ORDER.slice(p * 5, p * 5 + 5));
-    pn.el.style.left = (29.6 + p * 400.4) + 'px';
-    pn.el.style.top = '42.5px';
-    pn.el.style.transform = 'scale(0.77)';
-    return pn;
-  });
-  // Quick Add modal
-  const shade = div('', w); shade.id = 'qaShade';
-  const qa = div('', w); qa.id = 'qa';
-  qa.innerHTML = '<div class="qt">Quick Add</div><div class="qx">×</div><div class="tabs"><div>Single title</div><div class="on">Multiple titles</div></div>'
-    + '<div class="hint">Paste rows from a spreadsheet: title, author, call number.</div><div class="ta"></div>'
-    + '<div class="tc"><i></i>Title Case</div><div class="go">Add 7 titles</div>';
-  C.qa = qa; C.qaShade = shade; C.qaTa = qa.querySelector('.ta'); C.qaGo = qa.querySelector('.go');
-  C.qaRows = ORDER.slice(3).map((bi, j) => {
-    const b = BOOKS[bi];
-    const row = div('row', C.qaTa, `<span style="left:0">${b.t}</span><span class="tabmark" style="left:318px">⇥</span>`
-      + `<span style="left:340px">${b.a}</span><span class="tabmark" style="left:530px">⇥</span><span style="left:552px">${b.c}</span>`);
-    row.style.top = (10 + j * 30) + 'px';
-    return row;
-  });
-  C.keycap = div('keycap', content, 'Ctrl + V');
-  const st = div('', content, '<b>Tip:</b> the Booklister Helper browser extension copies whole lists from your library catalog.');
-  st.id = 'sticky';
-  C.sticky = st;
-}
-
-// Flying covers: [t0, dur, book, from [x,y,w,h], to [x,y,w,h], arc]
-const FLYERS = [];
-function buildFlyers() {
-  const slotCenter = (k) => {
-    const p = k < 5 ? 0 : 1, kk = k % 5;
-    return [610 + 409.6 + p * 400.4 + 65 * 0.77, 96 + 94.5 + (94.5 + 152 * kk) * 0.77];
-  };
-  T.addClicks.forEach((tc, k) => {
-    const [x, y] = slotCenter(k);
-    FLYERS.push({ t0: tc + 0.05, dur: T.flyDur, book: ORDER[k], from: [652, 422 + 76 * k, 44, 66], to: [x, y, 66.2, 99.3], arc: -90 });
-  });
-  for (let k = 3; k < 10; k++) {
-    const [x, y] = slotCenter(k);
-    const j = k - 3;
-    FLYERS.push({ t0: T.qaFly + j * T.qaFlyStep, dur: T.flyDur, book: ORDER[k], from: [1000, 399 + 30 * j, 20, 30], to: [x, y, 66.2, 99.3], arc: -120 });
-  }
-  // Starred covers leave the list page for the collage.
-  const disp = [0, 2, 1, 3, 4];
-  T.starEntries.forEach((k, i) => {
-    const from = [820.8 + 65 * 0.92, 110.2 + (94.5 + 152 * k) * 0.92, 79, 118.7];
-    const cell = COVER_LAYOUTS.classic.cells[i];
-    const to = [883 + cell.x * 0.95, 100.1 + cell.y * 0.95, cell.w * 0.95, cell.h * 0.95];
-    FLYERS.push({ t0: T.panelOut + 0.1 + i * 0.08, dur: 0.75, book: ORDER[disp[k]], from, to, arc: -160, land: true });
-  });
-  C.flyers = FLYERS.map((f) => {
-    const el = div('fly', content, coverSvg(f.book));
-    el.style.cssText = 'position:absolute;left:0;top:0;width:100px;height:150px;border-radius:3px;overflow:hidden;box-shadow:0 10px 20px rgba(0,0,0,.25);transform-origin:0 0;';
-    return el;
+  w.id = 'appwin';
+  w.innerHTML = '<div id="appbar"><i style="background:#e0776d"></i><i style="background:#e8b84c"></i><i style="background:#79b867"></i>'
+    + '<div class="url"><svg viewBox="0 0 448 512"><path d="M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192V144C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64H80z"/></svg>booklister.org</div></div>'
+    + '<div id="appview"></div>';
+  C.appwin = w;
+  const view = w.querySelector('#appview');
+  C.foot = [0, 1].map(() => { const im = document.createElement('img'); im.decoding = 'sync'; view.appendChild(im); return im; });
+  C.chip = div('', content); C.chip.id = 'skipchip';
+  C.keycap = div('keycap', content);
+  C.calloutLines = svgEl('svg', { class: 'layer', viewBox: '0 0 1920 1080' });
+  content.appendChild(C.calloutLines);
+  C.callouts = CALLOUTS.map((c) => {
+    const el = div('callout', content, `<b>${c[8]}</b><span>${c[9]}</span>`);
+    const halo = svgEl('path', { fill: 'none', stroke: '#fffaf0', 'stroke-width': 9, 'stroke-linecap': 'round' }, C.calloutLines);
+    const line = svgEl('path', { fill: 'none', stroke: '#4A3020', 'stroke-width': 3, 'stroke-linecap': 'round' }, C.calloutLines);
+    const dot = svgEl('circle', { r: 8, fill: '#f4a261', stroke: '#4A3020', 'stroke-width': 3 }, C.calloutLines);
+    return { el, halo, line, dot };
   });
 }
 
-function buildListPanel() {
-  const wrap = div('', content);
-  wrap.style.cssText = 'position:absolute;left:0;top:0;width:520px;height:804px;transform-origin:0 0;border-radius:4px;'
-    + 'box-shadow:0 26px 50px rgba(80,52,24,.22),0 3px 8px rgba(0,0,0,.1);';
-  C.listWrap = wrap;
-  C.list = makePanel(wrap, ORDER.slice(0, 5), { stars: true });
-  C.list.el.style.position = 'absolute';
-  // callouts
-  const lines = svgEl('svg', { class: 'layer', viewBox: '0 0 1920 1080' });
-  content.appendChild(lines);
-  C.callLines = lines;
-  const P = (nx, ny) => [820.8 + nx * 0.92, 110.2 + ny * 0.92];
-  const defs = [
-    { label: 'Title & author', sub: 'click any text to edit it', at: P(300, 42), y: 170 },
-    { label: 'Cover art', sub: 'from Open Library, or upload your own', at: P(66, 120), y: 300 },
-    { label: 'Call number', sub: 'so patrons can find it', at: P(170, 145), y: 430 },
-    { label: 'Description', sub: 'write your own short blurb', at: P(330, 100), y: 560 },
-  ];
-  C.callouts = defs.map((d) => {
-    const el = div('callout', content, `<b>${d.label}</b><span>${d.sub}</span>`);
-    const x0 = 1340;
-    const dd = `M${d.at[0]} ${d.at[1]} C ${d.at[0] + 120} ${d.at[1]}, ${x0 - 140} ${d.y + 38}, ${x0} ${d.y + 38}`;
-    const halo = svgEl('path', { d: dd, fill: 'none', stroke: '#fffaf0', 'stroke-width': 9, 'stroke-linecap': 'round', opacity: 0.9 }, lines);
-    const path = svgEl('path', { d: dd, fill: 'none', stroke: '#4A3020', 'stroke-width': 3, 'stroke-linecap': 'round' }, lines);
-    const dot = svgEl('circle', { cx: d.at[0], cy: d.at[1], r: 8, fill: '#f4a261', stroke: '#4A3020', 'stroke-width': 3 }, lines);
-    return Object.assign({ el, path, halo, dot, len: path.getTotalLength(), x: x0 }, d);
-  });
-  C.dragTip = div('callout', content, '<b>Drag to reorder</b><span>or use the arrow keys</span>');
-  C.starTip = div('callout', content, '<b>★ Starred titles</b><span>go on the front cover</span>');
-}
-
-/* ---------------- collage page ---------------- */
-const PW = 520, PH = 804;
-function hexPts(R) { const s = 0.8660254 * R; return [[0, -R], [s, -R / 2], [s, R / 2], [0, R], [-s, R / 2], [-s, -R / 2]]; }
-function rectPts(w, h) { return [[0, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [0, h / 2], [-w / 2, h / 2], [-w / 2, -h / 2]]; }
-const mod = (a, n) => ((a % n) + n) % n;
-function makeLayouts() {
-  const L = {};
-  { // classic 4x4 under a top bar
-    const cells = [];
-    const cw = 100, ch = 137.5, x0 = 39, y0 = 196;
-    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
-      cells.push({ x: x0 + c * 114 + cw / 2, y: y0 + r * 149.5 + ch / 2, w: cw, h: ch, rot: 0, hex: 0, book: r * 4 + c });
-    }
-    L.classic = { cells, bar: { y: 26, h: 150, inset: 26, strip: 0 } };
-  }
-  { // tilted
-    const cells = [];
-    const rot = -9 * Math.PI / 180, cw = 110, ch = 160, sx = 122, sy = 172;
-    for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) {
-      const lx = i * sx + (mod(j, 2) ? sx / 2 : 0), ly = j * sy;
-      const x = 260 + lx * Math.cos(rot) - ly * Math.sin(rot), y = 402 + lx * Math.sin(rot) + ly * Math.cos(rot);
-      if (x < -70 || x > PW + 70 || y < -90 || y > PH + 90) continue;
-      cells.push({ x, y, w: cw, h: ch, rot: -9, hex: 0, book: mod(i + j * 6 + 3, 16) });
-    }
-    L.tilted = { cells, bar: { y: 327, h: 150, inset: 18, strip: 1 } };
-  }
-  { // staggered
-    const cells = [];
-    const ys = [80, 240, 564, 724], offs = [-42, -96, -18, -70];
-    ys.forEach((y, r) => {
-      for (let c = 0; c < 6; c++) {
-        const x = offs[r] + c * 114 + 52;
-        if (x - 52 > PW) continue;
-        cells.push({ x, y, w: 104, h: 150, rot: 0, hex: 0, book: mod(c + r * 6 + 9, 16) });
-      }
-    });
-    L.staggered = { cells, bar: { y: 327, h: 150, inset: 18, strip: 1 } };
-  }
-  { // honeycomb
-    const cells = [];
-    const R = 72, w = 2 * 0.8660254 * R, ys = [24, 132, 240, 564, 672, 780];
-    ys.forEach((y, r) => {
-      const off = (r % 2) ? w / 2 : 0;
-      for (let c = 0; c < 6; c++) {
-        const x = off + c * w;
-        if (x - w / 2 > PW) continue;
-        cells.push({ x, y, w, h: 2 * R, rot: 0, hex: 1, book: mod(c + r * 6 + 5, 16) });
-      }
-    });
-    L.honeycomb = { cells, bar: { y: 327, h: 150, inset: 18, strip: 1 } };
-  }
-  return L;
-}
-const COVER_LAYOUTS = makeLayouts();
-const INST_N = Math.max(...Object.values(COVER_LAYOUTS).map((l) => l.cells.length));
-
-let coverPageSeq = 0;
-function makeCoverPage(parent) {
-  const id = ++coverPageSeq;
-  const svg = svgEl('svg', { viewBox: `0 0 ${PW} ${PH}`, width: PW, height: PH });
-  svg.style.cssText = 'position:absolute;left:0;top:0;overflow:hidden;display:block;';
-  parent.appendChild(svg);
-  const defs = svgEl('defs', {}, svg);
-  const grad = svgEl('linearGradient', { id: `barg${id}`, x1: 0, y1: 0, x2: 1, y2: 0.3 }, defs);
-  const s0 = svgEl('stop', { offset: 0, 'stop-color': '#3f51b5' }, grad);
-  const s1 = svgEl('stop', { offset: 1, 'stop-color': '#3f51b5' }, grad);
-  svgEl('rect', { width: PW, height: PH, fill: '#fff' }, svg);
-  const inst = [];
-  const ig = svgEl('g', {}, svg);
-  for (let i = 0; i < INST_N; i++) {
-    const cp = svgEl('clipPath', { id: `pc${id}_${i}` }, defs);
-    const poly = svgEl('polygon', { points: '0,0' }, cp);
-    const g = svgEl('g', {}, ig);
-    const cg = svgEl('g', { 'clip-path': `url(#pc${id}_${i})` }, g);
-    const back = svgEl('rect', { fill: 'url(#cg0)' }, cg);
-    const dim = svgEl('rect', { fill: '#1a1410' }, cg);
-    const drop = svgEl('rect', { fill: '#000', rx: 2 }, cg);
-    const use = svgEl('use', { href: '#cov0' }, cg);
-    const shade = svgEl('polygon', { points: '0,0', fill: 'none', stroke: 'rgba(0,0,0,.10)', 'stroke-width': 1 }, g);
-    inst.push({ g, poly, use, shade, back, dim, drop });
-  }
-  const strip = svgEl('rect', { x: 0, width: PW, fill: '#fff' }, svg);
-  const bar = svgEl('g', {}, svg);
-  const barRect = svgEl('rect', { fill: `url(#barg${id})` }, bar);
-  const sub = svgEl('text', { 'text-anchor': 'middle', 'font-family': 'Inter', 'font-weight': 700, 'font-size': 17, 'letter-spacing': 6, fill: '#fff', opacity: 0.85 }, bar);
-  sub.textContent = 'STAFF PICKS';
-  const main = svgEl('text', { 'text-anchor': 'middle', 'font-size': 62, fill: '#fff' }, bar);
-  main.textContent = 'Rainy Day Reads';
-  return { id, svg, inst, strip, bar, barRect, sub, main, s0, s1, fontCache: {} };
-}
-// state: { a, b, u, style:{font, weight, c0, c1, bump}, enter:(i)=>scale|null, hideInst:(i)=>bool }
-function drawCoverPage(P, st) {
-  const A = COVER_LAYOUTS[st.a], B = COVER_LAYOUTS[st.b || st.a];
-  const u = st.u || 0;
-  for (let i = 0; i < INST_N; i++) {
-    const ca = A.cells[i], cb = B.cells[i];
-    const va = ca ? 1 : 0, vb = cb ? 1 : 0;
-    const pa = ca || B.cells[i] || A.cells[i % A.cells.length];
-    const pb = cb || pa;
-    const delay = 0.32 * clamp(pb.x / PW);
-    const ui = clamp((u - delay) / (1 - 0.32));
-    const k = E.inOut(ui);
-    let x = lerp(pa.x, pb.x, k), y = lerp(pa.y, pb.y, k);
-    const w = lerp(pa.w, pb.w, k), h = lerp(pa.h, pb.h, k);
-    const rot = lerp(pa.rot, pb.rot, k), hx = lerp(pa.hex, pb.hex, k);
-    let vis = va === vb ? va : (vb ? E.outBack(clamp(ui * 1.6 - 0.4)) : 1 - E.in(clamp(ui * 1.6)));
-    let sx = 1, book = pa.book;
-    if (va && vb && pa.book !== pb.book) { sx = Math.abs(Math.cos(Math.PI * ui)); book = ui < 0.5 ? pa.book : pb.book; }
-    else if (!va && vb) book = pb.book;
-    if (st.enter) { const e = st.enter(i); if (e !== null) vis *= e; }
-    if (st.hideInst && st.hideInst(i)) vis = 0;
-    const I = P.inst[i];
-    if (vis <= 0.001) { setA(I.g, 'visibility', 'hidden'); continue; }
-    setA(I.g, 'visibility', 'visible');
-    // Hexes are drawn inset so white gutters show between them.
-    const R = h / 2 - 3 * hx;
-    const rp = rectPts(w, h), hp = hexPts(R);
-    const pts = rp.map((p, j) => f1(lerp(p[0], hp[j][0], hx)) + ',' + f1(lerp(p[1], hp[j][1], hx))).join(' ');
-    setA(I.poly, 'points', pts);
-    setA(I.shade, 'points', pts);
-    // Honeycomb frames the whole cover on a wash of its own colors, as the
-    // app's Honeycomb layout does; rectangles show the cover edge to edge.
-    const fitH = 1.444 * R * 0.92, fitW = fitH * 2 / 3;
-    const uw = lerp(w, fitW, hx), uh = lerp(h, fitH, hx);
-    setA(I.use, 'href', '#cov' + book);
-    setA(I.use, 'x', f1(-uw / 2)); setA(I.use, 'y', f1(-uh / 2));
-    setA(I.use, 'width', f1(uw)); setA(I.use, 'height', f1(uh));
-    const showBack = hx > 0.01;
-    setA(I.back, 'visibility', showBack ? 'visible' : 'hidden');
-    setA(I.dim, 'visibility', showBack ? 'visible' : 'hidden');
-    setA(I.drop, 'visibility', showBack ? 'visible' : 'hidden');
-    if (showBack) {
-      setA(I.back, 'fill', `url(#cg${book})`);
-      [I.back, I.dim].forEach((el) => { setA(el, 'x', f1(-w / 2)); setA(el, 'y', f1(-h / 2)); setA(el, 'width', f1(w)); setA(el, 'height', f1(h)); });
-      setA(I.back, 'opacity', hx.toFixed(3)); setA(I.dim, 'opacity', (0.22 * hx).toFixed(3));
-      setA(I.drop, 'x', f1(-uw / 2 + 2)); setA(I.drop, 'y', f1(-uh / 2 + 3)); setA(I.drop, 'width', f1(uw)); setA(I.drop, 'height', f1(uh));
-      setA(I.drop, 'opacity', (0.28 * hx).toFixed(3));
-    }
-    setA(I.g, 'transform', `translate(${f1(x)} ${f1(y)}) rotate(${f1(rot)}) scale(${(sx * vis).toFixed(3)} ${vis.toFixed(3)})`);
-  }
-  // bar
-  const ba = A.bar, bb = B.bar, kb = E.inOut(clamp((u - 0.1) / 0.8));
-  const by = lerp(ba.y, bb.y, kb), bh = lerp(ba.h, bb.h, kb), inset = lerp(ba.inset, bb.inset, kb), strip = lerp(ba.strip, bb.strip, kb);
-  setA(P.strip, 'y', f1(by - 16)); setA(P.strip, 'height', f1(bh + 32)); setA(P.strip, 'opacity', strip.toFixed(3));
-  setA(P.barRect, 'x', f1(inset)); setA(P.barRect, 'y', f1(by)); setA(P.barRect, 'width', f1(PW - 2 * inset)); setA(P.barRect, 'height', f1(bh));
-  const s = st.style;
-  setA(P.s0, 'stop-color', s.c0); setA(P.s1, 'stop-color', s.c1);
-  const key = s.font + '|' + s.weight;
-  if (P.curFont !== key) {
-    P.main.setAttribute('font-family', s.font);
-    P.main.setAttribute('font-weight', s.weight);
-    P.main.setAttribute('font-size', 62);
-    if (!P.fontCache[key]) P.fontCache[key] = P.main.getComputedTextLength();
-    P.curFont = key;
-  }
-  const fs = Math.min(66, 62 * (PW - 2 * inset - 60) / P.fontCache[key]) * (s.sizeK || 1);
-  setA(P.main, 'font-size', f1(fs));
-  setA(P.main, 'x', PW / 2); setA(P.main, 'y', f1(by + bh * 0.5 + fs * 0.36 + 14));
-  setA(P.sub, 'x', PW / 2); setA(P.sub, 'y', f1(by + 36));
-  const bump = s.bump || 0;
-  setA(P.main, 'transform', bump ? `translate(${PW / 2} ${f1(by + bh / 2)}) scale(${(1 + bump).toFixed(3)}) translate(${-PW / 2} ${f1(-(by + bh / 2))})` : '');
-}
-
-function buildCoverScene() {
-  const wrap = div('', content);
-  wrap.style.cssText = `position:absolute;left:0;top:0;width:${PW}px;height:${PH}px;transform-origin:0 0;border-radius:4px;overflow:hidden;`
-    + 'box-shadow:0 26px 50px rgba(80,52,24,.24),0 3px 8px rgba(0,0,0,.1);background:#fff;';
-  C.coverWrap = wrap;
-  C.page = makeCoverPage(wrap);
-  // Layout picker
-  const pk = div('card', content);
-  pk.style.cssText += 'left:1440px;top:150px;width:380px;height:640px;';
-  pk.innerHTML = '<h3 style="position:absolute;left:30px;top:28px">Collage layout</h3>';
-  C.lhi = div('', pk); C.lhi.id = 'lhi';
-  const icons = {
-    Classic: '<rect x="6" y="6" width="46" height="12" rx="2" fill="#5c6bc0"/>' + [0, 1, 2].map((c) => [0, 1].map((r) => `<rect x="${7 + c * 16}" y="${23 + r * 16}" width="12" height="13" rx="1.5" fill="#9aa5d8"/>`).join('')).join(''),
-    Honeycomb: [[18, 16], [40, 16], [7, 34], [29, 34], [51, 34], [18, 52], [40, 52]].map(([x, y]) => `<polygon points="${x},${y - 10} ${x + 9},${y - 5} ${x + 9},${y + 5} ${x},${y + 10} ${x - 9},${y + 5} ${x - 9},${y - 5}" fill="#9aa5d8"/>`).join('') + '<rect x="4" y="29" width="50" height="10" fill="#5c6bc0"/>',
-    Jigsaw: '<rect x="6" y="6" width="46" height="46" rx="3" fill="#9aa5d8"/><path d="M29 6 v14 a5 5 0 1 1 0 8 v24 M6 29 h14 a5 5 0 1 0 8 0 h24" stroke="#fff" stroke-width="3" fill="none"/><rect x="6" y="25" width="46" height="9" fill="#5c6bc0"/>',
-    Masonry: '<rect x="6" y="6" width="14" height="20" rx="1.5" fill="#9aa5d8"/><rect x="22" y="6" width="14" height="14" rx="1.5" fill="#9aa5d8"/><rect x="38" y="6" width="14" height="24" rx="1.5" fill="#9aa5d8"/><rect x="6" y="36" width="46" height="9" fill="#5c6bc0"/><rect x="6" y="48" width="14" height="6" fill="#9aa5d8"/><rect x="22" y="48" width="30" height="6" fill="#9aa5d8"/>',
-    Staggered: [0, 1].map((r) => [0, 1, 2, 3].map((c) => `<rect x="${-4 + c * 16 + r * 8}" y="${6 + r * 36}" width="12" height="16" rx="1.5" fill="#9aa5d8"/>`).join('')).join('') + '<rect x="4" y="26" width="50" height="10" fill="#5c6bc0"/>',
-    Tilted: '<g transform="rotate(-12 29 29)">' + [0, 1, 2].map((c) => [0, 1, 2].map((r) => `<rect x="${4 + c * 18}" y="${2 + r * 20}" width="13" height="17" rx="1.5" fill="#9aa5d8"/>`).join('')).join('') + '</g><rect x="4" y="25" width="50" height="10" fill="#5c6bc0"/>',
-  };
-  C.lrows = Object.keys(icons).map((name, r) => {
-    const row = div('lrow', pk, `<svg viewBox="0 0 58 58"><defs><clipPath id="lic${r}"><rect width="58" height="58" rx="8"/></clipPath></defs><g clip-path="url(#lic${r})"><rect width="58" height="58" fill="#eef0fb"/>${icons[name]}</g></svg>${name}`);
-    row.style.top = (84 + 88 * r) + 'px';
-    return row;
-  });
-  C.picker = pk;
-  // Style panel
-  const sp = div('card', content);
-  sp.style.cssText += 'left:1330px;top:110px;width:500px;height:410px;';
-  sp.innerHTML = '<h3 style="position:absolute;left:30px;top:28px">Cover Header Style</h3>'
-    + '<div class="field-label" style="top:82px">Font</div><div class="dropdown" style="top:104px"><span class="fname"></span><span class="caretdn"></span></div>'
-    + '<div class="field-label" style="top:194px">Size</div><div class="stepper" style="left:30px;top:216px"><div>−</div><div class="v">62</div><div>+</div></div>'
-    + '<div class="field-label" style="top:194px;left:290px">Gradient</div><div class="toggle" style="left:290px;top:226px"><i></i></div>'
-    + '<div class="field-label" style="top:300px">Color</div>';
-  C.fname = sp.querySelector('.fname');
-  C.toggle = sp.querySelector('.toggle');
-  C.toggleKnob = C.toggle.querySelector('i');
-  C.swatchColors = ['#3f51b5', '#37474f', '#2a9d8f', '#e76f51', '#6d4c7d', '#264653'];
-  C.swatchColors.forEach((c, i) => { const s = div('swatch', sp); s.style.cssText += `left:${30 + 70 * i}px;top:324px;background:${c};`; });
-  C.swring = div('', sp); C.swring.id = 'swring';
-  C.style = sp;
-  // QR card
-  const qc = div('card', content);
-  qc.style.cssText += 'left:1330px;top:560px;width:500px;height:300px;';
-  const qr = qrMatrix();
-  C.qrData = qr;
-  const qs = 220, ms = qs / (qr.n + 2);
-  let rects = '';
-  qr.cells.forEach(([r, c], idx) => { rects += `<rect data-i="${idx}" x="${((c + 1) * ms).toFixed(2)}" y="${((r + 1) * ms).toFixed(2)}" width="${(ms + 0.3).toFixed(2)}" height="${(ms + 0.3).toFixed(2)}" fill="#37474f"/>`; });
-  qc.innerHTML = `<svg viewBox="0 0 ${qs} ${qs}" style="position:absolute;left:32px;top:40px;width:${qs}px;height:${qs}px;border-radius:8px;box-shadow:0 0 0 2px #eef0f4" shape-rendering="crispEdges"><rect width="${qs}" height="${qs}" fill="#fff"/>${rects}</svg>`
-    + '<div style="position:absolute;left:280px;top:44px;width:196px;font:700 15px/1 Inter;color:#718096;letter-spacing:.5px;text-transform:uppercase">Back cover</div>'
-    + '<div style="position:absolute;left:280px;top:74px;width:196px;font:600 25px/1.2 Lora;color:#2d3748">Scan to find these titles in our catalog!</div>'
-    + '<div style="position:absolute;left:280px;top:212px;width:190px;height:40px;border-radius:8px;background:#f1f3f8;font:500 15px/40px Inter;color:#546e7a;padding-left:12px;box-sizing:border-box">https://your.library/...</div>';
-  C.qrCard = qc;
-  C.qrMods = Array.from(qc.querySelectorAll('rect[data-i]')).map((el) => {
-    const [r, c] = qr.cells[+el.dataset.i];
-    return { el, d: (r + c) / (2 * qr.n) };
-  });
-}
-
-/* ---------------- export: button, printer, sheet ---------------- */
+/* ---------------- export: printer and the printed sheet ---------------- */
 function buildPrint() {
   const ps = $('printStage');
-  const btn = div('', content, `${BOOK_ICON}<span>Generate PDF</span>`);
-  btn.id = 'pdfbtn';
-  C.pdfbtn = btn;
-  C.pdfLabel = btn.querySelector('span');
-  C.pdfIcon = btn.querySelector('svg');
-  const spin = svgEl('svg', { viewBox: '0 0 60 60', width: 60, height: 60 });
-  spin.style.cssText = 'position:absolute;left:0;top:0;';
-  svgEl('circle', { cx: 30, cy: 30, r: 22, fill: 'none', stroke: 'rgba(255,255,255,.3)', 'stroke-width': 6 }, spin);
-  C.spinArc = svgEl('circle', { cx: 30, cy: 30, r: 22, fill: 'none', stroke: '#fff', 'stroke-width': 6, 'stroke-linecap': 'round', 'stroke-dasharray': '40 200' }, spin);
-  content.appendChild(spin);
-  C.spin = spin;
-  // printer back (slot) + shadow + sheet + printer front
   const pb = svgEl('svg', { class: 'layer', viewBox: '0 0 1920 1080' });
   ps.appendChild(pb);
   C.printerBack = svgEl('g', {}, pb);
@@ -1091,31 +779,24 @@ function buildPrint() {
   svgEl('rect', { x: 720, y: 772, width: 920, height: 12, rx: 6, fill: '#1f252b' }, C.printerBack);
   const sh = div('', ps); sh.id = 'sheetShadow'; C.sheetShadow = sh;
   const sheet = div('', ps); sheet.id = 'sheet'; C.sheet = sheet;
-  // halves: L = page 1 left (back cover) / page 2 right (inside right)
-  //         R = page 1 right (front cover) / page 2 left (inside left)
+  // One sheet, printed both sides, as the PDF lays it out:
+  //   page 1: back cover | front cover      page 2: inside left | inside right
+  // Half L carries page 1's left and, behind it, page 2's right; half R
+  // carries the front cover and, behind it, page 2's left.
   const mkHalf = (x) => { const h = div('half', sheet); h.style.left = x + 'px'; return h; };
   const hL = mkHalf(0), hR = mkHalf(440);
   hR.style.transformOrigin = '0 50%';
   C.halfL = hL; C.halfR = hR;
-  const face = (h, back) => div('face' + (back ? ' back' : ''), h);
-  // front cover (static honeycomb copy)
-  const fcFace = face(hR, false);
-  const fcWrap = div('panel', fcFace);
-  C.frontCopy = makeCoverPage(fcWrap);
-  // back cover
-  const bcFace = face(hL, false);
-  const bc = makePanel(bcFace, [4, 6, 9]);
-  bc.entries.forEach((e) => { setO(e.blank, 0); setO(e.filled, 1); });
-  const bq = div('backqr', bc.el, `<div class="qrbox">${qrSvg(C.qrData, 200, '#37474f')}</div>`
-    + '<div class="qrtext">Scan to find these titles in our catalog!</div>'
-    + `<div class="brand">${BOOK_ICON}Your Library</div>`);
-  C.backQr = bq;
-  // inside pages
-  const inL = face(hR, true), inR = face(hL, true);
-  [[inL, [0, 13, 11, 3, 1]], [inR, [7, 5, 8, 12, 2]]].forEach(([f, books]) => {
-    const pn = makePanel(f, books);
-    pn.entries.forEach((e) => { setO(e.blank, 0); setO(e.filled, 1); });
-  });
+  const face = (h, back, img, right) => {
+    const f = div('face' + (back ? ' back' : ''), h);
+    if (img) { f.style.backgroundImage = `url(${img})`; f.style.backgroundPosition = right ? '-440px 0' : '0 0'; }
+    return f;
+  };
+  const p1 = SHOTS.print['print-page-1'], p2 = SHOTS.print['print-page-2'];
+  face(hL, false, p1, false);
+  face(hR, false, p1, true);
+  face(hL, true, p2, true);
+  face(hR, true, p2, false);
   C.faceShades = Array.from(sheet.querySelectorAll('.face')).map((f) => div('shade', f));
   const pf = svgEl('svg', { class: 'layer', viewBox: '0 0 1920 1080' });
   ps.appendChild(pf);
@@ -1125,11 +806,10 @@ function buildPrint() {
   svgEl('rect', { x: 700, y: 790, width: 960, height: 22, rx: 11, fill: '#d4dbe2' }, P);
   svgEl('rect', { x: 760, y: 836, width: 260, height: 26, rx: 13, fill: '#cfd6de' }, P);
   C.printLed = svgEl('circle', { cx: 1590, cy: 849, r: 9, fill: '#43a047' }, P);
-  const lab = svgEl('text', { x: 1080, y: 896, 'font-family': 'Inter', 'font-weight': 700, 'font-size': 20, fill: '#9aa6b2', 'letter-spacing': 3 }, P);
-  lab.textContent = 'BOOKLISTER · 600 DPI';
   C.stamp = div('', ps, '600<small>DPI</small>'); C.stamp.id = 'stamp';
   C.takeone = div('', content, 'Take one!'); C.takeone.id = 'takeone';
 }
+
 /* =====================================================================
    BACKGROUND, DESK, PROPS
    ===================================================================== */
@@ -1644,11 +1324,13 @@ function buildParticles() {
   burst(T.logoIn + 0.1, 'sparkle', 960, 150, 14, { spread: 360 });
   burst(2.36, 'dust', 960, 900, 8);
   burst(6.06, 'dust', 330, 822, 7);
-  T.stars.forEach((ts, i) => burst(ts + 0.02, 'sparkle', 1272, [152.5, 292.3, 432.2, 572.0][T.starEntries[i]], 10, { spread: 70 }));
-  burst(T.honey + 0.35, 'confetti', 1130, 300, 26, { spread: 330 });
+  // Bursts over the real app sit on the control, through the camera.
+  const at = (t, id, name) => { const r = rectOf(id, name); return toStage(t, r[0] + r[2] / 2, r[1] + r[3] / 2); };
+  burst(T.stars[1] + 0.02, 'sparkle', ...at(T.stars[1], 'star-hover', 'star2'), 10, { spread: 70 });
+  burst(T.honey + 0.35, 'confetti', ...at(T.honey + 0.35, 'fc-honeycomb', 'cover'), 26, { spread: 330 });
   burst(T.heartsA, 'heart', 330, 400, 4);
-  burst(T.qrBuild + 1.15, 'sparkle', 1472, 710, 12, { spread: 150 });
-  burst(T.colors[2] + 0.05, 'sparkle', 1010, 400, 10, { spread: 260 });
+  burst(T.qrUpdate + 0.7, 'sparkle', ...at(T.qrUpdate + 0.7, 'bc-qr', 'qr'), 12, { spread: 150 });
+  burst(T.gradient + 0.3, 'sparkle', ...at(T.gradient + 0.3, 'st-gradient', 'cover'), 10, { spread: 260 });
   burst(T.stamp + 0.1, 'dust', 1560, 180, 14);
   burst(T.fold + 0.8, 'sparkle', 1400, 480, 10, { spread: 260 });
   burst(T.hopOut + 0.72, 'dust', 770, 900, 8);
@@ -1732,10 +1414,10 @@ function cursorPos(t) {
 function renderCursor(t) {
   let vis = 0;
   CURSOR_VIS.forEach(([a, b]) => { vis = Math.max(vis, Math.min(seg(t, a, a + 0.2), 1 - seg(t, b - 0.25, b))); });
-  const [x, y] = cursorPos(t);
+  const [ax, ay] = cursorPos(t);
+  const [x, y] = toStage(t, ax, ay);
   let press = 0, rip = -1;
   CURSOR_CLICKS.forEach((c) => { const u = t - c; if (u > -0.07 && u < 0.12) press = Math.max(press, 1 - Math.abs(u) / 0.1); if (u >= 0 && u < 0.4) rip = u / 0.4; });
-  if (t > T.grab && t < T.drop) press = Math.max(press, 0.6);
   setA(C.cursor, 'transform', `translate(${f1(x)} ${f1(y)}) scale(${(1.35 * (1 - 0.14 * press)).toFixed(3)})`);
   setA(C.cursor, 'opacity', vis.toFixed(3));
   setA(C.ripple, 'visibility', rip >= 0 && vis > 0 ? 'visible' : 'hidden');
@@ -1790,222 +1472,82 @@ function renderChapter(t) {
   setO($('chapter'), Math.min(1, k * 1.5));
 }
 
-const zoomK = (t) => E.inOut(seg(t, T.zoomStart, T.zoomEnd));
-function renderWindow(t) {
-  const W = C.win;
-  const inK = E.outQuint(seg(t, T.winIn, T.winIn + 0.75));
-  const z = zoomK(t);
-  const Z = lerp(1, 0.92 / 0.77, z), tx = lerp(0, 820.8 - 610 - 409.6 * 0.92 / 0.77, z), ty = lerp(0, 110.2 - 96 - 94.5 * 0.92 / 0.77, z);
-  const visible = t > T.winIn && t < T.zoomEnd + 0.05;
-  if (!visible) { setO(W, 0); } else {
-    setO(W, Math.min(seg(t, T.winIn, T.winIn + 0.3), 1 - seg(t, T.zoomStart + 0.35, T.zoomEnd)));
-    setT(W, `translate(${f1(tx + 700 * (1 - inK))}px, ${f1(ty)}px) scale(${Z.toFixed(4)})`);
-  }
-  // search box
-  const focused = t > 6.9;
-  C.winInput.classList.toggle('focus', focused && t < 8.4);
-  const n = clamp(Math.floor((t - T.typeStart) / T.typeStep) + 1, 0, T.typeText.length);
-  setH(C.winTyped, T.typeText.slice(0, t < T.typeStart ? 0 : n));
-  setO(C.winPh, focused ? 0 : 1);
-  const typing = t > T.typeStart && t < T.typeStart + T.typeText.length * T.typeStep + 0.2;
-  setO(C.winCaret, focused && t < 8.4 && (typing || Math.floor(t * 2.2) % 2 === 0) ? 1 : 0);
-  const pressS = (tc) => 1 - 0.06 * Math.max(0, 1 - Math.abs(t - tc - 0.02) / 0.1);
-  setT(C.winSearchBtn, `scale(${pressS(T.searchClick).toFixed(3)})`);
-  setT(C.winQaBtn, `scale(${pressS(T.qaClick).toFixed(3)})`);
-  setH(C.winRhead, t > T.resultsAt ? 'Results for “the sea”' : '');
-  C.results.forEach((r, i) => {
-    const k = E.outBack(seg(t, T.resultsAt + i * 0.07, T.resultsAt + i * 0.07 + 0.35));
-    setO(r.el, seg(t, T.resultsAt + i * 0.07, T.resultsAt + i * 0.07 + 0.15));
-    setT(r.el, `translateY(${f1(14 * (1 - k))}px) scale(${(0.92 + 0.08 * k).toFixed(3)})`);
-    const added = i < 3 && t > T.addClicks[i];
-    setH(r.add, added ? 'Added' : 'Add');
-    r.add.style.background = added ? '#c8e6c9' : '#43a047';
-    r.add.style.color = added ? '#2e7d32' : '#fff';
-    setT(r.add, `scale(${(i < 3 ? pressS(T.addClicks[i]) : 1).toFixed(3)})`);
-    setO(r.th, i < 3 && t > T.addClicks[i] && t < T.fillAt[i] ? 0.35 : 1);
+/* ---------------- the real app, on screen ---------------- */
+function footAt(t) {
+  let i = -1;
+  for (let k = 0; k < FOOT.length; k++) if (FOOT[k][0] <= t) i = k;
+  return i;
+}
+// A cut is a real change of state in the app, so it is nearly instant;
+// 70ms of dissolve only takes the hard edge off.
+const DISSOLVE = 0.07;
+async function renderApp(t) {
+  const off = winOffset(t);
+  const vis = t >= T.winIn && t < T.winOut + 0.5;
+  const outK = E.in(seg(t, T.winOut, T.winOut + 0.5));
+  setO(C.appwin, vis ? Math.min(seg(t, T.winIn, T.winIn + 0.25), 1 - outK) : 0);
+  setT(C.appwin, `translate(${f1(off[0])}px, ${f1(off[1])}px) scale(${(1 - 0.08 * outK).toFixed(3)})`);
+  if (!vis) return;
+  const i = footAt(t);
+  if (i < 0) return;
+  const [cx, cy, z] = camAt(t);
+  const k = APP_S * z / APP.dpr;
+  const tf = `translate(${f1(WIN.w / 2 - cx * APP_S * z)}px, ${f1((WIN.h - WIN.bar) / 2 - cy * APP_S * z)}px) scale(${k.toFixed(5)})`;
+  const cur = FOOT[i], prev = FOOT[i - 1];
+  const fade = prev ? seg(t, cur[0], cur[0] + DISSOLVE) : 1;
+  const want = [prev && fade < 1 ? prev[1] : null, cur[1]];
+  const waits = [];
+  C.foot.forEach((im, n) => {
+    const id = want[n];
+    if (!id) { setO(im, 0); return; }
+    const src = SH[id].file;
+    if (im._src !== src) { im.src = src; im._src = src; waits.push(im.decode().catch(() => {})); }
+    setT(im, tf);
+    setO(im, n === 0 ? 1 : fade);
   });
-  C.winPanels.forEach((pn, p) => pn.entries.forEach((e, kk) => {
-    const k = p * 5 + kk;
-    const f = seg(t, T.fillAt[k], T.fillAt[k] + 0.25);
-    setO(e.blank, 1 - f); setO(e.filled, f);
-    setT(e.cover, `scale(${(0.7 + 0.3 * E.outBack(seg(t, T.fillAt[k], T.fillAt[k] + 0.35))).toFixed(3)})`);
-  }));
-  // Quick Add modal
-  const qin = E.outBack(seg(t, T.qaOpen, T.qaOpen + 0.35)), qout = E.in(seg(t, T.qaClose, T.qaClose + 0.2));
-  const qv = t > T.qaOpen && t < T.qaClose + 0.2;
-  setO(C.qa, qv ? Math.min(seg(t, T.qaOpen, T.qaOpen + 0.15), 1 - qout) : 0);
-  setO(C.qaShade, qv ? 0.8 * Math.min(seg(t, T.qaOpen, T.qaOpen + 0.25), 1 - qout) : 0);
-  setT(C.qa, `scale(${(0.9 + 0.1 * qin - 0.05 * qout).toFixed(3)})`);
-  C.qaTa.classList.toggle('focus', t > 11.3);
-  C.qaRows.forEach((row, j) => {
-    const k = seg(t, T.pasteAt + j * T.rowStep, T.pasteAt + j * T.rowStep + 0.12);
-    setO(row, k); setT(row, `translateX(${f1(-12 * (1 - k))}px)`);
-  });
-  setT(C.qaGo, `scale(${pressS(T.qaGo).toFixed(3)})`);
+  if (waits.length) await Promise.all(waits);
+}
+function renderOverlays(t) {
+  // time-skip chip
+  const chip = CHIPS.find(([a, b]) => t >= a && t < b);
+  if (chip) {
+    setH(C.chip, chip[2]);
+    const k = env(t, chip[0], chip[1], 0.3, 0.25);
+    setO(C.chip, Math.min(1, k * 1.5));
+    setT(C.chip, `translate(${f1(WIN.x + WIN.w / 2 - C.chip.offsetWidth / 2)}px, ${f1(WIN.y + 60 - 20 * (1 - k))}px)`);
+  } else setO(C.chip, 0);
   // keycap
-  const kc = env(t, T.pasteAt - 0.2, T.pasteAt + 0.55, 0.2, 0.2);
-  setO(C.keycap, Math.min(1, kc)); setT(C.keycap, `translate(1236px, 486px) scale(${(0.7 + 0.3 * kc).toFixed(3)})`);
-  // sticky note
-  const sk = E.outBack(seg(t, T.stickyIn, T.stickyIn + 0.45));
-  setO(C.sticky, t > T.stickyIn ? Math.min(seg(t, T.stickyIn, T.stickyIn + 0.2), 1 - seg(t, T.zoomStart, T.zoomStart + 0.35)) : 0);
-  setT(C.sticky, `translateY(${f1(-60 * (1 - sk))}px) rotate(${f1(4 + 6 * (1 - sk))}deg)`);
-}
-
-function renderFlyers(t) {
-  FLYERS.forEach((f, i) => {
-    const el = C.flyers[i];
-    const u = (t - f.t0) / f.dur;
-    if (u < 0 || u >= 1) { setO(el, 0); return; }
-    const k = E.inOut(u);
-    const x = lerp(f.from[0], f.to[0], k), y = lerp(f.from[1], f.to[1], k) + f.arc * 4 * k * (1 - k);
-    const w = lerp(f.from[2], f.to[2], k), h = lerp(f.from[3], f.to[3], k);
-    const rot = Math.sin(Math.PI * u) * 10;
-    setO(el, 1);
-    setT(el, `translate(${f1(x - w / 2)}px, ${f1(y - h / 2)}px) rotate(${f1(rot)}deg) scale(${(w / 100).toFixed(4)}, ${(h / 150).toFixed(4)})`);
+  const kc = KEYCAPS.find(([a, b]) => t >= a && t < b);
+  if (kc) {
+    setH(C.keycap, kc[2]);
+    const r = rectOf(kc[3], kc[4]);
+    const [x, y] = toStage(t, r[0] + r[2] / 2 + kc[5], r[1] + r[3] / 2 + kc[6]);
+    const k = env(t, kc[0], kc[1], 0.2, 0.2);
+    setO(C.keycap, Math.min(1, k));
+    setT(C.keycap, `translate(${f1(x)}px, ${f1(y)}px) scale(${(0.7 + 0.3 * k).toFixed(3)})`);
+  } else setO(C.keycap, 0);
+  // callouts pinned to real controls
+  CALLOUTS.forEach((c, n) => {
+    const o = C.callouts[n];
+    const k = env(t, c[0], c[1], 0.45, 0.3);
+    if (k <= 0) { setO(o.el, 0); [o.halo, o.line, o.dot].forEach((e) => setA(e, 'opacity', '0')); return; }
+    const r = rectOf(c[2], c[3]);
+    const [ax, ay] = toStage(t, r[0] + r[2] * c[4], r[1] + r[3] * c[5]);
+    const bw = o.el.offsetWidth, bh = o.el.offsetHeight;
+    const bx = clamp(ax + c[6], WIN.x + 20, 1900 - bw), by = clamp(ay + c[7], 20, 1060 - bh);
+    const ex = clamp(ax, bx + 20, bx + bw - 20), ey = by + bh;
+    const d = `M${f1(ax)} ${f1(ay)} Q ${f1((ax + ex) / 2)} ${f1(ey + 30)} ${f1(ex)} ${f1(ey)}`;
+    const a = Math.min(1, k * 2).toFixed(3);
+    [o.halo, o.line].forEach((e) => { setA(e, 'd', d); setA(e, 'opacity', a); });
+    setA(o.dot, 'cx', f1(ax)); setA(o.dot, 'cy', f1(ay)); setA(o.dot, 'opacity', a);
+    setA(o.dot, 'r', f1(8 * E.outBack(seg(t, c[0], c[0] + 0.3))));
+    setO(o.el, Math.min(1, k * 1.5));
+    o.el.style.transformOrigin = `${f1(ex - bx)}px ${bh}px`;
+    setT(o.el, `translate(${f1(bx)}px, ${f1(by)}px) scale(${(0.6 + 0.4 * k).toFixed(3)})`);
   });
-}
-
-const DISP = [0, 2, 1, 3, 4]; // display position -> entry index, after the drag
-function renderList(t) {
-  const z = zoomK(t);
-  const Z = lerp(1, 0.92 / 0.77, z), tx = lerp(0, 820.8 - 610 - 409.6 * 0.92 / 0.77, z), ty = lerp(0, 110.2 - 96 - 94.5 * 0.92 / 0.77, z);
-  const x = 610 + tx + 409.6 * Z, y = 96 + ty + 94.5 * Z, s = 0.77 * Z;
-  const out = E.inOut(seg(t, T.panelOut, T.panelOut + 0.6));
-  const vis = t > T.zoomStart && t < T.panelOut + 0.62;
-  setO(C.listWrap, vis ? Math.min(seg(t, T.zoomStart + 0.05, T.zoomStart + 0.45), 1 - out) : 0);
-  setT(C.listWrap, `translate(${f1(x - 300 * out)}px, ${f1(y)}px) scale(${s.toFixed(4)})`);
-  // entries: filled; drag swap of entries 1 and 2
-  const ents = C.list.entries;
-  const du = E.inOut(seg(t, T.dragA, T.dragB)), mu = E.inOut(seg(t, T.dragA + 0.15, T.dragB + 0.05));
-  const lifted = env(t, T.grab, T.drop + 0.1, 0.12, 0.15, 'out', 'out');
-  ents.forEach((e, k) => {
-    setO(e.blank, 0); setO(e.filled, 1);
-    let dy = 0, sc = 1;
-    if (k === 2) { dy = -152 * du; sc = 1 + 0.035 * lifted; }
-    if (k === 1) dy = 152 * mu;
-    setT(e.el, `translateY(${f1(dy)}px) scale(${sc.toFixed(3)})`);
-    e.el.style.zIndex = k === 2 ? 2 : 1;
-    e.el.style.boxShadow = k === 2 && lifted > 0 ? `0 ${f1(14 * lifted)}px ${f1(28 * lifted)}px rgba(0,0,0,${(0.2 * lifted).toFixed(3)})` : 'none';
-    e.el.style.background = k === 2 && lifted > 0 ? '#fff' : 'transparent';
-    setO(e.grip, env(t, 19.25, 20.6, 0.2, 0.3));
-    // stars
-    const di = DISP.indexOf(k);
-    const si = T.starEntries.indexOf(di);
-    const on = si >= 0 && t > T.stars[si];
-    const pop = si >= 0 ? E.outBack(seg(t, T.stars[si], T.stars[si] + 0.35)) : 0;
-    setA(e.starFill, 'visibility', on ? 'visible' : 'hidden');
-    setA(e.starLine, 'visibility', on ? 'hidden' : 'visible');
-    setT(e.star, `scale(${on ? (0.4 + 0.6 * pop + 0.25 * Math.sin(Math.PI * seg(t, T.stars[si], T.stars[si] + 0.35))).toFixed(3) : 1})`);
-    setO(e.star, env(t, T.zoomStart + 0.2, T.panelOut + 0.2, 0.4, 0.2, 'out', 'in'));
-  });
-  // callouts
-  C.callouts.forEach((c, i) => {
-    const a = T.callouts[i];
-    const k = env(t, a, T.calloutOut + 0.3 + i * 0.05, 0.45, 0.3);
-    const draw = E.out(seg(t, a - 0.1, a + 0.3));
-    [c.path, c.halo].forEach((el) => {
-      setA(el, 'stroke-dasharray', `${f1(c.len * draw)} ${f1(c.len)}`);
-      setA(el, 'opacity', Math.min(1, k * 2).toFixed(3));
-    });
-    setA(c.dot, 'opacity', Math.min(1, k * 2).toFixed(3));
-    setA(c.dot, 'r', f1(8 * E.outBack(seg(t, a - 0.1, a + 0.2))));
-    setO(c.el, Math.min(1, k * 1.5));
-    setT(c.el, `translate(${c.x}px, ${c.y}px) scale(${(0.6 + 0.4 * k).toFixed(3)})`);
-  });
-  const dk = env(t, 19.55, 20.95, 0.4, 0.3);
-  setO(C.dragTip, Math.min(1, dk * 1.5)); setT(C.dragTip, `translate(1330px, 380px) scale(${(0.6 + 0.4 * dk).toFixed(3)})`);
-  const sk = env(t, T.stars[0] + 0.1, T.panelOut, 0.45, 0.3);
-  setO(C.starTip, Math.min(1, sk * 1.5)); setT(C.starTip, `translate(1360px, 250px) scale(${(0.6 + 0.4 * sk).toFixed(3)})`);
-}
-
-const FONTS = [["'Playfair Display'", 900, 'Playfair Display'], ["'Bebas Neue'", 400, 'Bebas Neue'], ["'Pacifico'", 400, 'Pacifico'],
-  ["'Fredoka'", 600, 'Fredoka'], ["'Abril Fatface'", 400, 'Abril Fatface']];
-function coverStyleAt(t) {
-  let fi = 0;
-  T.fonts.forEach((tf, i) => { if (t >= tf) fi = i + 1; });
-  const since = fi > 0 ? t - T.fonts[fi - 1] : 9;
-  const bump = since < 0.3 ? 0.07 * Math.sin(Math.PI * since / 0.3) : 0;
-  const k1 = seg(t, T.colors[0], T.colors[0] + 0.3), k2 = seg(t, T.colors[1], T.colors[1] + 0.3), k3 = seg(t, T.colors[2], T.colors[2] + 0.4);
-  let c0 = mixHex('#3f51b5', '#2a9d8f', k1);
-  c0 = mixHex(c0, '#6d4c7d', k2);
-  const c1 = mixHex(c0, '#e76f51', k3);
-  return { font: FONTS[fi][0], weight: FONTS[fi][1], label: FONTS[fi][2], c0, c1, bump, fi };
-}
-function layoutAt(t) {
-  const steps = [['classic', 'tilted', T.tilt], ['tilted', 'staggered', T.stag], ['staggered', 'honeycomb', T.honey]];
-  let a = 'classic', b = 'classic', u = 0;
-  steps.forEach(([from, to, ts]) => {
-    if (t >= ts) { a = from; b = to; u = seg(t, ts, ts + T.layoutDur); }
-  });
-  return { a, b, u };
-}
-function renderCover(t) {
-  const inK = E.outBack(seg(t, T.pageIn, T.pageIn + 0.55));
-  const sh = E.inOut(seg(t, T.toStyle, T.toStyle + 0.65));
-  const outK = E.inOut(seg(t, T.styleOut, T.styleOut + 0.5));
-  const vis = t > T.pageIn && t < T.styleOut + 0.5;
-  const cx = lerp(1130, 1010, sh), s = 0.95 * (0.85 + 0.15 * inK) * (1 - 0.15 * outK);
-  const ox = cx - PW * s / 2, oy = 482 - PH * s / 2 - 90 * outK;
-  setO(C.coverWrap, vis ? Math.min(seg(t, T.pageIn, T.pageIn + 0.2), 1 - outK) : 0);
-  setT(C.coverWrap, `translate(${f1(ox)}px, ${f1(oy)}px) scale(${s.toFixed(4)})`);
-  if (vis) {
-    const L = layoutAt(t);
-    const style = coverStyleAt(t);
-    drawCoverPage(C.page, {
-      a: L.a, b: L.b, u: L.u, style,
-      enter: (i) => {
-        if (L.a !== 'classic' || L.b !== 'classic') return null;
-        if (i < 3) { const f = FLYERS[FLYERS.length - 3 + i]; return t >= f.t0 + f.dur ? 1 : 0; }
-        const tp = T.coverPops + (i - 3) * 0.055;
-        return E.outBack(seg(t, tp, tp + 0.35));
-      },
-    });
-    setH(C.fname, style.label);
-    C.fname.style.fontFamily = style.font;
-    C.fname.style.fontWeight = style.weight;
-    const ring = style.fi >= 0 ? (t < T.colors[0] ? 0 : t < T.colors[1] ? 2 : 4) : 0;
-    setT(C.swring, `translate(${24 + 70 * ring}px, 318px)`);
-    const tg = E.out(seg(t, T.colors[2], T.colors[2] + 0.2));
-    setT(C.toggleKnob, `translateX(${f1(28 * tg)}px)`);
-    C.toggle.style.background = mixHex('#cfd6e0', '#5c6bc0', tg);
-  }
-  // layout picker
-  const pk = env(t, T.pickerIn, T.toStyle + 0.3, 0.5, 0.35, 'outQuint', 'in');
-  setO(C.picker, Math.min(1, pk * 1.5));
-  setT(C.picker, `translateX(${f1(80 * (1 - pk))}px)`);
-  const rowOf = { classic: 0, honeycomb: 1, staggered: 4, tilted: 5 };
-  const L2 = layoutAt(t);
-  const fromR = rowOf[L2.a], toR = rowOf[L2.b];
-  const hr = lerp(fromR, toR, E.out(clamp(L2.u * 4)));
-  setT(C.lhi, `translateY(${f1(84 + 88 * hr)}px)`);
-  C.lrows.forEach((row, r) => { row.style.color = Math.abs(hr - r) < 0.5 ? '#3f51b5' : '#546e7a'; });
-  // style panel + QR card
-  const sp = env(t, T.toStyle + 0.2, T.styleOut + 0.3, 0.5, 0.3, 'outQuint', 'in');
-  setO(C.style, Math.min(1, sp * 1.5)); setT(C.style, `translateX(${f1(90 * (1 - sp))}px)`);
-  const qk = env(t, T.qrIn, T.styleOut + 0.35, 0.5, 0.3, 'outQuint', 'in');
-  setO(C.qrCard, Math.min(1, qk * 1.5)); setT(C.qrCard, `translateY(${f1(80 * (1 - qk))}px)`);
-  if (t > T.qrIn - 0.1 && t < T.qrBuild + 1.6) {
-    const q = (t - T.qrBuild) / 1.1;
-    C.qrMods.forEach((m) => setA(m.el, 'opacity', clamp((q - m.d * 0.85) * 8).toFixed(2)));
-  }
 }
 
 function renderPrint(t) {
-  // Generate PDF button
-  const bIn = E.outBack(seg(t, T.pdfIn, T.pdfIn + 0.45));
-  const morph = E.inOut(seg(t, T.pdfClick + 0.05, T.pdfClick + 0.35));
-  const bOut = E.in(seg(t, T.sheetOut - 0.25, T.sheetOut + 0.05));
-  const bw = lerp(430, 96, morph);
-  const bv = t > T.pdfIn && t < T.sheetOut + 0.05;
-  const press = 1 - 0.06 * Math.max(0, 1 - Math.abs(t - T.pdfClick - 0.02) / 0.1);
-  C.pdfbtn.style.width = f1(bw) + 'px';
-  setO(C.pdfbtn, bv ? Math.min(seg(t, T.pdfIn, T.pdfIn + 0.15), 1 - bOut) : 0);
-  setT(C.pdfbtn, `translate(${f1(1180 - bw / 2)}px, ${f1(282)}px) scale(${(bIn * press * (1 - 0.6 * bOut)).toFixed(3)})`);
-  setO(C.pdfLabel, 1 - morph); setO(C.pdfIcon, 1 - morph);
-  setO(C.spin, bv && morph > 0.9 ? 1 - bOut : 0);
-  setT(C.spin, `translate(1150px, 300px) rotate(${f1((t - T.pdfClick) * 540)}deg)`);
-  C.spin.style.transformOrigin = '30px 30px';
-  setA(C.spinArc, 'stroke-dasharray', `${f1(30 + 40 * Math.sin((t - T.pdfClick) * 6) ** 2)} 200`);
   // printer
   const up = E.outBack(seg(t, T.printerUp, T.printerUp + 0.55)), down = E.in(seg(t, T.sheetLift + 0.35, T.sheetLift + 0.9));
   const py = 300 * (1 - up) + 320 * down;
@@ -2032,23 +1574,18 @@ function renderPrint(t) {
   const zlift = 140 * Math.sin(Math.PI * flip);
   let shake = 0;
   if (t > T.stamp && t < T.stamp + 0.2) shake = Math.sin((t - T.stamp) * 90) * 5 * (1 - (t - T.stamp) / 0.2);
-  const sv = t > T.sheetOut;
-  setO(C.sheet, sv ? 1 : 0);
+  setO(C.sheet, t > T.sheetOut ? 1 : 0);
   setT(C.sheet, `translate3d(${f1(dx + shake)}px, ${f1(dy)}px, ${f1(zlift)}px) rotateY(${f1(ry)}deg) rotateX(${f1(rx)}deg) scale(${sc.toFixed(4)})`);
   setT(C.halfR, `translateZ(-2px) rotateY(${f1(180 * fold)}deg)`);
-  // light falloff as the pages turn
   const shadeFlip = 0.35 * Math.abs(Math.sin(Math.PI * flip)), shadeFold = 0.3 * Math.abs(Math.sin(Math.PI * fold));
   C.faceShades.forEach((s, i) => setO(s, i % 2 === 0 ? shadeFlip : Math.max(shadeFlip, shadeFold)));
-  // shadow under the standing booklet
   const shV = t > T.stand ? E.out(seg(t, T.stand + 0.3, T.stand + 0.8)) : 0;
   const shX = lerp(1180, 1590, outro), shW = lerp(420, 300, outro);
   C.sheetShadow.style.cssText = `left:${f1(shX - shW / 2)}px;top:${f1(lerp(842, 884, outro))}px;width:${f1(shW)}px;height:34px;opacity:${shV.toFixed(3)}`;
-  // 600 DPI stamp
   const st = seg(t, T.stamp, T.stamp + 0.22);
   const stOut = seg(t, T.flip - 0.1, T.flip + 0.15);
   setO(C.stamp, t > T.stamp ? Math.min(st * 3, 1 - stOut) : 0);
   setT(C.stamp, `translate(1455px, 72px) rotate(-14deg) scale(${lerp(2.4, 1, E.outBack(st)).toFixed(3)})`);
-  // take one card
   const tk = E.outBack(seg(t, 52.0, 52.4));
   setO(C.takeone, t > 52.0 ? 1 : 0);
   setT(C.takeone, `translate(1640px, 408px) rotate(${f1(-6 + Math.sin(t * 2) * 1.5)}deg) scale(${tk.toFixed(3)})`);
@@ -2085,14 +1622,12 @@ function renderBubble(t) {
 /* =====================================================================
    FRAME
    ===================================================================== */
-function renderAt(t) {
+async function renderAt(t) {
   renderAmbient(t);
   renderLogo(t);
   renderChapter(t);
-  renderWindow(t);
-  renderList(t);
-  renderFlyers(t);
-  renderCover(t);
+  await renderApp(t);
+  renderOverlays(t);
   renderPrint(t);
   renderCat(t);
   renderBubble(t);
@@ -2106,7 +1641,7 @@ function getCues() {
     duration: DURATION,
     syllables: SYL.map((s) => ({ t: +s.t.toFixed(4), dur: +s.dur.toFixed(4), pitch: +s.pitch.toFixed(3), vowel: s.vowel, glide: s.glide })),
     sfx: SFX.slice().sort((a, b) => a.t - b.t),
-    transitions: [T.winIn, T.zoomStart, T.panelOut, T.toStyle, T.styleOut, T.hopOut],
+    transitions: [T.winIn, T.edit, T.fcTab, T.toStyle, T.winOut, T.hopOut],
     lines: LINES.map((l) => ({ id: l.id, t: l.t, speechEnd: l.speechEnd, end: l.end })),
   };
 }
@@ -2117,11 +1652,8 @@ async function init() {
   drawDesk();
   buildProps();
   buildLogo();
-  buildWindow();
-  buildListPanel();
-  buildCoverScene();
+  buildAppWindow();
   buildPrint();
-  buildFlyers();
   buildCat();
   buildParticles();
   buildCursor();
@@ -2132,10 +1664,25 @@ async function init() {
   await Promise.all(faces.map((f) => document.fonts.load(f)));
   await document.fonts.ready;
   C.logoW = C.logo.offsetWidth;
-  drawCoverPage(C.frontCopy, { a: 'honeycomb', b: 'honeycomb', u: 1, style: coverStyleAt(DURATION) });
-  renderAt(0);
+  await renderAt(0);
   window.sceneReady = true;
 }
+// Used by build.mjs before filming: the invented titles, and each cover
+// drawn alone at 600x900 so the real app can be handed them as images.
+window.getCastData = () => ({
+  books: BOOKS.map((b) => ({ t: b.t, a: b.a, c: b.c, d: b.d })),
+  search: SEARCH, pasted: PASTED,
+});
+window.showCoverForCapture = (i) => {
+  let host = document.getElementById('coverCapture');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'coverCapture';
+    host.style.cssText = 'position:fixed;left:0;top:0;width:600px;height:900px;z-index:99999;background:#fff';
+    document.body.appendChild(host);
+  }
+  host.innerHTML = `<svg viewBox="0 0 300 450" width="600" height="900" preserveAspectRatio="xMidYMid slice"><use href="#cov${i}"/></svg>`;
+};
 window.renderAt = renderAt;
 window.getCues = getCues;
 window.SCENE_DURATION = DURATION;
