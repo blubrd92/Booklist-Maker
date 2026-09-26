@@ -394,9 +394,9 @@ export async function captureApp(browser, opts) {
   }
 
   // ---- Header style -----------------------------------------------
-  // Both line fonts, then a Sky Blue to Marine Blue gradient, each
-  // picked through the tool's own dropdowns and palette. The title reads
-  // "Rainy Day Reads", so the bar is a rainy sky.
+  // Both line fonts, then a slate gradient, each picked through the
+  // tool's own dropdowns and palette. The title reads "Rainy Day
+  // Reads", so the bar is an overcast sky.
   const lineTrig = '.line-style-group .custom-font-dropdown-trigger';
   const st = Object.assign({}, fc, {
     font1: [lineTrig, 0], font2: [lineTrig, 1], bg: '#cover-title-bg-color', grad: '#cover-title-gradient-toggle',
@@ -436,8 +436,13 @@ export async function captureApp(browser, opts) {
   }
   await pickFont(0, 'Josefin Sans', '1');
   await pickFont(1, 'Dancing Script', '');
-  // a color from a palette popover, found by its exact preset value
-  async function pickSwatch(inputId, rgb, id) {
+  // A color through a palette popover: a preset swatch, found by its
+  // exact value, or a custom color through the popover's "Custom..."
+  // button. That button opens the computer's own color picker, which a
+  // headless browser can't show or film, so the capture records where
+  // the button is and then sets the color the way that picker does:
+  // focus, the new value, then input and change.
+  async function pickSwatch(inputId, color, id) {
     const trig = await page.evaluate((iid) => {
       const w = document.getElementById(iid).closest('.color-palette-wrap');
       const r = w.querySelector('.color-palette-trigger').getBoundingClientRect();
@@ -445,25 +450,40 @@ export async function captureApp(browser, opts) {
     }, inputId);
     await page.mouse.click(trig[0] + trig[2] / 2, trig[1] + trig[3] / 2);
     await wait(300);
-    const swatches = await page.evaluate(() => [...document.querySelectorAll('.color-palette-popover.open .color-palette-swatch')]
-      .map((el) => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height, window.getComputedStyle(el).backgroundColor]; }));
+    const swatches = await page.evaluate(() => [...document.querySelectorAll('.color-palette-popover.open .color-palette-swatch, .color-palette-popover.open .color-palette-custom-btn')]
+      .map((el) => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height, el.classList.contains('color-palette-custom-btn') ? 'custom' : window.getComputedStyle(el).backgroundColor]; }));
     await shot(`st-palette${id}`, st);
-    const pick = swatches.filter((sw) => sw[4] === rgb).pop();
-    if (!pick) throw new Error(`no ${rgb} swatch in the palette`);
+    const custom = color.startsWith('#');
+    const pick = swatches.filter((sw) => sw[4] === (custom ? 'custom' : color)).pop();
+    if (!pick) throw new Error(`no ${custom ? 'Custom button' : color + ' swatch'} in the palette`);
     Object.assign(shots[shots.length - 1].rects, { bgTrigger: trig, swatch: pick.slice(0, 4) });
     const before = await coverSrc();
-    await page.mouse.click(pick[0] + pick[2] / 2, pick[1] + pick[3] / 2);
+    if (custom) {
+      await page.keyboard.press('Escape');
+      await page.evaluate(([iid, hex]) => {
+        const el = document.getElementById(iid);
+        el.dispatchEvent(new window.Event('focus'));
+        el.value = hex;
+        el.dispatchEvent(new window.Event('input', { bubbles: true }));
+        el.dispatchEvent(new window.Event('change', { bubbles: true }));
+        el.dispatchEvent(new window.Event('blur'));
+      }, [inputId, color]);
+    } else {
+      await page.mouse.click(pick[0] + pick[2] / 2, pick[1] + pick[3] / 2);
+    }
     await waitForCollage(before);
     await page.mouse.click(5, VIEWPORT.height - 5);
     await wait(200);
     await shot(`st-color${id}`, st);
   }
-  await pickSwatch('cover-title-bg-color', 'rgb(99, 179, 237)', '');
+  // "Overcast": slate blue into deep slate, a rainy sky for "Rainy Day
+  // Reads". Neither is a palette preset, so both go through Custom.
+  await pickSwatch('cover-title-bg-color', '#4f6f8f', '');
   prev = await coverSrc();
   await clickRect(await pre('pre-gradient', '#cover-title-gradient-toggle', 0, st));
   await waitForCollage(prev).catch(() => {});
   await shot('st-gradient', st);
-  await pickSwatch('cover-title-bg-color2', 'rgb(43, 108, 176)', '2');
+  await pickSwatch('cover-title-bg-color2', '#22364c', '2');
 
   // ---- Back cover: QR code ----------------------------------------
   await page.click('[aria-controls="tab-back-cover"]');

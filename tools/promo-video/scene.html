@@ -661,7 +661,7 @@ const KEYCAPS = [];
     cut(pick + 0.35, `st-font${id}`);
     sfx(pick + 0.35, 'shuffle', { pan: 0.4, gain: 0.7 });
   });
-  // Sky Blue, the gradient, then Marine Blue at its far end
+  // slate through Custom..., the gradient, then deep slate at its far end
   const swatchStep = (open, pick, id) => {
     const pal = ctr(rectOf(`st-palette${id}`, 'bgTrigger'));
     cur(open - 0.2, pal); click(open, pal);
@@ -836,6 +836,16 @@ function buildPrint() {
   const pb = svgEl('svg', { class: 'layer', viewBox: '0 0 1920 1080' });
   ps.appendChild(pb);
   C.printerBack = svgEl('g', {}, pb);
+  // The finale's clear brochure holder, drawn around the booklet's
+  // bottom centre as it stands at OUTRO_SCALE 0.72; renderPrint moves
+  // and scales it to the booklet. The back half (the holder's back
+  // panel and the copies stacked behind) sits behind the sheet, the
+  // front pocket in front of it.
+  C.holderBack = svgEl('g', { opacity: 0 }, pb);
+  const HB = C.holderBack;
+  svgEl('rect', { x: -179, y: -332, width: 358, height: 332, rx: 5, fill: '#ffffff', 'fill-opacity': 0.16, stroke: '#ffffff', 'stroke-opacity': 0.75, 'stroke-width': 2.5 }, HB);
+  svgEl('rect', { x: -180.5, y: -333.5, width: 361, height: 335, rx: 6, fill: 'none', stroke: '#5a4632', 'stroke-opacity': 0.22, 'stroke-width': 1.5 }, HB);
+  [[10, -14], [5, -7]].forEach(([dx, dy]) => svgEl('rect', { x: -160 + dx, y: -485 + dy, width: 320, height: 485, fill: '#faf6ef', stroke: '#b9ad9c', 'stroke-width': 2 }, HB));
   svgEl('rect', { x: 690, y: 748, width: 980, height: 60, rx: 22, fill: '#4b5560' }, C.printerBack);
   svgEl('rect', { x: 720, y: 772, width: 920, height: 12, rx: 6, fill: '#1f252b' }, C.printerBack);
   const sh = div('', ps); sh.id = 'sheetShadow'; C.sheetShadow = sh;
@@ -862,6 +872,19 @@ function buildPrint() {
   C.faceShades = Array.from(sheet.querySelectorAll('.face')).map((f) => div('shade', f));
   const pf = svgEl('svg', { class: 'layer', viewBox: '0 0 1920 1080' });
   ps.appendChild(pf);
+  const holderDefs = svgEl('defs', {}, pf);
+  const glass = svgEl('linearGradient', { id: 'holderGlass', x1: 0, y1: 0, x2: 1, y2: 1 }, holderDefs);
+  [[0, 0.34], [0.42, 0.1], [0.52, 0.26], [1, 0.08]].forEach(([o, a]) => svgEl('stop', { offset: o, 'stop-color': '#ffffff', 'stop-opacity': a }, glass));
+  C.holderFront = svgEl('g', { opacity: 0 }, pf);
+  const HF = C.holderFront;
+  svgEl('rect', { x: -176, y: -171, width: 352, height: 6, fill: '#1b2430', 'fill-opacity': 0.1 }, HF);
+  svgEl('rect', { x: -177.5, y: -179.5, width: 355, height: 179, rx: 5, fill: 'none', stroke: '#5a4632', 'stroke-opacity': 0.28, 'stroke-width': 1.5 }, HF);
+  svgEl('rect', { x: -176, y: -178, width: 352, height: 176, rx: 4, fill: 'url(#holderGlass)', stroke: '#ffffff', 'stroke-opacity': 0.92, 'stroke-width': 3 }, HF);
+  svgEl('path', { d: 'M-173 -176 L173 -176', stroke: '#ffffff', 'stroke-width': 4, 'stroke-opacity': 0.95, 'stroke-linecap': 'round' }, HF);
+  svgEl('path', { d: 'M-128 -6 L-52 -172', stroke: '#ffffff', 'stroke-width': 14, 'stroke-opacity': 0.2 }, HF);
+  svgEl('path', { d: 'M-100 -6 L-30 -160', stroke: '#ffffff', 'stroke-width': 4, 'stroke-opacity': 0.25 }, HF);
+  svgEl('rect', { x: -190, y: -7, width: 380, height: 13, rx: 3, fill: '#ffffff', 'fill-opacity': 0.55, stroke: '#ffffff', 'stroke-opacity': 0.95, 'stroke-width': 2 }, HF);
+  svgEl('rect', { x: -191.5, y: -8.5, width: 383, height: 16, rx: 4, fill: 'none', stroke: '#5a4632', 'stroke-opacity': 0.25, 'stroke-width': 1.5 }, HF);
   C.printerFront = svgEl('g', {}, pf);
   const P = C.printerFront;
   svgEl('rect', { x: 700, y: 790, width: 960, height: 150, rx: 26, fill: '#e9edf1', stroke: '#b7c0c9', 'stroke-width': 3 }, P);
@@ -1656,6 +1679,10 @@ function renderPrint(t) {
   const shV = (t > T.stand ? E.out(seg(t, T.stand + 0.3, T.stand + 0.8)) : 0) * (1 - away) * Math.min(1, back);
   const shX = lerp(1180, OUTRO_X, outro), shW = lerp(420, 480 * OUTRO_SCALE, outro);
   C.sheetShadow.style.cssText = `left:${f1(shX - shW / 2)}px;top:${f1(lerp(842, 884, outro))}px;width:${f1(shW)}px;height:34px;opacity:${shV.toFixed(3)}`;
+  // the brochure holder is on the shelf first; the booklet drops into it
+  const holderO = t >= T.outroIn - 0.1 ? E.out(seg(t, T.outroIn - 0.1, T.outroIn + 0.3)).toFixed(3) : '0';
+  const holderT = `translate(${OUTRO_X} 898) scale(${(OUTRO_SCALE / 0.72).toFixed(4)})`;
+  [C.holderBack, C.holderFront].forEach((g) => { setA(g, 'opacity', holderO); setA(g, 'transform', holderT); });
   const st = seg(t, T.stamp, T.stamp + 0.22);
   const stOut = seg(t, T.flip - 0.1, T.flip + 0.15);
   setO(C.stamp, t > T.stamp ? Math.min(st * 3, 1 - stOut) : 0);
