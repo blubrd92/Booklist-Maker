@@ -11351,10 +11351,18 @@ const BooklistApp = (function() {
     // Color palette popovers on the primary color pickers
     setupColorPopovers();
 
-    // Easter egg: Ctrl+Alt+D (or Cmd+Option+D on Mac) opens the
+    // Easter egg: Ctrl+Alt+D (or Ctrl+Option+D on Mac) opens the
     // drafter settings modal for runtime config tweaking.
+    //
+    // Matches the physical D key (ev.code) as well as the letter. Alt is
+    // a character modifier on many layouts, so ev.key alone missed:
+    // Windows treats Ctrl+Alt as AltGr, and US-International's AltGr+D
+    // types "ð"; Mac's Option+D types "∂". The ev.key check stays for
+    // layouts whose D sits elsewhere (Dvorak). Cmd+Option+D is also
+    // accepted but macOS usually takes it first (it toggles the Dock).
     document.addEventListener('keydown', function(ev) {
-      if ((ev.ctrlKey || ev.metaKey) && ev.altKey && (ev.key === 'd' || ev.key === 'D')) {
+      const isD = ev.code === 'KeyD' || ev.key === 'd' || ev.key === 'D';
+      if ((ev.ctrlKey || ev.metaKey) && ev.altKey && isD) {
         ev.preventDefault();
         if (window.LIBRARY_CONFIG) showDrafterSettingsModal();
       }
