@@ -972,9 +972,9 @@ const BooklistApp = (function() {
     // title's author line as it stands now ("Por ..." gives Spanish; no
     // known word gives English). Read here rather than in the click
     // handler so every path agrees: the wand, Shift+click, the phone
-    // sheet's Draft button and auto-draft on add. Pasted source text
-    // overrides it in the Apps Script, which then writes in the
-    // source's own language.
+    // sheet's Draft button and auto-draft on add. In the Apps Script a
+    // language other than English always wins; with English, pasted
+    // source text is answered in its own language instead.
     const payload = isTest
       ? { title: "Test Title", author: "Test Author", language: CONFIG.DRAFTER_DEFAULT_LANGUAGE }
       : {

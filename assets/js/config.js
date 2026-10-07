@@ -115,10 +115,12 @@
     // a title's author line opens with this word (see
     // BookUtils.getBylineLanguage); a line with no known word gets
     // DRAFTER_DEFAULT_LANGUAGE. It is sent to the Apps Script as plain
-    // English text, so write the language's English name. Por can only
-    // carry one, so it says Spanish: a Portuguese list gets Spanish
-    // descriptions unless staff paste Portuguese source text, which
-    // overrides the byline.
+    // English text, so write the language's English name. A language
+    // other than English wins even over pasted source text (the Apps
+    // Script's rule); with "By" or no word, pasted text is answered in
+    // its own language. Por can only carry one, so it says Spanish, and a
+    // Portuguese list gets Spanish descriptions, pasted Portuguese text
+    // included.
     BYLINE_PREFIXES: [
       { value: 'By', label: 'By (English)', opener: true, language: 'English' },
       { value: 'Por', label: 'Por (Spanish, Portuguese)', opener: true, language: 'Spanish' },

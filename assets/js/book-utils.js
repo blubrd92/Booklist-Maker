@@ -408,8 +408,9 @@
      * read from the byline word its author line opens with: "Por Gabriel
      * García Márquez" gives Spanish. A line with no known word, an empty
      * line, or an entry without a `language` gives
-     * CONFIG.DRAFTER_DEFAULT_LANGUAGE. Pasted source text overrides this
-     * in the Apps Script, which writes in the source's own language.
+     * CONFIG.DRAFTER_DEFAULT_LANGUAGE. In the Apps Script a language other
+     * than English always wins; with English, pasted source text is
+     * answered in its own language instead.
      *
      * @param {string} line - An author line, as currentAuthorLine builds it
      * @param {Array} [prefixes] - Override list, entries {value, language}
