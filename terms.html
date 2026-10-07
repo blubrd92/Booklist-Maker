@@ -130,10 +130,11 @@
       <p>If you use the Magic button, you (the library staff member) are responsible for reading every description it produces and deciding whether to keep it, edit it, or replace it before you print or publish a booklist that includes it. I am not responsible for the content of AI-drafted descriptions. The library and its staff are. Treat the output the same way you'd treat a draft from a new volunteer: useful as a starting point, never published unread.</p>
 
       <h2>What gets sent when you use the Magic button</h2>
-      <p>When you click the Magic button on a title, the title and the author of that title are sent to a Google Apps Script endpoint I operate, which sends them to Tavily, a web search service, to gather information about the title, and then passes the title, the author, and what the search found to an LLM service to generate the description. Two other pieces ride along with the request:</p>
+      <p>When you click the Magic button on a title, the title and the author of that title are sent to a Google Apps Script endpoint I operate, which sends them to Tavily, a web search service, to gather information about the title, and then passes the title, the author, and what the search found to an LLM service to generate the description. Three other pieces ride along with the request:</p>
       <ul>
         <li>If you shift-click the wand and paste a summary (or you're on an instance configured in source-text mode), the text you pasted is sent so the LLM can condense it, and no web search is run: Tavily is never contacted.</li>
         <li>A small set of drafter tuning knobs (target word range, number of drafts, retry counts, and sometimes an effort level) is sent so the script knows how to ask for the description. These values come from the tool's own configuration; they're not tied to you or your library.</li>
+        <li>The language to write the description in. It comes from the byline word on that title's author line ("Por" means Spanish, for example), and it's English unless that word has been changed. If you paste a summary, the description is written in the language of what you pasted instead.</li>
       </ul>
       <p>Nothing else about the title, the booklist, the library, or you as a user is sent along with the request. The <a href="privacy.html">Privacy</a> page describes the data flow in more detail.</p>
 

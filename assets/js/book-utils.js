@@ -404,6 +404,36 @@
     },
 
     /**
+     * The language the description drafter should write in for a title,
+     * read from the byline word its author line opens with: "Por Gabriel
+     * García Márquez" gives Spanish. A line with no known word, an empty
+     * line, or an entry without a `language` gives
+     * CONFIG.DRAFTER_DEFAULT_LANGUAGE. Pasted source text overrides this
+     * in the Apps Script, which writes in the source's own language.
+     *
+     * @param {string} line - An author line, as currentAuthorLine builds it
+     * @param {Array} [prefixes] - Override list, entries {value, language}
+     * @returns {string} An English language name, e.g. "Spanish"
+     */
+    getBylineLanguage: function(line, prefixes) {
+      const list = Array.isArray(prefixes)
+        ? prefixes
+        : (typeof CONFIG !== 'undefined' && CONFIG.BYLINE_PREFIXES) || [];
+      const fallback = (typeof CONFIG !== 'undefined' && CONFIG.DRAFTER_DEFAULT_LANGUAGE) || 'English';
+      const prefix = BookUtils.stripBylinePrefix(line, list).prefix;
+      if (!prefix) return fallback;
+      const word = prefix.trim().toLowerCase();
+      for (let i = 0; i < list.length; i++) {
+        const entry = list[i];
+        if (!entry || typeof entry === 'string' || !entry.value) continue;
+        if (String(entry.value).toLowerCase() === word) {
+          return entry.language ? String(entry.language) : fallback;
+        }
+      }
+      return fallback;
+    },
+
+    /**
      * Split a leading byline word off an author line.
      *
      * Matches the word followed by at least one whitespace character.

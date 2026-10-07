@@ -111,13 +111,21 @@
     // serves. Measured at 160px for the longest against 179px of usable
     // width in the select, so nothing truncates; check that again before
     // adding a label longer than "Por (Spanish, Portuguese)".
+    // `language` is the language the description drafter writes in when
+    // a title's author line opens with this word (see
+    // BookUtils.getBylineLanguage); a line with no known word gets
+    // DRAFTER_DEFAULT_LANGUAGE. It is sent to the Apps Script as plain
+    // English text, so write the language's English name. Por can only
+    // carry one, so it says Spanish: a Portuguese list gets Spanish
+    // descriptions unless staff paste Portuguese source text, which
+    // overrides the byline.
     BYLINE_PREFIXES: [
-      { value: 'By', label: 'By (English)', opener: true },
-      { value: 'Por', label: 'Por (Spanish, Portuguese)', opener: true },
-      { value: 'Par', label: 'Par (French)' },
-      { value: 'Di', label: 'Di (Italian)' },
-      { value: 'Ni', label: 'Ni (Tagalog)' },
-      { value: 'Von', label: 'Von (German)' },
+      { value: 'By', label: 'By (English)', opener: true, language: 'English' },
+      { value: 'Por', label: 'Por (Spanish, Portuguese)', opener: true, language: 'Spanish' },
+      { value: 'Par', label: 'Par (French)', language: 'French' },
+      { value: 'Di', label: 'Di (Italian)', language: 'Italian' },
+      { value: 'Ni', label: 'Ni (Tagalog)', language: 'Tagalog' },
+      { value: 'Von', label: 'Von (German)', language: 'German' },
     ],
 
     // Search
@@ -425,6 +433,10 @@
     //     — the server-side acceptance contract. Owned by the Apps
     //     Script so the precision band can be tuned there without
     //     needing a matching client change. Not sent from here.
+    // The language the drafter writes in when a title's author line opens
+    // with no known byline word. See BYLINE_PREFIXES' `language`.
+    DRAFTER_DEFAULT_LANGUAGE: 'English',
+
     DRAFTER_DEFAULTS: {
       TARGET_WORDS_MIN: 42,
       TARGET_WORDS_MAX: 47,

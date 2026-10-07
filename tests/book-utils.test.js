@@ -1540,6 +1540,50 @@ describe('BookUtils.isDraftStateEffectivelyEmpty', () => {
   });
 });
 
+describe('getBylineLanguage', () => {
+  it('reads the language from the byline word', () => {
+    expect(BookUtils.getBylineLanguage('Por Gabriel García Márquez - FIC GAR')).toBe('Spanish');
+    expect(BookUtils.getBylineLanguage('Par Annie Ernaux')).toBe('French');
+    expect(BookUtils.getBylineLanguage('Von Daniel Kehlmann')).toBe('German');
+  });
+
+  it('gives English for "By"', () => {
+    expect(BookUtils.getBylineLanguage('By Toni Morrison - FIC MOR')).toBe('English');
+  });
+
+  it('ignores the case of the byline word', () => {
+    expect(BookUtils.getBylineLanguage('por Isabel Allende')).toBe('Spanish');
+  });
+
+  it('accepts a non-breaking space after the word, as catalog pastes carry', () => {
+    expect(BookUtils.getBylineLanguage('Por\u00a0Isabel Allende')).toBe('Spanish');
+  });
+
+  it('falls back to English when the line opens with no known word', () => {
+    expect(BookUtils.getBylineLanguage('Toni Morrison')).toBe('English');
+    expect(BookUtils.getBylineLanguage('Edited by Ann Smith')).toBe('English');
+  });
+
+  // A surname that merely starts with a byline word is not one: the
+  // whitespace stripBylinePrefix requires after the word rules it out.
+  it('does not read a name that starts with a byline word as that word', () => {
+    expect(BookUtils.getBylineLanguage('Parker Smith')).toBe('English');
+    expect(BookUtils.getBylineLanguage('Diana Gabaldon')).toBe('English');
+  });
+
+  it('falls back to English for empty or missing lines', () => {
+    expect(BookUtils.getBylineLanguage('')).toBe('English');
+    expect(BookUtils.getBylineLanguage(null)).toBe('English');
+    expect(BookUtils.getBylineLanguage(undefined)).toBe('English');
+  });
+
+  it('honors an explicit list, and falls back when an entry has no language', () => {
+    const list = [{ value: 'Ni', language: 'Tagalog' }, { value: 'Av' }];
+    expect(BookUtils.getBylineLanguage('Ni Jose Rizal', list)).toBe('Tagalog');
+    expect(BookUtils.getBylineLanguage('Av Selma Lagerlöf', list)).toBe('English');
+  });
+});
+
 describe('stripBylinePrefix', () => {
   it('splits a known word off the front', () => {
     expect(BookUtils.stripBylinePrefix('By Ada Lovelace - 510 LOV'))

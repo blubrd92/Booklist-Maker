@@ -428,6 +428,22 @@ describe('BYLINE_PREFIXES', () => {
     });
   });
 
+  // `language` is what the description drafter is told to write in when
+  // a title's byline opens with this word. It travels to the Apps Script
+  // as plain text inside a prompt, so it must be a short English name.
+  it('gives every word a language, written as a plain English name', () => {
+    CONFIG.BYLINE_PREFIXES.forEach((entry) => {
+      expect(typeof entry.language).toBe('string');
+      expect(entry.language).toMatch(/^[A-Z][a-z]+( [A-Z][a-z]+)*$/);
+    });
+  });
+
+  it('maps the default "By" to the drafter default language, English', () => {
+    const by = CONFIG.BYLINE_PREFIXES.find((e) => e.value === 'By');
+    expect(by.language).toBe('English');
+    expect(CONFIG.DRAFTER_DEFAULT_LANGUAGE).toBe('English');
+  });
+
   it('still contains the historical default "By"', () => {
     const words = CONFIG.BYLINE_PREFIXES.map((e) => e.value);
     expect(words).toContain('By');

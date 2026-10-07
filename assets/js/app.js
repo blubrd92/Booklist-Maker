@@ -968,9 +968,20 @@ const BooklistApp = (function() {
       return;
     }
 
+    // language: what to write in, read from the byline word on the
+    // title's author line as it stands now ("Por ..." gives Spanish; no
+    // known word gives English). Read here rather than in the click
+    // handler so every path agrees: the wand, Shift+click, the phone
+    // sheet's Draft button and auto-draft on add. Pasted source text
+    // overrides it in the Apps Script, which then writes in the
+    // source's own language.
     const payload = isTest
-      ? { title: "Test Title", author: "Test Author" }
-      : { title: bookItem.title, author: bookItem.author };
+      ? { title: "Test Title", author: "Test Author", language: CONFIG.DRAFTER_DEFAULT_LANGUAGE }
+      : {
+          title: bookItem.title,
+          author: bookItem.author,
+          language: BookUtils.getBylineLanguage(currentAuthorLine(bookItem)),
+        };
 
     // When the user shift-clicked the magic button and pasted a
     // summary, include it so the Apps Script can skip the Tavily
