@@ -2102,7 +2102,12 @@ const BooklistApp = (function() {
   // Easter egg: Ctrl+Alt+D opens a drafter settings modal.
   // Defaults live in CONFIG.DRAFTER_DEFAULTS (config.js). Overrides
   // are sent as configOverrides in the request payload and reset on
-  // page refresh (in-memory only).
+  // page refresh (in-memory only). Effort is the exception: it has no
+  // tool-side default, because the Apps Script owns a per-step mix.
+  // Its select defaults to "Script default" (nothing sent), and a
+  // chosen level is sent as EFFORT and applies to every step.
+
+  const DRAFTER_EFFORT_LEVELS = ['low', 'medium', 'high'];
 
   function showDrafterSettingsModal() {
     const existing = document.getElementById('drafter-settings-modal');
@@ -2113,7 +2118,6 @@ const BooklistApp = (function() {
     const fields = [
       { key: 'TARGET_WORDS_MIN', label: 'Min Words', type: 'number', step: 1, min: 20, max: 80 },
       { key: 'TARGET_WORDS_MAX', label: 'Max Words', type: 'number', step: 1, min: 20, max: 80 },
-      { key: 'TEMPERATURE', label: 'Temperature', type: 'number', step: 0.1, min: 0, max: 1 },
       { key: 'DRAFT_COUNT', label: 'Draft Count (2+ enables judge)', type: 'number', step: 1, min: 1, max: 5 },
       { key: 'MAX_RETRIES', label: 'Max Length Retries', type: 'number', step: 1, min: 0, max: 5 },
     ];
@@ -2170,6 +2174,27 @@ const BooklistApp = (function() {
       body.appendChild(row);
       inputs[f.key] = input;
     });
+
+    const effortRow = document.createElement('div');
+    effortRow.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;';
+    const effortLabel = document.createElement('label');
+    effortLabel.textContent = 'Effort (all steps)';
+    effortLabel.htmlFor = 'drafter-effort-select';
+    effortLabel.style.cssText = 'font-size: 0.8rem; font-weight: 500; color: var(--text-color);';
+    effortRow.appendChild(effortLabel);
+    const effortSelect = document.createElement('select');
+    effortSelect.id = 'drafter-effort-select';
+    effortSelect.style.cssText = 'width: 140px; padding: 4px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.85rem;';
+    [['', 'Script default'], ...DRAFTER_EFFORT_LEVELS.map(l => [l, l.charAt(0).toUpperCase() + l.slice(1)])]
+      .forEach(([value, text]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = text;
+        effortSelect.appendChild(option);
+      });
+    effortSelect.value = current.EFFORT || '';
+    effortRow.appendChild(effortSelect);
+    body.appendChild(effortRow);
 
     // Test console: link to the Apps Script's HTML console (GET with no
     // params). The console can be gated by a TEST_CONSOLE_KEY Script
@@ -2247,6 +2272,10 @@ const BooklistApp = (function() {
           hasOverride = true;
         }
       });
+      if (DRAFTER_EFFORT_LEVELS.includes(effortSelect.value)) {
+        overrides.EFFORT = effortSelect.value;
+        hasOverride = true;
+      }
       _drafterOverrides = hasOverride ? overrides : null;
       overlay.remove();
       showNotification(

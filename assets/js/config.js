@@ -403,7 +403,18 @@
     // GET diagnostic requests that bypass the tool). The easter egg
     // modal (Ctrl+Alt+D / Cmd+Option+D) can override individual values for a
     // single session. Whatever is sent only takes effect if the
-    // Apps Script's ALLOWED whitelist includes the field.
+    // Apps Script's OVERRIDE_ALLOWLIST includes the field.
+    //
+    // No TEMPERATURE: the drafter runs on Claude Haiku 5.5, which
+    // rejects any non-default sampling value. The script ignores it if
+    // an old cached copy of this file still sends one.
+    //
+    // Effort: owned by the Apps Script, deliberately NOT here. The
+    // script sets it per pipeline step (high for the gatekeeper and
+    // fact-check, medium for writing), and sending a value from here on
+    // every request would flatten that mix. The modal's Effort select
+    // sends EFFORT only when someone picks a level, and it applies to
+    // every step for that session.
     //
     // Length: deliberately split across tool and script.
     //   TARGET_WORDS_{MIN,MAX} (here) — what the writer is told to
@@ -417,7 +428,6 @@
     DRAFTER_DEFAULTS: {
       TARGET_WORDS_MIN: 42,
       TARGET_WORDS_MAX: 47,
-      TEMPERATURE: 0.6,
       DRAFT_COUNT: 3,
       MAX_RETRIES: 2,
     },
