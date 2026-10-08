@@ -430,7 +430,9 @@
     //   TARGET_WORDS_{MIN,MAX} (here) — what the writer is told to
     //     aim for. LLMs follow word targets reliably; they can't
     //     count chars. Owned by the tool so it's tunable via the
-    //     modal and shippable via a client push.
+    //     modal and shippable via a client push. The max is 45, down
+    //     from 47: at 47 words a Spanish blurb (longer words) could run
+    //     past the script's print ceiling and draw a trim revision.
     //   MIN_CHARS / MAX_CHARS / LENGTH_TOLERANCE (Apps Script only)
     //     — the server-side acceptance contract. Owned by the Apps
     //     Script so the precision band can be tuned there without
@@ -441,7 +443,7 @@
 
     DRAFTER_DEFAULTS: {
       TARGET_WORDS_MIN: 42,
-      TARGET_WORDS_MAX: 47,
+      TARGET_WORDS_MAX: 45,
       DRAFT_COUNT: 3,
       MAX_RETRIES: 2,
     },
