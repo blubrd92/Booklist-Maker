@@ -1511,6 +1511,70 @@
   let watchHandler = null;
   let activeReaction = null; // name of the reaction currently playing
 
+  /* REACTION HANDOFF BLEND. Swapping reaction classes cuts the old CSS
+     animation dead, so a new reaction began from its own first keyframe
+     wherever he really was: the fourth spam click jumped his head up out
+     of the squish's press, then the flatten pulled it back down.
+     react() records each animated part's transform before the swap.
+     Once the new reaction is running, each part's OPENING MOVE (from its
+     0% keyframe to its first pose, e.g. squish's press at 18%) is
+     replaced by a move from the recorded pose to that same first pose,
+     over the same time; the CSS animation carries on from there. A
+     restarted squish therefore presses from wherever the last one left
+     him rather than popping up first, and a squish hands over to the
+     flatten's slump in one glide. An additive offset was tried first and
+     stacked instead: a click at the bottom of a press sank him to 51
+     units, deeper than either reaction ever goes. The CSS is untouched. */
+  const BLEND_PARTS = ['#body', '#head-group', '.ear-left-anim', '.ear-right-anim',
+    '#eyes', '#nose', '#mouth', '#glasses', '#front-legs', '#tail'];
+  const BLEND_FALLBACK_MS = 200;  // a part the new reaction doesn't animate
+  const BLEND_MIN_MS = 80;
+  const BLEND_MAX_MS = 450;
+  let blendEls = null;            // resolved on first use
+  const blendAnims = new Map();   // element -> its running blend
+
+  function capturePose() {
+    if (reducedMotion.matches || folioIsHidden()) return null;
+    if (!folioSvg.animate || !folioSvg.getAnimations) return null;   // old snap, no error
+    if (!blendEls) blendEls = BLEND_PARTS.map(sel => folioSvg.querySelector(sel)).filter(Boolean);
+    return blendEls.map(el => ({ el, from: getComputedStyle(el).transform }));
+  }
+
+  // How long the part's opening move lasts: delay plus the offset of the
+  // reaction animation's first keyframe after 0%.
+  function openingMoveMs(el) {
+    const reaction = el.getAnimations().find(a => (a.animationName || '').startsWith('react'));
+    if (!reaction) return BLEND_FALLBACK_MS;
+    const timing = reaction.effect.getTiming();
+    const first = reaction.effect.getKeyframes().find(k => k.computedOffset > 0);
+    const ms = (timing.delay || 0) + (first ? first.computedOffset : 1) * timing.duration;
+    return Math.min(BLEND_MAX_MS, Math.max(BLEND_MIN_MS, ms));
+  }
+
+  // Call after the new reaction's class is on.
+  function blendFromPose(pose) {
+    if (!pose) return;
+    for (const { el } of pose) {
+      const running = blendAnims.get(el);
+      if (running) running.cancel();
+    }
+    for (const { el, from } of pose) {
+      if (from === getComputedStyle(el).transform) continue;
+      const ms = openingMoveMs(el);
+      // Read where the part's own animations will have it at the end of
+      // the opening move: step them forward, read, step them back.
+      const anims = el.getAnimations();
+      const times = anims.map(a => a.currentTime);
+      anims.forEach((a, i) => { a.currentTime = (times[i] || 0) + ms; });
+      const to = getComputedStyle(el).transform;
+      anims.forEach((a, i) => { a.currentTime = times[i] || 0; });
+      const anim = el.animate([{ transform: from }, { transform: to }],
+        { duration: ms, easing: 'ease-in-out' });
+      blendAnims.set(el, anim);
+      anim.onfinish = () => { if (blendAnims.get(el) === anim) blendAnims.delete(el); };
+    }
+  }
+
   function react(name) {
     // While guarded, suppress reactions from cascading hooks
     if (isGuarded) return;
@@ -1527,6 +1591,7 @@
 
     clearTimeout(reactTimer);
     const wasActive = folioSvg.classList.contains('react-' + name);
+    const pose = capturePose();
     clearReaction();
 
     if (name === 'watch') {
@@ -1556,6 +1621,7 @@
     folioSvg.classList.add('react-' + name);
     activeReaction = name;
     tailReact(name);
+    blendFromPose(pose);
 
     reactTimer = setTimeout(() => {
       folioSvg.classList.remove('react-' + name);
