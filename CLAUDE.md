@@ -217,7 +217,8 @@ extension/                      Browser extension (Manifest V3) — captures boo
                                 window.BooklisterHelperSort). Unit-tested in
                                 tests/extension-sort.test.js.
   vendor/browser-polyfill.min.js  Vendored webextension-polyfill (MPL 2.0).
-  icons/                        Toolbar + store icons (16/48/128).
+  icons/                        Toolbar + store icons (16/48/128 PNGs) and
+                                icon.svg, the master they are rendered from.
   build-zips.mjs                Per-browser packager (node, `npm run
                                 package:extension`): emits a Firefox zip (both
                                 background keys) and a Chromium zip (strips
