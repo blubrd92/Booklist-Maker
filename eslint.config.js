@@ -156,9 +156,10 @@ export default [
     // runtime. Separate block so we don't inherit the extension's
     // browser/service-worker globals.
     //
-    // Neither of these is needed for the site to work: build-zips.mjs
+    // None of these is needed for the site to work: build-zips.mjs
     // packages the extension for store upload, tools/og-image rebuilds
-    // the social share card. Both are run on demand.
+    // the social share card, tools/store-images rebuilds the extension's
+    // store listing images. All are run on demand.
     files: ["extension/build-zips.mjs", "tools/**/*.mjs"],
     languageOptions: {
       ecmaVersion: 2022,

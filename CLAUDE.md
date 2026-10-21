@@ -36,6 +36,7 @@ run either:
 ```bash
 npm run package:extension  # per-browser extension zips (node builtins only)
 npm run build:og           # rebuild assets/img/og-image.jpg (needs Chromium)
+npm run build:store        # rebuild the extension's store images into dist/ (needs Chromium)
 npm run sri                # re-stamp CDN integrity hashes (node builtins only)
 npm run sri -- --check     # verify committed hashes still match the CDN
 npm run stamp              # re-stamp ?v= cache-busting tokens (node builtins only)
@@ -289,6 +290,36 @@ tools/                          On-demand developer utilities. NOTHING here is
                                 token names — without that, the first match is in
                                 the comment and the real img src never gets
                                 filled.
+  store-images/build.mjs        Rebuilds the Booklister Helper store listing
+                                images into dist/store-images/ (`npm run
+                                build:store`): the 440x280 small promo tile
+                                (Chrome required, Edge optional), the
+                                1400x560 marquee / large tile (Chrome, Edge),
+                                and four 1280x800 screenshots (all three
+                                stores; Firefox has no promo tile slots).
+                                Same dependency stance as og-image
+                                (playwright-core + Chromium, kept out of
+                                package.json). Drives the REAL popup
+                                (extension/popup/ unmodified, with the
+                                webextension polyfill swapped for a stub
+                                that answers browser.* with sample data) and
+                                the REAL app after a real Quick Add paste of
+                                content.js's TSV. Writes 24-bit RGB PNGs
+                                (no alpha) via its own small node:zlib
+                                encoder, since canvases only emit RGBA.
+                                Optional `@fortawesome/fontawesome-free@6.4.0`
+                                (--no-save) serves the app's icons where
+                                cdnjs is blocked. Not committed: the images
+                                are uploaded to the stores by hand.
+  store-images/templates.mjs    The images' design: sample titles (invented),
+                                abstract cover art, captions, an unbranded
+                                "Your Library" catalog mock, and each image's
+                                layout. Edit this, not build.mjs, to change
+                                what the images say. **The images never name
+                                BiblioCommons** (owner's decision; the URL
+                                bars read catalog.yourlibrary.org); the store
+                                description text does, so libraries on other
+                                catalog systems know before installing.
 tests/
   setup.js                      Loads config.js + book-utils.js into jsdom via eval
   book-utils.test.js            Unit tests for all BookUtils functions
@@ -963,6 +994,7 @@ When editing one file, check these related files:
 | Header buttons in `index.html` (`.header-actions`) | `MOBILE_MENU_CONTROLS` in `app.js`: phones hide every header control except Generate PDF and More, so a new header button needs a menu entry to be reachable there. A tour step targeting a header control resolves to the More button on phones (`resolveStepTarget` in `tour.js`); give it a `phoneText`. See "Phone Layout" |
 | Tour sample state (`TOUR_SAMPLE_STATE`) | `tour.js` (embedded constant), must match `serializeState()` schema in `app.js`. `tools/og-image/build.mjs` also parses this literal out of `tour.js` by name to use as its state template, so renaming the constant breaks the share-image build |
 | `#front-cover-panel` / `#inside-left-panel` / `#preview-area` IDs, or the `print-mode` class | `tools/og-image/build.mjs` screenshots those panels and toggles that class. It fails loudly rather than silently, but it does need updating |
+| Quick Add IDs (`#quickAddBtn`, `#quick-add-tab-multi`, `#quick-add-multi-text`, `#quick-add-submit-btn`), `#list-name-input`, `#cover-title-input`, `#print-page-1` / `#print-page-2`, or the popup's `.first-n-btn` / `.tab[data-tab]` | `tools/store-images/build.mjs` drives those to stage the store screenshots. Like og-image it fails loudly. After a visible popup or app change, re-run `npm run build:store` and re-upload whichever images changed |
 | `serializeState()` schema in `app.js` (saved state shape) | `applyState()` in `app.js` (must read every new field), `BookUtils.isDraftStateEffectivelyEmpty` in `book-utils.js` if the new field is user "content" (otherwise the draft-restored toast will silently suppress for drafts that contain only the new field), `tests/book-utils.test.js` (extend the `emptyState` helper + add a "returns false when X is set" case), `TOUR_SAMPLE_STATE` in `tour.js` |
 | Firestore rules (`firestore.rules`) | `admin/admin.js` (writes it depends on), `library-config.js` (reads it depends on), `app.js` (the auth state driver in the library-config-ready handler). After editing rules, **manually deploy them** via the Firebase console (there's no CLI in this project) and run the Rules Playground on the "reference" cases before clicking Publish. |
 | Library doc schema (`libraries/<id>` or `libraries-public/<id>`) | `admin/admin.js` (form + openLibraryModal + handleLibraryFormSubmit), `app.js` `applyLibraryConfig()`, `library-config.js` (if the schema has new fields the loader should handle). |

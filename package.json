@@ -9,6 +9,7 @@
     "test:watch": "vitest",
     "package:extension": "node extension/build-zips.mjs",
     "build:og": "node tools/og-image/build.mjs",
+    "build:store": "node tools/store-images/build.mjs",
     "sri": "node tools/sri/add-sri.mjs",
     "stamp": "node tools/asset-version/stamp.mjs"
   },
