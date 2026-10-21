@@ -1519,12 +1519,15 @@
      Once the new reaction is running, each part's OPENING MOVE (from its
      0% keyframe to its first pose, e.g. squish's press at 18%) is
      replaced by a move from the recorded pose to that same first pose,
-     over the same time; the CSS animation carries on from there. A
-     restarted squish therefore presses from wherever the last one left
-     him rather than popping up first, and a squish hands over to the
-     flatten's slump in one glide. An additive offset was tried first and
-     stacked instead: a click at the bottom of a press sank him to 51
-     units, deeper than either reaction ever goes. The CSS is untouched. */
+     over the same time; the CSS animation carries on from there, so a
+     squish hands over to the flatten's slump in one glide. An additive
+     offset was tried first and stacked instead: a click at the bottom of
+     a press sank him to 51 units, deeper than either reaction ever goes.
+     The CSS is untouched.
+     EXCEPT a squish restarting a squish, which keeps its snap (see
+     react()): blended, rapid clicks held him pressed, and the owner
+     wants every rapid click to pop him up and press him down again,
+     like a fidget toy. */
   const BLEND_PARTS = ['#body', '#head-group', '.ear-left-anim', '.ear-right-anim',
     '#eyes', '#nose', '#mouth', '#glasses', '#front-legs', '#tail'];
   const BLEND_FALLBACK_MS = 200;  // a part the new reaction doesn't animate
@@ -1591,11 +1594,15 @@
 
     clearTimeout(reactTimer);
     const wasActive = folioSvg.classList.contains('react-' + name);
-    const pose = capturePose();
+    // A squish restarting a squish is not blended: the snap up and the
+    // fresh press ARE the click's feedback (see the blend comment above).
+    const pose = (name === 'squish' && wasActive) ? null : capturePose();
     clearReaction();
 
     if (name === 'watch') {
-      startWatch();
+      // The eye tracking moves his head and eyes with an !important
+      // transform the reduced-motion freeze (animations only) can't reach.
+      if (!reducedMotion.matches) startWatch();
       return;
     }
 
