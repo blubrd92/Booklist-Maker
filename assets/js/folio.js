@@ -1499,13 +1499,31 @@
     'tail-swish': 1400,
   };
 
+  // Reactions that animate only #tail. Played while a body reaction is
+  // running, they layer on top of it instead of replacing it: the swap
+  // stripped the body reaction's class in one frame, so a rub during
+  // the flatten slump (the rebuff's tail swish) snapped his head and
+  // body straight from slumped to sitting.
+  const TAIL_ONLY_REACTIONS = new Set(['tail-swish']);
+
   let reactTimer = null;
+  let layerTimer = null; // removes a layered tail-only reaction
   let watchHandler = null;
   let activeReaction = null; // name of the reaction currently playing
 
   function react(name) {
     // While guarded, suppress reactions from cascading hooks
     if (isGuarded) return;
+
+    if (TAIL_ONLY_REACTIONS.has(name) && activeReaction && !TAIL_ONLY_REACTIONS.has(activeReaction)) {
+      clearTimeout(layerTimer);
+      folioSvg.classList.add('react-' + name);
+      tailReact(name);
+      layerTimer = setTimeout(() => {
+        folioSvg.classList.remove('react-' + name);
+      }, reactionDurations[name]);
+      return;
+    }
 
     clearTimeout(reactTimer);
     const wasActive = folioSvg.classList.contains('react-' + name);
@@ -1546,6 +1564,7 @@
   }
 
   function clearReaction() {
+    clearTimeout(layerTimer);
     Object.keys(reactionDurations).forEach(name => {
       folioSvg.classList.remove('react-' + name);
     });
