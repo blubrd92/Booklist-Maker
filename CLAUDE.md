@@ -296,8 +296,12 @@ tools/                          On-demand developer utilities. NOTHING here is
                                 build:store`): the 440x280 small promo tile
                                 (Chrome required, Edge optional), the
                                 1400x560 marquee / large tile (Chrome, Edge),
-                                and four 1280x800 screenshots (all three
+                                and five 1280x800 screenshots (all three
                                 stores; Firefox has no promo tile slots).
+                                screenshot-0-overview is the marquee's design
+                                recomposed at 1.6:1 so Firefox gets it too;
+                                both come from one hero() template, so change
+                                the marquee there, not twice.
                                 Same dependency stance as og-image
                                 (playwright-core + Chromium, kept out of
                                 package.json). Drives the REAL popup

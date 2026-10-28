@@ -235,6 +235,36 @@ em { font-style: italic; color: #b3bcf0; }
   ${body}`,
   });
 
+  /* The marquee's design: wordmark, headline and line on the left; the
+     real popup over a real front cover on the right. Sizes and positions
+     are per image (px); the sheet keeps the panel's 1056x1632 aspect. */
+  const hero = ({ w, h, copy, icon: iconPx, name, h1, sub, subWidth, pop, sheet }) => ({
+    w, h,
+    html: `<style>${BASE_CSS}
+.copy { position: absolute; left: ${copy.left}px; top: 0; height: ${h}px; width: ${copy.width}px;
+  display: flex; flex-direction: column; justify-content: center; }
+.brand { display: flex; align-items: center; gap: ${Math.round(iconPx * 0.28)}px; margin-bottom: ${Math.round(h1 * 0.47)}px; }
+.brand .ico { width: ${iconPx}px; height: ${iconPx}px; border-radius: ${Math.round(iconPx * 0.24)}px; background: #fff; display: grid; place-items: center; }
+.brand .nm { font-family: 'EB Garamond', serif; font-size: ${name}px; color: #fff; letter-spacing: -.01em; }
+.brand .nm span { font-style: italic; color: #b3bcf0; }
+h1 { font-family: 'EB Garamond', serif; font-weight: 400; font-size: ${h1}px; line-height: 1.04; color: #fff; letter-spacing: -.012em; }
+.sub { margin-top: ${Math.round(sub * 1)}px; font-size: ${sub}px; line-height: 1.45; color: rgba(255,255,255,.72); max-width: ${subWidth}px; }
+.sheet { position: absolute; left: ${sheet.left}px; top: ${sheet.top}px; width: ${sheet.width}px; height: ${sheet.height}px; transform: rotate(4.5deg);
+  background: #fff; box-shadow: 0 34px 70px -18px rgba(0,0,0,.62), 0 0 0 1px rgba(255,255,255,.06); }
+.sheet img { display: block; width: 100%; height: 100%; }
+.pop { position: absolute; left: ${pop.left}px; top: ${pop.top}px; width: ${pop.width}px; border-radius: 10px; overflow: hidden; transform: rotate(-2deg);
+  box-shadow: 0 40px 80px -16px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08); }
+.pop img { display: block; width: 100%; }
+</style>${BG}
+<div class="copy">
+  <div class="brand"><div class="ico">${icon(Math.round(iconPx * 0.83))}</div><div class="nm">Booklister <span>Helper</span></div></div>
+  <h1>From your catalog<br>to a <em>printed booklist</em>.</h1>
+  <p class="sub">Capture titles, authors, call numbers and covers from your library&rsquo;s catalog.</p>
+</div>
+<div class="sheet"><img src="${shots.panelCover}"></div>
+<div class="pop"><img src="${shots.popupList}"></div>`,
+  });
+
   return {
     /* Wordmark only: Chrome's guidance is to avoid text in promo tiles
        and to make sure they still read at half size. */
@@ -251,32 +281,22 @@ em { font-style: italic; color: #b3bcf0; }
   <div><div class="n1">Booklister</div><div class="n2">Helper</div></div></div>`,
     },
 
-    'marquee-promo-tile-1400x560.png': {
+    'marquee-promo-tile-1400x560.png': hero({
       w: 1400, h: 560,
-      html: `<style>${BASE_CSS}
-.copy { position: absolute; left: 90px; top: 0; height: 560px; width: 640px;
-  display: flex; flex-direction: column; justify-content: center; }
-.brand { display: flex; align-items: center; gap: 16px; margin-bottom: 30px; }
-.brand .ico { width: 58px; height: 58px; border-radius: 14px; background: #fff; display: grid; place-items: center; }
-.brand .nm { font-family: 'EB Garamond', serif; font-size: 38px; color: #fff; letter-spacing: -.01em; }
-.brand .nm span { font-style: italic; color: #b3bcf0; }
-h1 { font-family: 'EB Garamond', serif; font-weight: 400; font-size: 64px; line-height: 1.04; color: #fff; letter-spacing: -.012em; }
-.sub { margin-top: 24px; font-size: 24px; line-height: 1.45; color: rgba(255,255,255,.72); max-width: 560px; }
-.sheet { position: absolute; left: 1000px; top: 46px; width: 300px; height: 464px; transform: rotate(4.5deg);
-  background: #fff; box-shadow: 0 34px 70px -18px rgba(0,0,0,.62), 0 0 0 1px rgba(255,255,255,.06); }
-.sheet img { display: block; width: 100%; height: 100%; }
-.pop { position: absolute; left: 760px; top: 66px; width: 330px; border-radius: 10px; overflow: hidden; transform: rotate(-2deg);
-  box-shadow: 0 40px 80px -16px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08); }
-.pop img { display: block; width: 100%; }
-</style>${BG}
-<div class="copy">
-  <div class="brand"><div class="ico">${icon(48)}</div><div class="nm">Booklister <span>Helper</span></div></div>
-  <h1>From your catalog<br>to a <em>printed booklist</em>.</h1>
-  <p class="sub">Capture titles, authors, call numbers and covers from your library&rsquo;s catalog.</p>
-</div>
-<div class="sheet"><img src="${shots.panelCover}"></div>
-<div class="pop"><img src="${shots.popupList}"></div>`,
-    },
+      copy: { left: 90, width: 640 }, icon: 58, name: 38, h1: 64, sub: 24, subWidth: 560,
+      pop: { left: 760, top: 66, width: 330 },
+      sheet: { left: 1000, top: 46, width: 300, height: 464 },
+    }),
+
+    /* The marquee recomposed for the 1.6:1 screenshot slot, so a store
+       that shows no promo tile (Firefox) still gets it, as the lead
+       screenshot. Same design through hero(); only the numbers differ. */
+    'screenshot-0-overview-1280x800.png': hero({
+      w: 1280, h: 800,
+      copy: { left: 84, width: 560 }, icon: 66, name: 42, h1: 70, sub: 26, subWidth: 520,
+      pop: { left: 628, top: 160, width: 360 },
+      sheet: { left: 915, top: 125, width: 320, height: 495 },
+    }),
 
     'screenshot-1-capture-a-list-1280x800.png': shot({
       step: 'Capture a list',
