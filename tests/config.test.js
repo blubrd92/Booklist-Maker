@@ -144,6 +144,7 @@ describe('CONFIG value constraints', () => {
   it('network timeouts are positive and the drafter outlasts its own 45s budget', () => {
     expect(globalThis.CONFIG.OPEN_LIBRARY_TIMEOUT_MS).toBeGreaterThan(0);
     expect(globalThis.CONFIG.DRAFTER_TIMEOUT_MS).toBeGreaterThan(45000);
+    expect(globalThis.CONFIG.IMAGE_LOAD_TIMEOUT_MS).toBeGreaterThan(0);
   });
 
   it('NOTIFICATION_DURATION_MS is positive', () => {

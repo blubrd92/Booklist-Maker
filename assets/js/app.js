@@ -3117,6 +3117,54 @@ const BooklistApp = (function() {
   }
 
   /**
+   * Resolve once the Google Fonts stylesheet has loaded (or failed, or
+   * the wait ran out). index.html loads it without blocking first paint
+   * (media="print", flipped to "all" on load), and until it arrives its
+   * @font-face rules don't exist, so document.fonts.load() would have
+   * nothing to load.
+   */
+  function fontStylesheetReady(timeoutMs = 4000) {
+    const link = document.getElementById('google-fonts-css');
+    if (!link || link.media !== 'print') return Promise.resolve();
+    return new Promise(resolve => {
+      const done = () => resolve();
+      link.addEventListener('load', done, { once: true });
+      link.addEventListener('error', done, { once: true });
+      setTimeout(done, timeoutMs);
+    });
+  }
+
+  /**
+   * Load exactly the faces a title bar is about to draw with. Canvas text
+   * does not trigger webfont loading by itself: a face nobody has used
+   * yet draws in the fallback font. This used to be covered by a hidden
+   * block in index.html that forced every one of the ~108 faces to
+   * download on every first visit; now only the cover's own faces load,
+   * when they are needed. Best-effort with a time limit, so an offline
+   * page still draws (in the fallback font) instead of hanging.
+   */
+  function loadCanvasFonts(styles, timeoutMs = 4000) {
+    if (!styles || !document.fonts?.load) return Promise.resolve();
+    const specs = new Map();
+    const add = (fontStyle, font, text) => {
+      if (!font) return;
+      const key = `${fontStyle || ''} 16px ${font}`;
+      specs.set(key, (specs.get(key) || '') + (text || ''));
+    };
+    if (styles.isAdvancedMode && Array.isArray(styles.lines)) {
+      styles.lines.forEach(l => add(l.fontStyle, l.font, l.text));
+    } else {
+      add(styles.fontStyle, styles.font, styles.text);
+    }
+    if (specs.size === 0) return Promise.resolve();
+    const loads = fontStylesheetReady().then(() => Promise.all(
+      Array.from(specs, ([spec, text]) =>
+        document.fonts.load(spec, text || 'BESbswy').catch(() => {}))
+    ));
+    return Promise.race([loads, new Promise(resolve => setTimeout(resolve, timeoutMs))]);
+  }
+
+  /**
    * Wait for all <img> elements matching the selector to finish loading
    * and be ready for html2canvas to paint. Without this, an img whose
    * src was just set but whose bytes are still in-flight over the
@@ -3171,8 +3219,16 @@ const BooklistApp = (function() {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = 'Anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = reject;
+      // A remote cover that never answers would otherwise hold the whole
+      // collage build open with no message; time out and let the usual
+      // "these covers failed" path name it.
+      const timer = setTimeout(() => {
+        img.onload = img.onerror = null;
+        img.src = '';
+        reject(new Error('Image load timed out: ' + String(src).slice(0, 80)));
+      }, CONFIG.IMAGE_LOAD_TIMEOUT_MS);
+      img.onload = () => { clearTimeout(timer); resolve(img); };
+      img.onerror = (e) => { clearTimeout(timer); reject(e); };
       img.src = src;
     });
   }
@@ -3289,7 +3345,7 @@ const BooklistApp = (function() {
     // Wait for fonts, then load images and draw. The chain is captured and
     // returned so callers (flushCollageRegen, undo/redo) can await the
     // render completing; _collageRegenPromise mirrors it as the live handle.
-    const regenChain = waitForFonts().then(afterNextPaint).then(() => {
+    const regenChain = waitForFonts().then(() => loadCanvasFonts(styles)).then(afterNextPaint).then(() => {
       return Promise.allSettled(coversToDraw.map(c => {
         if (c.domImg) return Promise.resolve(c.domImg);
         return loadImageWithFallback(c.large, c.medium);
@@ -3369,6 +3425,11 @@ const BooklistApp = (function() {
       });
     }).finally(() => {
       setLoading(button, false);
+      // Free the 3000x4800 canvas's ~58 MB backing store now rather than
+      // whenever the garbage collector gets to it; back-to-back rebuilds
+      // otherwise stack these up, which is what hits iOS canvas limits.
+      canvas.width = 0;
+      canvas.height = 0;
       // Release the in-flight handle once this render settles, unless a
       // newer generation has already replaced it (then that one owns the
       // handle). Lets flushCollageRegen/undo tell when the collage caught up.
@@ -5443,10 +5504,12 @@ const BooklistApp = (function() {
     modal.style.display = 'flex';
 
     const buildId = ++_looksBuildSeq;
-    // Fonts are loaded at startup, so waitForFonts is a fast no-op
-    // guard here — but it's the same precondition generateCoverCollage
+    // Fonts are no longer all loaded at startup, so load each look's own
+    // title faces first: the same precondition generateCoverCollage
     // renders under, and the preview must not draw with fallback fonts.
-    Promise.all([getLookSampleCoverImages(), waitForFonts()]).then(([images]) => {
+    const lookFonts = waitForFonts().then(() => Promise.all(
+      pending.map(p => loadCanvasFonts(buildLookTitleStyles(p.look, p.barText)))));
+    Promise.all([getLookSampleCoverImages(), lookFonts]).then(([images]) => {
       if (buildId !== _looksBuildSeq) return;
       // Full-size work canvas shared by this build's renders and
       // released with this closure when the fill completes or is
@@ -7480,14 +7543,53 @@ const BooklistApp = (function() {
     return url;
   }
 
+  /**
+   * jsPDF and html2canvas (~160 KB compressed, ~0.5 MB of script to parse)
+   * are needed only to export, so index.html parks their tags in
+   * <template id="pdf-library-scripts"> instead of loading them on every
+   * visit. This copies them into <head> on first use (hover or focus on
+   * Generate PDF starts it early). The tags keep their integrity hashes,
+   * which `npm run sri` maintains in place since it rewrites the HTML
+   * text wherever the tag sits. A failed load is forgotten so the next
+   * press retries.
+   */
+  let _pdfLibrariesPromise = null;
+  function ensurePdfLibraries() {
+    if (window.jspdf?.jsPDF && typeof window.html2canvas === 'function') return Promise.resolve();
+    if (_pdfLibrariesPromise) return _pdfLibrariesPromise;
+    const tpl = document.getElementById('pdf-library-scripts');
+    const sources = tpl ? Array.from(tpl.content.querySelectorAll('script[src]')) : [];
+    _pdfLibrariesPromise = Promise.all(sources.map(src => new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = src.getAttribute('src');
+      if (src.integrity) el.integrity = src.integrity;
+      el.crossOrigin = src.getAttribute('crossorigin') || 'anonymous';
+      el.onload = () => resolve();
+      el.onerror = () => { el.remove(); reject(new Error('load failed: ' + el.src)); };
+      document.head.appendChild(el);
+    }))).then(() => {
+      if (!window.jspdf?.jsPDF || typeof window.html2canvas !== 'function') {
+        throw new Error('PDF libraries loaded but did not register');
+      }
+    }).catch(err => {
+      _pdfLibrariesPromise = null;
+      throw err;
+    });
+    return _pdfLibrariesPromise;
+  }
+
   async function exportPdf() {
     if (isExportingPdf) return;
-    // jsPDF and html2canvas come from a CDN; say so plainly when either
-    // is missing rather than failing on an undefined global mid-export.
-    if (!window.jspdf?.jsPDF || typeof window.html2canvas !== 'function') {
-      showNotification('The PDF tools could not load. Check your connection and reload the page, then try again. Your list is safe.', 'error');
+    // Fetch jsPDF + html2canvas on first export; say so plainly if the
+    // CDN is unreachable rather than failing on an undefined global.
+    try {
+      await ensurePdfLibraries();
+    } catch (err) {
+      console.error('[Booklister] PDF libraries unavailable:', err);
+      showNotification('The PDF tools could not load. Check your connection and try again. Your list is safe.', 'error');
       return;
     }
+    if (isExportingPdf) return; // a second press landed while the libraries loaded
     isExportingPdf = true;
     setLoading(elements.exportPdfButton, true, 'Generating...');
     
@@ -9326,6 +9428,11 @@ const BooklistApp = (function() {
     
     // Header actions
     elements.exportPdfButton.addEventListener('click', exportPdf);
+    // Start fetching the PDF libraries when the pointer or keyboard
+    // reaches the button, so they are usually ready by the click.
+    const warmPdfLibraries = () => { ensurePdfLibraries().catch(() => {}); };
+    elements.exportPdfButton.addEventListener('pointerenter', warmPdfLibraries, { once: true });
+    elements.exportPdfButton.addEventListener('focus', warmPdfLibraries, { once: true });
     
     elements.saveListButton.addEventListener('click', () => {
       const state = serializeState();

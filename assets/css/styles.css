@@ -2557,7 +2557,6 @@ body.has-custom-qr #generate-qr-button:disabled {
 #notification-area.info { background: var(--primary-color); }
 
 /* Preloader & Carousel */
-.font-preloader { position: absolute; top: -9999px; visibility: hidden; }
 .cover-carousel {
   position: relative; width: 100%; max-width: 150px; height: 180px;
   margin: 0 auto; display: flex; align-items: center; justify-content: center;

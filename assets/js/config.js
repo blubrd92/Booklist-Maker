@@ -69,6 +69,9 @@
     // a genuine stall.
     OPEN_LIBRARY_TIMEOUT_MS: 30000,
     DRAFTER_TIMEOUT_MS: 90000,
+    // One cover image (collage build). Data URLs load instantly; this only
+    // bites on a remote cover whose host stops answering.
+    IMAGE_LOAD_TIMEOUT_MS: 30000,
     PDF_RENDER_DELAY_MS: 300,
     // Font dropdown type-ahead: pause longer than this and the typed
     // buffer resets, so the next keystroke starts a fresh match.
