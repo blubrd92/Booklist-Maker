@@ -2495,12 +2495,39 @@ const BooklistApp = (function() {
     consoleLink.rel = 'noopener';
     consoleLink.textContent = 'Open test console ↗';
     consoleLink.style.cssText = 'font-size: 0.8rem; font-weight: 500;';
+    // The console opens through a hidden form POST, so the key travels in
+    // the request body: it never appears in the address bar, the browser
+    // history or the link's hover preview. The script's doPost spots the
+    // `console` field and serves the console page. (Typing ?key= by hand
+    // into the address still works, via doGet.)
     const updateConsoleLink = () => {
-      const key = consoleKeyInput.value.trim();
-      consoleLink.href = key
-        ? `${DRAFTER_SCRIPT_URL}?key=${encodeURIComponent(key)}`
-        : DRAFTER_SCRIPT_URL;
+      consoleLink.href = DRAFTER_SCRIPT_URL;
     };
+    consoleLink.addEventListener('click', (evt) => {
+      evt.preventDefault();
+      const key = consoleKeyInput.value.trim();
+      if (!key) {
+        consoleKeyInput.placeholder = 'paste the key first';
+        consoleKeyInput.focus();
+        return;
+      }
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = DRAFTER_SCRIPT_URL;
+      form.target = '_blank';
+      form.rel = 'noopener';
+      form.style.display = 'none';
+      [['console', '1'], ['key', key]].forEach(([name, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      });
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+    });
     consoleKeyInput.addEventListener('input', () => {
       const key = consoleKeyInput.value.trim();
       if (key) {
