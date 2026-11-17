@@ -1719,6 +1719,20 @@ input[type="color"]:hover {
   color: #fff;
   background: var(--primary-color);
 }
+/* The copy that follows the pointer while dragging a title. It lives on
+   <body>, outside the zoomed preview, so its contents take the preview's
+   zoom from --drag-zoom (set when the drag starts); Sortable sizes the box
+   itself from the block's on-screen size, so min-height must not push it
+   back up. Its controls would show the old position, so they are hidden:
+   the placeholder carries the live number. */
+body > .list-item.sortable-fallback {
+  min-height: 0;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+body > .list-item.sortable-fallback > * { zoom: var(--drag-zoom, 1); }
+body > .list-item.sortable-fallback > .list-item-controls { display: none; }
 
 /* --- DRAG CONTROLS --- */
 .list-item-controls {

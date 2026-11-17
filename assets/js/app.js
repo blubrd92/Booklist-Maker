@@ -8846,9 +8846,16 @@ const BooklistApp = (function() {
    * @param {Function} onFileDrop - Callback when a valid image file is dropped
    */
   function setupDragDropUpload(uploaderElement, onFileDrop) {
+    // Only a drag carrying files is ours. Anything else (a title block
+    // being reordered) must pass through untouched: claiming it lit the
+    // box up as if a drop would replace its image, and stopping the
+    // event froze the reorder placeholder while the pointer was over it.
+    const carriesFiles = e => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       uploaderElement.addEventListener(eventName, (e) => {
+        if (!carriesFiles(e)) return;
         e.preventDefault();
         e.stopPropagation();
       });
@@ -8856,8 +8863,8 @@ const BooklistApp = (function() {
     
     // Highlight on drag enter/over
     ['dragenter', 'dragover'].forEach(eventName => {
-      uploaderElement.addEventListener(eventName, () => {
-        uploaderElement.classList.add('drag-over');
+      uploaderElement.addEventListener(eventName, (e) => {
+        if (carriesFiles(e)) uploaderElement.classList.add('drag-over');
       });
     });
     
@@ -8870,6 +8877,7 @@ const BooklistApp = (function() {
     
     // Handle dropped files
     uploaderElement.addEventListener('drop', (e) => {
+      if (!carriesFiles(e)) return;
       const files = e.dataTransfer.files;
       if (files.length > 0) {
         const file = files[0];
@@ -9094,11 +9102,27 @@ const BooklistApp = (function() {
       animation: 150,
       ghostClass: 'sortable-ghost',
       onStart: function() {
+        const zoom = parseFloat(getComputedStyle(elements.previewArea).zoom) || 1;
+        document.body.style.setProperty('--drag-zoom', zoom);
         // Folio: watch the drag
         if (window.folio) window.folio.react('watch');
       },
-      // The placeholder moved: show every block's landing number now.
-      onChange: renumberListItems,
+      // The browser's own drag mode blocks the mouse wheel for the whole
+      // drag, so a title could not reach a page that was scrolled out of
+      // view. Sortable's pointer-driven mode leaves the wheel working.
+      forceFallback: true,
+      // The copy that follows the pointer goes on <body>: inside the
+      // CSS-zoomed preview, Sortable placed it off by the zoom factor.
+      // onStart passes the zoom along so the copy still matches in size.
+      fallbackOnBody: true,
+      // The placeholder moved: show every block's landing number now, and
+      // put its controls on the side its current page uses (the right
+      // inside page carries them on the right).
+      onChange: function(evt) {
+        const controls = evt.item.querySelector('.list-item-controls');
+        if (controls) controls.classList.toggle('controls-right', evt.item.parentElement === elements.insideRightPanel);
+        renumberListItems();
+      },
       onEnd: function(evt) {
         if (window.folio) window.folio.stopWatch();
         const newBooklist = getListItemsInOrder()
