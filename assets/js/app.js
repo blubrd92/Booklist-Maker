@@ -2056,13 +2056,21 @@ const BooklistApp = (function() {
     dragHandle.setAttribute('tabindex', '0');
     dragHandle.title = 'Drag to reorder (or use arrow keys)';
     dragHandle.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        if (index > 0) handleBookReorder(index, index - 1);
-      } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        if (index < MAX_BOOKS - 1) handleBookReorder(index, index + 1);
+      let to;
+      if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') to = index - 1;
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') to = index + 1;
+      else return;
+      e.preventDefault();
+      if (to < 0 || to >= MAX_BOOKS) {
+        announceReorder(to < 0 ? 'Already at the top.' : 'Already at the bottom.');
+        return;
       }
+      handleBookReorder(index, to);
+      // renderBooklist rebuilt every block, so focus fell back to the
+      // page and the next arrow press went nowhere. Follow the title.
+      const movedHandle = getListItemsInOrder()[to]?.querySelector('.drag-handle');
+      if (movedHandle) movedHandle.focus();
+      announceReorder(`Moved to position ${to + 1} of ${myBooklist.length}.`);
     });
     
     // Star toggle (include in collage)
@@ -2616,6 +2624,44 @@ const BooklistApp = (function() {
    * @param {number} fromIndex - Current index (0-based)
    * @param {number} toIndex - Target index (0-based)
    */
+  /**
+   * Title blocks in list order. The back cover comes before the inside
+   * pages in the DOM, so document order is not list order. Sortable's
+   * fallback drag clone, which sits inside the panel while dragging,
+   * is left out.
+   */
+  function getListItemsInOrder() {
+    const pick = panel => Array.from(panel.querySelectorAll(':scope > .list-item:not(.sortable-fallback)'));
+    return [
+      ...pick(elements.insideLeftPanel),
+      ...pick(elements.insideRightPanel),
+      ...pick(elements.backCoverPanel),
+    ];
+  }
+
+  /**
+   * Rewrite each block's position number from where it sits right now.
+   * Called while a title is being dragged, so every number, including the
+   * one on the placeholder, shows where things will land before the drop.
+   */
+  function renumberListItems() {
+    getListItemsInOrder().forEach((item, i) => {
+      const num = item.querySelector('.item-number');
+      if (num) num.value = i + 1;
+    });
+  }
+
+  let _reorderStatusTimer = null;
+  /** Speak a reorder result through the polite #reorder-status region. */
+  function announceReorder(message) {
+    const region = document.getElementById('reorder-status');
+    if (!region) return;
+    // Clear first so the same sentence twice in a row is still read.
+    region.textContent = '';
+    clearTimeout(_reorderStatusTimer);
+    _reorderStatusTimer = setTimeout(() => { region.textContent = message; }, 50);
+  }
+
   function handleBookReorder(fromIndex, toIndex) {
     if (fromIndex === toIndex) return;
     if (fromIndex < 0 || fromIndex >= MAX_BOOKS) return;
@@ -9013,38 +9059,37 @@ const BooklistApp = (function() {
     const sortableOptions = {
       group: 'shared-list',
       handle: '.drag-handle',
+      // Only title blocks are drop positions. Without this the back
+      // cover's QR code and logo blocks counted too, and the placeholder
+      // could sit between them, where no title can actually land.
+      draggable: '.list-item',
       animation: 150,
       ghostClass: 'sortable-ghost',
       onStart: function() {
         // Folio: watch the drag
         if (window.folio) window.folio.react('watch');
       },
-      onEnd: function() {
-        pushUndo('drag-reorder');
-        // Folio: acknowledge the reorder
-        if (window.folio) {
-          window.folio.stopWatch();
-          window.folio.react('nod');
+      // The placeholder moved: show every block's landing number now.
+      onChange: renumberListItems,
+      onEnd: function(evt) {
+        if (window.folio) window.folio.stopWatch();
+        const newBooklist = getListItemsInOrder()
+          .map(item => myBooklist.find(b => b.key === item.dataset.id))
+          .filter(Boolean);
+        myBooklist.forEach(b => { if (!newBooklist.includes(b)) newBooklist.push(b); });
+
+        // Dropped back where it started: no undo step, no rebuild of the
+        // 600 DPI cover. A trip into another panel and back can still
+        // leave blocks redistributed, so re-render only in that case.
+        const unchanged = newBooklist.every((b, i) => b === myBooklist[i]);
+        if (unchanged) {
+          if (evt.from !== evt.to) renderBooklist();
+          else renumberListItems();
+          return;
         }
-        const newBooklist = [];
-        const allPanelItems = [
-          ...Array.from(elements.insideLeftPanel.children),
-          ...Array.from(elements.insideRightPanel.children),
-          ...Array.from(elements.backCoverPanel.querySelectorAll('.list-item'))
-        ];
-        
-        const allIds = allPanelItems.map(item => item.dataset.id).filter(id => id);
-        
-        allIds.forEach(id => newBooklist.push(myBooklist.find(b => b.key === id)));
-        
-        const currentIds = new Set(newBooklist.map(b => b.key));
-        const allBookIds = new Set(myBooklist.map(b => b.key));
-        allBookIds.forEach(id => {
-          if (!currentIds.has(id)) {
-            newBooklist.push(myBooklist.find(b => b.key === id));
-          }
-        });
-        
+
+        pushUndo('drag-reorder');
+        if (window.folio) window.folio.react('nod');
         myBooklist = newBooklist;
         renderBooklist();
         
@@ -9068,7 +9113,9 @@ const BooklistApp = (function() {
         ghostClass: 'sortable-ghost',
         filter: '.from-list, .slot-placeholder',
         draggable: '.draggable-extra',
-        onEnd: function() {
+        onEnd: function(evt) {
+          // Dropped back in place: nothing to undo or rebuild.
+          if (evt.oldIndex === evt.newIndex) return;
           pushUndo('reorder-extra');
           // Rebuild extraCollageCovers array based on new order
           const draggableItems = elements.extraCoversGrid.querySelectorAll('.draggable-extra');

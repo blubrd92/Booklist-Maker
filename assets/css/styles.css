@@ -1710,7 +1710,15 @@ input[type="color"]:hover {
 }
 .list-item:hover .list-item-controls { opacity: 1; }
 
-.list-item.sortable-ghost { opacity: 0.4; background: #c8ebfb; }
+/* The placeholder fades everything but its controls, so its live
+   position number stays readable while dragging. #e9f7fd is the old
+   #c8ebfb at 0.4 opacity over white. */
+.list-item.sortable-ghost { background: #e9f7fd; }
+.list-item.sortable-ghost > :not(.list-item-controls) { opacity: 0.4; }
+.list-item.sortable-ghost .list-item-controls .item-number {
+  color: #fff;
+  background: var(--primary-color);
+}
 
 /* --- DRAG CONTROLS --- */
 .list-item-controls {
