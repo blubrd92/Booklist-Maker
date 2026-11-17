@@ -120,13 +120,6 @@ const BooklistApp = (function() {
     return _idbOpenPromise;
   }
 
-  function _storeImageIDB(refId, dataUrl) {
-    _openImageDB().then(db => {
-      const tx = db.transaction('images', 'readwrite');
-      tx.objectStore('images').put(dataUrl, refId);
-    }).catch(() => { /* IndexedDB unavailable — in-memory cache still works */ });
-  }
-
   function _getImageIDB(refId) {
     return _openImageDB().then(db => {
       return new Promise((resolve, reject) => {
@@ -187,9 +180,174 @@ const BooklistApp = (function() {
       refId = _imageRefPrefix + (++_imageIdCounter);
       _imageDataToId.set(dataUrl, refId);
       _imageCache.set(refId, dataUrl);
-      _storeImageIDB(refId, dataUrl);
+      // Memory only. Undo history never survives a reload (startup
+      // restores the draft, not the stacks), so the IndexedDB copy this
+      // used to write was never read back: it only cost a multi-MB write
+      // per new image and grew the store for the whole session.
+      // _resolveImageRef still falls back to IndexedDB for refs written
+      // by older versions.
     }
     return refId;
+  }
+
+  // Refs in the undo/redo stacks look like "__idbimg:12" inside each
+  // snapshot's JSON. Matches the quotes so "__idbimg:1" can't match "__idbimg:12".
+  const _undoRefPattern = /"(__idbimg:[^"]+)"/g;
+  let _undoPruneTimer = null;
+
+  /**
+   * Drop images no remaining undo/redo snapshot refers to. Without this,
+   * every image the session ever produced (each regenerated 3000x4800
+   * cover is ~2 MB as a data URL) stayed in memory until a Load or Reset,
+   * even after the 50-step cap had pushed its snapshot off the stack.
+   * Debounced so it never runs inside the edit that triggered it, and
+   * skipped during the tour, whose saved backup holds copies of the stacks.
+   */
+  function _scheduleUndoImagePrune() {
+    clearTimeout(_undoPruneTimer);
+    _undoPruneTimer = setTimeout(() => {
+      if (_tourActive || _imageCache.size === 0) return;
+      // Mid undo/redo a popped snapshot is in neither stack; try later.
+      if (_isRestoring || _undoRedoBusy) { _scheduleUndoImagePrune(); return; }
+      const live = new Set();
+      // The text fields' pre-edit snapshot is held aside until the edit
+      // commits, so its images count as in use too.
+      for (const snap of _undoStack.concat(_redoStack, [_pendingPreEditSnapshot])) {
+        if (typeof snap !== 'string') continue;
+        for (const m of snap.matchAll(_undoRefPattern)) live.add(m[1]);
+      }
+      for (const [refId, dataUrl] of _imageCache) {
+        if (!live.has(refId)) {
+          _imageCache.delete(refId);
+          if (_imageDataToId.get(dataUrl) === refId) _imageDataToId.delete(dataUrl);
+        }
+      }
+    }, 1500);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Draft images: stored once each, so autosave writes only the small part
+  // ---------------------------------------------------------------------------
+  // The draft used to be the whole serialized state with every image
+  // inline: on a list with covers, ~11 MB stringified and written to
+  // IndexedDB on every autosave (each pause in typing). Now each data-URL
+  // image lives under its own '__draftimg:' key and the 'draft' entry
+  // holds a few KB of JSON pointing at them. Plain-URL images (https,
+  // relative paths) stay inline; they are short.
+  //
+  // Correctness does not depend on this tab's memory of what is stored:
+  // every save checks, inside the same transaction that writes the
+  // draft, that each image it points to exists, and writes any that do
+  // not. So a Load (which wipes the store), another tab, or the startup
+  // cleanup can never leave a committed draft pointing at a missing image.
+  const _draftImgPrefix = '__draftimg:';
+  // Unique per page load, so two tabs never mint the same key for
+  // different images.
+  const _draftImgSession = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  let _draftImgCounter = 0;
+  let _draftCleanTimer = null;
+  const _draftImgKeyByData = new Map(); // dataURL -> key (this tab's assignments)
+
+  /** Call fn(value) on every image field a serialized state can hold; fn's result replaces it. */
+  function _mapStateImageFields(state, fn) {
+    if (Array.isArray(state.books)) {
+      state.books = state.books.map(b => (b && b.customCoverData) ? { ...b, customCoverData: fn(b.customCoverData) } : b);
+    }
+    if (Array.isArray(state.extraCollageCovers)) {
+      state.extraCollageCovers = state.extraCollageCovers.map(ec => (ec && ec.coverData) ? { ...ec, coverData: fn(ec.coverData) } : ec);
+    }
+    if (state.images) {
+      state.images = { ...state.images };
+      for (const field of ['frontCover', 'branding', 'customQr']) {
+        if (state.images[field]) state.images[field] = fn(state.images[field]);
+      }
+    }
+    return state;
+  }
+
+  /** Swap inline data-URL images for draft keys. Returns the JSON plus the key -> data pairs it points at. */
+  function _packDraft(state) {
+    const images = new Map();
+    _mapStateImageFields(state, value => {
+      if (typeof value !== 'string' || !value.startsWith('data:')) return value;
+      let key = _draftImgKeyByData.get(value);
+      if (!key) {
+        key = _draftImgPrefix + _draftImgSession + '-' + (++_draftImgCounter);
+        _draftImgKeyByData.set(value, key);
+      }
+      images.set(key, value);
+      return key;
+    });
+    return { json: JSON.stringify(state), images };
+  }
+
+  /** Write the draft and any images it points at that the store lacks, atomically. */
+  function _writeDraft(json, images) {
+    return _openImageDB().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction('images', 'readwrite');
+      const store = tx.objectStore('images');
+      for (const [key, dataUrl] of images) {
+        const req = store.count(key);
+        req.onsuccess = () => { if (req.result === 0) store.put(dataUrl, key); };
+      }
+      store.put(json, 'draft');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    }));
+  }
+
+  /** Resolve a parsed draft's image keys back to data URLs (in place). A missing image becomes null. */
+  async function _unpackDraft(parsed) {
+    const keys = new Set();
+    _mapStateImageFields(parsed, value => {
+      if (typeof value === 'string' && value.startsWith(_draftImgPrefix)) keys.add(value);
+      return value;
+    });
+    if (keys.size === 0) return parsed;
+    const found = new Map();
+    await Promise.all(Array.from(keys, key => _getImageIDB(key).then(data => {
+      if (typeof data === 'string') {
+        found.set(key, data);
+        // Adopt the stored key so the next save points at it instead of
+        // writing the same image again under a new one.
+        _draftImgKeyByData.set(data, key);
+      }
+    }).catch(() => {})));
+    return _mapStateImageFields(parsed, value =>
+      (typeof value === 'string' && value.startsWith(_draftImgPrefix)) ? (found.get(value) || null) : value);
+  }
+
+  /**
+   * Startup housekeeping, in one transaction so it cannot interleave with
+   * another tab's save: delete '__draftimg:' entries the stored draft does
+   * not point at, and every '__idbimg:' entry (undo images from older
+   * versions; undo history never outlives a page load). Best-effort.
+   */
+  function _cleanImageStore() {
+    return _openImageDB().then(db => new Promise(resolve => {
+      const tx = db.transaction('images', 'readwrite');
+      const store = tx.objectStore('images');
+      const draftReq = store.get('draft');
+      draftReq.onsuccess = () => {
+        const live = new Set();
+        if (typeof draftReq.result === 'string') {
+          for (const m of draftReq.result.matchAll(/"(__draftimg:[^"]+)"/g)) live.add(m[1]);
+        }
+        const keysReq = store.getAllKeys();
+        keysReq.onsuccess = () => {
+          for (const key of keysReq.result) {
+            if (typeof key !== 'string') continue;
+            if ((key.startsWith(_draftImgPrefix) && !live.has(key)) || key.startsWith(_imageRefPrefix)) {
+              store.delete(key);
+            }
+          }
+        };
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    })).catch(() => {});
   }
 
   /** Resolve a reference ID back to a data URL (sync from cache, async from IDB fallback) */
@@ -8370,8 +8528,14 @@ const BooklistApp = (function() {
   function saveDraftLocal() {
     if (_resetting) return; // A reset is clearing the draft; don't write it back
     const thisGenId = ++_draftSaveGenId;
-    const s = serializeState();
-    _putImageIDB('draft', JSON.stringify(s)).then(() => {
+    const { json, images } = _packDraft(serializeState());
+    _writeDraft(json, images).then(() => {
+      // Each cover rebuild leaves the previous front cover unreferenced;
+      // sweep once editing pauses rather than letting them pile up until
+      // the next page load. The sweep re-reads the stored draft inside
+      // its own transaction, so it is safe whenever it runs.
+      clearTimeout(_draftCleanTimer);
+      _draftCleanTimer = setTimeout(_cleanImageStore, 10000);
       // Only update flags if this is still the latest save
       if (thisGenId === _draftSaveGenId) {
         isDirtyLocal = false;
@@ -8411,7 +8575,9 @@ const BooklistApp = (function() {
       // Read from IndexedDB
       const raw = await _getImageIDB('draft');
       if (!raw) return;
-      const parsed = JSON.parse(raw);
+      // Older drafts carry images inline; newer ones point at '__draftimg:'
+      // entries. _unpackDraft handles both (it is a no-op on the old shape).
+      const parsed = await _unpackDraft(JSON.parse(raw));
       applyState(parsed, { silent: true });
       if (!BookUtils.isDraftStateEffectivelyEmpty(parsed)) {
         showNotification('Draft restored from this browser.', 'success');
@@ -10267,6 +10433,7 @@ const BooklistApp = (function() {
       if (_redoStack.length > 0) {
         _redoStack = [];
         updateUndoRedoButtons();
+        _scheduleUndoImagePrune();
       }
       return;
     }
@@ -10284,6 +10451,7 @@ const BooklistApp = (function() {
     }
 
     updateUndoRedoButtons();
+    _scheduleUndoImagePrune();
   }
 
   /**
@@ -10414,6 +10582,7 @@ const BooklistApp = (function() {
     updateUndoRedoButtons();
 
     _pendingPreEditSnapshot = null;
+    _scheduleUndoImagePrune();
   }
 
   /**
@@ -11548,6 +11717,9 @@ const BooklistApp = (function() {
       .then(() => restoreDraftLocalIfPresent())
       .finally(() => {
         _initialRestorePending = false;
+        // Clear out stored images the draft no longer uses. After the
+        // restore, so the draft as stored is the one being kept.
+        _cleanImageStore();
         // Phones open on Edit (search is where a list begins) unless a
         // restored draft already has titles to look at. A view the user
         // picked while the restore was running wins.
