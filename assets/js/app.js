@@ -2070,7 +2070,7 @@ const BooklistApp = (function() {
       // page and the next arrow press went nowhere. Follow the title.
       const movedHandle = getListItemsInOrder()[to]?.querySelector('.drag-handle');
       if (movedHandle) movedHandle.focus();
-      announceReorder(`Moved to position ${to + 1} of ${myBooklist.length}.`);
+      announceReorder(`Moved to position ${to + 1} of ${MAX_BOOKS}.`);
     });
     
     // Star toggle (include in collage)
@@ -2123,20 +2123,47 @@ const BooklistApp = (function() {
     itemNumber.title = `Book #${index + 1} - Edit to move`;
     itemNumber.setAttribute('aria-label', `Position ${index + 1}, edit to reorder`);
     
-    // Handle reordering when value changes
-    itemNumber.addEventListener('change', () => {
+    // Commit a typed position. Enter commits and keeps the keyboard with
+    // the title; a commit by Tab or a click elsewhere lets focus go where
+    // it was headed and only steps in if the re-render left it nowhere.
+    let committed = false;
+    const commitPosition = (fromEnter) => {
+      if (committed) return;
       const newPos = parseInt(itemNumber.value, 10);
       const oldPos = index + 1;
-      
-      // Validate input
-      if (isNaN(newPos) || newPos < 1 || newPos > MAX_BOOKS || newPos === oldPos) {
-        itemNumber.value = oldPos; // Reset to current position
+
+      if (isNaN(newPos) || newPos === oldPos) {
+        itemNumber.value = oldPos;
         return;
       }
-      
-      // Reorder the book
+      if (newPos < 1 || newPos > MAX_BOOKS) {
+        itemNumber.value = oldPos;
+        if (fromEnter) {
+          itemNumber.select();
+          announceReorder(`Choose a position from 1 to ${MAX_BOOKS}.`);
+        }
+        return;
+      }
+
+      committed = true;
       handleBookReorder(index, newPos - 1);
-    });
+      announceReorder(`Moved to position ${newPos} of ${MAX_BOOKS}.`);
+      const focusMovedNumber = () => {
+        const movedNumber = getListItemsInOrder()[newPos - 1]?.querySelector('.item-number');
+        if (movedNumber) movedNumber.focus();
+      };
+      if (fromEnter) {
+        focusMovedNumber();
+      } else {
+        // A click or Tab lands its focus after this change event, so wait
+        // for it before deciding whether focus was lost.
+        setTimeout(() => {
+          const active = document.activeElement;
+          if (!active || active === document.body || !active.isConnected) focusMovedNumber();
+        }, 0);
+      }
+    };
+    itemNumber.addEventListener('change', () => commitPosition(false));
     
     // Select all text on focus for easy editing
     itemNumber.addEventListener('focus', () => {
@@ -2146,7 +2173,8 @@ const BooklistApp = (function() {
     // Prevent invalid characters
     itemNumber.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        itemNumber.blur();
+        e.preventDefault();
+        commitPosition(true);
       }
     });
     
