@@ -1733,11 +1733,15 @@ body > .list-item.sortable-fallback {
 }
 body > .list-item.sortable-fallback > * { zoom: var(--drag-zoom, 1); }
 body > .list-item.sortable-fallback > .list-item-controls { display: none; }
-/* No text selection while a title is dragged; see onStart in app.js. */
+/* No text selection while a title is dragged, and one cursor throughout:
+   without the override the pointer flipped to a text bar over every
+   title field and a hand over every cover box it crossed. See onStart in
+   app.js. */
 body.is-dragging-title,
 body.is-dragging-title * {
   -webkit-user-select: none;
   user-select: none;
+  cursor: grabbing !important;
 }
 
 /* --- DRAG CONTROLS --- */

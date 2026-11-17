@@ -2679,6 +2679,35 @@ const BooklistApp = (function() {
     });
   }
 
+  /**
+   * Keep five titles on each inside page while a title is dragged. Without
+   * this the placeholder joins its new page as a sixth block and squeezes
+   * everything there until the drop redistributes the list. Order is never
+   * changed, only which page a block sits on, so this previews exactly what
+   * the drop will render. The placeholder itself may move to the
+   * neighbouring page; onMove below stops Sortable from moving it straight
+   * back, which would otherwise flicker on every pointer move.
+   */
+  function rebalancePanelsDuringDrag() {
+    const items = getListItemsInOrder();
+    const per = CONFIG.SLOTS_PER_INSIDE_PANEL;
+    const layout = [
+      [elements.insideLeftPanel, items.slice(0, per), null],
+      [elements.insideRightPanel, items.slice(per, per * 2), null],
+      [elements.backCoverPanel, items.slice(per * 2), elements.qrCodeArea],
+    ];
+    layout.forEach(([panel, wanted, before]) => {
+      const current = Array.from(panel.querySelectorAll(':scope > .list-item'));
+      const same = current.length === wanted.length && current.every((el, i) => el === wanted[i]);
+      if (!same) wanted.forEach(el => panel.insertBefore(el, before));
+      wanted.forEach(el => {
+        const controls = el.querySelector('.list-item-controls');
+        if (controls) controls.classList.toggle('controls-right', panel === elements.insideRightPanel);
+      });
+    });
+    updateBackCoverVisibility();
+  }
+
   let _reorderStatusTimer = null;
   /** Speak a reorder result through the polite #reorder-status region. */
   function announceReorder(message) {
@@ -9108,7 +9137,7 @@ const BooklistApp = (function() {
         // sweeps over partway through the drag, lighting up every title
         // along the way (Sortable only prevents it on Safari).
         document.body.classList.add('is-dragging-title');
-        try { window.getSelection().removeAllRanges(); } catch (e) { /* no selection API */ }
+        try { window.getSelection().removeAllRanges(); } catch { /* no selection API */ }
         // Folio: watch the drag
         if (window.folio) window.folio.react('watch');
       },
@@ -9123,12 +9152,26 @@ const BooklistApp = (function() {
       // The placeholder moved: show every block's landing number now, and
       // put its controls on the side its current page uses (the right
       // inside page carries them on the right).
-      onChange: function(evt) {
-        const controls = evt.item.querySelector('.list-item-controls');
-        if (controls) controls.classList.toggle('controls-right', evt.item.parentElement === elements.insideRightPanel);
+      onChange: function() {
+        rebalancePanelsDuringDrag();
         renumberListItems();
       },
-      onEnd: function(evt) {
+      // Refuse a move that would leave the title at the same list
+      // position. After a rebalance the placeholder can sit at the bottom
+      // of one page while the pointer is over the top of the next; both
+      // spots are the same position, and letting Sortable hop between them
+      // made the blocks flicker.
+      onMove: function(evt) {
+        if (!evt.related || !evt.related.classList.contains('list-item')) return true;
+        const order = getListItemsInOrder();
+        const current = order.indexOf(evt.dragged);
+        const others = order.filter(el => el !== evt.dragged);
+        const r = others.indexOf(evt.related);
+        if (current < 0 || r < 0) return true;
+        const next = evt.willInsertAfter ? r + 1 : r;
+        return next === current ? false : true;
+      },
+      onEnd: function() {
         document.body.classList.remove('is-dragging-title');
         if (window.folio) window.folio.stopWatch();
         const newBooklist = getListItemsInOrder()
@@ -9141,8 +9184,9 @@ const BooklistApp = (function() {
         // leave blocks redistributed, so re-render only in that case.
         const unchanged = newBooklist.every((b, i) => b === myBooklist[i]);
         if (unchanged) {
-          if (evt.from !== evt.to) renderBooklist();
-          else renumberListItems();
+          // The live rebalance already left every block on its page.
+          rebalancePanelsDuringDrag();
+          renumberListItems();
           return;
         }
 
