@@ -145,6 +145,25 @@ browser.contextMenus.onClicked.addListener((info) => {
 // Image-fetch proxy for the content script
 // ---------------------------------------------------------------------------
 
+// The cover URL comes from the catalog page's own state blob, which is
+// page-controlled data, so this proxy only fetches from the cover hosts
+// the manifest already grants (and never the gateway API), only image
+// types, and only up to a size no real cover approaches. Plain http is
+// still accepted on those hosts because older Syndetics links use it.
+const COVER_HOST_SUFFIXES = ['syndetics.com', 'hoopladigital.com', 'bibliocommons.com'];
+const BLOCKED_COVER_HOSTS = ['gateway.bibliocommons.com'];
+const COVER_TYPES = /^image\/(jpe?g|png|gif|webp)$/i;
+const MAX_COVER_BYTES = 5 * 1024 * 1024; // real covers are ~30-500 KB
+
+function isAllowedCoverUrl(url) {
+  let u;
+  try { u = new URL(url); } catch { return false; }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+  const host = u.hostname.toLowerCase();
+  if (BLOCKED_COVER_HOSTS.includes(host)) return false;
+  return COVER_HOST_SUFFIXES.some((d) => host === d || host.endsWith('.' + d));
+}
+
 /**
  * The content script can't reliably fetch cover images directly: cover
  * providers like Syndetics are cross-origin to the BiblioCommons page,
@@ -162,14 +181,18 @@ browser.contextMenus.onClicked.addListener((info) => {
  * is fine for typical cover sizes (~30-80 KB).
  */
 async function fetchImageAsDataUrl(url) {
-  if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
+  if (typeof url !== 'string' || !isAllowedCoverUrl(url)) {
     return { ok: false, reason: 'invalid-url' };
   }
   try {
     const resp = await fetch(url, { credentials: 'omit' });
     if (!resp.ok) return { ok: false, reason: 'http-' + resp.status };
+    const declared = Number(resp.headers.get('content-length'));
+    if (declared > MAX_COVER_BYTES) return { ok: false, reason: 'too-large' };
     const blob = await resp.blob();
-    if (!blob.type.startsWith('image/')) {
+    if (blob.size > MAX_COVER_BYTES) return { ok: false, reason: 'too-large' };
+    const mime = blob.type.split(';')[0].trim().toLowerCase();
+    if (!COVER_TYPES.test(mime)) {
       // Defensive: if the server returns text/html (a 200 error page
       // disguised as HTTP success) we'd otherwise embed garbage.
       return { ok: false, reason: 'not-an-image' };
@@ -181,15 +204,17 @@ async function fetchImageAsDataUrl(url) {
       binary += String.fromCharCode(bytes[i]);
     }
     const base64 = btoa(binary);
-    return { ok: true, dataUrl: `data:${blob.type};base64,${base64}` };
+    return { ok: true, dataUrl: `data:${mime};base64,${base64}` };
   } catch (err) {
     console.warn('[Booklister Helper] cover fetch failed:', err);
     return { ok: false, reason: 'fetch-failed' };
   }
 }
 
-browser.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === 'fetch-image-as-data-url') {
+    // Only this extension's own content scripts and pages may use the proxy.
+    if (sender?.id !== browser.runtime.id) return false;
     fetchImageAsDataUrl(msg.url).then(sendResponse).catch(() => sendResponse({ ok: false, reason: 'exception' }));
     return true; // keep the channel open for the async response
   }

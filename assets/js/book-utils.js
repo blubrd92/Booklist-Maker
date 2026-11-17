@@ -907,6 +907,31 @@
      * extend this function so the restored-toast keeps firing for
      * drafts that contain only the new field.
      */
+    /**
+     * Vet an image address read from a saved draft or a .booklist file
+     * before it reaches an <img src>. Mirrors the Quick Add cover rule
+     * (http(s) or data:image), plus relative paths, which branded
+     * instances use for their logo (assets/img/libraries/<id>/logo.png).
+     * Any other scheme (javascript:, data:text/html, file:, blob:, ...)
+     * and any non-string returns null, which callers treat as "no image".
+     *
+     * This is scheme hygiene, not a host allowlist: a hand-made Quick Add
+     * paste can legitimately store a hotlinked https cover, and a saved
+     * list carrying one must keep loading it.
+     */
+    sanitizeImageSrc: function(value) {
+      if (typeof value !== 'string') return null;
+      const v = value.trim();
+      if (!v) return null;
+      if (/^https?:\/\//i.test(v)) return v;
+      if (/^data:image\//i.test(v)) return v;
+      // No scheme at all: a relative or root-relative path (same origin).
+      // "//host/path" is protocol-relative, i.e. an external https fetch,
+      // which is no different from an https:// URL, so it is allowed too.
+      if (!/^[a-z][a-z0-9+.-]*:/i.test(v)) return v;
+      return null;
+    },
+
     isDraftStateEffectivelyEmpty: function(state) {
       if (!state) return true;
       const books = Array.isArray(state.books) ? state.books : [];

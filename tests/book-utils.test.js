@@ -1995,3 +1995,38 @@ describe('BookUtils.cutJigsawSeams', () => {
     expect(a[0].pieces[0].right.knob.y).toBe(b[0].pieces[0].right.knob.y);
   });
 });
+
+describe('sanitizeImageSrc', () => {
+  const s = (v) => BookUtils.sanitizeImageSrc(v);
+
+  it('keeps http(s) and data:image addresses', () => {
+    expect(s('https://covers.openlibrary.org/b/id/1-L.jpg')).toBe('https://covers.openlibrary.org/b/id/1-L.jpg');
+    expect(s('http://example.org/a.png')).toBe('http://example.org/a.png');
+    expect(s('data:image/jpeg;base64,AAAA')).toBe('data:image/jpeg;base64,AAAA');
+    expect(s('DATA:IMAGE/PNG;base64,AAAA')).toBe('DATA:IMAGE/PNG;base64,AAAA');
+  });
+
+  it('keeps relative paths (branded logos) and IndexedDB image refs', () => {
+    expect(s('assets/img/libraries/sanrafael/logo.png')).toBe('assets/img/libraries/sanrafael/logo.png');
+    expect(s('/assets/img/libraries/x/logo.png')).toBe('/assets/img/libraries/x/logo.png');
+    // The undo pipeline's ref prefix must never be read as a scheme.
+    expect(s('__idbimg:12')).toBe('__idbimg:12');
+  });
+
+  it('drops every other scheme', () => {
+    expect(s('javascript:alert(1)')).toBeNull();
+    expect(s(' JavaScript:alert(1)')).toBeNull();
+    expect(s('data:text/html,<script>x</script>')).toBeNull();
+    expect(s('file:///etc/passwd')).toBeNull();
+    expect(s('blob:https://x/1')).toBeNull();
+  });
+
+  it('returns null for empty and non-string input', () => {
+    expect(s('')).toBeNull();
+    expect(s('   ')).toBeNull();
+    expect(s(null)).toBeNull();
+    expect(s(undefined)).toBeNull();
+    expect(s(42)).toBeNull();
+    expect(s({ src: 'https://x' })).toBeNull();
+  });
+});

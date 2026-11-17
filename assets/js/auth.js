@@ -44,6 +44,8 @@ if (auth) {
     return 'Sign-in failed, please try again';
   }
 
+  const RESET_SENT_MESSAGE = 'If an account exists for that email, a password reset link is on its way. Check your inbox and spam folder.';
+
   let modalWired = false;
 
   function wireModalOnce(modalEl) {
@@ -133,10 +135,18 @@ if (auth) {
       try {
         const { sendPasswordResetEmail } = await authModPromise;
         await sendPasswordResetEmail(auth, email);
-        showResetOk('Password reset email sent. Check your inbox.');
+        showResetOk(RESET_SENT_MESSAGE);
       } catch (err) {
         console.warn('[auth] password reset failed:', err);
-        showError(mapAuthError(err));
+        // Same wording whether or not the account exists, so this form
+        // can't be used to check which emails have accounts. Only errors
+        // that say nothing about the account (rate limit, network) differ.
+        const code = err && err.code;
+        if (code === 'auth/too-many-requests' || code === 'auth/network-request-failed') {
+          showError(mapAuthError(err));
+        } else {
+          showResetOk(RESET_SENT_MESSAGE);
+        }
       }
     });
   }

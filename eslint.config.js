@@ -45,6 +45,8 @@ export default [
         crypto: "readonly",
         indexedDB: "readonly",
         globalThis: "readonly",
+        AbortController: "readonly",
+        CSS: "readonly",
         // CDN library globals
         Sortable: "readonly",
         jspdf: "readonly",

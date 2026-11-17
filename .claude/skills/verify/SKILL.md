@@ -23,10 +23,12 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 ## Gotcha: CDN scripts are blocked in the sandbox
 
 Sortable, jsPDF, html2canvas, QRCode load from CDNs that the remote
-sandbox can't reach. `new Sortable(...)` then throws mid-`init()` in
-app.js and **everything wired after it silently never runs** (including
-late-init registrations like Folio's context provider). Symptoms look
-like real bugs but aren't. Stub the globals before page scripts run:
+sandbox can't reach. The app now degrades when they are missing
+(`initializeSortable` warns and skips drag setup; `exportPdf` refuses
+with a message), so an unstubbed run is itself the test for that path:
+expect the "Drag-and-drop could not load" notification and a working
+autosave. To exercise drag or PDF code, stub the globals before page
+scripts run:
 
 ```js
 await context.addInitScript(() => {

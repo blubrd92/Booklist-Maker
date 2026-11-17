@@ -279,6 +279,32 @@ const BooklistApp = (function() {
   const FIT_HEIGHT_GAP_PX = 8;
   let currentZoom = 1.0;
 
+  /**
+   * fetch() with a time limit. On timeout it rejects with an Error whose
+   * name is 'TimeoutError', so callers can say "took too long" instead of
+   * "could not connect". AbortSignal.timeout is missing on older Safari,
+   * hence the manual controller.
+   */
+  function fetchWithTimeout(url, options = {}, ms) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { ...options, signal: controller.signal })
+      .catch(err => {
+        if (err && err.name === 'AbortError') {
+          const timeout = new Error('The request took too long. Please try again.');
+          timeout.name = 'TimeoutError';
+          throw timeout;
+        }
+        throw err;
+      })
+      .finally(() => clearTimeout(timer));
+  }
+
+  // Bumped on every search; a response that arrives after a newer search
+  // started is dropped, so a slow earlier query can't overwrite the
+  // results of a later one.
+  let _searchSeq = 0;
+
   // Search pagination state
   const searchPagination = {
     lastQuery: '',      // The full query string from the last search
@@ -999,14 +1025,14 @@ const BooklistApp = (function() {
     
     _pendingDescriptions.add(bookKey);
 
-    fetch(googleAppScriptUrl, {
+    fetchWithTimeout(googleAppScriptUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain;charset=utf-8',
       },
       body: JSON.stringify(payload),
       mode: 'cors'
-    })
+    }, CONFIG.DRAFTER_TIMEOUT_MS)
     .then(response => {
       if (!response.ok) {
         throw new Error(`Network error: ${response.status} ${response.statusText}`);
@@ -1074,7 +1100,7 @@ const BooklistApp = (function() {
     const editionsUrl = `https://openlibrary.org/works/${workId}/editions.json?limit=${CONFIG.OPEN_LIBRARY_EDITIONS_LIMIT}`;
     
     try {
-      const response = await fetch(editionsUrl, { mode: 'cors' });
+      const response = await fetchWithTimeout(editionsUrl, { mode: 'cors' }, CONFIG.OPEN_LIBRARY_TIMEOUT_MS);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       const coverIds = new Set();
@@ -1131,7 +1157,10 @@ const BooklistApp = (function() {
     // Folio: searching
     if (window.folio) window.folio.setState('searching', 'search-started');
 
-    fetch(apiUrl)
+    const seq = ++_searchSeq;
+    const isStale = () => seq !== _searchSeq;
+
+    fetchWithTimeout(apiUrl, {}, CONFIG.OPEN_LIBRARY_TIMEOUT_MS)
       .then(response => {
         if (!response.ok) {
           throw new Error(`Network response was not ok: ${response.statusText}`);
@@ -1139,8 +1168,9 @@ const BooklistApp = (function() {
         return response.json();
       })
       .then(data => {
+        if (isStale()) return;
         resultsContainer.innerHTML = '';
-        const books = data.docs;
+        const books = Array.isArray(data?.docs) ? data.docs : [];
         const totalResults = data.numFound || 0;
 
         // Update pagination state
@@ -1169,8 +1199,11 @@ const BooklistApp = (function() {
         resultsContainer.appendChild(paginationEl);
       })
       .catch(error => {
+        if (isStale()) return;
         console.error('There was a problem:', error);
-        resultsContainer.innerHTML = '<p class="error-message">Sorry, could not connect to the search server. Please check your network connection and try again.</p>';
+        resultsContainer.innerHTML = error?.name === 'TimeoutError'
+          ? '<p class="error-message">The search server took too long to answer. Please try again in a moment.</p>'
+          : '<p class="error-message">Sorry, could not connect to the search server. Please check your network connection and try again.</p>';
         // Folio: the connection dropping out from under him is a jolt:
         // tail straight up and bristled, then worried.
         if (window.folio) window.folio.celebrate({
@@ -1179,7 +1212,7 @@ const BooklistApp = (function() {
         });
       })
       .finally(() => {
-        setLoading(elements.fetchButton, false);
+        if (!isStale()) setLoading(elements.fetchButton, false);
       });
   }
   
@@ -1910,7 +1943,7 @@ const BooklistApp = (function() {
     const bookItem = myBooklist.find(b => b.key === bookKey);
     if (!bookItem) return false;
 
-    const listItem = document.querySelector('.list-item[data-id="' + bookKey + '"]');
+    const listItem = document.querySelector('.list-item[data-id="' + CSS.escape(bookKey) + '"]');
     if (!listItem) return false;
 
     const descField = listItem.querySelector('.description-field');
@@ -3188,7 +3221,7 @@ const BooklistApp = (function() {
 
     // Get cover sources from book block DOM elements (already loaded at large size)
     const bookBlockCovers = booksWithCovers.map(book => {
-      const listItem = document.querySelector('.list-item[data-id="' + book.key + '"]');
+      const listItem = document.querySelector('.list-item[data-id="' + CSS.escape(book.key) + '"]');
       const img = listItem?.querySelector('.cover-uploader img');
       if (img && img.naturalWidth > 0) {
         return { domImg: img, label: book.title };
@@ -5986,7 +6019,7 @@ const BooklistApp = (function() {
     resultsContainer.innerHTML = '<p class="modal-search-placeholder">Searching...</p>';
     
     try {
-      const response = await fetch(`${CONFIG.OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(query)}&limit=15`);
+      const response = await fetchWithTimeout(`${CONFIG.OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(query)}&limit=15`, {}, CONFIG.OPEN_LIBRARY_TIMEOUT_MS);
       if (!response.ok) throw new Error('Search failed');
       
       const data = await response.json();
@@ -7449,6 +7482,12 @@ const BooklistApp = (function() {
 
   async function exportPdf() {
     if (isExportingPdf) return;
+    // jsPDF and html2canvas come from a CDN; say so plainly when either
+    // is missing rather than failing on an undefined global mid-export.
+    if (!window.jspdf?.jsPDF || typeof window.html2canvas !== 'function') {
+      showNotification('The PDF tools could not load. Check your connection and reload the page, then try again. Your list is safe.', 'error');
+      return;
+    }
     isExportingPdf = true;
     setLoading(elements.exportPdfButton, true, 'Generating...');
     
@@ -8085,7 +8124,7 @@ const BooklistApp = (function() {
     extraCollageCovers = Array.isArray(loaded.extraCollageCovers)
       ? loaded.extraCollageCovers.map(ec => ({
           id: ec.id || `extra-${crypto.randomUUID()}`,
-          coverData: ec.coverData || null
+          coverData: BookUtils.sanitizeImageSrc(ec.coverData)
         })).filter(ec => ec.coverData)
       : [];
 
@@ -8147,18 +8186,18 @@ const BooklistApp = (function() {
       : loaded.styles);
     
     // Images
-    applyUploaderImage(elements.frontCoverUploader, loaded.images?.frontCover || null);
+    applyUploaderImage(elements.frontCoverUploader, BookUtils.sanitizeImageSrc(loaded.images?.frontCover));
     // Restore isAutoGenerated flag for front cover
     const frontCoverImg = elements.frontCoverUploader?.querySelector('img');
     if (frontCoverImg) {
       frontCoverImg.dataset.isAutoGenerated = loaded.images?.frontCoverIsAutoGenerated ? 'true' : 'false';
     }
-    applyUploaderImage(elements.brandingUploader, normalizeBrandingUrl(loaded.images?.branding || null));
+    applyUploaderImage(elements.brandingUploader, normalizeBrandingUrl(BookUtils.sanitizeImageSrc(loaded.images?.branding)));
 
     // Custom QR override (if any). _applyCustomQr / _clearCustomQr are
     // populated by setupQrUploaderHandler() at init; safe to call
     // either way.
-    const customQr = loaded.images?.customQr || null;
+    const customQr = BookUtils.sanitizeImageSrc(loaded.images?.customQr);
     if (customQr) {
       _applyCustomQr(customQr);
     } else {
@@ -8178,16 +8217,18 @@ const BooklistApp = (function() {
       if (shouldStar) starCount++;
       
       return {
-        key: b.key,
+        // A file can carry anything here; coerce so later string calls
+        // (.startsWith, .includes, querySelector by key) cannot throw.
+        key: (typeof b.key === 'string' && b.key) ? b.key : 'loaded-' + crypto.randomUUID(),
         isBlank: !!b.isBlank,
-        title: b.title ?? CONFIG.PLACEHOLDERS.title,
-        author: b.author ?? CONFIG.PLACEHOLDERS.author,
-        callNumber: b.callNumber ?? CONFIG.PLACEHOLDERS.callNumber,
-        authorDisplay: b.authorDisplay || null,
-        description: b.description ?? CONFIG.PLACEHOLDERS.description,
+        title: typeof b.title === 'string' ? b.title : CONFIG.PLACEHOLDERS.title,
+        author: typeof b.author === 'string' ? b.author : CONFIG.PLACEHOLDERS.author,
+        callNumber: typeof b.callNumber === 'string' ? b.callNumber : CONFIG.PLACEHOLDERS.callNumber,
+        authorDisplay: typeof b.authorDisplay === 'string' && b.authorDisplay ? b.authorDisplay : null,
+        description: typeof b.description === 'string' ? b.description : CONFIG.PLACEHOLDERS.description,
         cover_ids: Array.isArray(b.cover_ids) ? b.cover_ids : [],
         currentCoverIndex: typeof b.currentCoverIndex === 'number' ? b.currentCoverIndex : 0,
-        customCoverData: b.customCoverData || null,
+        customCoverData: BookUtils.sanitizeImageSrc(b.customCoverData),
         includeInCollage: shouldStar,
       };
     });
@@ -8595,6 +8636,16 @@ const BooklistApp = (function() {
   // Drag and Drop (Sortable)
   // ---------------------------------------------------------------------------
   function initializeSortable() {
+    // Sortable comes from a CDN. If it was blocked (a content filter, an
+    // outage, an integrity mismatch), `new Sortable` would throw here and
+    // abort init() before the draft restore runs, which leaves autosave
+    // suppressed for the whole session with no warning. Degrade instead:
+    // dragging is unavailable, everything else (including saving) works.
+    if (typeof Sortable !== 'function') {
+      console.warn('[Booklister] Sortable did not load; drag-to-reorder is disabled.');
+      showNotification('Drag-and-drop could not load, so dragging titles won\'t work right now. Everything else, including saving, still works. Reloading the page may fix it.', 'error', false);
+      return;
+    }
     const sortableOptions = {
       group: 'shared-list',
       handle: '.drag-handle',

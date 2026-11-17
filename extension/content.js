@@ -254,13 +254,18 @@
   function flattenItems(holdingsResponse) {
     const items = holdingsResponse?.entities?.bibItems;
     if (!items || typeof items !== 'object') return [];
-    return Object.values(items).map((it) => ({
-      branchName: it.branch?.name || it.branchName || '',
-      branchCode: it.branch?.code || '',
-      callNumber: it.callNumber || '',
-      statusType: it.availability?.statusType || '',
-      local: !!it.local,
-    }));
+    // Coerce every field: one odd item (null, a numeric code) from an API
+    // change must not throw and sink the whole list capture.
+    const str = (v) => (v == null ? '' : String(v));
+    return Object.values(items)
+      .filter((it) => it && typeof it === 'object')
+      .map((it) => ({
+        branchName: str(it.branch?.name || it.branchName),
+        branchCode: str(it.branch?.code),
+        callNumber: str(it.callNumber),
+        statusType: str(it.availability?.statusType),
+        local: !!it.local,
+      }));
   }
 
   /**
@@ -323,6 +328,25 @@
    * the best call number per the user's preferred branch, and format
    * a single TSV row. Used by both single-record and list-page modes.
    */
+  // A 50-title list used to fire 50 holdings requests and 50 cover
+  // fetches at once; six at a time is what a browser allows per host
+  // anyway, and it keeps the catalog's gateway from rate-limiting us.
+  const CAPTURE_CONCURRENCY = 6;
+
+  /** Like Promise.all over items.map(fn), but at most `limit` in flight. Keeps order. */
+  async function mapWithConcurrency(items, limit, fn) {
+    const results = new Array(items.length);
+    let next = 0;
+    async function worker() {
+      while (next < items.length) {
+        const i = next++;
+        results[i] = await fn(items[i]);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    return results;
+  }
+
   async function captureOneBibToTsvRow(libraryDomain, brief, preferredBranch) {
     let callNumber = brief.fallbackCallNumber || '';
     const [holdings, coverDataUrl] = await Promise.all([
@@ -330,9 +354,15 @@
       fetchCoverAsDataUrl(brief.coverUrl),
     ]);
     if (holdings) {
-      const items = flattenItems(holdings);
-      const picked = pickItem(items, preferredBranch);
-      if (picked && picked.callNumber) callNumber = picked.callNumber;
+      try {
+        const items = flattenItems(holdings);
+        const picked = pickItem(items, preferredBranch);
+        if (picked && picked.callNumber) callNumber = picked.callNumber;
+      } catch (err) {
+        // Unexpected holdings shape: keep the listed call number rather
+        // than failing this title (and, via the list, every title).
+        console.warn('[Booklister Helper] holdings parse failed; using listed call number:', err);
+      }
     }
     const fullTitle = buildTitle(brief.title, brief.subTitle);
     return buildTsvRow(fullTitle, brief.author, callNumber, coverDataUrl);
@@ -666,8 +696,8 @@
     showToast(`Capturing ${bibs.length} titles, this may take a few seconds. Stay on this tab until you see the confirmation.`, 'info', 10000);
 
     const pref = await readPreferredBranch();
-    const rowPromises = bibs.map((b) => captureOneBibToTsvRow(libraryDomain, b, pref));
-    const rows = await Promise.all(rowPromises);
+    const rows = await mapWithConcurrency(bibs, CAPTURE_CONCURRENCY,
+      (b) => captureOneBibToTsvRow(libraryDomain, b, pref));
 
     const tsv = rows.join('\n');
     const noun = rows.length === 1 ? 'title' : 'titles';
@@ -749,6 +779,7 @@
     if (msg?.type === 'capture') {
       handleCapture().then(sendResponse).catch((err) => {
         console.error('[Booklister Helper] capture failed:', err);
+        showToast('Capture failed. Reload the page and try again.', 'error');
         sendResponse({ ok: false, reason: 'exception' });
       });
       return true; // keep channel open for async response
@@ -758,6 +789,7 @@
       // the time we get here, so there's no sender to respond to.
       handleListCapture(Array.isArray(msg.bibIds) ? msg.bibIds : []).catch((err) => {
         console.error('[Booklister Helper] selected-capture failed:', err);
+        showToast('Capture failed. Reload the page and try again.', 'error');
       });
       return false;
     }

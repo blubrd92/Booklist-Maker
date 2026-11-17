@@ -141,6 +141,11 @@ describe('CONFIG value constraints', () => {
     expect(globalThis.CONFIG.AUTOSAVE_DEBOUNCE_MS).toBeLessThan(5000);
   });
 
+  it('network timeouts are positive and the drafter outlasts its own 45s budget', () => {
+    expect(globalThis.CONFIG.OPEN_LIBRARY_TIMEOUT_MS).toBeGreaterThan(0);
+    expect(globalThis.CONFIG.DRAFTER_TIMEOUT_MS).toBeGreaterThan(45000);
+  });
+
   it('NOTIFICATION_DURATION_MS is positive', () => {
     expect(globalThis.CONFIG.NOTIFICATION_DURATION_MS).toBeGreaterThan(0);
   });

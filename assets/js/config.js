@@ -62,6 +62,13 @@
     // awaiting library config) before the oldest are dropped.
     MAX_DEFERRED_NOTIFICATIONS: 10,
     AUTOSAVE_DEBOUNCE_MS: 400,
+    // Network time limits. Without one a stalled request leaves search
+    // saying "Searching..." or a title's Magic button disabled forever
+    // (Safari has no default fetch timeout). The drafter normally answers
+    // in 11-25s and its own budget stops polish at 45s, so 90s only ends
+    // a genuine stall.
+    OPEN_LIBRARY_TIMEOUT_MS: 30000,
+    DRAFTER_TIMEOUT_MS: 90000,
     PDF_RENDER_DELAY_MS: 300,
     // Font dropdown type-ahead: pause longer than this and the typed
     // buffer resets, so the next keystroke starts a fresh match.
