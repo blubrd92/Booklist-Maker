@@ -1,7 +1,9 @@
 // Cache-busting stamper for the site's own CSS and JS.
 //
 //   npm run stamp            hash every local stylesheet/script the HTML
-//                            pages load and write ?v=<hash> onto their tags
+//                            pages load and write ?v=<hash> onto their tags,
+//                            and refresh the inline-script hashes in any
+//                            page's Content-Security-Policy <meta>
 //   npm run stamp -- --check verify the committed tokens are current;
 //                            writes nothing, exits 1 on drift
 //
@@ -103,6 +105,54 @@ export function applyAssetVersions(html, versionFor) {
   return { html: out, stamped, bare };
 }
 
+const CSP_META = /(<meta\s+http-equiv=["']Content-Security-Policy["']\s+content=")([^"]*)("\s*\/?>)/i;
+
+/**
+ * The CSP hash of one inline script, exactly as a browser computes it:
+ * SHA-256 over the script's text, base64. The HTML parser turns CRLF into
+ * LF before the script text exists, so a Windows checkout hashes the same.
+ * @param {string} text  the characters between <script> and </script>
+ */
+export function cspScriptHash(text) {
+  return "'sha256-" + createHash('sha256').update(text.replace(/\r\n?/g, '\n'), 'utf8').digest('base64') + "'";
+}
+
+/**
+ * Keep a page's Content-Security-Policy in step with its inline scripts.
+ * If the page has a CSP <meta>, its script-src gets exactly one hash per
+ * inline classic script (stale hashes are dropped); everything else in the
+ * policy is left as written. A page without the meta is returned as is.
+ *
+ * This is what makes editing an inline script safe: without a matching
+ * hash the browser silently refuses to run it, and on index.html those
+ * scripts are the admin redirect and the branded-host check. The committed
+ * check in tests/asset-version.test.js fails until `npm run stamp` is run.
+ *
+ * @param {string} html
+ * @returns {{html: string, hashes: string[]}}
+ */
+export function applyCspHashes(html) {
+  if (!CSP_META.test(html)) return { html, hashes: [] };
+  const hashes = [];
+  for (const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    const attrs = m[1];
+    if (/\ssrc\s*=/i.test(attrs)) continue;
+    const type = (attrs.match(/\stype\s*=\s*["']([^"']*)["']/i) || [])[1];
+    if (type && !/^(text\/javascript|module)$/i.test(type)) continue; // data blocks never run
+    const hash = cspScriptHash(m[2]);
+    if (!hashes.includes(hash)) hashes.push(hash);
+  }
+  const out = html.replace(CSP_META, (whole, pre, policy, post) => {
+    const directives = policy.split(';').map(d => d.trim()).filter(Boolean).map(d => {
+      const parts = d.split(/\s+/);
+      if (parts[0].toLowerCase() !== 'script-src') return d;
+      return parts.filter(t => !/^'sha(256|384|512)-/.test(t)).concat(hashes).join(' ');
+    });
+    return pre + directives.join('; ') + post;
+  });
+  return { html: out, hashes };
+}
+
 /**
  * Stamp one HTML file's contents using the real files on disk.
  * @param {string} htmlRel  repo-relative path of the page
@@ -126,7 +176,8 @@ export async function stampHtml(htmlRel, html, root = ROOT) {
       tokens.set(file, null);
     }
   }
-  return { ...applyAssetVersions(html, (file) => tokens.get(file)), missing };
+  const versioned = applyAssetVersions(html, (file) => tokens.get(file));
+  return { ...versioned, html: applyCspHashes(versioned.html).html, missing };
 }
 
 async function main() {

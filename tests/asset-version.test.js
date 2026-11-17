@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
-  applyAssetVersions, assetHash, stampHtml, HTML_FILES, UNVERSIONED,
+  applyAssetVersions, applyCspHashes, cspScriptHash, assetHash, stampHtml, HTML_FILES, UNVERSIONED,
 } from '../tools/asset-version/stamp.mjs';
 
 describe('applyAssetVersions', () => {
@@ -44,6 +44,30 @@ describe('applyAssetVersions', () => {
   });
 });
 
+describe('applyCspHashes', () => {
+  const meta = (policy) => `<meta http-equiv="Content-Security-Policy" content="${policy}">`;
+
+  it('computes the hash a browser expects (known vector)', () => {
+    // Checked independently: printf 'alert(1)' | openssl dgst -sha256 -binary | base64
+    expect(cspScriptHash('alert(1)')).toBe("'sha256-bhHHL3z2vDgxUt0W3dWQOrprscmda2Y5pLsLg4GF+pI='");
+    expect(cspScriptHash('a\r\nb')).toBe(cspScriptHash('a\nb'));
+  });
+
+  it('writes one hash per inline script into script-src and replaces stale ones', () => {
+    const html = meta("script-src 'self' 'sha256-stale='; object-src 'none'")
+      + '<script>one()</script><script src="x.js"></script><script type="application/ld+json">{}</script><script>two()</script>';
+    const out = applyCspHashes(html).html;
+    expect(out).toContain(`script-src 'self' ${cspScriptHash('one()')} ${cspScriptHash('two()')}; object-src 'none'`);
+    expect(out).not.toContain('stale');
+    expect(applyCspHashes(out).html).toBe(out); // idempotent
+  });
+
+  it('leaves a page without a CSP meta untouched', () => {
+    const html = '<script>one()</script>';
+    expect(applyCspHashes(html).html).toBe(html);
+  });
+});
+
 describe('assetHash', () => {
   it('is 10 hex characters and ignores CRLF vs LF', () => {
     expect(assetHash('a\nb')).toMatch(/^[0-9a-f]{10}$/);
@@ -62,6 +86,8 @@ describe('assetHash', () => {
 describe('committed cache-busting tokens', () => {
   const root = resolve(__dirname, '..');
 
+  // Also covers index.html's CSP: an inline script edited without a
+  // re-stamp leaves a hash the browser would refuse, and fails here.
   it.each(HTML_FILES)('%s is stamped and current (run `npm run stamp` if this fails)', async (rel) => {
     const html = readFileSync(resolve(root, rel), 'utf8');
     const { html: expected, missing } = await stampHtml(rel, html, root);

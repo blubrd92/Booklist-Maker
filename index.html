@@ -5,6 +5,22 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+CiAgPCEtLSBEb2N1bWVudCBib2R5IC0tPgogIDxyZWN0IHg9IjQiIHk9IjIiIHdpZHRoPSIyNCIgaGVpZ2h0PSIyOCIgcng9IjIiIGZpbGw9IiNmZmYiIHN0cm9rZT0iIzVjNmJjMCIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPCEtLSBUb3Agcm93IG9mIGJvb2sgY292ZXJzIC0tPgogIDxyZWN0IHg9IjciIHk9IjYuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiM1YzZiYzAiLz4KICA8cmVjdCB4PSIxMy41IiB5PSI2LjUiIHdpZHRoPSI1IiBoZWlnaHQ9IjYiIHJ4PSIxIiBmaWxsPSIjNWM2YmMwIi8+CiAgPHJlY3QgeD0iMjAiIHk9IjYuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiM1YzZiYzAiLz4KICA8IS0tIEhvcml6b250YWwgYmFyIGJldHdlZW4gcm93cyAtIGFjY2VudCAtLT4KICA8cmVjdCB4PSI3IiB5PSIxNC41IiB3aWR0aD0iMTgiIGhlaWdodD0iMyIgcng9IjEiIGZpbGw9IiNkMzJmMmYiLz4KICA8IS0tIEJvdHRvbSByb3cgb2YgYm9vayBjb3ZlcnMgLS0+CiAgPHJlY3QgeD0iNyIgeT0iMTkuNSIgd2lkdGg9IjUiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiM1YzZiYzAiLz4KICA8cmVjdCB4PSIxMy41IiB5PSIxOS41IiB3aWR0aD0iNSIgaGVpZ2h0PSI2IiByeD0iMSIgZmlsbD0iIzVjNmJjMCIvPgogIDxyZWN0IHg9IjIwIiB5PSIxOS41IiB3aWR0aD0iNSIgaGVpZ2h0PSI2IiByeD0iMSIgZmlsbD0iIzVjNmJjMCIvPgo8L3N2Zz4K">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#37474f">
+  <!-- Content-Security-Policy: limits where scripts may come from, so a
+       future injection bug could not run code from anywhere else. Only
+       script-src is restricted (images, fonts, styles and connections are
+       left open on purpose: covers can come from any https host).
+         'self'                     this site's own files
+         cdnjs.cloudflare.com       Sortable, QRCode, jsPDF, html2canvas
+         static.cloudflareinsights  the analytics beacon (analytics.js)
+         www.gstatic.com            Firebase SDK, branded instances only
+         apis.google.com            loaded by Firebase Auth itself on Safari
+                                    and mobile (index-*.js _shouldInitProactively)
+         'sha256-...'               this page's inline scripts. WRITTEN BY
+                                    `npm run stamp`, never by hand: edit an
+                                    inline script, then re-stamp, or the
+                                    browser refuses to run it.
+       No inline event handlers (onclick=...) are allowed; wire them in JS. -->
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com https://www.gstatic.com https://apis.google.com 'sha256-ARF4fjZteOT/7jGMCEEuN91n0nNUmVPgt5g5TaFk71k=' 'sha256-VKY0wHWGm/bX8NpJHbZgEuaUTEq/07F5zBkGHPIyT5w=' 'sha256-9+DOaMo54BSXSekKyP0RFNpB1XQyjkhNvB1q2aa8SJk='; object-src 'none'; base-uri 'self'">
   <meta name="description" content="Booklister is a free browser tool for making printable booklists for library displays. Pulls book info, builds cover collages, exports a bifold PDF.">
   <link rel="canonical" href="https://booklister.org/">
   <meta property="og:type" content="website">
@@ -80,7 +96,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
   </template>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous">
+  <!-- Icons: non-blocking like the fonts below, so first paint does not
+       wait on ~100 KB of CSS. Icons appear a moment after the rest of the
+       page on a first visit. -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous" media="print" data-async-css>
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous"></noscript>
 
   <!-- ?v= cache-busting token on every local CSS/JS file on this page: a
        hash of that file's contents, written by `npm run stamp`
@@ -101,9 +121,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Loaded without blocking first paint: the UI chrome uses system
        fonts, so nothing needs to wait for these. media="print" makes the
-       browser fetch it at low priority; onload switches it on. Canvas
+       browser fetch it at low priority, and app.js switches it on once
+       loaded (data-async-css; an inline onload would need the CSP to
+       allow inline handlers). Canvas
        drawing waits for it explicitly (fontStylesheetReady in app.js). -->
-  <link id="google-fonts-css" href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Alfa+Slab+One&family=Amatic+SC:wght@400;700&family=Anton&family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Bangers&family=Bebas+Neue&family=Bitter:ital,wght@0,400;0,700;1,400;1,700&family=Bungee&family=Caveat:wght@400;700&family=Cinzel:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Creepster&family=Crimson+Text:ital,wght@0,400;0,700;1,400;1,700&family=Dancing+Script:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Fredoka:wght@400;700&family=Inter:ital,wght@0,400;0,700;1,400;1,700&family=Josefin+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lobster&family=Lora:ital,wght@0,400;0,700;1,400;1,700&family=Luckiest+Guy&family=Merriweather:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&family=Nunito:ital,wght@0,400;0,700;1,400;1,700&family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Oswald:wght@400;700&family=Pacifico&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Poppins:ital,wght@0,400;0,700;1,400;1,700&family=Quicksand:wght@400;700&family=Raleway:ital,wght@0,400;0,700;1,400;1,700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&family=Roboto+Slab:wght@400;700&family=Source+Sans+3:ital,wght@0,400;0,700;1,400;1,700&family=Special+Elite&family=Staatliches&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <link id="google-fonts-css" href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Alfa+Slab+One&family=Amatic+SC:wght@400;700&family=Anton&family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Bangers&family=Bebas+Neue&family=Bitter:ital,wght@0,400;0,700;1,400;1,700&family=Bungee&family=Caveat:wght@400;700&family=Cinzel:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Creepster&family=Crimson+Text:ital,wght@0,400;0,700;1,400;1,700&family=Dancing+Script:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Fredoka:wght@400;700&family=Inter:ital,wght@0,400;0,700;1,400;1,700&family=Josefin+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lobster&family=Lora:ital,wght@0,400;0,700;1,400;1,700&family=Luckiest+Guy&family=Merriweather:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&family=Nunito:ital,wght@0,400;0,700;1,400;1,700&family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Oswald:wght@400;700&family=Pacifico&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Poppins:ital,wght@0,400;0,700;1,400;1,700&family=Quicksand:wght@400;700&family=Raleway:ital,wght@0,400;0,700;1,400;1,700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&family=Roboto+Slab:wght@400;700&family=Source+Sans+3:ital,wght@0,400;0,700;1,400;1,700&family=Special+Elite&family=Staatliches&display=swap" rel="stylesheet" media="print" data-async-css>
   <noscript><link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Alfa+Slab+One&family=Amatic+SC:wght@400;700&family=Anton&family=Arvo:ital,wght@0,400;0,700;1,400;1,700&family=Bangers&family=Bebas+Neue&family=Bitter:ital,wght@0,400;0,700;1,400;1,700&family=Bungee&family=Caveat:wght@400;700&family=Cinzel:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Creepster&family=Crimson+Text:ital,wght@0,400;0,700;1,400;1,700&family=Dancing+Script:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Fredoka:wght@400;700&family=Inter:ital,wght@0,400;0,700;1,400;1,700&family=Josefin+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lobster&family=Lora:ital,wght@0,400;0,700;1,400;1,700&family=Luckiest+Guy&family=Merriweather:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&family=Nunito:ital,wght@0,400;0,700;1,400;1,700&family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Oswald:wght@400;700&family=Pacifico&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Poppins:ital,wght@0,400;0,700;1,400;1,700&family=Quicksand:wght@400;700&family=Raleway:ital,wght@0,400;0,700;1,400;1,700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&family=Roboto+Slab:wght@400;700&family=Source+Sans+3:ital,wght@0,400;0,700;1,400;1,700&family=Special+Elite&family=Staatliches&display=swap" rel="stylesheet"></noscript>
 
   <!-- Cloudflare Web Analytics (cookieless). Self-gates to the public
@@ -175,19 +197,19 @@
     <aside class="sidebar" role="complementary" aria-label="Search and customization sidebar">
 
       <div class="sidebar-tabs" role="tablist">
-        <button class="tab-btn active" onclick="openTab(event, 'tab-search')" role="tab" aria-selected="true" aria-controls="tab-search">
+        <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-search">
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
           <span class="tab-btn-label">Search</span>
         </button>
-        <button class="tab-btn" onclick="openTab(event, 'tab-text-styling')" role="tab" aria-selected="false" aria-controls="tab-text-styling">
+        <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-text-styling">
           <i class="fa-solid fa-font" aria-hidden="true"></i>
           <span class="tab-btn-label">Text Styling</span>
         </button>
-        <button class="tab-btn" onclick="openTab(event, 'tab-front-cover')" role="tab" aria-selected="false" aria-controls="tab-front-cover">
+        <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-front-cover">
           <i class="fa-solid fa-image" aria-hidden="true"></i>
           <span class="tab-btn-label">Front Cover</span>
         </button>
-        <button class="tab-btn" onclick="openTab(event, 'tab-back-cover')" role="tab" aria-selected="false" aria-controls="tab-back-cover">
+        <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-back-cover">
           <i class="fa-solid fa-qrcode" aria-hidden="true"></i>
           <span class="tab-btn-label">Back Cover</span>
         </button>
@@ -1465,7 +1487,7 @@
 
   <script src="assets/js/config.js?v=2575fa746d"></script>
   <script src="assets/js/book-utils.js?v=f844e089a4"></script>
-  <script src="assets/js/app.js?v=4bd4557fa2"></script>
+  <script src="assets/js/app.js?v=1aa2e037d8"></script>
   <script src="assets/js/folio.js?v=2932c7dca1"></script>
   <script src="assets/js/tour.js?v=3af3f0da57"></script>
   <script src="assets/js/preview-helper.js?v=7c1be5e5c1"></script>

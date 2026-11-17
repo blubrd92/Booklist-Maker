@@ -11853,9 +11853,9 @@ const BooklistApp = (function() {
 })();
 
 // =============================================================================
-// TAB SWITCHING (Global for HTML onclick)
+// TAB SWITCHING
 // =============================================================================
-/* exported openTab -- called from onclick attributes in index.html */
+/* exported openTab -- global so other scripts can switch tabs */
 function openTab(evt, tabName) {
   const tabcontent = document.getElementsByClassName("tab-content");
   for (let i = 0; i < tabcontent.length; i++) {
@@ -11872,6 +11872,24 @@ function openTab(evt, tabName) {
   evt.currentTarget.classList.add("active");
   evt.currentTarget.setAttribute('aria-selected', 'true');
 }
+
+// The tab buttons used to carry onclick="openTab(...)" attributes. They are
+// wired here instead because index.html's Content-Security-Policy forbids
+// inline event handlers. app.js loads at the end of <body>, so the buttons
+// already exist.
+document.querySelectorAll('.tab-btn[aria-controls]').forEach(btn => {
+  btn.addEventListener('click', evt => openTab(evt, btn.getAttribute('aria-controls')));
+});
+
+// Stylesheets marked data-async-css (Google Fonts, Font Awesome) load with
+// media="print" so they don't block first paint; switch each on once it
+// has loaded. This replaces an inline onload attribute, which the CSP
+// forbids. fontStylesheetReady() in the IIFE relies on media leaving 'print'.
+document.querySelectorAll('link[data-async-css]').forEach(link => {
+  const enable = () => { link.media = 'all'; };
+  if (link.sheet) enable();
+  else link.addEventListener('load', enable, { once: true });
+});
 
 // =============================================================================
 // INITIALIZATION
