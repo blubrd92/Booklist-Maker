@@ -92,13 +92,23 @@ service cloud.firestore {
     // displays it as the staff row's label and the type-to-confirm
     // Remove flow matches against it, so it must at least be a string
     // of sane size (320 is the RFC 5321 max address length).
+    //
+    // drafterDailyLimit (optional) is a per-person daily cap on Magic
+    // button drafts, read by the description drafter's Apps Script as
+    // that user. Only a super-admin may set or change it: the library-
+    // admin branches of create/update below refuse it, so a library admin
+    // cannot raise their own staff's allowance.
     function validMembershipFields(data) {
       return data.libraryId is string
              && data.libraryId.size() > 0
-             && data.keys().hasOnly(['libraryId', 'role', 'email'])
+             && data.keys().hasOnly(['libraryId', 'role', 'email', 'drafterDailyLimit'])
              && data.get('role', 'staff') in ['staff', 'admin']
              && data.get('email', '') is string
-             && data.get('email', '').size() <= 320;
+             && data.get('email', '').size() <= 320
+             && (!('drafterDailyLimit' in data)
+                 || (data.drafterDailyLimit is int
+                     && data.drafterDailyLimit >= 0
+                     && data.drafterDailyLimit <= 100000));
     }
 
     // -------------------------------------------------------------------------
@@ -165,7 +175,8 @@ service cloud.firestore {
       allow create: if validMembershipFields(request.resource.data)
                     && (isAdmin()
                         || (isLibraryAdminOf(request.resource.data.libraryId)
-                            && request.resource.data.get('role', 'staff') == 'staff'));
+                            && request.resource.data.get('role', 'staff') == 'staff'
+                            && !('drafterDailyLimit' in request.resource.data)));
 
       // Updates:
       // - Super-admin: can update any membership to any valid state
@@ -180,7 +191,8 @@ service cloud.firestore {
                         || (isLibraryAdminOf(resource.data.libraryId)
                             && resource.data.get('role', 'staff') == 'staff'
                             && request.resource.data.libraryId == resource.data.libraryId
-                            && request.resource.data.get('role', 'staff') == 'staff'));
+                            && request.resource.data.get('role', 'staff') == 'staff'
+                            && request.resource.data.get('drafterDailyLimit', -1) == resource.data.get('drafterDailyLimit', -1)));
 
       // Deletes:
       // - Super-admin: can delete any membership.

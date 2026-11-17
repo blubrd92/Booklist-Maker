@@ -36,7 +36,8 @@
    * tool. If you add a third state, keep the pair exhaustive.
    */
   function drafterEnabled() {
-    return !!(window.LIBRARY_CONFIG && !window.LIBRARY_CONFIG.disableAutodrafter);
+    // Same test as isDrafterAvailable() in app.js: gated instances only.
+    return !!(window.LIBRARY_CONFIG && !window.LIBRARY_CONFIG.disableAutodrafter && window.LIBRARY_REQUIRES_AUTH === true);
   }
 
   const SECTION_ORDER = [

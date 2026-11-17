@@ -1123,10 +1123,44 @@ const BooklistApp = (function() {
   // The public tool always returns false here and never calls the
   // description backend automatically.
   function shouldAutoFetchDescription() {
-    if (!window.LIBRARY_CONFIG) return false;
-    if (window.LIBRARY_CONFIG.disableAutodrafter) return false;
+    if (!isDrafterAvailable()) return false;
     if (window.LIBRARY_CONFIG.requireSourceText) return false;
     return getAutoDescriptionPreference();
+  }
+
+  /**
+   * The one test for whether the description drafter exists here: the
+   * Magic button, auto-draft on add, the phone sheet's Draft button and
+   * the Ctrl+Alt+D window all ask this. It needs a GATED branded instance
+   * (LIBRARY_REQUIRES_AUTH, set by library-config.js before
+   * 'library-config-ready'), because the Apps Script refuses anyone who is
+   * not a signed-in member of a gated library. On a public branded
+   * instance the button would only ever fail, so it is not shown at all.
+   */
+  function isDrafterAvailable() {
+    return !!(window.LIBRARY_CONFIG
+      && !window.LIBRARY_CONFIG.disableAutodrafter
+      && window.LIBRARY_REQUIRES_AUTH === true);
+  }
+
+  /** The signed-in user's Firebase ID token for the drafter, or null. */
+  function getDrafterIdToken() {
+    const user = window.firebaseAuth && window.firebaseAuth.currentUser;
+    if (!user) return Promise.resolve(null);
+    return user.getIdToken().catch(() => null);
+  }
+
+  // A title's description from just before "Drafting..." replaced it, so a
+  // refusal (signed out, over the daily limit) can put it back instead of
+  // leaving the title stuck on "Drafting..." or wiping the user's text.
+  // Absent for auto-draft on add, where the previous text was the blank
+  // placeholder.
+  const _descriptionBeforeDraft = new Map();
+  function stageDraftingPlaceholder(bookItem) {
+    if (!_descriptionBeforeDraft.has(bookItem.key)) {
+      _descriptionBeforeDraft.set(bookItem.key, bookItem.description);
+    }
+    bookItem.description = "Drafting title description... May take a few minutes.";
   }
 
   function getAiDescription(bookKey, isTest = false, sourceText = null) {
@@ -1183,14 +1217,27 @@ const BooklistApp = (function() {
     
     _pendingDescriptions.add(bookKey);
 
-    fetchWithTimeout(googleAppScriptUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-      mode: 'cors'
-    }, CONFIG.DRAFTER_TIMEOUT_MS)
+    // The Apps Script drafts only for a signed-in member of a gated
+    // library, proven by this Firebase ID token. It travels in the body,
+    // not a header: Apps Script web apps can't read request headers, and
+    // a custom header would also force a CORS preflight it can't answer.
+    getDrafterIdToken()
+    .then(idToken => {
+      if (!idToken) {
+        const signedOut = new Error('Please sign in again to use the Magic button. If you are signed in, reload the page.');
+        signedOut.drafterRefusal = 'signin';
+        throw signedOut;
+      }
+      payload.idToken = idToken;
+      return fetchWithTimeout(googleAppScriptUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify(payload),
+        mode: 'cors'
+      }, CONFIG.DRAFTER_TIMEOUT_MS);
+    })
     .then(response => {
       if (!response.ok) {
         throw new Error(`Network error: ${response.status} ${response.statusText}`);
@@ -1198,7 +1245,15 @@ const BooklistApp = (function() {
       return response.json();
     })
     .then(data => {
+      // A refusal (signed out, not allowed, over a daily limit, busy) is
+      // not a failed draft: say so and leave the title's text as it was.
+      if (data && data.errorCode) {
+        const refused = new Error(data.error || 'The description service declined this request.');
+        refused.drafterRefusal = data.errorCode;
+        throw refused;
+      }
       _pendingDescriptions.delete(bookKey);
+      _descriptionBeforeDraft.delete(bookKey);
       if (data.description) {
         if (isTest) {
           const successMsg = `Test Success: ${data.description}`;
@@ -1217,6 +1272,20 @@ const BooklistApp = (function() {
     })
     .catch(error => {
       _pendingDescriptions.delete(bookKey);
+      if (error && error.drafterRefusal) {
+        if (bookItem) {
+          bookItem.description = _descriptionBeforeDraft.has(bookKey)
+            ? _descriptionBeforeDraft.get(bookKey)
+            : CONFIG.PLACEHOLDERS.description;
+          _descriptionBeforeDraft.delete(bookKey);
+          updateDescriptionInPlace(bookKey);
+          debouncedSave();
+        }
+        showNotification(error.message, 'error');
+        if (window.folio) window.folio.setState('idle');
+        return;
+      }
+      _descriptionBeforeDraft.delete(bookKey);
       console.error('Full error object from getAiDescription:', error);
       const errorMessage = error.message || "An unknown error occurred.";
       
@@ -2021,7 +2090,7 @@ const BooklistApp = (function() {
     // button simply doesn't appear — no notification, no hint that
     // the feature exists.
     let magicButton = null;
-    const drafterAvailable = window.LIBRARY_CONFIG && !window.LIBRARY_CONFIG.disableAutodrafter;
+    const drafterAvailable = isDrafterAvailable();
     if (drafterAvailable) {
       magicButton = document.createElement('button');
       magicButton.className = 'magic-button';
@@ -2127,7 +2196,7 @@ const BooklistApp = (function() {
     // The magic button is only rendered when the drafter is available
     // (branded instance + autodrafter enabled), so these guards are
     // defensive — they shouldn't fire in normal use.
-    if (!window.LIBRARY_CONFIG || window.LIBRARY_CONFIG.disableAutodrafter) {
+    if (!isDrafterAvailable()) {
       return;
     }
     if (_pendingDescriptions.has(bookItem.key)) {
@@ -2184,7 +2253,7 @@ const BooklistApp = (function() {
       return;
     }
 
-    bookItem.description = "Drafting title description... May take a few minutes.";
+    stageDraftingPlaceholder(bookItem);
     updateDescriptionInPlace(bookItem.key);
     debouncedSave();
     // Folio: evaluating while fetching description. No auto-return —
@@ -2257,7 +2326,7 @@ const BooklistApp = (function() {
         return;
       }
       overlay.remove();
-      bookItem.description = "Drafting title description... May take a few minutes.";
+      stageDraftingPlaceholder(bookItem);
       updateDescriptionInPlace(bookItem.key);
       debouncedSave();
       if (window.folio) window.folio.celebrate({
@@ -7333,7 +7402,7 @@ const BooklistApp = (function() {
     // Same gate as the Magic button beside each title on desktop.
     const draftBtn = document.getElementById('book-edit-draft-btn');
     if (draftBtn) {
-      draftBtn.hidden = !(window.LIBRARY_CONFIG && !window.LIBRARY_CONFIG.disableAutodrafter);
+      draftBtn.hidden = !isDrafterAvailable();
       draftBtn.disabled = isBlank || _pendingDescriptions.has(book.key);
     }
     const deleteBtn = document.getElementById('book-edit-delete-btn');
@@ -11527,7 +11596,7 @@ const BooklistApp = (function() {
     // the row hidden so staff don't see a toggle that does nothing.
     if (elements.autoDescriptionToggleRow && elements.autoDescriptionToggle) {
       const hint = document.getElementById('auto-description-hint');
-      if (config.disableAutodrafter || config.requireSourceText) {
+      if (!isDrafterAvailable() || config.requireSourceText) {
         elements.autoDescriptionToggleRow.hidden = true;
         if (hint) hint.style.display = 'none';
       } else {
@@ -11691,7 +11760,7 @@ const BooklistApp = (function() {
       const isD = ev.code === 'KeyD' || ev.key === 'd' || ev.key === 'D';
       if ((ev.ctrlKey || ev.metaKey) && ev.altKey && isD) {
         ev.preventDefault();
-        if (window.LIBRARY_CONFIG) showDrafterSettingsModal();
+        if (isDrafterAvailable()) showDrafterSettingsModal();
       }
     });
 

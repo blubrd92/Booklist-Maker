@@ -61,7 +61,7 @@
   <main class="content-main">
     <article class="content-article">
       <h1>Terms</h1>
-      <p class="content-effective-date">Effective October 7, 2026. Last updated October 7, 2026.</p>
+      <p class="content-effective-date">Effective November 17, 2026. Last updated November 17, 2026.</p>
 
       <p>Booklister is a free tool for making printable library booklists. It's a side project run by one person. These terms describe what you can expect from the service, what I'm asking of you in return, and the small set of legal points that apply when one person hosts a tool that other people use.</p>
 
@@ -121,7 +121,7 @@
       <p>The Magic button is an optional feature that drafts a short description for a title using an AI service. You'll see it as a wand icon on each title in your booklist, and there's also an "Auto-draft descriptions on add" toggle on the Search tab that runs it automatically as you add titles. Whatever the AI returns is dropped into the description field for that title, and you're free to keep it, edit it, or delete it and write your own.</p>
 
       <h2>Where the Magic button is available</h2>
-      <p>The Magic button is not available on the free public tool at booklister.org. It exists only on certain branded library instances, and even there it's off by default. A library has to specifically ask me to enable it for their instance, and I'll only turn it on if I agree to. There's no application form, no published criteria, and no appeal process. I decide which libraries get the feature, and my decision is final.</p>
+      <p>The Magic button is not available on the free public tool at booklister.org. It exists only on certain branded library instances that require staff to sign in, and even there it's off by default. It works only for a signed-in staff account. A library has to specifically ask me to enable it for their instance, and I'll only turn it on if I agree to. There's no application form, no published criteria, and no appeal process. I decide which libraries get the feature, and my decision is final.</p>
       <p>I also reserve the right to disable the Magic button at any time, for any library, for any reason. The most likely reason is cost: the underlying AI service costs me real money per request, and if usage outgrows what I can absorb as a single-person side project, I'll turn it off. Other reasons (abuse, changes to the AI provider, technical problems, anything else) are also fair game. I'll try to give a heads-up when it's practical, but I'm not promising advance notice and I'm not obligated to provide any.</p>
       <p>Within an enabled instance, the Magic button has two modes I configure per library. In the default mode, clicking the wand looks the title up through a web search service, and an LLM service drafts a description from what the search found. In source-text mode, the wand only opens a paste dialog: staff have to provide their own summary text, the LLM just condenses what they paste, and no web search is run. Source-text mode is for libraries that want the convenience of LLM phrasing but want every description grounded in material a staff member chose. Either mode counts as "enabled" for the purposes of these terms.</p>
 
@@ -130,11 +130,12 @@
       <p>If you use the Magic button, you (the library staff member) are responsible for reading every description it produces and deciding whether to keep it, edit it, or replace it before you print or publish a booklist that includes it. I am not responsible for the content of AI-drafted descriptions. The library and its staff are. Treat the output the same way you'd treat a draft from a new volunteer: useful as a starting point, never published unread.</p>
 
       <h2>What gets sent when you use the Magic button</h2>
-      <p>When you click the Magic button on a title, the title and the author of that title are sent to a Google Apps Script endpoint I operate, which sends them to Tavily, a web search service, to gather information about the title, and then passes the title, the author, and what the search found to an LLM service to generate the description. Three other pieces ride along with the request:</p>
+      <p>When you click the Magic button on a title, the title and the author of that title are sent to a Google Apps Script endpoint I operate, which sends them to Tavily, a web search service, to gather information about the title, and then passes the title, the author, and what the search found to an LLM service to generate the description. Four other pieces ride along with the request:</p>
       <ul>
         <li>If you shift-click the wand and paste a summary (or you're on an instance configured in source-text mode), the text you pasted is sent so the LLM can condense it, and no web search is run: Tavily is never contacted.</li>
         <li>A small set of drafter tuning knobs (target word range, number of drafts, retry counts, and sometimes an effort level) is sent so the script knows how to ask for the description. These values come from the tool's own configuration; they're not tied to you or your library.</li>
         <li>The language to write the description in. It comes from the byline word on that title's author line ("Por" means Spanish, for example), and it's English unless that word has been changed. If the byline is English or blank and you paste a summary, the description is written in the language of what you pasted instead.</li>
+        <li>A sign-in token proving which staff account is asking. The Apps Script uses it to confirm that your account belongs to a library with the Magic button turned on, and to apply daily limits on how many descriptions each account and each library can draft. It keeps a count of your requests for the current day, deleted the next day. When a limit is reached, the button tells you so and the limit resets the next day.</li>
       </ul>
       <p>Nothing else about the title, the booklist, the library, or you as a user is sent along with the request. The <a href="privacy.html">Privacy</a> page describes the data flow in more detail.</p>
 

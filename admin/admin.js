@@ -31,6 +31,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   collection,
   query,
   where,
@@ -577,6 +578,9 @@ function openLibraryModal(lib) {
   const requireSourceTextInput = document.getElementById('admin-field-require-source-text');
   const requireSourceTextRow = document.getElementById('admin-require-source-text-row');
   const autoDraftDefaultRow = document.getElementById('admin-auto-draft-default-row');
+  const drafterLimitsRow = document.getElementById('admin-drafter-limits-row');
+  const libraryLimitInput = document.getElementById('admin-field-drafter-limit-library');
+  const personLimitInput = document.getElementById('admin-field-drafter-limit-person');
   const errorEl = document.getElementById('admin-library-form-error');
 
   errorEl.hidden = true;
@@ -632,6 +636,8 @@ function openLibraryModal(lib) {
     const drafterOff = !!d.disableAutodrafter;
     if (autoDraftDefaultRow) autoDraftDefaultRow.hidden = drafterOff || !!d.requireSourceText;
     if (requireSourceTextRow) requireSourceTextRow.hidden = drafterOff;
+    libraryLimitInput.value = Number.isInteger(d.drafterDailyLimit) ? String(d.drafterDailyLimit) : '';
+    personLimitInput.value = Number.isInteger(d.drafterDailyLimitPerPerson) ? String(d.drafterDailyLimitPerPerson) : '';
   } else {
     // Create mode
     title.textContent = 'Add Library';
@@ -649,6 +655,8 @@ function openLibraryModal(lib) {
     requireSourceTextInput.checked = false;
     if (autoDraftDefaultRow) autoDraftDefaultRow.hidden = true;
     if (requireSourceTextRow) requireSourceTextRow.hidden = true;
+    libraryLimitInput.value = '';
+    personLimitInput.value = '';
   }
 
   function updateDrafterRowVisibility() {
@@ -656,9 +664,15 @@ function openLibraryModal(lib) {
     const sourceRequired = requireSourceTextInput.checked;
     if (requireSourceTextRow) requireSourceTextRow.hidden = drafterOff;
     if (autoDraftDefaultRow) autoDraftDefaultRow.hidden = drafterOff || sourceRequired;
+    // Limits only mean something where the drafter can run: gated
+    // libraries with it switched on.
+    const checkedType = document.querySelector('input[name="library-type"]:checked');
+    if (drafterLimitsRow) drafterLimitsRow.hidden = drafterOff || !checkedType || checkedType.value !== 'gated';
   }
   disableAutodrafterInput.onchange = updateDrafterRowVisibility;
   requireSourceTextInput.onchange = updateDrafterRowVisibility;
+  for (const r of typeRadios) r.onchange = updateDrafterRowVisibility;
+  updateDrafterRowVisibility();
 
   // Memberships section: only visible when editing an existing gated
   // library. Public libraries don't use memberships, and you can't add
@@ -718,6 +732,8 @@ async function handleLibraryFormSubmit(evt) {
   const autoDraftDescriptionsDefault = autoDraftInput.checked;
   const disableAutodrafter = disableAutodrafterInput.checked;
   const requireSourceText = requireSourceTextInput.checked;
+  const libraryLimitRaw = document.getElementById('admin-field-drafter-limit-library').value.trim();
+  const personLimitRaw = document.getElementById('admin-field-drafter-limit-person').value.trim();
 
   // Validation
   if (!libraryId) {
@@ -742,6 +758,17 @@ async function handleLibraryFormSubmit(evt) {
     }
   }
 
+  // Drafter limits: blank means "use the drafter's default", so the field
+  // is left off the doc. This save REPLACES the whole doc (setDoc), so a
+  // limit kept here is a limit kept at all.
+  const parseLimit = (raw) => (raw === '' ? null : (/^\d{1,6}$/.test(raw) ? Number(raw) : NaN));
+  const drafterDailyLimit = parseLimit(libraryLimitRaw);
+  const drafterDailyLimitPerPerson = parseLimit(personLimitRaw);
+  if (Number.isNaN(drafterDailyLimit) || Number.isNaN(drafterDailyLimitPerPerson)) {
+    showLibraryFormError('Drafter limits must be whole numbers, or blank for the default.');
+    return;
+  }
+
   const data = {
     displayName,
     brandingImagePath,
@@ -749,6 +776,8 @@ async function handleLibraryFormSubmit(evt) {
     disableAutodrafter,
     requireSourceText,
   };
+  if (type === 'gated' && drafterDailyLimit !== null) data.drafterDailyLimit = drafterDailyLimit;
+  if (type === 'gated' && drafterDailyLimitPerPerson !== null) data.drafterDailyLimitPerPerson = drafterDailyLimitPerPerson;
 
   const collectionName = type === 'public' ? 'libraries-public' : 'libraries';
 
@@ -1289,6 +1318,20 @@ async function loadMemberships(libraryId) {
         }
       }
 
+      // Drafter limit for this one person — super-admin only (the rules
+      // refuse it from library admins). Shows the override when one is set.
+      if (currentUserRole === 'super-admin') {
+        const current = Number.isInteger(row.data.drafterDailyLimit) ? row.data.drafterDailyLimit : null;
+        const limitBtn = document.createElement('button');
+        limitBtn.className = 'admin-row-btn';
+        limitBtn.type = 'button';
+        limitBtn.innerHTML = '<i class="fa-solid fa-gauge" aria-hidden="true"></i> ';
+        limitBtn.appendChild(document.createTextNode(current === null ? 'Limit' : 'Limit: ' + current + '/day'));
+        limitBtn.title = 'Set a daily Magic button limit for this person';
+        limitBtn.addEventListener('click', () => setDrafterLimit(row.uid, libraryId, current, row.data.email || row.uid));
+        actionsWrap.appendChild(limitBtn);
+      }
+
       // Move-to-another-library button — super-admin only. Updates the
       // membership doc's libraryId in place rather than going through
       // remove + re-invite, which would fail with email-already-in-use
@@ -1631,6 +1674,36 @@ async function handleRemoveStaffConfirm() {
     errorEl.hidden = false;
     confirmBtn.disabled = false;
     confirmBtn.textContent = 'Remove';
+  }
+}
+
+// Set or clear one person's daily drafter limit. Super-admin only; the
+// Firestore rules refuse the field from anyone else. Blank clears the
+// override so the library's per-person default applies again.
+async function setDrafterLimit(uid, libraryId, current, label) {
+  const errorEl = document.getElementById('admin-memberships-error');
+  errorEl.hidden = true;
+  const answer = window.prompt(
+    'Daily Magic button limit for ' + label + '.\n\n'
+    + 'Enter a whole number (0 turns the drafter off for them), '
+    + 'or leave blank to use the library\'s default.',
+    current === null ? '' : String(current));
+  if (answer === null) return; // cancelled
+  const raw = answer.trim();
+  if (raw !== '' && !/^\d{1,6}$/.test(raw)) {
+    errorEl.textContent = 'The limit must be a whole number, or blank for the default.';
+    errorEl.hidden = false;
+    return;
+  }
+  try {
+    await updateDoc(doc(db, 'memberships', uid), {
+      drafterDailyLimit: raw === '' ? deleteField() : Number(raw),
+    });
+    await loadMemberships(libraryId);
+  } catch (err) {
+    console.warn('[admin] set drafter limit failed:', err);
+    errorEl.textContent = 'Failed to set the limit: ' + (err.message || err.code || 'unknown error');
+    errorEl.hidden = false;
   }
 }
 

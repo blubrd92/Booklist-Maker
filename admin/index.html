@@ -176,7 +176,7 @@
               <input type="checkbox" id="admin-field-disable-autodrafter">
               <span>Disable AI description drafter</span>
             </label>
-            <p class="admin-field-hint">Completely removes the AI description drafting feature from this library's instance. The magic wand button will not appear, auto-draft on add will be suppressed, and the auto-draft toggle will be hidden. Use when a library has explicitly requested no AI tools.</p>
+            <p class="admin-field-hint">Completely removes the AI description drafting feature from this library's instance. The magic wand button will not appear, auto-draft on add will be suppressed, and the auto-draft toggle will be hidden. Use when a library has explicitly requested no AI tools. The drafter only ever runs on gated libraries, for signed-in staff; on a public library it never appears, whatever this box says.</p>
           </div>
 
           <div class="admin-field admin-field-checkbox" id="admin-require-source-text-row">
@@ -193,6 +193,21 @@
               <span>Auto-draft descriptions by default</span>
             </label>
             <p class="admin-field-hint">Controls the default state of the "Auto-draft descriptions on add" toggle in the Search tab for this library's staff. Individual staff can still flip it in their own browser; this is just the starting default they see on first use. Leave on unless the library has asked for it off.</p>
+          </div>
+
+          <!-- Drafter limits. Read by the description drafter's Apps Script
+               (as the signed-in staff member) on every Magic button press.
+               Plain divs, not .admin-field-checkbox, so [hidden] wins. -->
+          <div id="admin-drafter-limits-row">
+            <div class="admin-field">
+              <label for="admin-field-drafter-limit-library">Daily drafter limit, whole library</label>
+              <input type="text" inputmode="numeric" id="admin-field-drafter-limit-library" autocomplete="off" placeholder="Default: 500">
+            </div>
+            <div class="admin-field">
+              <label for="admin-field-drafter-limit-person">Daily drafter limit, each person</label>
+              <input type="text" inputmode="numeric" id="admin-field-drafter-limit-person" autocomplete="off" placeholder="Default: 100">
+              <p class="admin-field-hint">How many Magic button drafts this library, and each person in it, can make per day. Leave blank to use the drafter's defaults. A limit set on one person with the Limit button in the staff list wins over the per-person number. 0 turns the drafter off for everyone here.</p>
+            </div>
           </div>
 
           <p id="admin-library-form-error" class="admin-error" hidden></p>
@@ -396,6 +411,6 @@
     }, 8000);
   </script>
 
-  <script type="module" src="admin.js?v=e5b1ccb512"></script>
+  <script type="module" src="admin.js?v=8555b898dc"></script>
 </body>
 </html>
