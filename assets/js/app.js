@@ -9104,6 +9104,11 @@ const BooklistApp = (function() {
       onStart: function() {
         const zoom = parseFloat(getComputedStyle(elements.previewArea).zoom) || 1;
         document.body.style.setProperty('--drag-zoom', zoom);
+        // Without this the browser starts selecting the text the pointer
+        // sweeps over partway through the drag, lighting up every title
+        // along the way (Sortable only prevents it on Safari).
+        document.body.classList.add('is-dragging-title');
+        try { window.getSelection().removeAllRanges(); } catch (e) { /* no selection API */ }
         // Folio: watch the drag
         if (window.folio) window.folio.react('watch');
       },
@@ -9124,6 +9129,7 @@ const BooklistApp = (function() {
         renumberListItems();
       },
       onEnd: function(evt) {
+        document.body.classList.remove('is-dragging-title');
         if (window.folio) window.folio.stopWatch();
         const newBooklist = getListItemsInOrder()
           .map(item => myBooklist.find(b => b.key === item.dataset.id))
