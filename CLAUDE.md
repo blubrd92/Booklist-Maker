@@ -110,7 +110,16 @@ assets/
                                 click. Fetches the public-branded library list
                                 via Firestore REST (no SDK, no auth) — see
                                 "Constraints worth protecting" for the
-                                documented invariant exception.
+                                documented invariant exception. Gated
+                                libraries can't be listed that way, so it
+                                also remembers every ?library= this browser
+                                previewed (localStorage
+                                `booklister.previewLibraries`) and offers
+                                them as "used in this browser". No hardcoded
+                                fallback list: one went stale when San
+                                Rafael became gated. While the sign-in modal
+                                is up it sits above it (z-index 2600 vs the
+                                modal's 2500) so it stays clickable.
     analytics.js                IIFE. Injects the Cloudflare Web Analytics
                                 beacon (cookieless page-view counting).
                                 Self-gates to `booklister.org` /

@@ -123,6 +123,10 @@
 html.awaiting-library-config .preview-helper-chip,
 html.awaiting-library-config .preview-helper-panel {
   visibility: visible;
+  /* Above the sign-in modal's overlay (auth.css, z-index 2500, blurred
+     backdrop). At the chip's usual 950 it sat underneath: blurred and
+     unclickable, which defeated the point of keeping it visible. */
+  z-index: 2600;
 }
 
 /* Hide during PDF export. html2canvas captures `#print-page-1` /

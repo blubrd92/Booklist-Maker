@@ -89,6 +89,17 @@ body:has(.sidebar.collapsed) .folio-container {
   transition: opacity 0.3s ease 0.05s, visibility 0s;
 }
 
+/* Not before a branded library has loaded. styles.css hides the whole
+   body with visibility: hidden while html.awaiting-library-config is set
+   (the sign-in screen), but the rule above sets the scene visible when
+   Folio is switched on, and a descendant's own `visible` beats an
+   inherited `hidden`. So he showed on the sign-in screen for anyone who
+   had turned him on. The .folio-container step is load-bearing: it lifts
+   this to (1,2,1), above the (1,2,0) of the rule it has to beat. */
+html.awaiting-library-config .folio-container #folio-scene {
+  visibility: hidden;
+}
+
 /* While hidden, freeze all SVG animation work — no reason to burn
    style/compositor cycles on an invisible cat. Triple-id specificity
    (container > scene > svg) + !important so this outranks both the

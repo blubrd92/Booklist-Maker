@@ -17,7 +17,13 @@
 // to fetch the current list of test libraries. This is the ONLY
 // network request to Firebase made on previews and it never fires on
 // production. If the call fails (offline, CORS change, rules change),
-// the chip falls back to a hardcoded library list and stays usable.
+// the panel says so and stays usable through "Used in this browser" and
+// "Custom library ID…".
+//
+// Gated libraries can't be listed (reading them needs a sign-in), so the
+// panel remembers every ?library= this browser has opened a preview with
+// (localStorage, this browser only) and offers them again. That is how a
+// gated library like San Rafael stays one click away.
 
 (function() {
   'use strict';
@@ -35,19 +41,36 @@
     'https://firestore.googleapis.com/v1/projects/' + PROJECT_ID +
     '/databases/(default)/documents/libraries-public?key=' + API_KEY;
 
-  // Fallback list — used immediately while the Firestore fetch is in
-  // flight, and stays in place if the fetch fails. Update this when
-  // adding a public-branded library if you want it to appear instantly
-  // (otherwise it just appears on the next preview load once the REST
-  // fetch sees it).
-  const FALLBACK_LIBRARIES = [
-    { id: 'sanrafael', displayName: 'San Rafael Public Library' }
-  ];
-
+  // The public list comes only from Firestore. There used to be a
+  // hardcoded fallback list here; it went stale the moment a library in
+  // it was converted to gated (San Rafael, November 2026) and kept
+  // labelling it "public branded". An empty answer now means "no public
+  // libraries", and a failed fetch is shown as such.
   let chip = null;
   let panel = null;
   let isExpanded = false;
-  let libraries = FALLBACK_LIBRARIES.slice();
+  let libraries = [];
+  let listState = 'loading'; // 'loading' | 'loaded' | 'failed'
+
+  // Library IDs this browser has previewed, most recent first. Per-viewer
+  // convenience only, so every read and write tolerates blocked storage.
+  const RECENT_KEY = 'booklister.previewLibraries';
+  const RECENT_MAX = 8;
+  function readRecent() {
+    try {
+      const list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+      return Array.isArray(list) ? list.filter(function(id) { return typeof id === 'string' && id; }) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function rememberLibrary(id) {
+    if (!id) return;
+    try {
+      const list = [id].concat(readRecent().filter(function(x) { return x !== id; })).slice(0, RECENT_MAX);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+    } catch (e) { /* storage blocked; the panel just won't remember */ }
+  }
 
   function getCurrentLibrary() {
     return new URLSearchParams(window.location.search).get('library') || null;
@@ -95,6 +118,22 @@
     libraries.forEach(function(lib) {
       list.appendChild(buildOption(lib.id, lib.displayName, 'public branded · ?library=' + lib.id));
     });
+    if (listState !== 'loaded') {
+      const note = document.createElement('p');
+      note.className = 'preview-helper-help';
+      note.textContent = listState === 'loading'
+        ? 'Loading the public library list…'
+        : "The public library list didn't load.";
+      list.appendChild(note);
+    }
+
+    // Libraries this browser has previewed that aren't in the public list:
+    // gated ones (which can't be listed without signing in) or typed IDs.
+    const publicIds = libraries.map(function(lib) { return lib.id; });
+    readRecent().filter(function(id) { return publicIds.indexOf(id) === -1; }).forEach(function(id) {
+      list.appendChild(buildOption(id, id, 'used in this browser · gated or custom · ?library=' + id));
+    });
+
     list.appendChild(buildOption('__custom__', 'Custom library ID…', 'paste any ID, e.g. for gated libraries'));
 
     panel.appendChild(list);
@@ -164,24 +203,28 @@
     fetch(FIRESTORE_URL)
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(function(json) {
-        if (!json || !Array.isArray(json.documents)) return;
-        const fresh = json.documents.map(function(doc) {
+        if (!json) throw new Error('no list');
+        // Firestore omits `documents` when the collection is empty.
+        const fresh = (Array.isArray(json.documents) ? json.documents : []).map(function(doc) {
           const parts = doc.name.split('/');
           const id = parts[parts.length - 1];
           const fields = doc.fields || {};
           const dn = fields.displayName ? fields.displayName.stringValue : null;
           return { id: id, displayName: dn || id };
         });
-        if (fresh.length > 0) {
-          libraries = fresh;
-          if (isExpanded) rebuildPanelContent();
-        }
+        libraries = fresh;
+        listState = 'loaded';
+        if (isExpanded) rebuildPanelContent();
       })
-      .catch(function() { /* keep hardcoded fallback list */ });
+      .catch(function() {
+        listState = 'failed';
+        if (isExpanded) rebuildPanelContent();
+      });
   }
 
   function init() {
     if (!document.body) return;
+    rememberLibrary(getCurrentLibrary());
     buildChip();
     buildPanel();
     fetchLibraries();
