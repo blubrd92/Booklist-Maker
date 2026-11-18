@@ -1268,7 +1268,16 @@ async function loadMemberships(libraryId) {
         uidSpan.classList.add('admin-membership-uid-primary');
       }
       uidSpan.textContent = row.uid;
-      identWrap.appendChild(uidSpan);
+      uidSpan.title = row.uid;
+      // Two lines per row: who it is on top, with the full width for the
+      // email; the UID and the buttons share the line below. With up to
+      // four buttons beside it, a long email used to be squeezed into a
+      // sliver and broken mid-word. A row without an email keeps its UID
+      // on top, since the UID is then the name.
+      const bottomWrap = document.createElement('div');
+      bottomWrap.className = 'admin-membership-bottom';
+      if (row.data.email) bottomWrap.appendChild(uidSpan);
+      else identWrap.appendChild(uidSpan);
 
       leftWrap.appendChild(identWrap);
 
@@ -1381,7 +1390,8 @@ async function loadMemberships(libraryId) {
         actionsWrap.appendChild(removeBtn);
       }
 
-      li.appendChild(actionsWrap);
+      bottomWrap.appendChild(actionsWrap);
+      li.appendChild(bottomWrap);
       listEl.appendChild(li);
     }
     listEl.hidden = false;

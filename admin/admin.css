@@ -126,7 +126,7 @@ body {
 #admin-main {
   max-width: 960px;
   margin: 0 auto;
-  padding: 32px 24px 64px;
+  padding: 32px 24px 40px;
 }
 
 .admin-section {
@@ -225,7 +225,7 @@ body {
    sets color and margin on every paragraph in the card and would
    outrank a bare `.admin-legal-note` (0,1,0), silently reverting both. */
 #admin-signin .admin-legal-note {
-  margin: 24px 0 0;
+  margin: 8px 0 0;
   padding-top: 14px;
   border-top: 1px solid var(--admin-border);
   font-size: 0.75rem;
@@ -244,6 +244,31 @@ body {
 
 #admin-signin > .admin-email-signin-form {
   text-align: left;
+}
+
+/* The sign-in error. Its one line is held open even while empty
+   (visibility, not display), so a failed sign-in no longer adds a ~60px
+   box under the button and pushes the page past the bottom of the
+   window. Plain red text rather than the boxed .admin-error used
+   elsewhere, which is what lets it fit the reserved line. Scoped through
+   the ids because `.admin-section p` (0,1,1) outranks a bare class: that
+   rule is what used to glue the old box to the button, add a 16px gap
+   under it and turn its text body-black instead of red. */
+#admin-signin #admin-signin-error {
+  margin: 10px 0 0;
+  padding: 0;
+  min-height: 1.5em;
+  line-height: 1.5;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: var(--admin-danger);
+  font-weight: 500;
+  text-align: center;
+}
+#admin-signin #admin-signin-error[hidden] {
+  display: block;
+  visibility: hidden;
 }
 
 /* Role labels above each sign-in option (Google vs email). Small
@@ -1036,7 +1061,8 @@ code {
   font-size: 0.88rem;
   color: var(--admin-text);
   font-weight: 500;
-  word-break: break-all;
+  /* Break inside an address only when it truly cannot fit the line. */
+  overflow-wrap: anywhere;
 }
 
 .admin-memberships-list .admin-membership-uid {
@@ -1055,6 +1081,34 @@ code {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Staff rows run on two lines (see loadMemberships): identity and
+   badges on top, then the UID and the action buttons. */
+.admin-memberships-list li.admin-membership-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.admin-membership-bottom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* The UID gives way to the buttons: one line, cut with an ellipsis if
+   the row is narrow. The full UID is in its title, and selecting it
+   still copies the whole thing. */
+.admin-memberships-list .admin-membership-bottom .admin-membership-uid {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
 }
 
 /* Role badges on membership rows. Small pill-shaped labels next to
