@@ -142,7 +142,11 @@ if (auth) {
         // can't be used to check which emails have accounts. Only errors
         // that say nothing about the account (rate limit, network) differ.
         const code = err && err.code;
-        if (code === 'auth/too-many-requests' || code === 'auth/network-request-failed') {
+        if (code === 'auth/invalid-email') {
+          // Says only that the address is malformed, not whether an
+          // account exists, so it is safe to point out the typo.
+          showError("That doesn't look like a complete email address.");
+        } else if (code === 'auth/too-many-requests' || code === 'auth/network-request-failed') {
           showError(mapAuthError(err));
         } else {
           showResetOk(RESET_SENT_MESSAGE);

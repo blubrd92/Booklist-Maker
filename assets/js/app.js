@@ -246,7 +246,13 @@ const BooklistApp = (function() {
   const _draftImgSession = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   let _draftImgCounter = 0;
   let _draftCleanTimer = null;
-  const _draftImgKeyByData = new Map(); // dataURL -> key (this tab's assignments)
+  // dataURL -> key, for the images the latest draft points at. Rebuilt on
+  // every pack so it never holds more than the current list's images: it
+  // used to keep every image ever saved, so each automatic cover rebuild
+  // (~2 MB as a data URL) stayed in memory for the rest of the session.
+  // An image that comes back later (undo) just gets a new key and one
+  // more write.
+  let _draftImgKeyByData = new Map();
 
   /** Call fn(value) on every image field a serialized state can hold; fn's result replaces it. */
   function _mapStateImageFields(state, fn) {
@@ -268,16 +274,16 @@ const BooklistApp = (function() {
   /** Swap inline data-URL images for draft keys. Returns the JSON plus the key -> data pairs it points at. */
   function _packDraft(state) {
     const images = new Map();
+    const keyByData = new Map();
     _mapStateImageFields(state, value => {
       if (typeof value !== 'string' || !value.startsWith('data:')) return value;
-      let key = _draftImgKeyByData.get(value);
-      if (!key) {
-        key = _draftImgPrefix + _draftImgSession + '-' + (++_draftImgCounter);
-        _draftImgKeyByData.set(value, key);
-      }
+      let key = keyByData.get(value) || _draftImgKeyByData.get(value);
+      if (!key) key = _draftImgPrefix + _draftImgSession + '-' + (++_draftImgCounter);
+      keyByData.set(value, key);
       images.set(key, value);
       return key;
     });
+    _draftImgKeyByData = keyByData;
     return { json: JSON.stringify(state), images };
   }
 
@@ -442,11 +448,20 @@ const BooklistApp = (function() {
    * name is 'TimeoutError', so callers can say "took too long" instead of
    * "could not connect". AbortSignal.timeout is missing on older Safari,
    * hence the manual controller.
+   *
+   * The limit covers the whole body, not just the headers: the body is
+   * read inside the timer and handed back as a fresh Response, so a
+   * server that answers and then stalls mid-body still times out.
+   * Callers use it like any Response (.ok, .status, .json()).
    */
   function fetchWithTimeout(url, options = {}, ms) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ms);
     return fetch(url, { ...options, signal: controller.signal })
+      .then(res => res.text().then(body => new Response(
+        // These statuses may not carry a body in a constructed Response.
+        [204, 205, 304].includes(res.status) ? null : body,
+        { status: res.status, statusText: res.statusText, headers: res.headers })))
       .catch(err => {
         if (err && err.name === 'AbortError') {
           const timeout = new Error('The request took too long. Please try again.');
@@ -1156,11 +1171,29 @@ const BooklistApp = (function() {
   // Absent for auto-draft on add, where the previous text was the blank
   // placeholder.
   const _descriptionBeforeDraft = new Map();
+  const DRAFTING_PLACEHOLDER = "Drafting title description... May take a few minutes.";
   function stageDraftingPlaceholder(bookItem) {
     if (!_descriptionBeforeDraft.has(bookItem.key)) {
       _descriptionBeforeDraft.set(bookItem.key, bookItem.description);
     }
-    bookItem.description = "Drafting title description... May take a few minutes.";
+    bookItem.description = DRAFTING_PLACEHOLDER;
+  }
+
+  /**
+   * After a draft that produced nothing, put back the description the
+   * title had before "Drafting...", or `fallback` when there was none
+   * worth keeping (auto-draft on add, an empty slot, an earlier failure).
+   * Leaves the field alone if someone typed over "Drafting..." meanwhile.
+   */
+  function restoreDescriptionAfterFailedDraft(bookItem, fallback) {
+    const before = _descriptionBeforeDraft.get(bookItem.key);
+    _descriptionBeforeDraft.delete(bookItem.key);
+    if (bookItem.description !== DRAFTING_PLACEHOLDER) return;
+    const worthKeeping = typeof before === 'string' && before.trim() !== ''
+      && before !== CONFIG.PLACEHOLDERS.description
+      && before !== '[Description unavailable]'
+      && before !== DRAFTING_PLACEHOLDER;
+    bookItem.description = worthKeeping ? before : fallback;
   }
 
   function getAiDescription(bookKey, isTest = false, sourceText = null) {
@@ -1253,8 +1286,11 @@ const BooklistApp = (function() {
         throw refused;
       }
       _pendingDescriptions.delete(bookKey);
-      _descriptionBeforeDraft.delete(bookKey);
       if (data.description) {
+        // Only now is the text from before "Drafting..." no longer needed;
+        // an answer without a description is a failure, and the catch
+        // below still needs it to put the old text back.
+        _descriptionBeforeDraft.delete(bookKey);
         if (isTest) {
           const successMsg = `Test Success: ${data.description}`;
           console.log(successMsg);
@@ -1274,10 +1310,7 @@ const BooklistApp = (function() {
       _pendingDescriptions.delete(bookKey);
       if (error && error.drafterRefusal) {
         if (bookItem) {
-          bookItem.description = _descriptionBeforeDraft.has(bookKey)
-            ? _descriptionBeforeDraft.get(bookKey)
-            : CONFIG.PLACEHOLDERS.description;
-          _descriptionBeforeDraft.delete(bookKey);
+          restoreDescriptionAfterFailedDraft(bookItem, CONFIG.PLACEHOLDERS.description);
           updateDescriptionInPlace(bookKey);
           debouncedSave();
         }
@@ -1285,16 +1318,18 @@ const BooklistApp = (function() {
         if (window.folio) window.folio.setState('idle');
         return;
       }
-      _descriptionBeforeDraft.delete(bookKey);
       console.error('Full error object from getAiDescription:', error);
       const errorMessage = error.message || "An unknown error occurred.";
       
       if (isTest) {
+        _descriptionBeforeDraft.delete(bookKey);
         const failMsg = `Test Failed: ${errorMessage}`;
         console.error(failMsg);
         showNotification(failMsg, "error");
       } else if (bookItem) {
-        bookItem.description = '[Description unavailable]';
+        // A typed description survives a failed draft; only a title with
+        // nothing worth keeping gets the "unavailable" marker.
+        restoreDescriptionAfterFailedDraft(bookItem, '[Description unavailable]');
         showNotification(`Could not draft description for "${bookItem.title}": ${errorMessage}`, 'error');
         updateDescriptionInPlace(bookKey);
         debouncedSave();
@@ -2648,18 +2683,12 @@ const BooklistApp = (function() {
   }
   
   /**
-   * Reorder a book from one position to another
-   * @param {number} fromIndex - Current index (0-based)
-   * @param {number} toIndex - Target index (0-based)
-   */
-  /**
    * Title blocks in list order. The back cover comes before the inside
-   * pages in the DOM, so document order is not list order. Sortable's
-   * fallback drag clone, which sits inside the panel while dragging,
-   * is left out.
+   * pages in the DOM, so document order is not list order. (Sortable's
+   * drag copy lives on <body>, fallbackOnBody, so no panel holds it.)
    */
   function getListItemsInOrder() {
-    const pick = panel => Array.from(panel.querySelectorAll(':scope > .list-item:not(.sortable-fallback)'));
+    const pick = panel => Array.from(panel.querySelectorAll(':scope > .list-item'));
     return [
       ...pick(elements.insideLeftPanel),
       ...pick(elements.insideRightPanel),
@@ -2690,6 +2719,11 @@ const BooklistApp = (function() {
     _reorderStatusTimer = setTimeout(() => { region.textContent = message; }, 50);
   }
 
+  /**
+   * Reorder a book from one position to another
+   * @param {number} fromIndex - Current index (0-based)
+   * @param {number} toIndex - Target index (0-based)
+   */
   function handleBookReorder(fromIndex, toIndex) {
     if (fromIndex === toIndex) return;
     if (fromIndex < 0 || fromIndex >= MAX_BOOKS) return;

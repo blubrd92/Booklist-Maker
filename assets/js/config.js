@@ -65,10 +65,11 @@
     // Network time limits. Without one a stalled request leaves search
     // saying "Searching..." or a title's Magic button disabled forever
     // (Safari has no default fetch timeout). The drafter normally answers
-    // in 11-25s and its own budget stops polish at 45s, so 90s only ends
-    // a genuine stall.
+    // in 11-25s and its own budget stops polish at 45s, but one run has
+    // taken 110s, and a run cut off here still counts against the day's
+    // limit, so 150s only ends a genuine stall.
     OPEN_LIBRARY_TIMEOUT_MS: 30000,
-    DRAFTER_TIMEOUT_MS: 90000,
+    DRAFTER_TIMEOUT_MS: 150000,
     // One cover image (collage build). Data URLs load instantly; this only
     // bites on a remote cover whose host stops answering.
     IMAGE_LOAD_TIMEOUT_MS: 30000,

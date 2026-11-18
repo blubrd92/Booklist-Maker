@@ -761,11 +761,13 @@ async function handleLibraryFormSubmit(evt) {
   // Drafter limits: blank means "use the drafter's default", so the field
   // is left off the doc. This save REPLACES the whole doc (setDoc), so a
   // limit kept here is a limit kept at all.
-  const parseLimit = (raw) => (raw === '' ? null : (/^\d{1,6}$/.test(raw) ? Number(raw) : NaN));
+  // Same 0-100000 range firestore.rules enforces on a person's limit.
+  const parseLimit = (raw) => (raw === '' ? null
+    : (/^\d{1,6}$/.test(raw) && Number(raw) <= DRAFTER_LIMIT_MAX ? Number(raw) : NaN));
   const drafterDailyLimit = parseLimit(libraryLimitRaw);
   const drafterDailyLimitPerPerson = parseLimit(personLimitRaw);
   if (Number.isNaN(drafterDailyLimit) || Number.isNaN(drafterDailyLimitPerPerson)) {
-    showLibraryFormError('Drafter limits must be whole numbers, or blank for the default.');
+    showLibraryFormError('Drafter limits must be whole numbers from 0 to ' + DRAFTER_LIMIT_MAX + ', or blank for the default.');
     return;
   }
 
@@ -1677,6 +1679,11 @@ async function handleRemoveStaffConfirm() {
   }
 }
 
+// The largest daily drafter limit firestore.rules accepts on a membership
+// (validMembershipFields). The library form uses it too, so both limits
+// read the same way.
+const DRAFTER_LIMIT_MAX = 100000;
+
 // Set or clear one person's daily drafter limit. Super-admin only; the
 // Firestore rules refuse the field from anyone else. Blank clears the
 // override so the library's per-person default applies again.
@@ -1685,13 +1692,13 @@ async function setDrafterLimit(uid, libraryId, current, label) {
   errorEl.hidden = true;
   const answer = window.prompt(
     'Daily Magic button limit for ' + label + '.\n\n'
-    + 'Enter a whole number (0 turns the drafter off for them), '
+    + 'Enter a whole number from 0 to ' + DRAFTER_LIMIT_MAX + ' (0 turns the drafter off for them), '
     + 'or leave blank to use the library\'s default.',
     current === null ? '' : String(current));
   if (answer === null) return; // cancelled
   const raw = answer.trim();
-  if (raw !== '' && !/^\d{1,6}$/.test(raw)) {
-    errorEl.textContent = 'The limit must be a whole number, or blank for the default.';
+  if (raw !== '' && !(/^\d{1,6}$/.test(raw) && Number(raw) <= DRAFTER_LIMIT_MAX)) {
+    errorEl.textContent = 'The limit must be a whole number from 0 to ' + DRAFTER_LIMIT_MAX + ', or blank for the default.';
     errorEl.hidden = false;
     return;
   }

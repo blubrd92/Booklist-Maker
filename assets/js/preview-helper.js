@@ -60,7 +60,7 @@
     try {
       const list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
       return Array.isArray(list) ? list.filter(function(id) { return typeof id === 'string' && id; }) : [];
-    } catch (e) {
+    } catch {
       return [];
     }
   }
@@ -69,7 +69,7 @@
     try {
       const list = [id].concat(readRecent().filter(function(x) { return x !== id; })).slice(0, RECENT_MAX);
       localStorage.setItem(RECENT_KEY, JSON.stringify(list));
-    } catch (e) { /* storage blocked; the panel just won't remember */ }
+    } catch { /* storage blocked; the panel just won't remember */ }
   }
 
   function getCurrentLibrary() {

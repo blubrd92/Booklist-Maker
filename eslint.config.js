@@ -46,6 +46,7 @@ export default [
         indexedDB: "readonly",
         globalThis: "readonly",
         AbortController: "readonly",
+        Response: "readonly",
         CSS: "readonly",
         // CDN library globals
         Sortable: "readonly",
